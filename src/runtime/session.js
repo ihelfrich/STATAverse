@@ -336,7 +336,21 @@ export class Session {
     };
   }
   compile(text) {
-    return compileExpression(text, this.scope());
+    try {
+      return compileExpression(text, this.scope());
+    } catch (error) {
+      // Stata calls a lone = in an expression invalid syntax.
+      if (
+        error instanceof StataError &&
+        error.message === "= is not a comparison; use =="
+      )
+        throw new StataError(
+          "invalid syntax",
+          198,
+          "A single = assigns; to compare two values, write ==.",
+        );
+      throw error;
+    }
   }
   /** The value of an expression outside any observation. */
   scalar(text) {

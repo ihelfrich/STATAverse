@@ -1,7 +1,12 @@
 // Smaller commands: levelsof, ds, unab and ttest.
 import { StataError } from "./errors.js";
 import { greatest } from "./extremes.js";
-import { abbreviateName, applyFormat, displayWidth } from "./format.js";
+import {
+  abbreviateName,
+  applyFormat,
+  displayWidth,
+  truncateColumns,
+} from "./format.js";
 import { splitAtComma } from "./syntax.js";
 import { invttail, ttail } from "./distributions.js";
 import { FUNCTIONS } from "./functions.js";
@@ -12,6 +17,7 @@ import {
   isStringType,
   missingName,
   MISSING,
+  padDisplay,
 } from "./values.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
@@ -173,11 +179,36 @@ const fromData = (values, level) => {
   return tSummary(m.n, m.mean, m.sd, level);
 };
 
-const abbrev = abbreviateName;
+/**
+ * abbrev(name, width) by columns of the screen, as Stata 19 abbreviates a
+ * name or label of wide (CJK) characters: as much of its start as fits
+ * before ~ and its last character. Other names abbreviate as names do.
+ */
+export function abbreviateColumns(name, width) {
+  const columns = displayWidth(name);
+  if (columns === name.length) return abbreviateName(name, width);
+  if (columns <= width) return name;
+  const last = Array.from(name).at(-1);
+  return `${truncateColumns(name, width - 1 - displayWidth(last))}~${last}`;
+}
+const abbrev = abbreviateColumns;
+
+/**
+ * ttest and prtest as syntax reads them take an in qualifier between the
+ * variable and ==, as in ttest income in 1/5 == 0: the text with the
+ * qualifier moved after the hypothesis, before any options.
+ */
+export function qualifierAfterHypothesis(text) {
+  const m = /^(\s*[^\s=,]+)\s+(in\s+[^\s=,]+)\s*(==?[\s\S]*)$/.exec(text);
+  if (!m) return text;
+  const [before, options] = splitAtComma(m[3]);
+  return `${m[1]} ${before.trim()} ${m[2]}${options === null ? "" : `,${options}`}`;
+}
 
 // Text placed at a column as display's _col() places it. A line already
 // past the column goes on where it is.
-const at = (line, column, text) => line.padEnd(column - 1) + text;
+const at = (line, column, text) =>
+  line + " ".repeat(Math.max(0, column - 1 - displayWidth(line))) + text;
 
 /**
  * Three pieces centred as _ttest center2 centres them: on columns 11, 40
@@ -347,7 +378,7 @@ function tPrinters(ctx, session) {
         [70, cell(m.ub)],
       ].reduce(
         (line, [column, text]) => at(line, column, text),
-        `${abbrev(name, 8).padStart(8)} |`,
+        `${padDisplay(abbrev(name, 8), 8)} |`,
       ),
     rule = "-".repeat(78),
     middle = `---------+${"-".repeat(68)}`,
@@ -508,6 +539,7 @@ const emptyGroups = (run) => (session, text, ctx) => {
 };
 
 function ttest(session, text, ctx) {
+  text = qualifierAfterHypothesis(text);
   const paired = /^\s*([^\s=,]+)\s*==?\s*([^\s,][\s\S]*)$/.exec(text),
     data = session.data,
     printers = tPrinters(ctx, session),
@@ -712,15 +744,15 @@ function ttest(session, text, ctx) {
     map = isStringType(by.type)
       ? null
       : session.data.valueLabels.get(by.valueLabel),
+    // A string group is cut to eight columns of the screen, a label to
+    // eight characters.
     [xname, yname] = levels.map((value) =>
-      Array.from(
-        typeof value === "string"
-          ? value
-          : map?.get(value) || applyFormat(value, "%18.0g").trim(),
-      )
-        .slice(0, 8)
-        .join("")
-        .trim(),
+      (typeof value === "string"
+        ? truncateColumns(value, 8)
+        : Array.from(map?.get(value) || applyFormat(value, "%18.0g").trim())
+            .slice(0, 8)
+            .join("")
+      ).trim(),
     );
   twoSampleTable(ctx, session, printers)(
     a,

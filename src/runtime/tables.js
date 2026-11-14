@@ -1,7 +1,12 @@
 // table (the common one-way and two-way forms), proportion and anova.
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
-import { applyFormat, isFormat, parseFormat } from "./format.js";
+import {
+  abbreviateName,
+  applyFormat,
+  isFormat,
+  parseFormat,
+} from "./format.js";
 import { Ftail, invttail } from "./distributions.js";
 import { project } from "./diagnostics.js";
 import {
@@ -15,7 +20,7 @@ import {
   weightedRows,
 } from "./reports.js";
 import { clauses, optionItems, splitAtComma } from "./syntax.js";
-import { MISSING, isMissing, isStringType } from "./values.js";
+import { MISSING, isMissing, isStringType, truncateColumns } from "./values.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const present = (value) =>
@@ -856,10 +861,22 @@ function estimationHeader(
 // `limit` (the line size less 52: 27 at the default 79, so that the table
 // is at most 79 wide) is cut to two characters less and "..". Recorded
 // from Stata 19.
-const stubLabel = (text, stub) => `${text}  `.padStart(stub + 1);
-const shortened = (text, limit) =>
-  text.length > limit ? `${text.slice(0, limit - 2)}..` : text;
+// Widths are columns of the screen, a wide (CJK) character taking two.
+const stubLabel = (text, stub) => padDisplay(`${text}  `, stub + 1);
+// A label of wide characters, without blanks, that fits in `limit`
+// characters but not in as many columns is abbreviated as a name is, with
+// ~ and its last character; any other is cut and ends in "..".
+function shortened(text, limit) {
+  if (displayWidth(text) <= limit) return text;
+  const characters = [...text];
+  if (characters.length <= limit && !/\s/.test(text)) {
+    const last = characters.at(-1);
+    return `${truncateColumns(text, limit - 1 - displayWidth(last))}~${last}`;
+  }
+  return `${truncateColumns(text, limit - 2)}..`;
+}
 const labelLimit = (session) => (session.settings.linesize ?? 79) - 52;
+const characters = (text) => [...text].length;
 
 // The lines that name a group of observations of over(): its values joined
 // by blanks (by "#" when any of its variables has a value label), or,
@@ -867,15 +884,53 @@ const labelLimit = (session) => (session.settings.linesize ?? 79) - 52;
 // value, all but the last ending in " #".
 function groupLines(pieces, limit, joiner = " ") {
   const joined = pieces.join(joiner);
-  return joined.length <= limit
+  return displayWidth(joined) <= limit
     ? [joined]
     : pieces.map((piece) => shortened(piece, limit));
 }
 function printGroup(ctx, lines, stub, rest) {
   lines
     .slice(0, -1)
-    .forEach((line) => ctx.out(`${`${line} #`.padStart(stub + 1)}|`));
+    .forEach((line) => ctx.out(`${padDisplay(`${line} #`, stub + 1)}|`));
   ctx.out(`${stubLabel(lines.at(-1), stub)}|${rest}`);
+}
+// The name of a variable's block under over(), c.x@g#h. Longer than one
+// more than `limit`, it is broken after c., the @ and each #, the pieces
+// packed into lines of that width, each name abbreviated to it. Lines that
+// end in @ or # run up to the bar. Recorded from Stata 19 with one over()
+// variable; with more, Stata sometimes keeps c. on a line of its own.
+function nameLines(variable, over, limit) {
+  const room = limit + 1,
+    full = `c.${variable}@${over.join("#")}`;
+  if (full.length <= room) return [full];
+  const pieces = [
+      "c.",
+      `${abbreviateName(variable, room)}@`,
+      ...over.map(
+        (name, k) =>
+          abbreviateName(name, room) + (k < over.length - 1 ? "#" : ""),
+      ),
+    ],
+    lines = [pieces[0]];
+  for (const piece of pieces.slice(1))
+    if (lines.at(-1).length + piece.length <= room)
+      lines[lines.length - 1] += piece;
+    else lines.push(piece);
+  return lines;
+}
+// The width a name asks the header for: all of it when it fits in `room`,
+// else its longest line.
+const nameWanted = (lines, room) => {
+  const full = lines.join("").length;
+  return full <= room ? full : Math.max(...lines.map((line) => line.length));
+};
+function printName(ctx, lines, stub) {
+  for (const line of lines)
+    ctx.out(
+      /[@#]$/.test(line)
+        ? `${line.padStart(stub + 1)}|`
+        : `${line.padStart(stub)} |`,
+    );
 }
 
 // The variables of mean's over(): numeric variables, no operators.
@@ -911,9 +966,46 @@ const estimateColumns = (estimate, se, lower, upper, shape = g) =>
     )
     .join("");
 
-export function mean(session, text, ctx) {
+/**
+ * A weighted total and its standard error, as total reports them: n times
+ * the standard error of the mean of its observations, frequency and
+ * importance weights counted as frequencies; with pweights, the sum of the
+ * weights times the linearized standard error of the weighted mean.
+ */
+function weightedTotal(values, weights, type, all) {
+  const n = values.length;
+  if (!type) {
+    const m = moments(values);
+    return {
+      mean: m.mean * n,
+      se: n > 1 ? Math.sqrt(n) * m.sd : MISSING,
+    };
+  }
+  let sumW = 0,
+    sum = 0;
+  values.forEach((v, k) => {
+    sumW += weights[k];
+    sum += weights[k] * v;
+  });
+  if (type === "pweight")
+    return {
+      mean: sum,
+      se: weightedMean(values, weights, type, all).se * sumW,
+    };
+  let squares = 0;
+  const m = sum / sumW;
+  values.forEach((v, k) => (squares += weights[k] * (v - m) ** 2));
+  return { mean: sum, se: Math.sqrt((sumW * squares) / (sumW - 1)) };
+}
+
+export const mean = (session, text, ctx) =>
+  meanOrTotal(session, text, ctx, false);
+const total = (session, text, ctx) => meanOrTotal(session, text, ctx, true);
+
+/** mean and total: the same table of an estimate for each variable. */
+function meanOrTotal(session, text, ctx, totals) {
   const parsed = session.parse(
-      "varlist [if] [in] [fweight aweight pweight iweight] [, Level(cilevel) OVer(string) | VCE(string)]",
+      `varlist [if] [in] [fweight ${totals ? "" : "aweight "}pweight iweight] [, Level(cilevel) OVer(string) | VCE(string)]`,
       text,
     ),
     level = parsed.options.level,
@@ -963,10 +1055,14 @@ export function mean(session, text, ctx) {
         })
       : [{ values: [], rows }],
     critical = invttail(n - 1, (1 - level / 100) / 2),
-    names = variables.map((v) =>
-      over.length ? `c.${v.name}@${over.map((o) => o.name).join("#")}` : v.name,
-    ),
     limit = labelLimit(session),
+    named = variables.map((v) =>
+      nameLines(
+        v.name,
+        over.map((o) => o.name),
+        limit,
+      ),
+    ),
     lines = groups.map((group) =>
       groupLines(
         group.values.map((value, k) => labelled(session, over[k], value)),
@@ -976,11 +1072,13 @@ export function mean(session, text, ctx) {
     ),
     stub = Math.max(
       12,
-      ...(over.length ? names.map((name) => name.length) : []),
-      ...lines.flat().map((line) => line.length + 1),
+      ...(over.length
+        ? named.flat().map((line) => Math.min(limit + 1, line.length))
+        : []),
+      ...lines.flat().map((line) => displayWidth(line) + 1),
     ),
     columns = (group, variable) => {
-      const { mean: m, se } = weightedMean(
+      const { mean: m, se } = (totals ? weightedTotal : weightedMean)(
         group.map((i) => variable.data[i]),
         weights && group.map((i) => weights[i]),
         type,
@@ -990,17 +1088,25 @@ export function mean(session, text, ctx) {
     };
   estimationHeader(
     ctx,
-    "Mean estimation",
+    totals ? "Total estimation" : "Mean estimation",
     n,
     stub,
-    [`       Mean   Std. err.     [${g(level)}% conf. interval]`],
+    [
+      `      ${totals ? "Total" : " Mean"}   Std. err.     [${g(level)}% conf. interval]`,
+    ],
+    // The header counts a label's characters, not its columns.
     Math.max(
       stub,
+      ...(over.length
+        ? named.map((lines) => nameWanted(lines, limit + 2))
+        : []),
       ...groups.map(
         (group) =>
-          group.values
-            .map((value, k) => labelled(session, over[k], value))
-            .join(over.some((v) => v.valueLabel) ? "#" : " ").length + 1,
+          characters(
+            group.values
+              .map((value, k) => labelled(session, over[k], value))
+              .join(over.some((v) => v.valueLabel) ? "#" : " "),
+          ) + 1,
       ),
     ),
     limit + 2,
@@ -1011,7 +1117,7 @@ export function mean(session, text, ctx) {
       return;
     }
     if (k) ctx.out(`${" ".repeat(stub)} |`);
-    ctx.out(`${names[k].padStart(stub)} |`);
+    printName(ctx, named[k], stub);
     groups.forEach((group, j) =>
       printGroup(ctx, lines[j], stub, columns(group.rows, variable)),
     );
@@ -1064,7 +1170,7 @@ function proportion(session, text, ctx) {
     wanted = Math.max(
       12,
       ...blocks.flatMap((block) =>
-        block.labels.map((label) => label.length + 1),
+        block.labels.map((label) => displayWidth(label) + 1),
       ),
     ),
     limit = labelLimit(session),
@@ -1081,7 +1187,13 @@ function proportion(session, text, ctx) {
       "                                   Logit",
       ` ${percent ? "   Percent" : "Proportion"}   Std. err.     [${g(level)}% conf. interval]`,
     ],
-    wanted,
+    // The header counts a label's characters, not its columns.
+    Math.max(
+      12,
+      ...blocks.flatMap((block) =>
+        block.labels.map((label) => characters(label) + 1),
+      ),
+    ),
     limit + 2,
   );
   blocks.forEach(({ variable, levels, labels }, k) => {
@@ -1279,5 +1391,6 @@ function anova(session, text, ctx) {
 export const TABLE_COMMANDS = [
   { name: "table", minimum: 5, run: table },
   { name: "proportion", minimum: 4, run: proportion },
+  { name: "total", minimum: 5, run: total },
   { name: "anova", minimum: 3, run: anova },
 ];
