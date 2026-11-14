@@ -1,21 +1,37 @@
-// Further graphs: kdensity, lowess, graph bar, graph hbar and graph box,
+// Further graphs: kdensity, lowess, graph bar, graph hbar, graph box,
+// graph pie and graph matrix,
 // the diagnostic plots after regress (rvfplot, avplot, lvr2plot), qnorm,
 // pnorm and tsline. The statistics drawn are the ones the corresponding
 // commands report; kdensity and lowess can store their values in variables,
 // which is how they are compared with Stata.
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
-import { LOOKS, looksOf, parseGraph, withStyleNotes } from "./graph-looks.js";
-import { splitAtComma } from "./syntax.js";
-import { applyFormat } from "./format.js";
+import {
+  LOOKS,
+  colourOf,
+  looksOf,
+  paint,
+  parseGraph,
+  sizeOf,
+  styleNote,
+  textOption,
+  withStyleNotes,
+} from "./graph-looks.js";
+import { optionItems, splitAtComma } from "./syntax.js";
+import { applyFormat, isFormat } from "./format.js";
 import { invnormal, normal } from "./functions-normal.js";
 import { leverageStatistic, project, sampleFrame } from "./diagnostics.js";
 import { estimates } from "./estimation.js";
 import {
+  CANVAS,
+  PLOT_SPANS,
   draw,
   drawHorizontalBars,
+  escapeText,
   kernelName,
+  placedText,
   registerGraph,
+  ticks,
   titleOf,
 } from "./graphics.js";
 import { labelled, moments, percentile } from "./reports.js";
@@ -380,7 +396,86 @@ function groupOrder(keys, descending) {
       return sign * (a - b);
     });
 }
-/** Splits a graph command into its yvars, its if/in, and its options. */
+/**
+ * The over() options among a graph command's options (the text from its
+ * comma), as written, and the other options. Stata takes up to three.
+ */
+function overTexts(optionText) {
+  if (!optionText) return { overs: [], rest: "" };
+  let items;
+  try {
+    items = optionItems(optionText.slice(1));
+  } catch {
+    // The declaration reports what is wrong with the options.
+    return { overs: [], rest: optionText };
+  }
+  const isOver = (item) =>
+    item.argument !== undefined && /^ov(er?)?$/.test(item.name);
+  return {
+    overs: items.filter(isOver).map((item) => item.argument),
+    rest: `,${items
+      .filter((item) => !isOver(item))
+      .map((item) => item.word)
+      .join(" ")}`,
+  };
+}
+/**
+ * over(g, sort(#) descending) orders the groups by the #th statistic,
+ * sort(varname) and sort((stat) varname) by a statistic of a variable,
+ * and descending alone reverses the groups; null when neither is given.
+ */
+function overSort(session, text) {
+  let sort,
+    descending = false;
+  for (const o of (text ?? "").matchAll(
+    /(\w+)(?:\(((?:\([^()]*\)|[^()])*)\))?/g,
+  )) {
+    // Option names are case-sensitive in Stata.
+    const isSort = o[2] !== undefined && /^sort$/i.test(o[1]),
+      isDescending =
+        o[2] === undefined && /^des(c(e(n(d(i(ng?)?)?)?)?)?)?$/i.test(o[1]);
+    if ((isSort && o[1] !== "sort") || (isDescending && /[A-Z]/.test(o[1])))
+      throw new StataError(
+        `option ${o[1]}${isSort ? "()" : ""} not allowed`,
+        198,
+      );
+    if (isSort) {
+      if (sort !== undefined)
+        throw new StataError("option sort() not allowed", 198);
+      sort = o[2].trim();
+    } else if (isDescending) {
+      if (descending)
+        throw new StataError("option descending not allowed", 198);
+      descending = true;
+    } else
+      throw new StataError(
+        `over(…, ${o[0]}) is not drawn on this page; over() takes sort() and descending`,
+        198,
+      );
+  }
+  if (sort === undefined) return descending ? { descending } : null;
+  // sort(#) takes one positive integer, written as Stata's numlist
+  // allows, as in sort(01) or sort(1e1).
+  const number = /^\+?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(sort)
+    ? Number(sort)
+    : NaN;
+  if (Number.isInteger(number) && number > 0)
+    return { height: number, heightText: sort, descending };
+  // Stata reads sort((stat) varlist) or sort(varname), and of a plain
+  // list only its first word.
+  const m = /^\(([^()]*)\)\s*([\s\S]*)$/.exec(sort),
+    words = (m ? m[2] : sort).split(/\s+/).filter(Boolean),
+    variables = sortVariables(session, m ? words : words.slice(0, 1));
+  if (!variables) return descending ? { descending } : null;
+  return { ...variables, statistic: m?.[1].trim(), descending };
+}
+const present = (value) =>
+  typeof value === "string" ? value !== "" : !isMissing(value);
+/**
+ * Splits a graph bar or box command into its yvars, its if/in, its options
+ * and its over() groups. The sample is the rows with every over()
+ * variable present; each group has its levels in order and their labels.
+ */
 function graphParts(session, text, declaration) {
   // The if or in may open the text, as in graph bar if x > 0, over(g), and
   // an if may run straight into its parenthesis, as in if(x > 0).
@@ -388,91 +483,201 @@ function graphParts(session, text, declaration) {
       /^([\s\S]*?)((?:^|\s+)(?:if(?=[\s(])|in\s)[\s\S]*?)?(,[\s\S]*)?$/.exec(
         text,
       ),
+    split = overTexts(m[3] ?? ""),
     parsed = parseGraph(
       session,
-      `[if] [in] [, OVer(string) ${declaration} ${LOOKS}]`,
-      `${m[2] ?? ""}${m[3] ?? ""}`,
+      `[if] [in] [, OVer(string) ASYVARS NOFILL ${declaration} ${LOOKS}]`,
+      `${m[2] ?? ""}${split.rest}`,
       // Bars and boxes stand on a categorical axis, not an x axis, so
       // Stata refuses xtitle() here and draws no title under the groups.
       { xAxis: false },
+    );
+  if (split.overs.length > 3)
+    throw new StataError("may not specify more than 3 over() options", 198);
+  const overs = [];
+  for (const over of split.overs) {
+    const [name, suboptions] = splitAtComma(over);
+    if (!name.trim()) continue;
+    const variable = session.data.get(session.varlist(name.trim())[0]);
+    overs.push({ variable, sort: overSort(session, suboptions) });
+  }
+  const rows = session
+    .rows(parsed, null)
+    .filter((i) => overs.every(({ variable }) => present(variable.data[i])));
+  for (const over of overs) {
+    over.levels = [...new Set(rows.map((i) => over.variable.data[i]))].sort(
+      (a, b) => (a < b ? -1 : a > b ? 1 : 0),
+    );
+    over.labels = over.levels.map((level) =>
+      labelled(session, over.variable, level),
+    );
+  }
+  return { head: m[1].trim(), parsed, overs, rows };
+}
+/**
+ * The roles of the over() groups of a bar or box chart. With three, or
+ * with asyvars, the first is drawn as the bars' colours, one bar for each
+ * of its levels, as Stata draws it; the others are the categories under
+ * the bars, the first of them inside the second. Each category is a cell
+ * of an outer group, with its rows: every pair of levels, or with nofill
+ * only those that have rows.
+ */
+function chartGroups(parts, { many }) {
+  const options = parts.parsed.options,
+    asyvars = !!options.asyvars && parts.overs.length > 0;
+  if (parts.overs.length === 3 && many)
+    throw new StataError(
+      "may not specify more than two by variables when a varlist is specified",
+      198,
+    );
+  if (asyvars && many)
+    throw new StataError(
+      "asyvars with several variables is not drawn on this page; draw one variable, or leave out asyvars",
+      198,
+    );
+  const coloured = parts.overs.length === 3 || asyvars ? parts.overs[0] : null,
+    [inner, outer] = coloured ? parts.overs.slice(1) : parts.overs;
+  // With a group drawn as colours, Stata sorts the colours within each
+  // category too; this page does not draw sort() there.
+  if (coloured)
+    for (const over of parts.overs) {
+      const sorted = !!(over.sort?.height || over.sort?.variable);
+      if (sorted || (over === coloured && over.sort?.descending))
+        throw new StataError(
+          `over(${over.variable.name}, ${sorted ? "sort()" : "descending"}) is not drawn on this page with three over() or asyvars, where the first over() is drawn as the bars' colours; leave it out`,
+          198,
+        );
+    }
+  const groups = (outer ? outer.levels : [null]).map((level, g) => {
+    const rows = outer
+        ? parts.rows.filter((i) => outer.variable.data[i] === level)
+        : parts.rows,
+      cells = inner
+        ? inner.levels.map((value, k) => ({
+            label: inner.labels[k],
+            rows: rows.filter((i) => inner.variable.data[i] === value),
+          }))
+        : [{ label: "", rows }];
+    return {
+      label: outer ? outer.labels[g] : "",
+      cells: options.nofill ? cells.filter((cell) => cell.rows.length) : cells,
+    };
+  });
+  return { coloured, inner, outer, groups };
+}
+/**
+ * The rows of each bar of a chart: for each colour (the yvars, or the
+ * levels of the over() drawn as colours) the rows of each cell, cells
+ * numbered across the groups.
+ */
+function leafRows(chart, colours) {
+  const cells = chart.groups.flatMap((group) => group.cells);
+  return colours.map((_, s) =>
+    cells.map((cell) =>
+      chart.coloured
+        ? cell.rows.filter(
+            (i) => chart.coloured.variable.data[i] === chart.coloured.levels[s],
+          )
+        : cell.rows,
     ),
-    [overName, overOptions] = splitAtComma(parsed.options.over ?? ""),
-    over = overName.trim()
-      ? session.data.get(session.varlist(overName.trim())[0])
-      : null,
-    // over(g, sort(#) descending) orders the groups by the #th statistic,
-    // sort(varname) and sort((stat) varname) by a statistic of a variable,
-    // and descending alone reverses the groups.
-    overSort = (() => {
-      let sort,
-        descending = false;
-      for (const o of (overOptions ?? "").matchAll(
-        /(\w+)(?:\(((?:\([^()]*\)|[^()])*)\))?/g,
-      )) {
-        // Option names are case-sensitive in Stata.
-        const isSort = o[2] !== undefined && /^sort$/i.test(o[1]),
-          isDescending =
-            o[2] === undefined && /^des(c(e(n(d(i(ng?)?)?)?)?)?)?$/i.test(o[1]);
-        if ((isSort && o[1] !== "sort") || (isDescending && /[A-Z]/.test(o[1])))
-          throw new StataError(
-            `option ${o[1]}${isSort ? "()" : ""} not allowed`,
-            198,
-          );
-        if (isSort) {
-          if (sort !== undefined)
-            throw new StataError("option sort() not allowed", 198);
-          sort = o[2].trim();
-        } else if (isDescending) {
-          if (descending)
-            throw new StataError("option descending not allowed", 198);
-          descending = true;
-        } else
-          throw new StataError(
-            `over(…, ${o[0]}) is not drawn on this page; over() takes sort() and descending`,
-            198,
-          );
-      }
-      if (sort === undefined) return descending ? { descending } : null;
-      // sort(#) takes one positive integer, written as Stata's numlist
-      // allows, as in sort(01) or sort(1e1).
-      const number = /^\+?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(sort)
-        ? Number(sort)
-        : NaN;
-      if (Number.isInteger(number) && number > 0)
-        return { height: number, heightText: sort, descending };
-      // Stata reads sort((stat) varlist) or sort(varname), and of a plain
-      // list only its first word.
-      const m = /^\(([^()]*)\)\s*([\s\S]*)$/.exec(sort),
-        words = (m ? m[2] : sort).split(/\s+/).filter(Boolean),
-        variables = sortVariables(session, m ? words : words.slice(0, 1));
-      if (!variables) return descending ? { descending } : null;
-      return { ...variables, statistic: m?.[1].trim(), descending };
-    })(),
-    rows = session.rows(parsed, null),
-    levels = over
-      ? [...new Set(rows.map((i) => over.data[i]))]
-          .filter((v) => (typeof v === "string" ? v !== "" : !isMissing(v)))
-          .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
-      : [null];
-  return {
-    head: m[1].trim(),
-    parsed,
-    over,
-    overSort,
-    levels,
-    groups: levels.map((level) =>
-      over ? rows.filter((i) => over.data[i] === level) : rows,
-    ),
-    labels: levels.map((level) => (over ? labelled(session, over, level) : "")),
-  };
+  );
+}
+/**
+ * The order of the cells in each group and of the groups. keyOf gives a
+ * cell's key for an over()'s sort(), by the cell's number. Within each
+ * group the inner over() orders its cells; the outer one orders the groups
+ * by the sum of their cells' keys, a missing one counting as 0, as Stata
+ * sums the heights by group.
+ */
+function chartOrder(chart, keyOf) {
+  let start = 0;
+  const groups = chart.groups.map((group) => {
+    const numbers = group.cells.map((_, k) => start + k);
+    start += group.cells.length;
+    const sort = chart.inner?.sort,
+      keys = numbers.map((k) =>
+        sort?.height || sort?.variable ? keyOf(sort, k) : 0,
+      );
+    return {
+      group,
+      numbers,
+      cells: groupOrder(keys, sort?.descending).map((k) => numbers[k]),
+    };
+  });
+  const sort = chart.outer?.sort,
+    keys = groups.map(({ numbers }) =>
+      sort?.height || sort?.variable
+        ? numbers.reduce((t, k) => t + (keyOf(sort, k) ?? 0), 0)
+        : 0,
+    );
+  return groupOrder(keys, sort?.descending).map((g) => groups[g]);
+}
+// Stata leaves a margin at each end of the category axis: a fifth of a
+// bar's width, and 3.5 percent of the graph's height, here in pixels.
+const CATEGORY_EDGE = 0.035 * 460,
+  VERTICAL_SPAN = PLOT_SPANS.width,
+  HORIZONTAL_SPAN = PLOT_SPANS.height;
+/**
+ * Where the bars or boxes of a chart stand along its category axis, in
+ * units of one bar's width, as Stata lays them out: the bars of a category
+ * side by side, seriesGap apart (none between bars, a third of a box
+ * between boxes); categories innerGap apart (two thirds of a bar, one
+ * box); and the groups of an outer over() two widths apart. span is the
+ * axis's length in pixels, which sets the margins at its ends. Comes back
+ * with each cell's slots and middle, each group's middle, and the range
+ * of the axis.
+ */
+function categoryLayout(order, colours, { seriesGap, innerGap }, span) {
+  let at = 0;
+  const cells = [],
+    groups = [],
+    width = colours + (colours - 1) * seriesGap;
+  order.forEach((group, g) => {
+    if (g) at += 2;
+    const start = at;
+    group.cells.forEach((number, k) => {
+      if (k) at += innerGap;
+      cells.push({
+        number,
+        label: group.group.cells[group.numbers.indexOf(number)].label,
+        slots: Array.from(
+          { length: colours },
+          (_, s) => at + s * (1 + seriesGap),
+        ),
+        middle: at + width / 2,
+      });
+      at += width;
+    });
+    groups.push({ label: group.group.label, middle: (start + at) / 2 });
+  });
+  const bar = (span - 2 * CATEGORY_EDGE) / (at + 0.4),
+    margin = 0.2 + CATEGORY_EDGE / bar;
+  return { cells, groups, range: [-margin, at + margin] };
+}
+/**
+ * The labels under a chart's categories: each inner category's, and on a
+ * second row each outer group's, under the middle of its categories.
+ */
+function categoryLabels(chart, layout) {
+  return [
+    ...(chart.inner
+      ? layout.cells.map((cell) => ({ at: cell.middle, text: cell.label }))
+      : []),
+    ...(chart.outer
+      ? layout.groups.map((group) => ({
+          at: group.middle,
+          text: group.label,
+          row: 1,
+        }))
+      : []),
+  ];
 }
 
 function graphBar(horizontal) {
   return (session, text, ctx) => {
     const parts = graphParts(session, text, "BLABel(string)"),
       { series, frequency } = statisticList(session, parts.head),
-      options = parts.parsed.options,
-      sorted = parts.overSort;
+      options = parts.parsed.options;
     // With no yvars, graph bar, over(g) shows the percentage of observations
     // in each group, and graph bar (count), over(g) their number; without
     // over() there is one bar, of 100 percent or of the number in the
@@ -480,42 +685,44 @@ function graphBar(horizontal) {
     const frequencies = frequency !== null,
       counted = frequency === "count";
     if (!text.trim()) throw new StataError("graph specification required", 198);
-    // Stata hands sort(varname) to collapse as one more statistic after the
-    // yvars, as in (mean) _sort=varname. After a lone (count) or (percent),
-    // collapse takes that statistic for a variable name.
-    if (sorted?.variable && frequencies)
-      throw new StataError(
-        `variable ${sorted.statistic ?? "mean"} not found`,
-        111,
-      );
-    const sortStatistic = sorted?.variable
-      ? statisticOf(sorted.statistic ?? "mean")
-      : null;
+    const sorts = parts.overs.map((over) => over.sort).filter(Boolean);
+    for (const sorted of sorts) {
+      // Stata hands sort(varname) to collapse as one more statistic after
+      // the yvars, as in (mean) _sort=varname. After a lone (count) or
+      // (percent), collapse takes that statistic for a variable name.
+      if (sorted.variable && frequencies)
+        throw new StataError(
+          `variable ${sorted.statistic ?? "mean"} not found`,
+          111,
+        );
+      if (sorted.variable)
+        sorted.sortStatistic = statisticOf(sorted.statistic ?? "mean");
+    }
     // collapse refuses a by() variable among the variables it makes, which
     // are the yvars and the other variables of sort((stat) varlist).
-    if (
-      parts.over &&
-      [
-        ...series.map((s) => s.variable.name),
-        ...(sorted?.extras ?? []),
-      ].includes(parts.over.name)
-    )
-      throw new StataError(
-        `${parts.over.name} may not be both target and by()`,
-        198,
-      );
-    const total = parts.groups.reduce((t, rows) => t + rows.length, 0);
-    if (!total) throw new StataError("no observations", 2000);
-    if (sorted?.variable) {
-      // collapse cannot compute a statistic of the over() variable itself.
-      if (sorted.variable.name === parts.over?.name)
+    const made = [
+      ...series.map((s) => s.variable.name),
+      ...sorts.flatMap((sorted) => sorted.extras ?? []),
+    ];
+    for (const over of parts.overs)
+      if (made.includes(over.variable.name))
+        throw new StataError(
+          `${over.variable.name} may not be both target and by()`,
+          198,
+        );
+    if (!parts.rows.length) throw new StataError("no observations", 2000);
+    for (const sorted of sorts) {
+      if (!sorted.variable) continue;
+      // collapse cannot compute a statistic of an over() variable itself.
+      if (parts.overs.some((over) => over.variable === sorted.variable))
         throw new StataError("failed to setup collapse problem", 198);
       // The other variables of sort((stat) varlist) are left out of the
       // bars: a yvar with the same statistic is no longer drawn, and with a
       // different one Stata's graph fails.
       for (const name of sorted.extras) {
         const same = series.filter(
-          (s) => s.variable.name === name && s.title === sortStatistic.title,
+          (s) =>
+            s.variable.name === name && s.title === sorted.sortStatistic.title,
         );
         if (series.some((s) => s.variable.name === name && !same.includes(s)))
           throw new StataError("serset variable 4 not found", 111);
@@ -527,60 +734,124 @@ function graphBar(horizontal) {
           198,
         );
     }
-    const unsorted = frequencies
-        ? [
-            parts.groups.map((rows) =>
-              counted ? rows.length : (100 * rows.length) / total,
+    const chart = chartGroups(parts, { many: series.length > 1 }),
+      // The bars' colours: the yvars, or the levels of the over() drawn as
+      // colours, of the one statistic.
+      colours = chart.coloured
+        ? chart.coloured.levels
+        : frequencies
+          ? [null]
+          : series,
+      statName = frequencies
+        ? counted
+          ? "frequency"
+          : "percent"
+        : `${series[0].title} of ${series[0].variable.name}`,
+      names = chart.coloured
+        ? chart.coloured.labels
+        : frequencies
+          ? [statName]
+          : series.map(({ title, variable }) => `${title} of ${variable.name}`),
+      leaves = leafRows(chart, colours),
+      // A bar with no rows at all, a pair of groups with no observations,
+      // is missing, as collapse leaves it; one whose rows have no values
+      // is as collapse makes it, 0 for count and sum.
+      heightsOf = (statistic, variable, cells) =>
+        barHeights(statistic, variable, cells).map((height, k) =>
+          cells[k].length ? height : null,
+        ),
+      heights = frequencies
+        ? leaves.map((cells) =>
+            cells.map((rows) =>
+              rows.length
+                ? counted
+                  ? rows.length
+                  : (100 * rows.length) / parts.rows.length
+                : null,
             ),
-          ]
-        : series.map((s) => barHeights(s, s.variable, parts.groups)),
-      names = frequencies
-        ? [counted ? "frequency" : "percent"]
-        : series.map(({ title, variable }) => `${title} of ${variable.name}`),
-      keys = sorted?.height
-        ? heightKeys(unsorted, sorted)
-        : sorted?.variable
-          ? barHeights(sortStatistic, sorted.variable, parts.groups)
-          : parts.levels.map(() => 0),
-      order = groupOrder(keys, sorted?.descending);
+          )
+        : chart.coloured
+          ? (() => {
+              const all = heightsOf(
+                  series[0],
+                  series[0].variable,
+                  leaves.flat(),
+                ),
+                count = leaves[0].length;
+              return leaves.map((_, s) =>
+                all.slice(s * count, (s + 1) * count),
+              );
+            })()
+          : series.map((s, k) => heightsOf(s, s.variable, leaves[k])),
+      cellRows = chart.groups.flatMap((group) =>
+        group.cells.map((cell) => cell.rows),
+      ),
+      // The key of a cell for sort(): its #th statistic, a missing one
+      // counting as 0, or a statistic of the sort() variable.
+      keyRows = new Map(),
+      keyOf = (sorted, k) => {
+        if (sorted.height) return heights[sorted.height - 1][k] ?? 0;
+        if (!keyRows.has(sorted))
+          keyRows.set(
+            sorted,
+            heightsOf(sorted.sortStatistic, sorted.variable, cellRows),
+          );
+        return keyRows.get(sorted)[k];
+      };
+    for (const sorted of sorts) if (sorted.height) heightKeys(heights, sorted);
+    const order = chartOrder(chart, keyOf);
     // blabel(bar) writes each bar's height above it.
     if (options.blabel !== undefined && !/^\s*bar\s*$/i.test(options.blabel))
       throw new StataError(
         `blabel(${options.blabel}): only blabel(bar) is drawn on this page`,
         198,
       );
-    const heights = unsorted.map((row) => order.map((k) => row[k])),
-      labels = order.map((k) => parts.labels[k]),
-      slot = 1 / (heights.length + 1),
+    const layout = categoryLayout(
+        order,
+        colours.length,
+        { seriesGap: 0, innerGap: 0.67 },
+        horizontal ? HORIZONTAL_SPAN : VERTICAL_SPAN,
+      ),
       // A missing statistic leaves its slot empty, with no bar and no bar
-      // label, though its group keeps its place and label on the axis.
-      layers = heights.map((row, s) => ({
-        bars: row.flatMap((height, k) =>
-          height === null
+      // label, though its category keeps its place and label on the axis.
+      layers = colours.map((_, s) => ({
+        bars: layout.cells.flatMap((cell) => {
+          const height = heights[s][cell.number];
+          return height === null
             ? []
-            : [
-                {
-                  x0: k + 1 - 0.5 + slot * (s + 0.5),
-                  x1: k + 1 - 0.5 + slot * (s + 1.5),
-                  height,
-                },
-              ],
-        ),
+            : [{ x0: cell.slots[s], x1: cell.slots[s] + 1, height }];
+        }),
         points: [],
         label: names[s],
         barLabels: options.blabel !== undefined,
       })),
+      labels = categoryLabels(chart, layout),
       description = `${horizontal ? "Horizontal bar" : "Bar"} chart: ${names
         .map(
           (name, s) =>
-            `${name}${parts.over ? ` by ${parts.over.name}` : ""}: ${labels
-              .map(
-                (label, k) =>
-                  `${label ? label + " " : ""}${heights[s][k] === null ? "(no bar)" : g(heights[s][k])}`,
-              )
+            `${name}${chart.coloured ? ` (${statName})` : ""}${
+              chart.inner
+                ? ` by ${[chart.inner, chart.outer]
+                    .filter(Boolean)
+                    .map((over) => over.variable.name)
+                    .join(" and ")}`
+                : ""
+            }: ${layout.cells
+              .map((cell) => {
+                const group = chart.outer
+                    ? layout.groups[
+                        order.findIndex((o) => o.cells.includes(cell.number))
+                      ].label
+                    : "",
+                  label = [group, cell.label].filter(Boolean).join(" ");
+                return `${label ? label + " " : ""}${heights[s][cell.number] === null ? "(no bar)" : g(heights[s][cell.number])}`;
+              })
               .join(", ")}`,
         )
-        .join("; ")}.`;
+        .join("; ")}.`,
+      yTitle =
+        options.ytitle ??
+        (names.length === 1 || chart.coloured ? statName : "");
     if (horizontal) {
       // The horizontal drawing has titles, a legend and bar labels only.
       const looks = drawnLooks(options);
@@ -600,12 +871,10 @@ function graphBar(horizontal) {
         );
       return ctx.graph({
         svg: drawHorizontalBars({
-          groups: labels.map((label, k) => ({
-            label,
-            values: heights.map((row) => row[k]),
-          })),
-          series: names,
-          xTitle: options.ytitle ?? (names.length === 1 ? names[0] : ""),
+          layers,
+          labels,
+          range: layout.range,
+          xTitle: yTitle,
           title: options.title,
           labelled: options.blabel !== undefined,
           styles: looks.styles,
@@ -626,13 +895,11 @@ function graphBar(horizontal) {
         ...(empty ? { yRange: [-1, 1], yTicks: looks.yTicks ?? [-1, 1] } : {}),
         layers,
         xTitle: "",
-        yTitle: options.ytitle ?? (names.length === 1 ? names[0] : ""),
+        yTitle,
         title: options.title,
-        xRange: [0.5, parts.levels.length + 0.5],
+        xRange: layout.range,
         // Without over() the one bar has no label under it.
-        xLabels: parts.over
-          ? labels.map((text, k) => ({ at: k + 1, text }))
-          : [],
+        xLabels: labels,
       }),
       description,
     });
@@ -640,64 +907,81 @@ function graphBar(horizontal) {
 }
 
 function graphBox(session, text, ctx) {
-  const parts = graphParts(session, text, "NOOUTsides"),
-    sorted = parts.overSort;
+  const parts = graphParts(session, text, "NOOUTsides");
   // Stata's box plot sorts on one observation of a sort(varname) variable
   // in each group, and which one depends on how Stata's sort breaks ties.
-  if (sorted?.variable) {
-    if (sorted.statistic !== undefined)
-      throw new StataError("invalid syntax", 198);
-    throw new StataError(
-      "graph box over(…, sort(varname)) is not drawn on this page; use sort(#) or descending",
-      198,
-    );
-  }
+  for (const over of parts.overs)
+    if (over.sort?.variable) {
+      if (over.sort.statistic !== undefined)
+        throw new StataError("invalid syntax", 198);
+      throw new StataError(
+        "graph box over(…, sort(varname)) is not drawn on this page; use sort(#) or descending",
+        198,
+      );
+    }
   const variables = session
       .varlist(parts.head)
       .map((name) => numeric(session, name)),
     options = parts.parsed.options;
   if (!variables.length) throw new StataError("varlist required", 100);
-  const values = variables.map((variable) =>
-      parts.groups.map((rows) =>
-        rows.map((i) => variable.data[i]).filter((value) => !isMissing(value)),
-      ),
-    ),
-    statistics = values.map((groups) =>
-      groups.map((v) => (v.length ? boxStatistics(v) : null)),
-    );
+  const chart = chartGroups(parts, { many: variables.length > 1 }),
+    colours = chart.coloured ? chart.coloured.levels : variables,
+    names = chart.coloured
+      ? chart.coloured.labels
+      : variables.map((variable) => titleOf(variable)),
+    leaves = leafRows(chart, colours),
+    statistics = colours.map((_, s) => {
+      const variable = chart.coloured ? variables[0] : variables[s];
+      return leaves[s].map((rows) => {
+        const v = rows
+          .map((i) => variable.data[i])
+          .filter((value) => !isMissing(value));
+        return v.length ? boxStatistics(v) : null;
+      });
+    });
   // over(g, sort(#)) orders the groups by the median of the #th variable,
   // a group with no values counting as 0.
-  if (sorted?.height > variables.length)
-    throw new StataError(
-      `sort() invalid, category ${sorted.heightText} not found`,
-      198,
-    );
-  const order = groupOrder(
-      sorted?.height
-        ? statistics[sorted.height - 1].map((box) => box?.median ?? 0)
-        : parts.levels.map(() => 0),
-      sorted?.descending,
+  for (const over of parts.overs)
+    if (over.sort?.height > variables.length)
+      throw new StataError(
+        `sort() invalid, category ${over.sort.heightText} not found`,
+        198,
+      );
+  const order = chartOrder(
+      chart,
+      (sorted, k) => statistics[sorted.height - 1][k]?.median ?? 0,
     ),
-    slot = 1 / (variables.length + 1),
+    layout = categoryLayout(
+      order,
+      colours.length,
+      { seriesGap: 1 / 3, innerGap: 1 },
+      VERTICAL_SPAN,
+    ),
     described = [],
-    layers = variables.map((variable, s) => ({
-      boxes: order
-        .map((k, at) => {
-          const box = statistics[s][k];
+    layers = colours.map((_, s) => ({
+      boxes: layout.cells
+        .map((cell) => {
+          const box = statistics[s][cell.number];
           if (!box) return null;
+          const group = chart.outer
+              ? layout.groups[
+                  order.findIndex((o) => o.cells.includes(cell.number))
+                ].label
+              : "",
+            where = [group, cell.label].filter(Boolean).join(" ");
           described.push(
-            `${variable.name}${parts.labels[k] ? ` (${parts.labels[k]})` : ""}: median ${g(box.median)}, quartiles ${g(box.q1)} and ${g(box.q3)}, whiskers ${g(box.lower)} to ${g(box.upper)}${box.outside.length ? `, ${box.outside.length} outside` : ""}`,
+            `${chart.coloured ? `${titleOf(variables[0])} (${names[s]})` : variables[s].name}${where ? ` (${where})` : ""}: median ${g(box.median)}, quartiles ${g(box.q1)} and ${g(box.q3)}, whiskers ${g(box.lower)} to ${g(box.upper)}${box.outside.length ? `, ${box.outside.length} outside` : ""}`,
           );
           return {
             ...box,
             outside: options.nooutsides ? [] : box.outside,
-            x: at + 1 - 0.5 + slot * (s + 1),
-            width: slot * 0.4,
+            x: cell.slots[s] + 0.5,
+            width: 0.5,
           };
         })
         .filter(Boolean),
       points: [],
-      label: titleOf(variable),
+      label: names[s],
     }));
   ctx.graph({
     svg: draw({
@@ -707,10 +991,8 @@ function graphBox(session, text, ctx) {
       yTitle:
         options.ytitle ?? (variables.length === 1 ? titleOf(variables[0]) : ""),
       title: options.title,
-      xRange: [0.5, parts.levels.length + 0.5],
-      xLabels: parts.over
-        ? order.map((k, at) => ({ at: at + 1, text: parts.labels[k] }))
-        : [],
+      xRange: layout.range,
+      xLabels: categoryLabels(chart, layout),
     }),
     description: `Box plot. ${described.join("; ")}.`,
   });
@@ -905,10 +1187,649 @@ function tsline(session, text, ctx) {
   });
 }
 
+// ----- graph pie -----
+
+const n2 = (v) => v.toFixed(2);
+// The size of a pie's labels and of a legend's text on this page's canvas.
+const PIE_LABEL = 10,
+  LEGEND_STEP = 19;
+/**
+ * plabel({_all | #} {sum | percent | name | "text"} [, format() size()
+ * color()]): which slices it labels (null for all, or a slice's number in
+ * the order drawn), with what, and how. Other suboptions are refused.
+ */
+function pieLabel(text) {
+  const [head, rest] = splitAtComma(text),
+    m = /^\s*(\S+)\s*([\s\S]*?)\s*$/.exec(head) ?? [];
+  if (!m[1] || (m[1] !== "_all" && !(/^\d+$/.test(m[1]) && Number(m[1]) > 0)))
+    throw new StataError("invalid syntax", 198);
+  const what = m[2],
+    quoted = /^"([^"]*)"$/.exec(what);
+  if (!quoted && !/^(sum|percent|name)$/.test(what))
+    throw new StataError(`not a plabel() type , ${what}`, 198);
+  let format,
+    looks = [];
+  for (const item of optionItems(rest ?? "")) {
+    if (
+      /^f(o(r(m(at?)?)?)?)?$/.test(item.name) &&
+      item.argument !== undefined
+    ) {
+      format = item.argument.trim();
+      if (!isFormat(format))
+        throw new StataError(
+          `plabel(…, format(${format})): ${format} is not a numeric format; give one such as %9.2f`,
+          198,
+        );
+    } else looks.push(item.word);
+  }
+  // size() and color() are read as a title's are; anything else is refused.
+  let style;
+  try {
+    style = textOption(
+      `x${looks.length ? `, ${looks.join(" ")}` : ""}`,
+      "plabel",
+    );
+  } catch (error) {
+    if (
+      !(error instanceof StataError) ||
+      !/is not drawn on this page/.test(error.message)
+    )
+      throw error;
+    throw new StataError(
+      error.message.replace(
+        /plabel\(\) takes .*$/,
+        "plabel() takes format(), size() and color()",
+      ),
+      198,
+    );
+  }
+  return {
+    slice: m[1] === "_all" ? null : Number(m[1]),
+    kind: quoted ? "text" : what,
+    text: quoted?.[1],
+    format,
+    size: style.size,
+    color: style.color,
+  };
+}
+/** The options of graph pie that are its own, taken out before parsing. */
+function pieOptions(optionText) {
+  if (!optionText) return { labels: [], sort: false, rest: "" };
+  let items;
+  try {
+    items = optionItems(optionText.slice(1));
+  } catch {
+    return { labels: [], sort: false, rest: optionText };
+  }
+  const labels = [],
+    kept = [];
+  let sort = false;
+  for (const item of items) {
+    if (/^pl(a(b(el?)?)?)?$/.test(item.name) && item.argument !== undefined)
+      labels.push(item.argument);
+    else if (item.name === "sort" && item.argument === undefined) sort = true;
+    else if (item.name === "sort")
+      throw new StataError(
+        "graph pie, sort(varname) is not drawn on this page; use sort, or sort descending, to order the slices by size",
+        198,
+      );
+    else kept.push(item.word);
+  }
+  return { labels, sort, rest: `,${kept.join(" ")}` };
+}
+// Options of graph pie that change only how it looks and are not drawn.
+const PIE_NOT_DRAWN =
+  "PIE(string) PTEXT(string) INTensity(string) LINE(string) ALLCATegories";
+
+function graphPie(session, text, ctx) {
+  const m =
+      /^([\s\S]*?)((?:^|\s+)(?:if(?=[\s(])|in\s)[\s\S]*?)?(,[\s\S]*)?$/.exec(
+        text,
+      ),
+    own = pieOptions(m[3] ?? ""),
+    parsed = parseGraph(
+      session,
+      `[if] [in] [, OVER(varname) MISSing CW NOCLOCKwise ANGle0(real 90) DEScending ${PIE_NOT_DRAWN} ${LOOKS}]`,
+      `${m[2] ?? ""}${own.rest}`,
+      { xAxis: false },
+    ),
+    options = parsed.options;
+  for (const name of ["pie", "ptext", "intensity", "line", "allcategories"])
+    if (
+      options[name] !== undefined &&
+      options[name] !== false &&
+      options[name] !== 0
+    )
+      throw new StataError(
+        `option ${name}${name === "allcategories" ? "" : "()"} is not drawn on this page; graph pie draws over(), sort, descending, noclockwise, angle0(), plabel(), legend() and the titles`,
+        198,
+      );
+  const head = m[1].trim();
+  if (/^\(/.test(head))
+    throw new StataError(
+      `variable ${/^\(\s*(\w*)/.exec(head)[1]} not found`,
+      111,
+    );
+  const names = head ? session.varlist(head) : [],
+    variables = names.map((name) => numeric(session, name));
+  if (!variables.length && !options.over)
+    throw new StataError("graph specification required", 198);
+  if (variables.length > 1 && options.over)
+    throw new StataError(
+      "option over() invalid with more than one variable",
+      198,
+    );
+  if (
+    options.legend !== undefined &&
+    /\b(pos|ring|rows?|cols?)/i.test(options.legend)
+  )
+    throw new StataError(
+      `legend(${options.legend}): graph pie draws its legend in one column at the right, as Stata does; legend() here takes off, order() and label()`,
+      198,
+    );
+  const looks = drawnLooks(options);
+  if (
+    looks.xLines.length ||
+    looks.yLines.length ||
+    looks.xTicks ||
+    looks.yTicks ||
+    options.ytitle !== undefined
+  )
+    throw new StataError(
+      "graph pie has no axes: xline(), yline(), xlabel(), ylabel() and ytitle() are not drawn",
+      198,
+    );
+  const over = options.over
+    ? session.data.get(session.varlist(options.over)[0])
+    : null;
+  if (over && options.missing && isStringType(over.type))
+    throw new StataError(
+      "graph pie, over(string variable) missing is not drawn on this page; leave out missing",
+      198,
+    );
+  let rows = session.rows(parsed, null);
+  if (options.cw)
+    rows = rows.filter((i) => variables.every((v) => !isMissing(v.data[i])));
+  // The slices: each level of over() with the sum of the variable over its
+  // rows (or the number of rows), or each variable's sum.
+  let slices;
+  if (over) {
+    const usable = rows.filter(
+        (i) =>
+          (options.missing || present(over.data[i])) &&
+          (!variables.length || !isMissing(variables[0].data[i])),
+      ),
+      levels = [...new Set(usable.map((i) => over.data[i]))].sort((a, b) =>
+        a < b ? -1 : a > b ? 1 : 0,
+      );
+    slices = levels.map((level) => {
+      const inside = usable.filter((i) => over.data[i] === level);
+      return {
+        label: labelled(session, over, level),
+        value: variables.length
+          ? inside.reduce((t, i) => t + variables[0].data[i], 0)
+          : inside.length,
+      };
+    });
+  } else
+    slices = variables.map((variable) => ({
+      label: titleOf(variable),
+      value: rows.reduce(
+        (t, i) => t + (isMissing(variable.data[i]) ? 0 : variable.data[i]),
+        0,
+      ),
+    }));
+  if (slices.some((slice) => slice.value < 0))
+    throw new StataError("sum for a pie wedge is negative", 459);
+  const total = slices.reduce((t, slice) => t + slice.value, 0);
+  if (!(total > 0)) {
+    // Stata says so and draws nothing, without an error.
+    ctx.out("sum of pie wedges is not positive");
+    return;
+  }
+  // sort orders the slices by size, smallest first, and descending then
+  // reverses them; descending alone changes nothing, as in Stata.
+  const order = slices.map((_, k) => k);
+  if (own.sort) {
+    order.sort((a, b) => slices[a].value - slices[b].value || a - b);
+    if (options.descending) order.reverse();
+  }
+  const drawn = order.map((k) => slices[k]),
+    labels = own.labels.map(pieLabel);
+  for (const label of labels)
+    if (label.slice > drawn.length)
+      ctx.out(`${label.slice} larger than number of pie wedges, ignored`);
+  ctx.graph({
+    svg: drawPie(drawn, total, {
+      clockwise: !options.noclockwise,
+      start: options.angle0,
+      labels,
+      looks,
+      styles: options.styles,
+    }),
+    description: `Pie chart of ${variables.length === 1 ? `the sum of ${variables[0].name}` : variables.length ? "the sums of " + variables.map((v) => v.name).join(", ") : "the number of observations"}${over ? ` by ${over.name}` : ""}: ${drawn
+      .map(
+        (slice) =>
+          `${slice.label} ${g(slice.value)} (${applyFormat((100 * slice.value) / total, "%6.4g").trim()}%)`,
+      )
+      .join(", ")}.`,
+  });
+}
+/**
+ * The pie: slices in order from angle start (degrees counterclockwise from
+ * three o'clock), clockwise unless clockwise is false, in Stata's order of
+ * colours; plabel() texts centred two thirds of the way out along each
+ * slice's middle; the legend in one column at the right, as Stata draws
+ * it, and the pie centred in the room left.
+ */
+function drawPie(slices, total, { clockwise, start, labels, looks, styles }) {
+  const { width: W, height: H, colors } = CANVAS,
+    legend = looks.legend,
+    numbers = legend.off
+      ? []
+      : (legend.order ?? slices.map((_, k) => k + 1)).filter(
+          (k) => slices[k - 1],
+        ),
+    entries = numbers.map((k) => ({
+      k,
+      text: legend.labels?.get(k) ?? slices[k - 1].label,
+    })),
+    legendWidth = entries.length
+      ? 40 + greatest(entries.map((e) => String(e.text).length)) * 6.5
+      : 0,
+    top = (looks.title ? 32 : 8) + (looks.subtitle ? 18 : 0),
+    bottom = 8 + (looks.note ? 14 : 0) + (looks.caption ? 14 : 0),
+    radius =
+      Math.min((H - top - bottom) / 2, (W - legendWidth - 16) / 2) * 0.94,
+    cx = (W - legendWidth) / 2,
+    cy = top + (H - top - bottom) / 2,
+    point = (angle, r = radius) => [
+      cx + r * Math.cos((angle * Math.PI) / 180),
+      cy - r * Math.sin((angle * Math.PI) / 180),
+    ],
+    sign = clockwise ? -1 : 1,
+    parts = [`<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>`];
+  let at = start;
+  const middles = slices.map((slice, k) => {
+    const sweep = (360 * slice.value) / total,
+      from = at,
+      to = at + sign * sweep;
+    at = to;
+    if (slice.value > 0) {
+      const colour = colors[k % colors.length];
+      if (sweep >= 360 - 1e-9)
+        parts.push(
+          `<circle cx="${n2(cx)}" cy="${n2(cy)}" r="${n2(radius)}" fill="${colour}" stroke="#ffffff"/>`,
+        );
+      else {
+        const [x0, y0] = point(from),
+          [x1, y1] = point(to);
+        parts.push(
+          `<path d="M${n2(cx)} ${n2(cy)} L${n2(x0)} ${n2(y0)} A${n2(radius)} ${n2(radius)} 0 ${sweep > 180 ? 1 : 0} ${clockwise ? 1 : 0} ${n2(x1)} ${n2(y1)} Z" fill="${colour}" stroke="#ffffff"/>`,
+        );
+      }
+    }
+    return (from + to) / 2;
+  });
+  // A slice of nothing is not drawn and not labelled.
+  for (const label of labels)
+    slices.forEach((slice, k) => {
+      if (label.slice !== null && label.slice !== k + 1) return;
+      if (!(slice.value > 0)) return;
+      const value =
+          label.kind === "sum"
+            ? slice.value
+            : label.kind === "percent"
+              ? (100 * slice.value) / total
+              : null,
+        text =
+          label.kind === "text"
+            ? label.text
+            : label.kind === "name"
+              ? slice.label
+              : `${applyFormat(value, label.format ?? "%6.4g").trim()}${label.kind === "percent" ? "%" : ""}`,
+        size = label.size ?? PIE_LABEL,
+        [x, y] = point(middles[k], (2 * radius) / 3);
+      parts.push(
+        `<text x="${n2(x)}" y="${n2(y + 0.35 * size)}" text-anchor="middle" font-size="${size}"${label.color ? paint(label.color, "#222222") : ""}>${escapeText(text)}</text>`,
+      );
+    });
+  if (looks.title)
+    parts.push(placedText(looks.title, styles.title, "middle", 24, 16));
+  if (looks.subtitle)
+    parts.push(
+      placedText(
+        looks.subtitle,
+        styles.subtitle,
+        "middle",
+        looks.title ? 42 : 24,
+        13,
+      ),
+    );
+  if (looks.note)
+    parts.push(
+      placedText(
+        looks.note,
+        styles.note,
+        "left",
+        H - 6 - (looks.caption ? 14 : 0),
+        11,
+      ),
+    );
+  if (looks.caption)
+    parts.push(placedText(looks.caption, styles.caption, "left", H - 6, 11));
+  const legendTop = cy - (entries.length * LEGEND_STEP) / 2,
+    legendLeft = W - legendWidth;
+  entries.forEach(({ k, text }, row) => {
+    const y = legendTop + row * LEGEND_STEP;
+    parts.push(
+      `<rect x="${n2(legendLeft + 8)}" y="${n2(y + 4)}" width="20" height="10" fill="${colors[(k - 1) % colors.length]}"/>`,
+      `<text x="${n2(legendLeft + 34)}" y="${n2(y + 13)}">${escapeText(text)}</text>`,
+    );
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#222222">${parts.join("")}</svg>`;
+}
+
+// ----- graph matrix -----
+
+/**
+ * Marker symbols, as graph matrix draws them: each shape and its size
+ * against the circle's radius, as Stata draws them.
+ */
+const SHAPES = {
+  circle: 1,
+  diamond: 1.41,
+  triangle: 1.15,
+  square: 1,
+  x: 0.84,
+  plus: 0.84,
+  point: 0,
+  none: 0,
+};
+const LETTERS = {
+  O: "circle",
+  D: "diamond",
+  T: "triangle",
+  S: "square",
+  X: "x",
+  "+": "plus",
+  p: "point",
+  i: "none",
+};
+// The small symbols (o, d, t, s and x, or smcircle and the rest) are three
+// quarters of the size of the large ones, and x a little smaller.
+const SMALL = 0.757;
+/**
+ * ms() as { shape, hollow, size }: Stata's letters (O, D, T, S, X, +, p
+ * and i, lower case for small and h for hollow) or names (circle,
+ * smcircle_hollow, ...). A symbol Stata has and this page does not draw is
+ * refused; a name Stata does not know gets its note, twice, and a circle.
+ */
+function symbolOf(text) {
+  const t = (text ?? "").trim();
+  if (!t) return { shape: "circle", hollow: false, size: 1 };
+  let shape, small, hollow;
+  const letter = /^([ODTSodts])(h?)$|^([Xx+pi])$/.exec(t),
+    name =
+      /^(sm)?(circle|diamond|triangle|square|x|plus|point|none)(_hollow)?$/.exec(
+        t,
+      );
+  if (letter) {
+    const key = letter[1] ?? letter[3];
+    shape = LETTERS[key] ?? LETTERS[key.toUpperCase()];
+    small = /^[odtsx]$/.test(key);
+    hollow = !!letter[2];
+  } else if (
+    name &&
+    !(name[1] && /plus|point|none/.test(name[2])) &&
+    !(name[3] && /x|plus|point|none/.test(name[2]))
+  ) {
+    shape = name[2];
+    small = !!name[1];
+    hollow = !!name[3];
+  } else if (/^([AaVv|])h?$|^(sm)?(arrow|arrowf|pipe|v)(_hollow)?$/.test(t))
+    throw new StataError(
+      `msymbol(${t}) is not drawn on this page; graph matrix draws O, D, T, S, X, +, p and i, with h for hollow and lower case for small`,
+      198,
+    );
+  else {
+    styleNote(t, "symbol", 2);
+    return { shape: "circle", hollow: false, size: 1 };
+  }
+  return {
+    shape,
+    hollow: hollow || shape === "x" || shape === "plus",
+    size: SHAPES[shape] * (small ? (shape === "x" ? 0.6 / 0.84 : SMALL) : 1),
+  };
+}
+/** One marker at (x, y), of radius r, in a colour that colourOf read. */
+function marker(symbol, x, y, r, colour, fallback) {
+  const c = colour?.rgb ?? fallback,
+    opacity = colour?.opacity,
+    look = symbol.hollow
+      ? ` fill="none" stroke="${c}"${opacity === undefined ? "" : ` stroke-opacity="${opacity}"`} stroke-width="1"`
+      : ` fill="${c}"${opacity === undefined ? "" : ` fill-opacity="${opacity}"`}`,
+    s = r * symbol.size;
+  switch (symbol.shape) {
+    case "none":
+      return "";
+    case "point":
+      return `<circle cx="${n2(x)}" cy="${n2(y)}" r="0.6" fill="${c}"/>`;
+    case "circle":
+      return `<circle cx="${n2(x)}" cy="${n2(y)}" r="${n2(s)}"${look}/>`;
+    case "square":
+      return `<rect x="${n2(x - s)}" y="${n2(y - s)}" width="${n2(2 * s)}" height="${n2(2 * s)}"${look}/>`;
+    case "diamond":
+      return `<polygon points="${n2(x - s)},${n2(y)} ${n2(x)},${n2(y - s)} ${n2(x + s)},${n2(y)} ${n2(x)},${n2(y + s)}"${look}/>`;
+    case "triangle":
+      return `<polygon points="${n2(x)},${n2(y - s)} ${n2(x - s * 0.866)},${n2(y + s / 2)} ${n2(x + s * 0.866)},${n2(y + s / 2)}"${look}/>`;
+    case "plus":
+      return `<path d="M${n2(x - s)} ${n2(y)}H${n2(x + s)}M${n2(x)} ${n2(y - s)}V${n2(y + s)}" fill="none" stroke="${c}"${opacity === undefined ? "" : ` stroke-opacity="${opacity}"`} stroke-width="1"/>`;
+    default: {
+      const a = s / Math.SQRT2;
+      return `<path d="M${n2(x - a)} ${n2(y - a)}L${n2(x + a)} ${n2(y + a)}M${n2(x - a)} ${n2(y + a)}L${n2(x + a)} ${n2(y - a)}" fill="none" stroke="${c}"${opacity === undefined ? "" : ` stroke-opacity="${opacity}"`} stroke-width="1"/>`;
+    }
+  }
+}
+// Options of graph matrix that Stata has and this page does not draw.
+const MATRIX_NOT_DRAWN =
+  "DIAgonal(string) MAXes(string) SCAle(string) JITter(string) JITTERSeed(string) MLABel(string) MLABPosition(string) MLABSize(string) MLABColor(string) MLWidth(string) MLColor(string) MFColor(string) XSCale(string) YSCale(string) XTICk(string) YTICk(string) XMTick(string) YMTick(string) XMLabel(string) YMLabel(string) BY(string) LEGend(string) XLAbel(string asis) YLAbel(string asis) XTItle(string asis) YTItle(string asis) XLIne(string asis) YLIne(string asis)";
+
+function graphMatrix(session, text, ctx) {
+  const parsed = parseGraph(
+      session,
+      `varlist(min=1) [if] [in] [, HALF MSymbol(string) MSIZe(string) MColor(string) ${MATRIX_NOT_DRAWN} TItle(string asis) SUBtitle(string asis) NOTE(string asis) CAPtion(string asis) NAME(string) NODRAW]`,
+      text,
+    ),
+    options = parsed.options;
+  for (const word of MATRIX_NOT_DRAWN.match(/[A-Z]+[a-z]*(?=\()/g)) {
+    const name = word.toLowerCase();
+    if (options[name] !== undefined)
+      throw new StataError(
+        `option ${name}() is not drawn on this page; graph matrix draws half, msymbol(), msize(), mcolor() and the titles`,
+        198,
+      );
+  }
+  const variables = parsed.varlist.map((name) => numeric(session, name));
+  if (variables.length < 2)
+    throw new StataError("too few variables specified", 102);
+  const symbol = symbolOf(options.msymbol),
+    radius = sizeOf(options.msize) ?? 4,
+    colour = colourOf(options.mcolor, "mcolor", 2),
+    rows = session.rows(parsed, null);
+  if (!rows.some((i) => variables.some((v) => !isMissing(v.data[i]))))
+    throw new StataError("no observations", 2000);
+  ctx.graph({
+    svg: drawMatrix(variables, rows, {
+      half: !!options.half,
+      symbol,
+      radius,
+      colour,
+      looks: drawnLooks({ ...options, by: undefined }),
+      styles: options.styles,
+    }),
+    description: `Scatterplot matrix of ${variables.map((v) => v.name).join(", ")}${options.half ? ", lower half" : ""}: ${variables
+      .flatMap((y, a) =>
+        variables.slice(0, a).map((x) => {
+          const pairs = rows.filter(
+            (i) => !isMissing(x.data[i]) && !isMissing(y.data[i]),
+          ).length;
+          return `${y.name} against ${x.name}, ${pairs} points`;
+        }),
+      )
+      .join("; ")}.`,
+  });
+}
+/**
+ * The scatterplot matrix: one cell for each pair of variables, the row's
+ * variable up and the column's across, over the rows where both are
+ * present; each variable's name (its label, a word to a line) in its cell
+ * on the diagonal. Each variable has one scale, about three labels as
+ * Stata picks them over its values, and its axes are drawn as Stata draws
+ * them: the first, third, ... variable's up the right edge of its row and
+ * along the bottom of its column, the second, fourth, ... variable's up the
+ * left and along the top; with half, only the lower triangle, every axis at
+ * the left and the bottom.
+ */
+function drawMatrix(
+  variables,
+  rows,
+  { half, symbol, radius, colour, looks, styles },
+) {
+  const { width: W, height: H, colors } = CANVAS,
+    count = variables.length,
+    top = (looks.title ? 30 : 0) + (looks.subtitle ? 18 : 0) + (half ? 12 : 26),
+    bottom = (looks.note ? 14 : 0) + (looks.caption ? 14 : 0) + 26,
+    left = 44,
+    right = half ? 12 : 44,
+    cellW = (W - left - right) / count,
+    cellH = (H - top - bottom) / count,
+    pad = 0.02,
+    scales = variables.map((variable) => {
+      const values = rows
+          .map((i) => variable.data[i])
+          .filter((v) => !isMissing(v)),
+        lo = values.length ? least(values) : 0,
+        hi = values.length ? greatest(values) : 1,
+        labels = ticks(lo, hi, 3),
+        from = Math.min(lo, labels[0]),
+        to = Math.max(hi, labels.at(-1));
+      return {
+        labels,
+        at: (v, start, length, up) => {
+          const share = to > from ? (v - from) / (to - from) : 0.5,
+            within = pad + share * (1 - 2 * pad);
+          return up ? start + length * (1 - within) : start + length * within;
+        },
+        format: variable.format,
+      };
+    }),
+    parts = [`<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>`],
+    cellX = (c) => left + c * cellW,
+    cellY = (r) => top + r * cellH,
+    labelOf = (v, k) => applyFormat(v, scales[k].format).trim(),
+    shown = (r, c) => !half || c <= r;
+  for (let r = 0; r < count; r++)
+    for (let c = 0; c < count; c++) {
+      if (!shown(r, c)) continue;
+      parts.push(
+        `<rect x="${n2(cellX(c))}" y="${n2(cellY(r))}" width="${n2(cellW)}" height="${n2(cellH)}" fill="#ffffff" stroke="#333333" stroke-width="0.8"/>`,
+      );
+      if (r === c) {
+        const words = titleOf(variables[r]).split(/\s+/).filter(Boolean),
+          size = 12;
+        words.forEach((word, k) =>
+          parts.push(
+            `<text x="${n2(cellX(c) + cellW / 2)}" y="${n2(cellY(r) + cellH / 2 + (k - (words.length - 1) / 2) * size * 1.05 + 0.35 * size)}" text-anchor="middle" font-size="${size}">${escapeText(word)}</text>`,
+          ),
+        );
+        continue;
+      }
+      const x = variables[c],
+        y = variables[r];
+      for (const i of rows) {
+        if (isMissing(x.data[i]) || isMissing(y.data[i])) continue;
+        parts.push(
+          marker(
+            symbol,
+            scales[c].at(x.data[i], cellX(c), cellW, false),
+            scales[r].at(y.data[i], cellY(r), cellH, true),
+            // Stata draws the markers of a matrix a little larger than a
+            // scatter's.
+            radius * 1.07,
+            colour,
+            colors[0],
+          ),
+        );
+      }
+    }
+  // The axes: for each variable, its labels up one side of its row and
+  // along one edge of its column.
+  for (let k = 0; k < count; k++) {
+    const odd = k % 2 === 1,
+      rowSide = half ? (k === 0 ? null : "left") : odd ? "left" : "right",
+      columnSide = half
+        ? k === count - 1
+          ? null
+          : "bottom"
+        : odd
+          ? "top"
+          : "bottom";
+    if (rowSide) {
+      const c = rowSide === "left" ? 0 : count - 1,
+        x = rowSide === "left" ? cellX(0) : cellX(c) + cellW;
+      for (const v of scales[k].labels) {
+        const y = scales[k].at(v, cellY(k), cellH, true);
+        parts.push(
+          `<line x1="${n2(x)}" x2="${n2(rowSide === "left" ? x - 4 : x + 4)}" y1="${n2(y)}" y2="${n2(y)}" stroke="#333333"/>`,
+          `<text x="${n2(rowSide === "left" ? x - 6 : x + 6)}" y="${n2(y + 3.5)}" text-anchor="${rowSide === "left" ? "end" : "start"}" font-size="10">${escapeText(labelOf(v, k))}</text>`,
+        );
+      }
+    }
+    if (columnSide) {
+      const y = columnSide === "top" ? cellY(0) : cellY(count - 1) + cellH;
+      for (const v of scales[k].labels) {
+        const x = scales[k].at(v, cellX(k), cellW, false);
+        parts.push(
+          `<line x1="${n2(x)}" x2="${n2(x)}" y1="${n2(y)}" y2="${n2(columnSide === "top" ? y - 4 : y + 4)}" stroke="#333333"/>`,
+          `<text x="${n2(x)}" y="${n2(columnSide === "top" ? y - 7 : y + 14)}" text-anchor="middle" font-size="10">${escapeText(labelOf(v, k))}</text>`,
+        );
+      }
+    }
+  }
+  if (looks.title)
+    parts.push(placedText(looks.title, styles.title, "middle", 22, 16));
+  if (looks.subtitle)
+    parts.push(
+      placedText(
+        looks.subtitle,
+        styles.subtitle,
+        "middle",
+        looks.title ? 40 : 22,
+        13,
+      ),
+    );
+  if (looks.note)
+    parts.push(
+      placedText(
+        looks.note,
+        styles.note,
+        "left",
+        H - 6 - (looks.caption ? 14 : 0),
+        11,
+      ),
+    );
+  if (looks.caption)
+    parts.push(placedText(looks.caption, styles.caption, "left", H - 6, 11));
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#222222">${parts.join("")}</svg>`;
+}
+
 registerGraph("bar", graphBar(false));
 registerGraph("hbar", graphBar(true));
 registerGraph("box", graphBox);
 registerGraph("hbox", graphBox);
+registerGraph("pie", graphPie);
+registerGraph("matrix", graphMatrix);
 
 export const MORE_GRAPH_COMMANDS = withStyleNotes([
   { name: "kdensity", minimum: 4, run: kdensity },

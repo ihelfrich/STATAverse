@@ -50169,6 +50169,198 @@
       ]
     },
     {
+      "id": "graph-over-pie-matrix",
+      "source": "clear\ninput byte g byte h byte k double y double z str3 s\n1 1 1 2 5 \"b\"\n1 1 2 4 6 \"b\"\n1 2 1 6 7 \"a\"\n1 2 2 8 1 \"a\"\n2 1 1 3 2 \"c\"\n2 1 2 5 3 \"c\"\n2 2 1 7 4 \"d\"\n2 2 2 9 9 \"d\"\n3 1 1 1 2 \"e\"\n3 1 2 2 3 \"e\"\nend\nlabel define gl 1 \"One\" 2 \"Two\" 3 \"Three\"\nlabel values g gl\nlabel define hl 1 \"No\" 2 \"Yes\"\nlabel values h hl\ngraph bar y, over(g) over(h)\ngraph bar y, over(g) over(h) over(k) blabel(bar)\ngraph bar (count), over(g) over(h) over(k)\ngraph bar (percent), over(g) over(h) blabel(bar)\ngraph bar y, over(g, sort(1) descending) over(h, descending)\ngraph bar y, over(g) over(h, sort(1))\ngraph bar y, over(g) over(h) nofill\ngraph bar y, over(g) asyvars\ngraph hbar y, over(g) over(h) over(k)\ngraph box y z, over(g) over(h)\ngraph box y, over(g) over(h) over(k)\ncapture noisily graph bar y, over(g) over(h) over(k) over(g)\ndisplay _rc\ncapture noisily graph bar y z, over(g) over(h) over(k)\ndisplay _rc\ncapture noisily graph box y z, over(g) over(h) over(k)\ndisplay _rc\ngraph pie, over(g)\ngraph pie y z\ngraph pie y, over(g) plabel(_all percent) sort descending\ngraph pie z, over(s) plabel(_all sum) plabel(2 \"two\")\ngraph pie z, over(s) noclockwise angle0(0) legend(off) title(Pie)\ncapture noisily graph pie z, over(s) plabel(9 sum)\ndisplay _rc\ncapture noisily graph pie y z, over(g)\ndisplay _rc\ncapture noisily graph pie z, over(s) plabel(_all value)\ndisplay _rc\ncapture noisily graph pie z, over(s) plabel(0 sum)\ndisplay _rc\ncapture noisily graph pie (count) y, over(g)\ndisplay _rc\ncapture noisily graph pie\ndisplay _rc\ncapture noisily graph pie z, ov(s)\ndisplay _rc\ncapture noisily graph pie s\ndisplay _rc\ncapture noisily graph pie y if y > 100, over(g)\ndisplay _rc\ncapture noisily graph pie y if y < 0\ndisplay _rc\ngraph matrix y z g\ngraph matrix y z g, half ms(Oh) msize(small) mcolor(red%50)\ngraph matrix y z, ms(Q)\ncapture noisily graph matrix y\ndisplay _rc\ncapture noisily graph matrix y s\ndisplay _rc\ncapture noisily graph matrix y z, ha\ndisplay _rc\nscatter y z, mcolor(red%30) title(T, color(green*0.4))\nscatter y z, mcolor(\"255 0 0%50\")\nscatter y z, mcolor(navy*0.3%50)\nscatter y z, mcolor(%30)\nscatter y z, mcolor(red%130)\nscatter y z, mcolor(foo%30)\nline y z, lcolor(blue*1.5%40)\ngenerate double w = -y\ncapture noisily graph pie w, over(g)\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input byte g byte h byte k double y double z str3 s",
+          "lines": [
+            "            g         h         k           y           z          s",
+            "  1. 1 1 1 2 5 \"b\"",
+            "  2. 1 1 2 4 6 \"b\"",
+            "  3. 1 2 1 6 7 \"a\"",
+            "  4. 1 2 2 8 1 \"a\"",
+            "  5. 2 1 1 3 2 \"c\"",
+            "  6. 2 1 2 5 3 \"c\"",
+            "  7. 2 2 1 7 4 \"d\"",
+            "  8. 2 2 2 9 9 \"d\"",
+            "  9. 3 1 1 1 2 \"e\"",
+            " 10. 3 1 2 2 3 \"e\"",
+            " 11. end"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"One\" 2 \"Two\" 3 \"Three\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        { "command": "label define hl 1 \"No\" 2 \"Yes\"", "lines": [] },
+        { "command": "label values h hl", "lines": [] },
+        { "command": "graph bar y, over(g) over(h)", "lines": [] },
+        {
+          "command": "graph bar y, over(g) over(h) over(k) blabel(bar)",
+          "lines": []
+        },
+        {
+          "command": "graph bar (count), over(g) over(h) over(k)",
+          "lines": []
+        },
+        {
+          "command": "graph bar (percent), over(g) over(h) blabel(bar)",
+          "lines": []
+        },
+        {
+          "command": "graph bar y, over(g, sort(1) descending) over(h, descending)",
+          "lines": []
+        },
+        { "command": "graph bar y, over(g) over(h, sort(1))", "lines": [] },
+        { "command": "graph bar y, over(g) over(h) nofill", "lines": [] },
+        { "command": "graph bar y, over(g) asyvars", "lines": [] },
+        { "command": "graph hbar y, over(g) over(h) over(k)", "lines": [] },
+        { "command": "graph box y z, over(g) over(h)", "lines": [] },
+        { "command": "graph box y, over(g) over(h) over(k)", "lines": [] },
+        {
+          "command": "capture noisily graph bar y, over(g) over(h) over(k) over(g)",
+          "lines": ["may not specify more than 3 over() options"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily graph bar y z, over(g) over(h) over(k)",
+          "lines": [
+            "may not specify more than two by variables when a varlist is specified"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily graph box y z, over(g) over(h) over(k)",
+          "lines": [
+            "may not specify more than two by variables when a varlist is specified"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "graph pie, over(g)", "lines": [] },
+        { "command": "graph pie y z", "lines": [] },
+        {
+          "command": "graph pie y, over(g) plabel(_all percent) sort descending",
+          "lines": []
+        },
+        {
+          "command": "graph pie z, over(s) plabel(_all sum) plabel(2 \"two\")",
+          "lines": []
+        },
+        {
+          "command": "graph pie z, over(s) noclockwise angle0(0) legend(off) title(Pie)",
+          "lines": []
+        },
+        {
+          "command": "capture noisily graph pie z, over(s) plabel(9 sum)",
+          "lines": ["9 larger than number of pie wedges, ignored"]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily graph pie y z, over(g)",
+          "lines": ["option over() invalid with more than one variable"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily graph pie z, over(s) plabel(_all value)",
+          "lines": ["not a plabel() type , value"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily graph pie z, over(s) plabel(0 sum)",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily graph pie (count) y, over(g)",
+          "lines": ["variable count not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily graph pie",
+          "lines": ["graph specification required"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily graph pie z, ov(s)",
+          "lines": ["option ov() not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily graph pie s",
+          "lines": [
+            "string variables not allowed in varlist;",
+            "s is a string variable"
+          ]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily graph pie y if y > 100, over(g)",
+          "lines": ["sum of pie wedges is not positive"]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily graph pie y if y < 0",
+          "lines": ["sum of pie wedges is not positive"]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        { "command": "graph matrix y z g", "lines": [] },
+        {
+          "command": "graph matrix y z g, half ms(Oh) msize(small) mcolor(red%50)",
+          "lines": []
+        },
+        {
+          "command": "graph matrix y z, ms(Q)",
+          "lines": [
+            "(note:  named style Q not found in class symbol, default attributes used)",
+            "(note:  named style Q not found in class symbol, default attributes used)"
+          ]
+        },
+        {
+          "command": "capture noisily graph matrix y",
+          "lines": ["too few variables specified"]
+        },
+        { "command": "display _rc", "lines": ["102"] },
+        {
+          "command": "capture noisily graph matrix y s",
+          "lines": [
+            "string variables not allowed in varlist;",
+            "s is a string variable"
+          ]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily graph matrix y z, ha",
+          "lines": ["option ha not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "scatter y z, mcolor(red%30) title(T, color(green*0.4))",
+          "lines": []
+        },
+        { "command": "scatter y z, mcolor(\"255 0 0%50\")", "lines": [] },
+        { "command": "scatter y z, mcolor(navy*0.3%50)", "lines": [] },
+        { "command": "scatter y z, mcolor(%30)", "lines": [] },
+        { "command": "scatter y z, mcolor(red%130)", "lines": [] },
+        {
+          "command": "scatter y z, mcolor(foo%30)",
+          "lines": [
+            "(note:  named style foo not found in class color, default attributes used)",
+            "(note:  named style foo not found in class color, default attributes used)"
+          ]
+        },
+        { "command": "line y z, lcolor(blue*1.5%40)", "lines": [] },
+        { "command": "generate double w = -y", "lines": [] },
+        {
+          "command": "capture noisily graph pie w, over(g)",
+          "lines": ["sum for a pie wedge is negative"]
+        },
+        { "command": "display _rc", "lines": ["459"] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

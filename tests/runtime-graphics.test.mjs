@@ -63,7 +63,7 @@ test("graph commands refuse what they cannot draw", () => {
   // for scatter wage educ if wage < 0 and draws the axes with no markers.
   assert.equal(run("scatter y x if x > 99").result.rc, 0);
   assert.equal(marks(run("scatter y x if x > 99").last.graph.svg, "circle"), 0);
-  assert.equal(run("graph pie y").result.rc, 198);
+  assert.equal(run("graph dot y").result.rc, 198);
   assert.equal(run("twoway (rcap y x x)").result.rc, 198);
   assert.equal(run("graph export out.png").result.rc, 0);
 });
@@ -165,7 +165,11 @@ test("kdensity, lowess and the plots after regress draw and store what they comp
 });
 
 test("graphs that are not available say so", () => {
-  for (const command of ["graph pie, over(g)", "twoway rcap y x x", "avplot g"])
+  for (const command of [
+    "graph dot y, over(g)",
+    "twoway rcap y x x",
+    "avplot g",
+  ])
     assert.notEqual(run(`regress y x\n${command}`).result.rc, 0, command);
 });
 

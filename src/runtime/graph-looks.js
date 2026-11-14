@@ -178,6 +178,9 @@ function repeatedTexts(text) {
 // may read its options more than once (scatter reads its own and the
 // graph's), which does not print a note again.
 let pendingNotes = null;
+export function styleNote(name, kind, times) {
+  unknownStyle(name, kind, times);
+}
 function unknownStyle(name, kind, times) {
   graphNote(
     `(note:  named style ${name} not found in class ${kind}, default attributes used)`,
@@ -369,30 +372,83 @@ const COLOURS = {
   white: "#ffffff",
   yellow: "#ffff00",
 };
+const NUMBER = String.raw`(?:\d+\.?\d*|\.\d+)`;
 /**
- * A colour option's value as a hex colour. A name Stata does not know gets
+ * A colour option's value, as { rgb, opacity }: rgb a hex colour, or
+ * undefined for the graph's own colour, and opacity from 0 to 1, or
+ * undefined for an opaque colour. Stata's forms are read:
+ *
+ *   red, "255 0 0"     a named colour or red, green and blue from 0 to 255;
+ *   red*0.5            its intensity: below 1 mixed toward white, each part
+ *                      255 − (255 − c) × 0.5, and above 1 darkened, c / #,
+ *                      rounded as Stata rounds them (red*0.5 is #ff8080,
+ *                      red*1.5 #aa0000);
+ *   red%30             its opacity, as a percentage (%30 alone is the
+ *                      graph's own colour at 30 percent);
+ *   red*0.5%30         both, intensity first; "255 0 0%50" in the quotes.
+ *
+ * An opacity above 100 or a negative intensity leaves the colour Stata's
+ * default, as Stata does, without a note. A name Stata does not know gets
  * Stata's note and the default colour (undefined), as in Stata; the note is
- * printed times times, as often as Stata prints it for that option.
+ * printed times times, as often as Stata prints it for that option. Comes
+ * back undefined when nothing was given.
  */
 export function colourOf(text, option, times = 1) {
-  const t = (text ?? "").trim().toLowerCase();
+  let t = (text ?? "").trim().toLowerCase();
   if (!t) return undefined;
-  let m;
-  if ((m = /^"?(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})"?$/.exec(t)))
-    return `#${m
-      .slice(1)
-      .map((v) => Math.min(255, Number(v)).toString(16).padStart(2, "0"))
-      .join("")}`;
-  if (COLOURS[t]) return COLOURS[t];
+  const quoted = /^"([^"]*)"$/.exec(t);
+  if (quoted) t = quoted[1].trim();
+  const m = new RegExp(
+    String.raw`^(.*?)(?:\*(-?${NUMBER}))?(?:%(-?${NUMBER}))?$`,
+  ).exec(t);
+  const [, base, intensityText, opacityText] = m,
+    intensity = intensityText === undefined ? undefined : Number(intensityText),
+    opacity = opacityText === undefined ? undefined : Number(opacityText);
+  let rgb;
+  const rgbParts = /^(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})$/.exec(base.trim());
+  if (rgbParts) rgb = rgbParts.slice(1).map((v) => Math.min(255, Number(v)));
+  else if (COLOURS[base]) rgb = hexParts(COLOURS[base]);
+  else if (base === "" && opacity !== undefined && intensity === undefined)
+    rgb = undefined;
   // none draws nothing, which this page does not do.
-  if (t !== "none" && /^[a-z_][a-z0-9_]*$/.test(t)) {
-    unknownStyle(t, "color", times);
+  else if (base !== "none" && /^[a-z_][a-z0-9_]*$/.test(base)) {
+    unknownStyle(base, "color", times);
     return undefined;
-  }
-  throw new StataError(
-    `${option}(${text}): colour ${t} is not known here`,
-    198,
-  );
+  } else
+    throw new StataError(
+      `${option}(${text}): colour ${t} is not known here; colours here are named, as red, or given as "R G B", with *# for intensity and %# for opacity, as red*0.5%30`,
+      198,
+    );
+  if (
+    (intensity !== undefined && intensity < 0) ||
+    opacity > 100 ||
+    opacity < 0
+  )
+    return undefined;
+  if (rgb && intensity !== undefined)
+    rgb = rgb.map((c) =>
+      Math.round(intensity <= 1 ? 255 - (255 - c) * intensity : c / intensity),
+    );
+  return {
+    rgb: rgb
+      ? `#${rgb.map((v) => v.toString(16).padStart(2, "0")).join("")}`
+      : undefined,
+    opacity:
+      opacity === undefined || opacity === 100
+        ? undefined
+        : Number((opacity / 100).toFixed(4)),
+  };
+}
+const hexParts = (hex) =>
+  [1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16));
+/**
+ * The SVG attributes that paint with a colour that colourOf read: fill (or
+ * stroke) in its colour, or in fallback when it gives none, and its opacity,
+ * or the drawing's own (defaultOpacity) when it gives none.
+ */
+export function paint(colour, fallback, attribute = "fill", defaultOpacity) {
+  const opacity = colour?.opacity ?? defaultOpacity;
+  return ` ${attribute}="${colour?.rgb ?? fallback}"${opacity === undefined ? "" : ` ${attribute}-opacity="${Number(opacity.toFixed(4))}"`}`;
 }
 
 const SIZES = {
