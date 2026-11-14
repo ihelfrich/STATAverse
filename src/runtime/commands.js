@@ -32,6 +32,7 @@ import { STATS_MORE_COMMANDS } from "./stats-more.js";
 import { TABLE_COMMANDS } from "./tables.js";
 import { GLM_COMMANDS } from "./glm.js";
 import { TIMESERIES_COMMANDS } from "./timeseries.js";
+import { ARIMA_COMMANDS } from "./arima.js";
 import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
 import { CONTRAST_COMMANDS } from "./contrast.js";
@@ -1371,14 +1372,24 @@ function returns(kind) {
         const k = tabled
             ? tabled.groups.length * tabled.variables.length
             : coefficientSpace(session.estimates).entries.length,
-          // Other matrices the command stored in e(), as streg's e(ilog)
-          // or didregress's e(group_count), in the order it stored them.
-          stored = entries.filter(
-            ([key, v]) => key.startsWith("matrix:") && v?.values,
-          ),
+          // Row vectors a model keeps beside e(b), as ratio's e(_N).
+          listed = new Set(tabled ? [] : (session.estimates.eMatrices ?? [])),
+          // Other matrices the command or a prefix stored in e(), as
+          // streg's e(ilog), didregress's e(group_count), var's e(Sigma)
+          // or bootstrap's e(b_bs), in the order they were stored.
+          stored = entries.filter(([key, v]) => {
+            const name = key.slice(7);
+            return (
+              key.startsWith("matrix:") &&
+              v?.values &&
+              !listed.has(name) &&
+              name !== "b" &&
+              name !== "V"
+            );
+          }),
           // A model that keeps more than b and V, as mixed does, lists them.
           own = !tabled && session.estimates?.ereturnMatrices;
-        if (k || stored.length || own) {
+        if (k || stored.length || own || listed.size) {
           ctx.out("");
           ctx.out("matrices:");
         }
@@ -1389,29 +1400,16 @@ function returns(kind) {
           ctx.out(`${label("b")} :  1 x ${k}`);
           ctx.out(`${label("V")} :  ${k} x ${k}`);
         }
-        for (const [key, value] of stored)
-          ctx.out(
-            `${label(key.slice(7))} :  ${value.values.length} x ${value.values[0]?.length ?? 0}`,
-          );
         if (tabled) {
           if (!tabled.totals) ctx.out(`${label("sd")} :  1 x ${k}`);
           ctx.out(`${label("_N")} :  1 x ${k}`);
           ctx.out(`${label("error")} :  1 x ${k}`);
         }
-        // Row vectors a model keeps beside e(b), as ratio's e(_N), and
-        // the matrices a prefix stored, as bootstrap's e(b_bs).
-        else {
-          const listed = new Set(session.estimates.eMatrices ?? []);
-          for (const name of listed) ctx.out(`${label(name)} :  1 x ${k}`);
-          for (const [key, v] of entries)
-            if (key.startsWith("matrix:") && v?.values) {
-              const name = key.slice(7);
-              if (listed.has(name) || name === "b" || name === "V") continue;
-              ctx.out(
-                `${label(name)} :  ${v.values.length} x ${v.values[0]?.length ?? 0}`,
-              );
-            }
-        }
+        for (const name of listed) ctx.out(`${label(name)} :  1 x ${k}`);
+        for (const [key, value] of stored)
+          ctx.out(
+            `${label(key.slice(7))} :  ${value.values.length} x ${value.values[0]?.length ?? 0}`,
+          );
         ctx.out("");
         ctx.out("functions:");
         ctx.out(`${label("sample")}   `);
@@ -2396,10 +2394,22 @@ const command = (name, minimum, run, byable = false) => ({
 });
 // A command under by: runs once per group, with a heading for each.
 
+// Estimators that bring their own predict (arima, var) answer it first;
+// any other model goes on to the predict of MODEL_COMMANDS.
+const modelPredict = MODEL_COMMANDS.find((c) => c.name === "predict");
+const ownPredict = {
+  ...modelPredict,
+  run: (session, text, ctx) =>
+    (typeof session.estimates?.ownPredict === "function"
+      ? session.estimates.ownPredict
+      : modelPredict.run)(session, text, ctx),
+};
+
 export const COMMANDS = [
   // Before MODEL_COMMANDS: predict and estat after mixed are its own, and
   // hand any other model on.
   ...MIXED_COMMANDS,
+  ownPredict,
   // Listed first so that test, lincom and predict choose by distribution.
   ...MODEL_COMMANDS,
   ...SVY_COMMANDS,
@@ -2421,6 +2431,7 @@ export const COMMANDS = [
   ...TABLE_COMMANDS,
   ...GLM_COMMANDS,
   ...TIMESERIES_COMMANDS,
+  ...ARIMA_COMMANDS,
   ...GRAPH_COMMANDS,
   ...MARGINS_COMMANDS,
   // Before DELIMITED_COMMANDS: its import and export hand delimited text on.

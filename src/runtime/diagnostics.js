@@ -324,7 +324,8 @@ function vce(session, model, text, ctx) {
         ? name.lastIndexOf("#") + 1
         : name.includes("@")
           ? name.lastIndexOf("@") + 1
-          : (/^(\d+[bno]*|c?o|r\d+vs\d+)\./.exec(name)?.[0].length ?? 0);
+          : (/^(\d+[bno]*|c?o|r\d+vs\d+|o?(?:[LFDS]\d*)+)\./.exec(name)?.[0]
+              .length ?? 0);
       return [name.slice(0, cut), abbreviate(name.slice(cut), width)];
     },
     heads = shown.map((s) => split(s.name)),
@@ -620,7 +621,8 @@ function summarizeSample(session, model, text, ctx) {
             else ctx.out(`${indent}${one}`.trimEnd());
           }),
         ),
-    depvar = data.get(model.depvar),
+    // arima's may be operated (D.y), and is then summarized from model.summary.
+    depvar = model.summary ? null : data.get(model.depvar),
     equation = !!options.equation,
     // The dependent variable has no column and sits where a table's
     // constant would: first, or alone in its equation.
@@ -690,6 +692,43 @@ function summarizeSample(session, model, text, ctx) {
           ? `${abbreviate(name, 12).padEnd(13)}|`
           : `  ${abbreviate(name, 12).padEnd(13)}|`,
       );
+  // arima heads the dependent variable and its regressors by equation, as
+  // arima_estat.ado lists them for estat_summ.
+  if (model.summary && !listed) {
+    const { summary } = model,
+      stated = [
+        ["depvar", summary.depvar],
+        ...summary.columns.map((c) => [summary.equation, c]),
+      ],
+      // An operated variable is headed by its name, its operator (D1.)
+      // labelling the row.
+      put = ({ name, variable, operated, column }) =>
+        emit([
+          ...(operated ? [`${abbreviate(variable, 12).padStart(12)} |`] : []),
+          `${(operated ?? abbreviate(name, 12)).padStart(12)} |${cells(
+            rows.map((i) => column[i]),
+            variableLabel(operated ? variable : name),
+          )}`,
+        ]);
+    stated.forEach(([group, entry], j) => {
+      if (j && group !== stated[j - 1][0]) ctx.out(line("+"));
+      if (!j || group !== stated[j - 1][0]) heading(group);
+      put(entry);
+    });
+    ctx.out(labels ? "-".repeat(length + 4) : `  ${"-".repeat(length + 8)}`);
+    ctx.out("");
+    session.results.r = {
+      "matrix:stats": {
+        rowNames: stated.map(([group, { name }]) => `${group}:${name}`),
+        colNames: ["mean", "sd", "min", "max"],
+        values: stated.map(([, { column }]) => {
+          const m = stats(rows.map((i) => column[i]));
+          return [m.mean, m.sd, m.min, m.max];
+        }),
+      },
+    };
+    return;
+  }
   if (equation) {
     heading("depvar");
     emit(withLabels(lay([null], [model.depvar])));

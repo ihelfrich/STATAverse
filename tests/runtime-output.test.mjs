@@ -205,6 +205,15 @@ for (const c of fixture.cases)
             // values when records enter late; the fit ends where Stata's
             // does.
             "survival-streg-factors-and-entry",
+            // arima's scores are taken by differencing, as Stata's are, and
+            // its estimates are where Stata's optimizer stops.
+            "pass7-ts-arima-models",
+            "pass7-ts-arima-predict",
+            "pass7-ts-arima-names-and-errors",
+            "pass7-ts-edge-delta-and-white-noise",
+            "pass7-ts-arima-singular-and-small",
+            "pass7-ts-arima-collinear",
+            "pass7-ts-arima-display-predict",
           ].includes(c.id),
         )
       )

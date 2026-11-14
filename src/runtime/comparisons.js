@@ -155,6 +155,31 @@ function statistic(model, e, name) {
  * marks, by which models are matched.
  */
 function nameTerm(session, name, terms, labelled) {
+  // A variable under time-series operators (L.x, L2.y, LD.z, and arima's
+  // L.ar) sits in a group headed by its name, a row for each operator.
+  const operated = /^((?:[LFDS]\d*)+)\.([A-Za-z_]\w*)$/.exec(name);
+  if (operated) {
+    const [, ops, base] = operated,
+      key = `ts:${base}`;
+    if (!terms.has(key)) {
+      const variable = session.data.has(base)
+        ? session.data.get(base)
+        : { name: base, format: "%9.0g" };
+      terms.set(key, {
+        components: [{ variable, factor: false }],
+        variables: [variable],
+        header: base,
+        ts: true,
+      });
+    }
+    return {
+      key: name,
+      term: terms.get(key),
+      levels: [],
+      base: false,
+      tsLabel: /^[LFDS]$/.test(ops) ? `${ops}1.` : `${ops}.`,
+    };
+  }
   const parts = name.split("#").map((part) => {
       const level = /^(\d+)([bno]*)\.(.+)$/.exec(part);
       return level
@@ -433,6 +458,7 @@ export function estimatesTable(session, text, ctx) {
             ? {
                 term: row.term,
                 levels: row.levels,
+                tsLabel: row.tsLabel,
                 base: row.cells.every((c) => !c || c.status === "base"),
               }
             : undefined,
