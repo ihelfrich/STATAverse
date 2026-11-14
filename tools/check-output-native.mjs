@@ -80,7 +80,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   await promisify(execFile)(
     "/Applications/Stata/StataMP.app/Contents/MacOS/stata-mp",
     ["-b", "do", "audit.do"],
-    { cwd: folder, timeout: 180000 },
+    // Every case runs in one Stata session; with the larger fits (mixed
+    // on 10,000 observations) and other recorders running beside it this
+    // can pass three minutes.
+    { cwd: folder, timeout: 2400000 },
   );
   const results = [];
   for (const [k, c] of cases.entries()) {

@@ -5,6 +5,7 @@ import { chi2tail, ttail } from "./distributions.js";
 import { coefficientSpace, stripeName, termRows } from "./estimation.js";
 import { normal } from "./functions.js";
 import { count } from "./reports.js";
+import { renderSmcl } from "./smcl.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, missingValue } from "./values.js";
 
@@ -57,8 +58,15 @@ export function lrtest(session, text, ctx) {
       "LR test likely invalid for models with robust VCE",
       498,
     );
-  if (a.N !== b.N)
-    throw new StataError("observations differ: " + a.N + " vs. " + b.N, 498);
+  // mixed is compared only with mixed, and a REML fit only with one of the
+  // same fixed effects.
+  const mixed = [a, b].filter((model) => model.command === "mixed").length;
+  if (mixed === 1 && !/\bforce\b/.test(options ?? ""))
+    throw new StataError(
+      `test involves different estimators: ${a.command} vs. ${b.command}`,
+      498,
+    );
+  const reml = mixed === 2 && (a.reml || b.reml);
   const [small, large] = a.rank <= b.rank ? [a, b] : [b, a],
     df = large.rank - small.rank;
   if (!df)
@@ -66,6 +74,29 @@ export function lrtest(session, text, ctx) {
       "df(unrestricted) = df(restricted) = " + large.rank,
       498,
     );
+  // As Stata's lrtest after mixed: the larger model must contain the
+  // smaller's fixed effects, standard deviations and correlations, and the
+  // two be fitted by the same method; the boundary note is given when the
+  // random-effects standard deviations differ in number.
+  let boundary = false;
+  if (mixed === 2 && !/\bforce\b/.test(options ?? "")) {
+    if (
+      large.k_f < small.k_f ||
+      large.k_rc < small.k_rc ||
+      large.k_rs < small.k_rs
+    )
+      throw new StataError("mixed models are not nested", 498);
+    if (a.reml !== b.reml)
+      throw new StataError("cannot compare a REML model with an ML model", 498);
+    if (reml && a.k_f !== b.k_f)
+      throw new StataError(
+        "REML criterion is not comparable under different fixed-effects specifications",
+        498,
+      );
+    boundary = large.k_rs !== small.k_rs;
+  }
+  if (a.N !== b.N)
+    throw new StataError("observations differ: " + a.N + " vs. " + b.N, 498);
   const chi2 = 2 * (large.ll - small.ll),
     p = chi2tail(df, chi2),
     shown = (model) =>
@@ -82,6 +113,23 @@ export function lrtest(session, text, ctx) {
   ctx.out("");
   ctx.out(`${`LR chi2(${df})`.padStart(11)} =${applyFormat(chi2, "%7.2f")}`);
   ctx.out(`Prob > chi2 = ${applyFormat(p, "%6.4f")}`);
+  // Stata's notes are paragraphs, wrapped at the line size.
+  const note = (text) =>
+    renderSmcl(`{p 0 6 2}${text}{p_end}`, session.settings.linesize ?? 79)
+      .split("\n")
+      .forEach((line) => ctx.out(line));
+  if (boundary) {
+    ctx.out("");
+    note(
+      "Note: The reported degrees of freedom assumes the null hypothesis is not on the boundary of the parameter space. If this is not true, then the reported test is conservative.",
+    );
+  }
+  if (reml) {
+    if (!boundary) ctx.out("");
+    note(
+      "Note: LR tests based on REML are valid only when the fixed-effects specification is identical for both models.",
+    );
+  }
   ctx.out("");
   session.results.r = { p, chi2, df };
 }

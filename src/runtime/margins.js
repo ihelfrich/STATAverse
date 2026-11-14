@@ -49,6 +49,8 @@ const LINEAR_COMMANDS = [
   "prais",
   "ivregress",
   "xtreg",
+  // mixed: the fixed portion of the linear prediction, as its default.
+  "mixed",
 ];
 export function linkOf(model) {
   if (model.kind === "glm")
@@ -1070,7 +1072,9 @@ function margins(session, text, ctx) {
             ? `Predicted mean ${model.depvar}`
             : model.command === "newey"
               ? "Fitted values"
-              : "Linear prediction",
+              : model.command === "mixed"
+                ? "Linear prediction, fixed portion"
+                : "Linear prediction",
     vce =
       {
         ols: "OLS",
@@ -1155,7 +1159,8 @@ function margins(session, text, ctx) {
     } else {
       const observations = `Number of obs = ${tally(n)}`;
       ctx.out(`${heading.padEnd(78 - observations.length)}${observations}`);
-      ctx.out(`Model VCE: ${vce}`);
+      // mixed leaves no e(vce), and Stata then names none.
+      if (model.command !== "mixed") ctx.out(`Model VCE: ${vce}`);
     }
     ctx.out("");
     ctx.out(`Expression: ${expression}, ${chosen?.predict ?? "predict()"}`);
