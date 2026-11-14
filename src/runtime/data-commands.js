@@ -70,7 +70,8 @@ export function load(session, name) {
 function save(session, text, ctx) {
   const parsed = session.parse(
       "[anything] [, replace EMPTYok noLabel ORPHANS]",
-      text,
+      // save using saves using.dta.
+      text.replace(/^(\s*)using(?=\s*(,|$))/, '$1"using"'),
     ),
     name = fileName(parsed.anything || session.fileInUse || ""),
     store = files(session);
@@ -84,6 +85,8 @@ function save(session, text, ctx) {
   ctx.out(`file ${name} saved`);
 }
 function use(session, text) {
+  if (/^\s*using\s*(,|$)/.test(text))
+    throw invalid("invalid file specification");
   const parsed = session.parse("anything [, clear]", text),
     name = fileName(parsed.anything),
     data = load(session, name);
@@ -142,8 +145,8 @@ function paragraph(session, text) {
  * merge combines them. A string variable in one and a numeric one in the
  * other is an error unless force, which treats the using values as empty.
  * Otherwise the master variable is widened to hold the using values. The
- * value labels the using variables carry come along, except one the master
- * data already define. Returns the names whose using values are dropped.
+ * value labels of the using data come along, except those the master data
+ * already define. Returns the names whose using values are dropped.
  */
 function reconcile(session, command, data, other, names, options, ctx) {
   const shared = data.variables.filter((v) => names.includes(v.name)),
@@ -180,16 +183,11 @@ function reconcile(session, command, data, other, names, options, ctx) {
   }
   for (const [variable, type] of widened) data.retype(variable, type);
   if (!options.label) return ignored;
-  const attached = [
-    ...new Set(names.map((name) => other.get(name).valueLabel).filter(Boolean)),
-  ];
-  for (const name of attached) {
-    if (!other.valueLabels.has(name)) continue;
-    if (data.valueLabels.has(name)) ctx.out(`(label ${name} already defined)`);
-    else data.valueLabels.set(name, new Map(other.valueLabels.get(name)));
-  }
+  // Every value label in the using file is read, whichever variables are
+  // kept, and each one the master data already define is reported.
   for (const [name, map] of other.valueLabels)
-    if (!data.valueLabels.has(name)) data.valueLabels.set(name, new Map(map));
+    if (data.valueLabels.has(name)) ctx.out(`(label ${name} already defined)`);
+    else data.valueLabels.set(name, new Map(map));
   return ignored;
 }
 
@@ -287,30 +285,98 @@ function append(session, text, ctx) {
 }
 
 // ----- merge -----
+// The words merge's assert() and keep() take, each with the shortest
+// abbreviation merge.ado allows.
 const MERGE_RESULTS = [
-  [1, /^(1|mas(t(er?)?)?)$/],
-  [2, /^(2|us(i(ng?)?)?)$/],
-  [3, /^(3|mat(c(h(ed?)?)?)?)$/],
-  [4, /^(4|match_up(d(a(te?)?)?)?)$/],
-  [5, /^(5|match_con(f(l(i(ct?)?)?)?)?)$/],
+  [1, "masters", 3],
+  [2, "usings", 2],
+  [3, "matches", 3],
+  [3, "matched", 3],
+  [4, "match_updates", 8],
+  [5, "match_conflicts", 8],
 ];
+const MERGE_TEXT = [
+  "",
+  "from master",
+  "from using",
+  "matched",
+  "matched and updated",
+  "matched and conflicting",
+];
+function mergeResult(session, word) {
+  if (/^[1-5]$/.test(word)) return Number(word);
+  const hit = MERGE_RESULTS.find(
+    ([, full, least]) =>
+      word.length >= least &&
+      full.slice(0, Math.max(least, word.length)) === word,
+  );
+  if (hit) return hit[0];
+  throw new StataError(
+    `${word}:  invalid resulttype\n` +
+      paragraph(
+        session,
+        "results, specified in options assert() and keep(), are the integers 1 through 5, or master (equivalent to 1), using (2), match (3), match_update (4), or match_conflict (5).  The last two arise only when option update is specified.",
+      ),
+    198,
+  );
+}
+/** Words laid out as Stata's {p 0 4 2} paragraph. */
+function hanging(session, text) {
+  const width = (session.settings.linesize ?? 80) - 2,
+    lines = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    if (line.trim() && line.length + 1 + word.length > width) {
+      lines.push(line);
+      line = "    " + word;
+    } else line += (line.trim() ? " " : "") + word;
+  }
+  lines.push(line);
+  return lines.join("\n");
+}
 function merge(session, text, ctx) {
   const m = /^\s*(1:1|m:1|1:m|m:m)\s+([\s\S]*)$/.exec(text);
   if (!m) throw invalid("merge needs 1:1, m:1, 1:m or m:m");
   if (m[1] === "m:m")
     throw invalid("merge m:m is not available; it rarely does what is wanted");
+  // merge 1:1 _n is a sequential merge: observation i with observation i.
+  const sequential = /^\s*_n(?=[\s,]|$)/.test(m[2]);
+  if (sequential && m[1] !== "1:1")
+    throw invalid(
+      `${m[1]} _n invalid\n    the syntax for a sequential merge is merge 1:1 _n ...\n    the syntax for a ${m[1]} match merge is merge ${m[1]} varlist ...`,
+    );
+  let rest = sequential ? m[2].replace(/^\s*_n/, "") : m[2];
+  // using is a reserved word, so the first one starts the file name, which
+  // may itself be called using.dta.
+  rest = rest.replace(
+    /(^|\s)using\s+([^\s",`]+)/,
+    (whole, before, name) => `${before}using "${name}"`,
+  );
   const parsed = session.parse(
-      "varlist using/ [, KEEPUSing(string) GENerate(name) noGENerate KEEP(string) ASSERT(string) NOREPort UPDATE REPLACE FORCE noLabel | SORTED noNOTEs]",
-      m[2],
+      `${sequential ? "" : "varlist "}using/ [, KEEPUSing(string) GENerate(name) noGENerate KEEP(string) ASSERT(string) NOREPort UPDATE REPLACE FORCE noLabel | SORTED noNOTEs]`,
+      rest,
     ),
     data = session.data,
-    keys = parsed.varlist,
+    keys = sequential ? [] : parsed.varlist,
     update = !!parsed.options.update,
     noMarker = /\bnogen/.test(splitAtComma(m[2])[1] ?? ""),
     marker =
       typeof parsed.options.generate === "string"
         ? parsed.options.generate
         : "_merge";
+  const results = (option) =>
+      parsed.options[option]
+        ? [
+            ...new Set(
+              parsed.options[option]
+                .trim()
+                .split(/\s+/)
+                .map((word) => mergeResult(session, word)),
+            ),
+          ].sort()
+        : null,
+    asserted = results("assert"),
+    kept = results("keep");
   if (parsed.options.replace && !update)
     throw new StataError(
       "option replace not allowed\n" +
@@ -323,7 +389,7 @@ function merge(session, text, ctx) {
   if (!noMarker && data.has(marker))
     throw new StataError(`variable ${marker} already defined`, 110);
   // Stata sorts the master data on the key before it reads the using data.
-  data.sort(keys);
+  if (!sequential) data.sort(keys);
   const other = load(session, fileName(parsed.using));
   for (const key of keys) {
     if (!other.has(key)) throw new StataError(`variable ${key} not found`, 111);
@@ -333,8 +399,11 @@ function merge(session, text, ctx) {
         106,
       );
   }
-  other.sort(keys);
-  const keyOf = (set, i) => JSON.stringify(keys.map((k) => set.get(k).data[i])),
+  if (!sequential) other.sort(keys);
+  const keyOf = (set, i) =>
+      sequential
+        ? String(i)
+        : JSON.stringify(keys.map((k) => set.get(k).data[i])),
     index = (set) => {
       const map = new Map();
       for (let i = 0; i < set.n; i++) {
@@ -391,8 +460,8 @@ function merge(session, text, ctx) {
     extra.push({ master: mine ? mine[0] : null, using: j });
   }
   let all = [...rows, ...extra];
-  // With update, a matched row's missing master values take the using
-  // values (_merge 4); one where both have different nonmissing values is
+  // With update, a matched row's missing master values take different
+  // using values (_merge 4); one where both have different nonmissing values is
   // a conflict (_merge 5), which replace settles in favour of the using
   // data.
   const updated = update
@@ -409,40 +478,25 @@ function merge(session, text, ctx) {
     for (const name of updated) {
       const mine = data.get(name).data[row.master],
         theirs = other.get(name).data[row.using];
-      if (empty(theirs)) continue;
+      // A missing master value takes any different using value, even
+      // another missing value such as .a; a missing using value never
+      // replaces a nonmissing one.
       if (empty(mine)) {
+        if (mine === theirs) continue;
         filled = true;
         row.take.push(name);
-      } else if (mine !== theirs) {
+      } else if (empty(theirs)) continue;
+      else if (mine !== theirs) {
         conflict = true;
         if (parsed.options.replace) row.take.push(name);
       }
     }
     row.code = conflict ? 5 : filled ? 4 : 3;
   }
-  for (const [option, action] of [
-    ["assert", "assert"],
-    ["keep", "keep"],
-  ]) {
-    const spec = parsed.options[option];
-    if (!spec) continue;
-    const allowed = new Set(
-      spec
-        .trim()
-        .split(/\s+/)
-        .map((word) => {
-          const hit = MERGE_RESULTS.find(([, pattern]) => pattern.test(word));
-          if (!hit) throw invalid(`${option}(${spec}) is not understood`);
-          return hit[0];
-        }),
-    );
-    if (action === "assert" && all.some((row) => !allowed.has(row.code)))
-      throw new StataError(
-        "merge:  after merge, not all observations matched as asserted",
-        9,
-      );
-    if (action === "keep") all = all.filter((row) => allowed.has(row.code));
-  }
+  // assert() is checked before keep() takes effect; a failure leaves the
+  // merged result in memory.
+  const failed = asserted && all.some((row) => !asserted.includes(row.code));
+  if (kept && !failed) all = all.filter((row) => kept.includes(row.code));
   // The report counts what is kept.
   const tally = [0, 0, 0, 0, 0, 0];
   for (const row of all) tally[row.code]++;
@@ -524,6 +578,19 @@ function merge(session, text, ctx) {
     ? []
     : [...keys];
   session.data = result;
+  if (failed) {
+    const words = asserted.map((code) => MERGE_TEXT[code]),
+      list =
+        words.length === 1
+          ? words[0]
+          : words.length === 2
+            ? `${words[0]} or ${words[1]}`
+            : `${words.slice(0, -1).join(", ")}, or ${words.at(-1)}`;
+    throw new StataError(
+      `${hanging(session, `after merge, not all observations ${list}`)}\n(merged result left in memory)`,
+      9,
+    );
+  }
   if (!parsed.options.noreport) {
     const line = (label, n, code) =>
       ctx.out(
@@ -566,8 +633,37 @@ function expand(text, names) {
 }
 
 // ----- reshape -----
+// reshape follows reshape.ado. Its settings (i, j, the xij stubs) are
+// characteristics of the data, as Stata keeps them in _dta[ReS_*], so they
+// travel with the data through save and use and vanish when the data are
+// cleared. Labels saved before a reshape wide are characteristics too, and
+// come back on the next reshape long.
+
+/** reshape.ado's picture of long and wide data. */
+const RESHAPE_PICTURE = [
+  "         long                                wide",
+  "        +---------------+                   +------------------+",
+  "        | i   j   a   b |                   | i   a1 a2  b1 b2 |",
+  "        |---------------| <--- reshape ---> |------------------|",
+  "        | 1   1   1   2 |                   | 1   1   3   2  4 |",
+  "        | 1   2   3   4 |                   | 2   5   7   6  8 |",
+  "        | 2   1   5   6 |                   +------------------+",
+  "        | 2   2   7   8 |",
+  "        +---------------+",
+];
+const reshapePicture = (commands) => [
+  ...RESHAPE_PICTURE,
+  ...(commands
+    ? [
+        "",
+        "        long to wide: reshape wide a b, i(i) j(j)    (j existing variable)",
+        "        wide to long: reshape long a b, i(i) j(j)    (j new variable)",
+      ]
+    : []),
+];
+
 /** reshape's report, as reshape.ado's Report1, ReportL and ReportW print it. */
-function reshapeReport(ctx, direction, before, after, j, levels, pairs) {
+function reshapeReport(ctx, direction, before, after, j, levelCount, pairs) {
   const rule = "-".repeat(77),
     from = direction === "wide" ? "Long" : "Wide",
     to = direction === "wide" ? "Wide" : "Long",
@@ -576,13 +672,12 @@ function reshapeReport(ctx, direction, before, after, j, levels, pairs) {
     arrow = (line, right) => `${col(col(line, 43) + "->", 48)}${right}`,
     counts = (label, a, b) =>
       ctx.out(arrow(`${col(label, 28)}${count(a).padStart(12)}`, count(b)));
-  ctx.out(`(j = ${levels.join(" ")})`);
   ctx.out("");
   ctx.out(arrow(`${col("Data", 36)}${from}`, to));
   ctx.out(rule);
   counts("Number of observations", before.n, after.n);
   counts("Number of variables", before.k, after.k);
-  const head = `j variable (${levels.length} values)`;
+  const head = `j variable (${levelCount} values)`;
   ctx.out(
     direction === "wide"
       ? arrow(`${col(head, 31 + (9 - j.length))}${j}`, "(dropped)")
@@ -600,275 +695,843 @@ const someNames = (names) =>
   names.length <= 3
     ? names.join(" ")
     : `${names[0]} ${names[1]} ... ${names.at(-1)}`;
+/** Subname: the stub with its @, or its end, replaced by a value. */
+const subname = (stub, value) => {
+  const at = stub.indexOf("@");
+  return at < 0 ? stub + value : stub.slice(0, at) + value + stub.slice(at + 1);
+};
+/** A line of plain display output, broken where Stata breaks it. */
+function displayLine(session, ctx, text) {
+  const width = session.settings.linesize ?? 80;
+  ctx.out(text.slice(0, width));
+  for (let rest = text.slice(width); rest; rest = rest.slice(width - 2))
+    ctx.out("> " + rest.slice(0, width - 2));
+}
+const reshapeChars = (data) => (data.chars ??= {});
 
-function reshape(session, text, ctx) {
-  const m = /^\s*(long|wide)\b\s*([\s\S]*)$/.exec(text);
-  if (!m) throw invalid("reshape long or reshape wide is required");
-  // reshape long and reshape wide alone repeat the last reshape the other
-  // way.
-  if (!m[2].trim()) {
-    const last = session.reshapeSpec;
-    if (!last) throw invalid("data have not been reshaped yet");
-    m[2] = `${last.stubs.join(" ")}, i(${last.ids.join(" ")}) j(${last.j})${last.string ? " string" : ""}`;
+/**
+ * What describe, short leaves in r(), which reshape.ado runs before it
+ * starts and again for its report: whether the data changed, the width of
+ * an observation in bytes, and the numbers of variables and observations.
+ */
+function describeResults(session) {
+  const bytes = { byte: 1, int: 2, long: 4, float: 4, double: 8 },
+    data = session.data;
+  session.results.r = {
+    changed: changed(session) ? 1 : 0,
+    width: data.variables.reduce(
+      (total, v) =>
+        total +
+        (bytes[v.type] ?? (v.type === "strL" ? 8 : Number(v.type.slice(3)))),
+      0,
+    ),
+    k: data.variables.length,
+    N: data.n,
+  };
+}
+
+/** reshape i, j, xij and the options of reshape long and wide set these. */
+function reshapeJ(words, string) {
+  const values = [];
+  let text = !!string;
+  for (let k = 0; k < words.length; k++) {
+    if (words[k + 1] === "-") {
+      const [a, b] = [words[k], words[k + 2]];
+      if (!/^-?\d+$/.test(a ?? "") || !/^-?\d+$/.test(b ?? "")) throw invalid();
+      if (Number(a) >= Number(b))
+        throw new StataError(`${a}-${b}: invalid range`, 198);
+      for (let v = Number(a); v <= Number(b); v++) values.push(String(v));
+      k += 2;
+    } else {
+      if (!/^-?\d+$/.test(words[k])) text = true;
+      values.push(words[k]);
+    }
   }
-  const [head, optionText] = splitAtComma(m[2]),
-    options = session.parse(
-      "[, I(varlist) J(string) String]",
-      "," + (optionText ?? ""),
-    ).options,
-    stubs = head.trim().split(/\s+/).filter(Boolean),
-    data = session.data,
-    ids = options.i,
-    jWords = (options.j ?? "").trim().split(/\s+/),
-    j = jWords[0],
-    text2 = !!options.string || jWords.includes("string");
-  if (!ids?.length || !j || !stubs.length)
-    throw invalid("i() and j() are required");
+  return { values, text };
+}
+function checkJ(data, j, text) {
+  if (!data.has(j)) return;
+  const string = isStringType(data.get(j).type);
+  if (string && !text)
+    throw new StataError(`variable ${j} is string; specify option string`, 109);
+  if (!string && text) throw new StataError(`variable ${j} is numeric`, 109);
+}
+
+/** Simple: reshape long|wide stubs, i() j() sets the characteristics. */
+function reshapeSimple(session, direction, text) {
+  const [head, optionText] = splitAtComma(text),
+    list = head.trim().split(/\s+/).filter(Boolean),
+    data = session.data;
+  if (!list.length) throw invalid();
+  const required = (option, blank) =>
+    new StataError(
+      [`option ${option}() required`, ...(blank ? [""] : [])]
+        .concat(reshapePicture(true))
+        .join("\n"),
+      198,
+    );
+  if (optionText === null) throw required("i", true);
+  const options = session.parse(
+    "[, I(string) J(string) ATwl(string) String favor(string)]",
+    "," + optionText,
+  ).options;
+  if (!options.i?.trim()) throw required("i", true);
+  if (
+    options.favor !== undefined &&
+    !/^(speed|memory)$/.test(options.favor.trim())
+  )
+    throw invalid(`favor(${options.favor}) invalid`);
+  const ids = session.varlist(options.i);
+  // The j option is a variable name followed by any values it takes.
+  const jWords = (options.j ?? "")
+    .replace(/-/g, " - ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  let j = jWords[0] ?? "_j",
+    stubs = list;
+  if (direction === "wide") {
+    try {
+      stubs = session.varlist(list.join(" "));
+    } catch {
+      stubs = list;
+    }
+    try {
+      j = session.varlist(j)[0];
+    } catch (error) {
+      if (!(error instanceof StataError) || error.code !== 111) throw error;
+      if (j === "_j")
+        throw new StataError(
+          ["option j() required", ...reshapePicture(true)].join("\n"),
+          198,
+        );
+      throw new StataError(
+        `variable ${j} not found\n    Data are already wide.`,
+        111,
+      );
+    }
+  } else {
+    if (data.has(j))
+      throw new StataError(
+        `variable ${j} already exists\n    Data are already long.`,
+        110,
+      );
+    if (!isName(j)) throw new StataError(`${j} invalid name`, 198);
+  }
+  const { values, text: isText } = reshapeJ(jWords.slice(1), options.string);
+  checkJ(data, j, isText);
+  const chars = reshapeChars(data);
+  chars.reshape = {
+    i: ids,
+    j,
+    jv: values,
+    str: isText,
+    xij: stubs,
+    xi: null,
+    atwl: options.atwl?.trim() ?? "",
+  };
+}
+
+/** Macros0 and Macros: the settings, checked; NotDefd when one is missing. */
+function reshapeMacros(session) {
+  const data = session.data,
+    spec = data.chars?.reshape,
+    notDefined = (what) =>
+      spec
+        ? new StataError(`${what} not defined`, 111)
+        : new StataError(
+            [
+              "data have not been reshaped yet",
+              paragraph(
+                session,
+                "What you typed is a syntax error because the data have not been reshaped previously. The basic syntax of reshape is",
+              ),
+              "",
+              ...reshapePicture(true),
+            ].join("\n"),
+            111,
+          );
+  if (!spec?.j) throw notDefined("reshape j");
+  const { j } = spec;
+  if (data.has(j)) {
+    checkJ(data, j, spec.str);
+    const values = data.get(j).data,
+      missing = new StataError(`variable ${j} contains missing values`, 498);
+    if (!spec.str) {
+      if (Array.from(values).some(isMissing)) throw missing;
+    } else {
+      if (values.some((v) => v.trim() === "")) throw missing;
+      if (values.some((v) => v !== v.trim()))
+        throw new StataError(
+          `variable ${j} has leading or trailing blanks`,
+          498,
+        );
+    }
+  }
+  if (!spec.i?.length) throw notDefined("reshape i");
+  if (!spec.xij?.length) throw notDefined("reshape xij");
+  return {
+    ...spec,
+    vans: spec.xij.map((stub) => subname(stub, spec.atwl)),
+  };
+}
+
+/** Tab: the values of j, as "(j = ...)" shows them. */
+function reshapeTab(session, ctx, spec, values, text) {
+  let levels;
+  if (!text) {
+    const present = values.filter((v) => !isMissing(v));
+    levels = [...new Set(present)]
+      .sort((a, b) => a - b)
+      .map((v) => formatNumber(v));
+    // Tab finds the values with tabulate, which leaves r(N) and r(r).
+    session.results.r = { N: present.length, r: levels.length };
+  } else {
+    levels = [...new Set(values.filter((v) => v !== ""))].sort((a, b) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    );
+    if (levels.some((level) => /\s/.test(level.trim())))
+      throw new StataError(
+        `string j variable ${spec.j} not allowed to contain spaces;\n` +
+          paragraph(
+            session,
+            `encode string variable ${spec.j} into a numeric variable and use the new numeric variable as the j variable`,
+          ),
+        111,
+      );
+    levels = levels.map((level) => level.trim());
+  }
+  displayLine(session, ctx, `(j = ${levels.join(" ")})`);
+  return levels;
+}
+
+/** Macros2: the j values and the variables constant within i. */
+function reshapeLevels(session, ctx, spec) {
+  const data = session.data,
+    long = data.has(spec.j);
+  let levels = spec.jv;
+  if (!levels.length) {
+    if (long)
+      levels = reshapeTab(
+        session,
+        ctx,
+        spec,
+        Array.from(data.get(spec.j).data),
+        spec.str,
+      );
+    else {
+      // FillvalW: the part of each name that the @ (or the end) stands for.
+      const middle = new Map();
+      for (const stub of spec.xij) {
+        const at = stub.includes("@") ? stub.indexOf("@") : stub.length,
+          left = stub.slice(0, at),
+          right = stub.slice(at + 1);
+        for (const name of data.names)
+          if (
+            name.length > left.length + right.length &&
+            name.startsWith(left) &&
+            name.endsWith(right)
+          )
+            middle.set(name, name.slice(at, name.length - right.length));
+      }
+      if (!middle.size)
+        throw new StataError(
+          [
+            "no xij variables found",
+            "    You typed something like reshape wide a b, i(i) j(j).",
+            paragraph(
+              session,
+              "reshape looked for existing variables named a# and b# but could not find any. Remember this picture:",
+            ),
+            "",
+            ...reshapePicture(true),
+          ].join("\n"),
+          111,
+        );
+      const found = [...middle.values()];
+      levels = reshapeTab(
+        session,
+        ctx,
+        spec,
+        spec.str
+          ? found
+          : found.map((text) =>
+              /^\d+(e\d+)?$/i.test(text) ? Number(text) : MISSING,
+            ),
+        spec.str,
+      );
+    }
+  }
+  // FillXi: without reshape xi, every other variable is constant within i.
+  let xi = spec.xi;
+  if (!xi) {
+    const used = new Set([spec.j, ...spec.i]);
+    if (long) for (const name of spec.vans) used.add(name);
+    else
+      for (const stub of spec.xij)
+        for (const level of levels) used.add(subname(stub, level));
+    xi = data.names.filter((name) => !used.has(name));
+  }
+  return { levels, xi };
+}
+
+/** A copy of the data, to work on without touching what is in memory. */
+function workingCopy(data) {
+  const copy = new Dataset({ defaultType: data.defaultType });
+  copy.restore(data.snapshot());
+  return copy;
+}
+/** Groups of observations with the same values of names, in sorted data. */
+function runsOf(data, names) {
+  const columns = names.map((name) => data.get(name).data),
+    groups = [];
+  for (let i = 0; i < data.n; i++) {
+    const last = groups.at(-1);
+    if (last && columns.every((column) => column[i] === column[i - 1]))
+      last.count++;
+    else groups.push({ start: i, count: 1 });
+  }
+  return groups;
+}
+
+/** SaveCharsForLong: the labels of j and of the xij variables. */
+function saveCharsForLong(data, spec) {
+  const saved = (reshapeChars(data).labels ??= { xij: {} }),
+    j = data.get(spec.j);
+  if (j.valueLabel) {
+    saved.jValLabName = j.valueLabel;
+    const map = data.valueLabels.get(j.valueLabel);
+    if (map)
+      saved.jValLab = [...map].filter(([value]) => Number.isInteger(value));
+  }
+  if (j.label) saved.jVarLab = j.label;
+  for (const name of spec.vans)
+    if (data.has(name) && data.get(name).label)
+      saved.xij[name] = data.get(name).label;
+}
+/** ApplyCharsForLong: those labels, put back once the data are long. */
+function applyCharsForLong(result, spec) {
+  const saved = result.chars?.labels;
+  if (!saved) return;
+  const j = result.get(spec.j);
+  if (saved.jValLabName && !spec.str) {
+    if (!result.valueLabels.has(saved.jValLabName))
+      result.valueLabels.set(saved.jValLabName, new Map(saved.jValLab ?? []));
+    j.valueLabel = saved.jValLabName;
+    delete saved.jValLabName;
+    delete saved.jValLab;
+  }
+  if (saved.jVarLab) {
+    j.label = saved.jVarLab;
+    delete saved.jVarLab;
+  }
+  for (const name of spec.vans)
+    if (saved.xij[name] !== undefined) {
+      result.get(name).label = saved.xij[name];
+      delete saved.xij[name];
+    }
+}
+
+function reshapeWide(session, ctx) {
+  describeResults(session);
+  const data = session.data,
+    before = { n: data.n, k: data.variables.length },
+    spec = reshapeMacros(session);
+  if (!data.has(spec.j)) {
+    ctx.out("(data are already wide)");
+    return;
+  }
+  for (const name of [spec.j, ...spec.vans, ...spec.i, ...(spec.xi ?? [])])
+    data.get(name);
+  if (data.has("_merge"))
+    throw new StataError(
+      "cannot reshape data containing variable _merge\n    Either drop or rename variable _merge.",
+      110,
+    );
+  saveCharsForLong(data, spec);
+  const { levels, xi } = reshapeLevels(session, ctx, spec),
+    work = workingCopy(data),
+    i = spec.i.join(" ");
+  // Veruniq: i and j identify the observations, and the other variables
+  // are constant within i.
+  work.sort([...spec.i, spec.j]);
+  if (runsOf(work, [...spec.i, spec.j]).some((group) => group.count > 1))
+    throw new StataError(
+      [
+        `values of variable ${spec.j} not unique within ${i}`,
+        paragraph(
+          session,
+          `Your data are currently long. You are performing a reshape wide. You specified i(${i}) and j(${spec.j}). There are observations within i(${i}) with the same value of j(${spec.j}). In the long data, variables i() and j() together must uniquely identify the observations.`,
+        ),
+        "",
+        ...reshapePicture(false),
+        paragraph(
+          session,
+          "Type reshape error for a list of the problem variables.",
+        ),
+      ].join("\n"),
+      9,
+    );
+  const groups = runsOf(work, spec.i),
+    varying = xi.filter((name) =>
+      groups.some((group) => {
+        const column = work.get(name).data;
+        for (let r = group.start + 1; r < group.start + group.count; r++)
+          if (column[r] !== column[group.start]) return true;
+        return false;
+      }),
+    );
+  if (varying.length)
+    throw new StataError(
+      [
+        ...varying.map((name) => `variable ${name} not constant within ${i}`),
+        paragraph(
+          session,
+          "Your data are currently long. You are performing a reshape wide. You typed something like",
+        ),
+        "",
+        `        . reshape wide a b, i(${i}) j(${spec.j})`,
+        "",
+        paragraph(
+          session,
+          `There are variables other than a, b, ${i}, ${spec.j} in your data. They must be constant within ${i} because that is the only way they can fit into wide data without loss of information.`,
+        ),
+        "",
+        paragraph(
+          session,
+          `The variable or variables listed above are not constant within ${i}. Perhaps the values are in error. Type reshape error for a list of the problem observations.`,
+        ),
+        "",
+        paragraph(
+          session,
+          "Either that, or the values vary because they should vary, in which case you must either add the variables to the list of xij variables to be reshaped, or drop them.",
+        ),
+      ].join("\n"),
+      9,
+    );
   const result = new Dataset({ defaultType: data.defaultType });
   result.valueLabels = data.valueLabels;
   result.label = data.label;
-  const copy = (target, source, name, values) => {
-    target.generate(name, values, {
-      type: source.type,
-      string: isStringType(source.type),
+  result.chars = data.chars;
+  result.n = groups.length;
+  const copy = (variable, values, name = variable.name) => {
+    result.generate(name, values, {
+      type: variable.type,
+      string: isStringType(variable.type),
     });
-    Object.assign(target.get(name), {
-      format: source.format,
-      label: source.label,
-      valueLabel: source.valueLabel,
+    Object.assign(result.get(name), {
+      format: variable.format,
+      label: variable.label,
+      valueLabel: variable.valueLabel,
     });
   };
-  if (m[1] === "long") {
-    if (data.has(j)) throw new StataError(`variable ${j} already defined`, 110);
-    // The j values are the suffixes found after any stub.
-    const suffixes = new Set(),
-      members = new Map();
-    for (const stub of stubs) {
-      if (data.has(stub))
-        throw new StataError(`variable ${stub} already defined`, 110);
-      for (const name of data.names) {
-        if (!name.startsWith(stub) || name === stub) continue;
-        const suffix = name.slice(stub.length);
-        if (!text2 && !/^\d+$/.test(suffix)) continue;
-        suffixes.add(suffix);
-        members.set(`${stub}|${suffix}`, name);
-      }
-    }
-    if (!suffixes.size) {
-      // reshape has described the data by now, so r() holds what describe
-      // leaves: whether the data changed, the width of an observation in
-      // bytes, and the numbers of variables and observations.
-      const bytes = { byte: 1, int: 2, long: 4, float: 4, double: 8 };
-      session.results.r = {
-        changed: changed(session) ? 1 : 0,
-        width: data.variables.reduce(
-          (total, v) =>
-            total +
-            (bytes[v.type] ??
-              (v.type === "strL" ? 8 : Number(v.type.slice(3)))),
-          0,
-        ),
-        k: data.variables.length,
-        N: data.n,
-      };
-      throw new StataError(`no xij variables found`, 111);
-    }
-    const levels = [...suffixes].sort((a, b) =>
-        text2 ? (a < b ? -1 : a > b ? 1 : 0) : Number(a) - Number(b),
-      ),
-      wide = new Set(members.values());
-    data.sort(ids);
-    for (let i = 1; i < data.n; i++)
-      if (ids.every((id) => data.get(id).data[i] === data.get(id).data[i - 1]))
-        throw new StataError(
-          `variable${ids.length > 1 ? "s" : ""} ${ids.join(" ")} do${ids.length > 1 ? "" : "es"} not uniquely identify the observations`,
-          9,
-        );
-    const rows = [];
-    for (let i = 0; i < data.n; i++)
-      for (const level of levels) rows.push([i, level]);
-    result.n = rows.length;
-    for (const id of ids)
-      copy(
-        result,
-        data.get(id),
-        id,
-        rows.map(([i]) => data.get(id).data[i]),
-      );
-    if (text2)
-      result.generate(
-        j,
-        rows.map(([, level]) => level),
-        { string: true },
-      );
-    else {
-      const values = rows.map(([, level]) => Number(level));
-      result.generate(j, values, { type: inferType(values) });
-      result.get(j).format = "%10.0g";
-    }
-    for (const stub of stubs) {
-      const sources = levels.map((level) => members.get(`${stub}|${level}`)),
-        first = data.get(sources.find(Boolean)),
-        text = isStringType(first.type);
-      let type = first.type;
-      for (const name of sources.filter(Boolean))
-        type = widerType(type, data.get(name).type) ?? type;
-      result.generate(
-        stub,
-        rows.map(([i, level]) => {
-          const name = members.get(`${stub}|${level}`);
-          return name ? data.get(name).data[i] : text ? "" : MISSING;
-        }),
-        { type, string: text },
-      );
-      result.get(stub).format = first.format;
-    }
-    for (const variable of data.variables)
-      if (!ids.includes(variable.name) && !wide.has(variable.name))
-        copy(
-          result,
-          variable,
-          variable.name,
-          rows.map(([i]) => variable.data[i]),
-        );
-    result.sortedBy = [...ids, j];
-    reshapeReport(
-      ctx,
-      "long",
-      { n: data.n, k: data.variables.length },
-      { n: result.n, k: result.variables.length },
-      j,
-      levels.map((level) => (text2 ? level : formatNumber(Number(level)))),
-      stubs.map((stub) => [
-        someNames(
-          levels
-            .map((level) => members.get(`${stub}|${level}`))
-            .filter(Boolean),
-        ),
-        stub,
-      ]),
+  for (const id of spec.i)
+    copy(
+      work.get(id),
+      groups.map((group) => work.get(id).data[group.start]),
     );
-  } else {
-    const jVariable = data.get(j);
-    if (isStringType(jVariable.type) && !text2)
-      throw new StataError(
-        `variable ${j} is string; specify option string`,
-        109,
-      );
-    if (!isStringType(jVariable.type) && text2)
-      throw new StataError(`variable ${j} is numeric`, 109);
-    const levels = [...new Set(Array.from(jVariable.data))]
-        .filter((v) => (typeof v === "string" ? v !== "" : !isMissing(v)))
-        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
-      suffix = (level) => (typeof level === "string" ? level : String(level));
-    for (const stub of stubs) data.get(stub);
-    data.sort([...ids, j]);
-    const groups = session.groupsOf(ids);
-    for (let i = 1; i < data.n; i++)
-      if (
-        [...ids, j].every(
-          (name) => data.get(name).data[i] === data.get(name).data[i - 1],
-        )
-      )
-        throw new StataError(
-          `values of variable ${j} not unique within ${ids.join(" ")}`,
-          9,
-        );
-    // Every other variable must be constant within i to fit in wide data.
-    const varying = data.variables
-      .filter((variable) => ![...ids, j, ...stubs].includes(variable.name))
-      .filter((variable) =>
-        groups.some((group) => {
-          for (let i = group.start + 1; i < group.start + group.count; i++)
-            if (variable.data[i] !== variable.data[group.start]) return true;
-          return false;
-        }),
-      )
-      .map((variable) => variable.name);
-    if (varying.length) {
-      ctx.out(`(j = ${levels.map(suffix).join(" ")})`);
-      const i = ids.join(" ");
-      throw new StataError(
-        [
-          `variable${varying.length > 1 ? "s" : ""} ${varying.join(" ")} not constant within ${i}`,
-          paragraph(
-            session,
-            "Your data are currently long. You are performing a reshape wide. You typed something like",
-          ),
-          "",
-          `        . reshape wide a b, i(${i}) j(${j})`,
-          "",
-          paragraph(
-            session,
-            `There are variables other than a, b, ${ids.join(", ")}, ${j} in your data. They must be constant within ${i} because that is the only way they can fit into wide data without loss of information.`,
-          ),
-          "",
-          paragraph(
-            session,
-            `The variable or variables listed above are not constant within ${i}. Perhaps the values are in error. Type reshape error for a list of the problem observations.`,
-          ),
-          "",
-          paragraph(
-            session,
-            "Either that, or the values vary because they should vary, in which case you must either add the variables to the list of xij variables to be reshaped, or drop them.",
-          ),
-        ].join("\n"),
-        9,
-      );
+  const jColumn = work.get(spec.j).data,
+    // The stubs go in the order of the data, as Widefix renames them.
+    stubs = data.names.filter((name) => spec.vans.includes(name)),
+    shown = [];
+  for (const level of levels) {
+    const match = spec.str ? level : Number(level),
+      at = groups.map((group) => {
+        for (let r = group.start; r < group.start + group.count; r++)
+          if (jColumn[r] === match) return r;
+        return -1;
+      });
+    if (at.every((r) => r < 0)) {
+      ctx.out(`(no data for ${spec.j} == ${level})`);
+      continue;
     }
-    result.n = groups.length;
-    for (const id of ids)
+    shown.push(level);
+    for (const van of stubs) {
+      const stub = spec.xij[spec.vans.indexOf(van)],
+        name = subname(stub, level),
+        source = work.get(van),
+        text = isStringType(source.type);
+      if (result.has(name))
+        throw new StataError(`variable ${name} already defined`, 110);
+      if (!isName(name))
+        throw new StataError(`${name} invalid variable name`, 198);
       copy(
-        result,
-        data.get(id),
-        id,
-        groups.map((group) => data.get(id).data[group.start]),
+        source,
+        at.map((r) => (r < 0 ? (text ? "" : MISSING) : source.data[r])),
+        name,
       );
-    for (const level of levels)
-      for (const stub of stubs) {
-        const source = data.get(stub),
-          text = isStringType(source.type),
-          name = stub + suffix(level);
-        if (!isName(name)) throw invalid(`${name} invalid name`);
+      result.get(name).label = `${level} ${van}`;
+    }
+  }
+  for (const name of xi)
+    copy(
+      work.get(name),
+      groups.map((group) => work.get(name).data[group.start]),
+    );
+  result.sortedBy = [...spec.i];
+  session.data = result;
+  // reshape.ado builds wide data in a file it then uses, so without
+  // variables constant within i Stata counts them as unchanged since saved.
+  if (!xi.length) session.cleanFingerprint = fingerprint(result);
+  describeResults(session);
+  reshapeReport(
+    ctx,
+    "wide",
+    before,
+    { n: result.n, k: result.variables.length },
+    spec.j,
+    shown.length,
+    spec.xij.map((stub, k) => [
+      spec.vans[k],
+      someNames(shown.map((level) => subname(stub, level))),
+    ]),
+  );
+}
+
+function reshapeLong(session, ctx) {
+  describeResults(session);
+  const data = session.data,
+    before = { n: data.n, k: data.variables.length },
+    spec = reshapeMacros(session);
+  for (const name of [...spec.i, ...(spec.xi ?? [])]) data.get(name);
+  if (data.has(spec.j)) {
+    ctx.out("(data are already long)");
+    return;
+  }
+  const { levels, xi } = reshapeLevels(session, ctx, spec),
+    work = workingCopy(data);
+  // Verluniq: i identifies the observations. reshape.ado names the
+  // variable id whatever i is.
+  work.sort(spec.i);
+  if (runsOf(work, spec.i).some((group) => group.count > 1))
+    throw new StataError(
+      [
+        "variable id does not uniquely identify the observations",
+        paragraph(
+          session,
+          `Your data are currently wide. You are performing a reshape long. You specified i(${spec.i.join(" ")}) and j(${spec.j}). In the current wide form, variable ${spec.i.join(" ")} should uniquely identify the observations. Remember this picture:`,
+        ),
+        "",
+        ...reshapePicture(false),
+        paragraph(
+          session,
+          "Type reshape error for a list of the problem observations.",
+        ),
+      ].join("\n"),
+      9,
+    );
+  // mkrtmpST: one storage type for each stub, wide enough for all of its
+  // variables.
+  const types = spec.xij.map((stub) => {
+    let type = null;
+    for (const level of levels) {
+      const name = subname(stub, level);
+      if (work.has(name)) {
+        const next = type
+          ? widerType(type, work.get(name).type)
+          : work.get(name).type;
+        if (!next)
+          throw new StataError(
+            `variable ${name} type mismatch with other ${stub} variables`,
+            198,
+          );
+        type = next;
+      } else if (name.length > 32)
+        throw new StataError(`variable ${name} implied name too long`, 198);
+    }
+    return type ?? "byte";
+  });
+  const keep = new Set([...spec.i, ...xi]);
+  for (const level of levels)
+    spec.xij.forEach((stub, k) => {
+      if (!work.has(subname(stub, level)))
+        ctx.out(`(variable ${subname(stub, level)} not found)`);
+      if (keep.has(spec.vans[k]))
+        throw new StataError(`variable ${spec.vans[k]} already defined`, 110);
+    });
+  // The long data take the layout of the last value's data: i and j first,
+  // then the kept variables in their order, each stub where its last wide
+  // variable was, or at the end when that variable does not exist.
+  const last = levels.at(-1),
+    lastNames = new Map(spec.xij.map((stub, k) => [subname(stub, last), k])),
+    order = [];
+  for (const name of work.names)
+    if (keep.has(name)) order.push({ name });
+    else if (lastNames.has(name)) order.push({ stub: lastNames.get(name) });
+  spec.xij.forEach((stub, k) => {
+    if (!order.some((entry) => entry.stub === k)) order.push({ stub: k });
+  });
+  // The long data are sorted on i and j.
+  const front = [...spec.i, spec.j],
+    sortedLevels = [...levels].sort((a, b) =>
+      spec.str ? (a < b ? -1 : a > b ? 1 : 0) : Number(a) - Number(b),
+    ),
+    rows = [];
+  for (let r = 0; r < work.n; r++)
+    for (const level of sortedLevels) rows.push([r, level]);
+  const result = new Dataset({ defaultType: data.defaultType });
+  result.valueLabels = data.valueLabels;
+  result.label = data.label;
+  result.chars = data.chars;
+  result.n = rows.length;
+  const jValues = rows.map(([, level]) => (spec.str ? level : Number(level)));
+  const columns = new Map();
+  columns.set(spec.j, () => {
+    if (spec.str) {
+      const width = Math.max(1, ...jValues.map(byteLength));
+      result.generate(spec.j, jValues, { type: `str${width}`, string: true });
+      result.get(spec.j).format = defaultFormat(`str${width}`);
+    } else {
+      result.generate(spec.j, jValues, { type: inferType(jValues) });
+      result.get(spec.j).format = "%10.0g";
+    }
+  });
+  for (const entry of order) {
+    if (entry.name !== undefined) {
+      const variable = work.get(entry.name);
+      columns.set(entry.name, () => {
+        result.generate(
+          entry.name,
+          rows.map(([r]) => variable.data[r]),
+          { type: variable.type, string: isStringType(variable.type) },
+        );
+        Object.assign(result.get(entry.name), {
+          format: variable.format,
+          label: variable.label,
+          valueLabel: variable.valueLabel,
+        });
+      });
+    } else {
+      const stub = spec.xij[entry.stub],
+        name = spec.vans[entry.stub],
+        type = types[entry.stub],
+        text = isStringType(type),
+        lastWide = work.has(subname(stub, last))
+          ? work.get(subname(stub, last))
+          : null;
+      columns.set(name, () => {
         result.generate(
           name,
-          groups.map((group) => {
-            for (let i = group.start; i < group.start + group.count; i++)
-              if (jVariable.data[i] === level) return source.data[i];
-            return text ? "" : MISSING;
+          rows.map(([r, level]) => {
+            const wide = subname(stub, level);
+            return work.has(wide)
+              ? work.get(wide).data[r]
+              : text
+                ? ""
+                : MISSING;
           }),
-          { type: source.type, string: text },
+          { type, string: text },
         );
         Object.assign(result.get(name), {
-          format: source.format,
-          label: `${suffix(level)} ${stub}`,
-          valueLabel: source.valueLabel,
+          format: lastWide?.format ?? defaultFormat(type),
+          label: "",
+          valueLabel: lastWide?.valueLabel ?? "",
         });
-      }
-    for (const variable of data.variables)
-      if (![...ids, j, ...stubs].includes(variable.name))
-        copy(
-          result,
-          variable,
-          variable.name,
-          groups.map((group) => variable.data[group.start]),
-        );
-    result.sortedBy = [...ids];
-    reshapeReport(
-      ctx,
-      "wide",
-      { n: data.n, k: data.variables.length },
-      { n: result.n, k: result.variables.length },
-      j,
-      levels.map(suffix),
-      stubs.map((stub) => [
-        stub,
-        someNames(levels.map((level) => stub + suffix(level))),
-      ]),
-    );
+      });
+    }
   }
+  for (const name of [
+    ...front,
+    ...[...columns.keys()].filter((n) => !front.includes(n)),
+  ])
+    columns.get(name)();
+  result.sortedBy = [...front];
+  applyCharsForLong(result, spec);
   session.data = result;
-  session.reshapeSpec = { stubs, ids, j, string: text2 };
+  describeResults(session);
+  reshapeReport(
+    ctx,
+    "long",
+    before,
+    { n: result.n, k: result.variables.length },
+    spec.j,
+    levels.length,
+    spec.xij.map((stub, k) => [
+      someNames(levels.map((level) => subname(stub, level))),
+      spec.vans[k],
+    ]),
+  );
+}
+
+/** reshape error: Qerror, QerrorW and QerrorL list the problem rows. */
+function reshapeError(session, ctx) {
+  const spec = reshapeMacros(session),
+    data = session.data,
+    { xi } = reshapeLevels(session, ctx, spec),
+    i = spec.i.join(" "),
+    show = (names, rows) => {
+      const flag = "__000000";
+      data.generate(
+        flag,
+        Array.from({ length: data.n }, (_, r) => (rows.has(r) ? 1 : 0)),
+        { type: "byte" },
+      );
+      // list ends with a blank line; reshape.ado puts its own after it.
+      const lines = [];
+      try {
+        list(session, `${names.join(" ")} if ${flag}`, {
+          ...ctx,
+          out: (line) => lines.push(line),
+        });
+        while (lines.at(-1) === "") lines.pop();
+        lines.forEach((line) => ctx.out(line));
+      } finally {
+        data.variables = data.variables.filter((v) => v.name !== flag);
+      }
+    },
+    intro = () => {
+      ctx.out("");
+      ctx.out(`i (${i}) indicates the top-level grouping such as subject id.`);
+    };
+  if (!data.has(spec.j)) {
+    // QerrorL: the data are wide, so i should identify the observations.
+    data.sort(spec.i);
+    const bad = new Set();
+    for (const group of runsOf(data, spec.i))
+      if (group.count > 1)
+        for (let r = group.start; r < group.start + group.count; r++)
+          bad.add(r);
+    if (!bad.size) {
+      ctx.out(`${i} is unique; there is no problem on this score`);
+      return;
+    }
+    intro();
+    ctx.out("");
+    ctx.out(
+      "The data are currently in the wide form; there should be a single",
+    );
+    ctx.out("observation per i.");
+    ctx.out("");
+    ctx.out(`${bad.size} of ${data.n} observations have duplicate i values:`);
+    show(spec.i, bad);
+    ctx.out("");
+    ctx.out(`(data now sorted by ${i})`);
+    return;
+  }
+  // QerrorW: the data are long, so i and j should identify them.
+  for (const name of [spec.j, ...spec.vans, ...spec.i, ...xi]) data.get(name);
+  const keys = [...spec.i, spec.j],
+    message = () => {
+      intro();
+      ctx.out(`j (${spec.j}) indicates the subgrouping such as time.`);
+    };
+  data.sort(keys);
+  const repeated = new Set();
+  for (const group of runsOf(data, keys))
+    if (group.count > 1)
+      for (let r = group.start; r < group.start + group.count; r++)
+        repeated.add(r);
+  if (repeated.size) {
+    message();
+    ctx.out("The data are in the long form; j should be unique within i.");
+    ctx.out("");
+    ctx.out(
+      `There are multiple observations on the same ${spec.j} within ${i}.`,
+    );
+    ctx.out("");
+    ctx.out(
+      `The following ${repeated.size} of ${data.n} observations have repeated ${spec.j} values:`,
+    );
+    show(keys, repeated);
+    ctx.out("");
+    ctx.out(`(data now sorted by ${keys.join(" ")})`);
+    return;
+  }
+  if (!xi.length) {
+    ctx.out(`${spec.j} is unique within ${i};`);
+    ctx.out('there is no error with which "reshape error" can help.');
+    return;
+  }
+  const groups = runsOf(data, spec.i),
+    varying = (name) =>
+      groups.filter((group) => {
+        const column = data.get(name).data;
+        for (let r = group.start + 1; r < group.start + group.count; r++)
+          if (column[r] !== column[group.start]) return true;
+        return false;
+      });
+  if (xi.every((name) => !varying(name).length)) {
+    ctx.out(`${spec.j} is unique within ${i} and`);
+    ctx.out(
+      'all the "reshape xi" variables are constant within ' + `${spec.j};`,
+    );
+    ctx.out('there is no error with which "reshape error" can help.');
+    return;
+  }
+  message();
+  ctx.out(
+    spec.xij.length === 1
+      ? `xij variable is ${spec.xij[0]}.`
+      : `xij variables are ${spec.xij.join(" ")}.`,
+  );
+  ctx.out("Thus, the following variable(s) should be constant within i:");
+  ctx.out(`      ${xi.join(" ")}`);
+  for (const name of xi) {
+    const bad = varying(name);
+    if (!bad.length) continue;
+    ctx.out("");
+    ctx.out(
+      `${name} not constant within i (${i}) for ${bad.length} value${bad.length === 1 ? "" : "s"} of i:`,
+    );
+    const rows = new Set();
+    for (const group of bad)
+      for (let r = group.start; r < group.start + group.count; r++) rows.add(r);
+    show([...keys, name], rows);
+  }
+  ctx.out("");
+  ctx.out(`(data now sorted by ${keys.join(" ")})`);
+}
+
+function reshape(session, text, ctx) {
+  const trimmed = text.trim(),
+    word = /^\S*/.exec(trimmed)[0],
+    rest = trimmed.slice(word.length);
+  if (word === "clear") {
+    if (session.data.chars) delete session.data.chars.reshape;
+    return;
+  }
+  if (word === "long" || word === "wide") {
+    if (rest.trim()) reshapeSimple(session, word, rest);
+    if (word === "long") reshapeLong(session, ctx);
+    else reshapeWide(session, ctx);
+    return;
+  }
+  if (word.length >= 3 && "error".startsWith(word)) {
+    // reshape.ado runs Qerror under capture noisily and exits without its
+    // return code: a failure is shown, but reshape error itself succeeds.
+    try {
+      reshapeError(session, ctx);
+    } catch (error) {
+      if (!(error instanceof StataError)) throw error;
+      for (const line of error.message.split("\n")) ctx.out(line);
+    }
+    return;
+  }
+  if (!word || "query".startsWith(word) || /^(i|j|xij|xi|favor)$/.test(word))
+    throw invalid(
+      `reshape ${word || "query"} is not available in the browser yet\n    Type reshape long or reshape wide with i() and j(); reshape alone repeats the last one.`,
+    );
+  throw new StataError(
+    [
+      "invalid syntax",
+      paragraph(
+        session,
+        "In the reshape command that you typed, you omitted the word wide or long, or substituted some other word for it. You should have typed",
+      ),
+      "",
+      "        . reshape wide varlist, ...",
+      "    or",
+      "        . reshape long varlist, ...",
+      "",
+      paragraph(
+        session,
+        "You might have omitted varlist, too. The basic syntax of reshape is",
+      ),
+      "",
+      ...reshapePicture(true),
+    ].join("\n"),
+    198,
+  );
 }
 
 // ----- observations -----
@@ -1125,52 +1788,83 @@ function targets(parsed, action) {
 
 function destring(session, text, ctx) {
   const parsed = session.parse(
-      "[varlist] [, Generate(string) replace force IGnore(string) PERCENT | DPcomma FLOAT]",
+      "[varlist] [, Generate(string) replace force IGnore(string) PERCENT float | DPcomma]",
       text,
     ),
     names = targets(parsed, "destring"),
     data = session.data,
-    ignore = parsed.options.ignore?.replace(/^"|"$/g, "") ?? "";
+    options = parsed.options,
+    genrep = names ? "generate" : "replace";
+  // destring.ado removes each character of ignore() in turn, and % as well
+  // under percent; the variable is then read with real() into a double, or
+  // a float under float, and compressed.
+  let ignore = options.ignore?.replace(/^"([\s\S]*)"$/, "$1") ?? "";
+  if (options.percent && !ignore.includes("%")) ignore += "%";
+  const characters = [...ignore],
+    base = options.float ? "float" : "double";
   parsed.varlist.forEach((name, k) => {
     const variable = data.get(name);
     if (!isStringType(variable.type)) {
-      ctx.out(`${name} already numeric; no ${names ? "generate" : "replace"}`);
+      ctx.out(`${name} already numeric; no ${genrep}`);
       return;
     }
-    let bad = 0;
-    const values = variable.data.map((raw) => {
-      let cell = raw;
-      for (const c of ignore) cell = cell.split(c).join("");
-      if (parsed.options.percent) cell = cell.replace(/%/g, "");
-      cell = cell.trim();
-      if (cell === "") return MISSING;
-      const value = parseNumber(cell);
-      if (value === undefined) {
-        bad++;
-        return MISSING;
-      }
-      return parsed.options.percent ? value / 100 : value;
-    });
-    if (bad && !parsed.options.force) {
+    let cells = variable.data.slice(),
+      percentCells = 0;
+    const removed = [];
+    for (const c of characters) {
+      if (cells.some((cell) => cell.includes(c)))
+        removed.push(c === " " ? "space" : c);
+      if (c === "%" && options.percent)
+        percentCells = cells.filter((cell) => cell.includes(c)).length;
+      cells = cells.map((cell) => cell.split(c).join(""));
+    }
+    cells = cells.map((cell) => cell.trim().replace(/^0+/, "0"));
+    const wasMissing = cells.filter(
+        (cell) => cell === "" || cell === "." || /^\.[a-z]$/.test(cell),
+      ).length,
+      read = (cell) => {
+        const value = parseNumber(cell);
+        if (value === undefined) return MISSING;
+        return options.float && !isMissing(value) ? Math.fround(value) : value;
+      };
+    let values = cells.map(read);
+    const missing = values.filter(isMissing).length,
+      flag = missing !== wasMissing;
+    if (flag && !options.force) {
       ctx.out(
-        `${name}: contains nonnumeric characters; no ${names ? "generate" : "replace"}`,
+        ignore
+          ? `${name}: contains characters not specified in ignore(); no ${genrep}`
+          : `${name}: contains nonnumeric characters; no ${genrep}`,
       );
       return;
     }
+    if (percentCells)
+      values = values.map((v) =>
+        isMissing(v) ? v : options.float ? Math.fround(v / 100) : v / 100,
+      );
     const smallest = inferType(values),
-      type = smallest === "float" ? "double" : smallest,
-      missing = values.filter(isMissing).length,
-      target = names ? names[k] : name;
+      type = ["byte", "int", "long"].includes(smallest) ? smallest : base,
+      target = names ? names[k] : name,
+      finalPrint = names ? `${target} ` : "";
     if (names) {
       data.generate(target, values, { type });
       placeAfter(data, target, name);
     } else {
       swapVariable(data, name, values, { type });
     }
-    data.get(target).format = "%10.0g";
-    ctx.out(
-      `${name}: ${bad ? "contains nonnumeric characters; " : ignore ? `character${ignore.length > 1 ? "s" : ""} ${[...ignore].join(" ")} removed; ` : "all characters numeric; "}${names ? `${target} generated` : "replaced"} as ${type}`,
-    );
+    data.get(target).format = base === "float" ? "%9.0g" : "%10.0g";
+    if (flag)
+      ctx.out(
+        `${name}: contains nonnumeric characters${ignore ? " not specified in ignore()" : ""}${removed.length ? "" : `; ${finalPrint}${genrep}d as ${type}`}`,
+      );
+    if (removed.length)
+      ctx.out(
+        `${name}: character${removed.length > 1 ? "s" : ""} ${removed.join(" ")} removed; ${finalPrint}${genrep}d as ${type}`,
+      );
+    else if (!flag)
+      ctx.out(
+        `${name}: all characters numeric; ${finalPrint}${genrep}d as ${type}`,
+      );
     if (missing) ctx.out(`(${plural(missing, "missing value")} generated)`);
   });
 }
@@ -1242,6 +1936,8 @@ function encode(session, text) {
     throw new StataError("not possible with numeric variable", 107);
   if (data.has(target))
     throw new StataError(`variable ${target} already defined`, 110);
+  if (parsed.options.extend === false && parsed.options.label === undefined)
+    throw invalid("noextend option not allowed without label() option");
   const rows = new Set(session.rows(parsed, null)),
     map = data.valueLabels.get(labelName) ?? new Map(),
     codes = new Map([...map].map(([value, label]) => [label, value])),
@@ -1252,6 +1948,12 @@ function encode(session, text) {
         ),
       ),
     ].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  // noextend refuses values the label does not already code.
+  if (parsed.options.extend === false && fresh.length)
+    throw new StataError(
+      ["Unexpected values encountered:", ...fresh].join("\n"),
+      459,
+    );
   // A value label holds at most 65,536 codings (help limits).
   if (map.size + fresh.length > 65536)
     throw new StataError("too many values", 134);
@@ -1468,6 +2170,10 @@ function recode(session, text, ctx) {
         `Value label not allowed for noninteger ${formatNumber(value)}`,
       );
   };
+  // A label is a word, or quoted text that is not empty: recode.ado reads
+  // "" as nothing, and then finds it where ) should be.
+  const isRuleLabel = (token) =>
+    token && (token.quoted ? token.text !== "" : token.text !== ")");
   const usingParens = parens > 0,
     closeRule = (k) => {
       // ) then ( or the end
@@ -1489,7 +2195,7 @@ function recode(session, text, ctx) {
       const target = { value: element(rest[k + 1]?.text), label: null };
       k += 2;
       if (usingParens) {
-        if (rest[k] && rest[k].text !== ")" && rest[k + 1]?.text === ")") {
+        if (isRuleLabel(rest[k]) && rest[k + 1]?.text === ")") {
           labelOk(target.value);
           target.label = rest[k].text;
           k++;
@@ -1526,7 +2232,7 @@ function recode(session, text, ctx) {
     const target = { value: element(rest[k + 2]?.text), label: null };
     k += 3;
     if (usingParens) {
-      if (rest[k] && rest[k].text !== ")" && rest[k + 1]?.text === ")") {
+      if (isRuleLabel(rest[k]) && rest[k + 1]?.text === ")") {
         labelOk(target.value);
         target.label = rest[k].text;
         k++;

@@ -35624,6 +35624,2376 @@
       ]
     },
     {
+      "id": "datacmds-inspect-label-rules",
+      "source": "set linesize 80\nclear\nset obs 20\ngenerate x = _n\nlabel variable x \"A\"\ninspect x\nlabel variable x \"Age (years)\"\ninspect x\nlabel variable x \"Respondent age at interview\"\ninspect x\nlabel variable x \"Respondent age at the time of the first interview, in years\"\ninspect x\ngenerate household_income_total = _n*2.5\ninspect household_income_total\nlabel variable household_income_total \"Total income\"\ninspect household_income_total\ngenerate kids = mod(_n, 4)\ninspect kids\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 80", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 20",
+          "lines": ["Number of observations (_N) was 0, now 20."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "label variable x \"A\"", "lines": [] },
+        {
+          "command": "inspect x",
+          "lines": [
+            "x:  A                                           Number of observations",
+            "-----                                  ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #   #   #         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive           20            20             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total              20            20             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "1                    20                         20",
+            "  (20 unique values)"
+          ]
+        },
+        { "command": "label variable x \"Age (years)\"", "lines": [] },
+        {
+          "command": "inspect x",
+          "lines": [
+            "x:  Age (years)                                 Number of observations",
+            "---------------                        ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #   #   #         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive           20            20             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total              20            20             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "1                    20                         20",
+            "  (20 unique values)"
+          ]
+        },
+        {
+          "command": "label variable x \"Respondent age at interview\"",
+          "lines": []
+        },
+        {
+          "command": "inspect x",
+          "lines": [
+            "x:  Respondent age at interview                 Number of observations",
+            "-------------------------------        ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #   #   #         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive           20            20             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total              20            20             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "1                    20                         20",
+            "  (20 unique values)"
+          ]
+        },
+        {
+          "command": "label variable x \"Respondent age at the time of the first interview, in years\"",
+          "lines": []
+        },
+        {
+          "command": "inspect x",
+          "lines": [
+            "x:  Respondent age at the time of the fi        Number of observations",
+            "-------------------------------------------------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #   #   #         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive           20            20             -",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total              20            20             -",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "1                    20                         20",
+            "  (20 unique values)"
+          ]
+        },
+        { "command": "generate household_income_total = _n*2.5", "lines": [] },
+        {
+          "command": "inspect household_income_total",
+          "lines": [
+            "household_income_total:                         Number of observations",
+            "-------------------------              ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #   #   #         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive           20            10            10",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total              20            10            10",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "2.5                  50                         20",
+            "  (20 unique values)"
+          ]
+        },
+        {
+          "command": "label variable household_income_total \"Total income\"",
+          "lines": []
+        },
+        {
+          "command": "inspect household_income_total",
+          "lines": [
+            "household_income_total:  Total income           Number of observations",
+            "-------------------------------------  ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #   #   #         Negative            -             -             -",
+            "|  #   #   #   #   #         Zero                -             -             -",
+            "|  #   #   #   #   #         Positive           20            10            10",
+            "|  #   #   #   #   #                   -----------   -----------   -----------",
+            "|  #   #   #   #   #         Total              20            10            10",
+            "|  #   #   #   #   #         Missing             -",
+            "+----------------------                -----------",
+            "2.5                  50                         20",
+            "  (20 unique values)"
+          ]
+        },
+        { "command": "generate kids = mod(_n, 4)", "lines": [] },
+        {
+          "command": "inspect kids",
+          "lines": [
+            "kids:                                           Number of observations",
+            "-------                                ---------------------------------------",
+            "                                             Total      Integers   Nonintegers",
+            "|  #   #   #   #             Negative            -             -             -",
+            "|  #   #   #   #             Zero                5             5             -",
+            "|  #   #   #   #             Positive           15            15             -",
+            "|  #   #   #   #                       -----------   -----------   -----------",
+            "|  #   #   #   #             Total              20            20             -",
+            "|  #   #   #   #             Missing             -",
+            "+----------------------                -----------",
+            "0                     3                         20",
+            "   (4 unique values)"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "datacmds-merge-update-missing-codes",
+      "source": "set linesize 80\nclear\nset obs 7\ngenerate int id = _n\ngenerate float x = .\nreplace x = .a in 2/3\nreplace x = 5 in 4\nreplace x = .c in 6\nreplace x = 5 in 7\ngenerate byte g = mod(_n, 2)\nlabel define dcm_gl 0 \"even\" 1 \"odd\"\nlabel values g dcm_gl\nsave dcm_master, replace\nclear\nset obs 7\ngenerate long id = _n\ngenerate double x = .a\nreplace x = . in 2\nreplace x = . in 5\nreplace x = .b in 6\nreplace x = 6 in 7\ngenerate byte g = 1\nlabel define dcm_gl 1 \"ODD\"\nlabel values g dcm_gl\ngenerate z = _n\nsave dcm_using, replace\nsave using, replace\nuse dcm_master, clear\nmerge 1:1 id using dcm_using, update\nlist, nolabel\nuse dcm_master, clear\nmerge 1:1 id using dcm_using, update replace\nlist id x g _merge, nolabel\nuse dcm_master, clear\nmerge 1:1 id using dcm_using, update keepusing(x) generate(how)\nlist id x how, nolabel\nuse dcm_master, clear\ncapture noisily merge 1:1 id using dcm_using, update assert(match master)\ntabulate _merge\nuse dcm_master, clear\ncapture noisily merge 1:1 id using dcm_using, update assert(1 2 3)\nuse dcm_master, clear\ncapture noisily merge 1:1 id using dcm_using, assert(match_upd)\nuse dcm_master, clear\ncapture noisily merge 1:1 id using dcm_using, assert(bogus)\nuse dcm_master, clear\nmerge 1:1 _n using dcm_using, update\nlist id x z _merge, nolabel\nuse dcm_master, clear\ncapture noisily merge m:1 _n using dcm_using\nuse dcm_master, clear\nmerge 1:1 id using using, keep(match) nogenerate\nlist id x z\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 80", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 7",
+          "lines": ["Number of observations (_N) was 0, now 7."]
+        },
+        { "command": "generate int id = _n", "lines": [] },
+        {
+          "command": "generate float x = .",
+          "lines": ["(7 missing values generated)"]
+        },
+        {
+          "command": "replace x = .a in 2/3",
+          "lines": ["(2 real changes made, 2 to missing)"]
+        },
+        { "command": "replace x = 5 in 4", "lines": ["(1 real change made)"] },
+        {
+          "command": "replace x = .c in 6",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "replace x = 5 in 7", "lines": ["(1 real change made)"] },
+        { "command": "generate byte g = mod(_n, 2)", "lines": [] },
+        { "command": "label define dcm_gl 0 \"even\" 1 \"odd\"", "lines": [] },
+        { "command": "label values g dcm_gl", "lines": [] },
+        {
+          "command": "save dcm_master, replace",
+          "lines": [
+            "(file dcm_master.dta not found)",
+            "file dcm_master.dta saved"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 7",
+          "lines": ["Number of observations (_N) was 0, now 7."]
+        },
+        { "command": "generate long id = _n", "lines": [] },
+        {
+          "command": "generate double x = .a",
+          "lines": ["(7 missing values generated)"]
+        },
+        {
+          "command": "replace x = . in 2",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace x = . in 5",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace x = .b in 6",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "replace x = 6 in 7", "lines": ["(1 real change made)"] },
+        { "command": "generate byte g = 1", "lines": [] },
+        { "command": "label define dcm_gl 1 \"ODD\"", "lines": [] },
+        { "command": "label values g dcm_gl", "lines": [] },
+        { "command": "generate z = _n", "lines": [] },
+        {
+          "command": "save dcm_using, replace",
+          "lines": [
+            "(file dcm_using.dta not found)",
+            "file dcm_using.dta saved"
+          ]
+        },
+        {
+          "command": "save using, replace",
+          "lines": ["(file using.dta not found)", "file using.dta saved"]
+        },
+        { "command": "use dcm_master, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using dcm_using, update",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable x was float, now double to accommodate using data's values)",
+            "(label dcm_gl already defined)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "",
+            "    Matched                                 7",
+            "        not updated                         2  (_merge==3)",
+            "        missing updated                     1  (_merge==4)",
+            "        nonmissing conflict                 4  (_merge==5)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list, nolabel",
+          "lines": [
+            "     +--------------------------+",
+            "     | id    x   g   z   _merge |",
+            "     |--------------------------|",
+            "  1. |  1   .a   1   1        4 |",
+            "  2. |  2    .   0   2        5 |",
+            "  3. |  3   .a   1   3        3 |",
+            "  4. |  4    5   0   4        5 |",
+            "  5. |  5    .   1   5        3 |",
+            "     |--------------------------|",
+            "  6. |  6   .b   0   6        5 |",
+            "  7. |  7    5   1   7        5 |",
+            "     +--------------------------+"
+          ]
+        },
+        { "command": "use dcm_master, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using dcm_using, update replace",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable x was float, now double to accommodate using data's values)",
+            "(label dcm_gl already defined)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "",
+            "    Matched                                 7",
+            "        not updated                         2  (_merge==3)",
+            "        missing updated                     1  (_merge==4)",
+            "        nonmissing conflict                 4  (_merge==5)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list id x g _merge, nolabel",
+          "lines": [
+            "     +----------------------+",
+            "     | id    x   g   _merge |",
+            "     |----------------------|",
+            "  1. |  1   .a   1        4 |",
+            "  2. |  2    .   1        5 |",
+            "  3. |  3   .a   1        3 |",
+            "  4. |  4    5   1        5 |",
+            "  5. |  5    .   1        3 |",
+            "     |----------------------|",
+            "  6. |  6   .b   1        5 |",
+            "  7. |  7    6   1        5 |",
+            "     +----------------------+"
+          ]
+        },
+        { "command": "use dcm_master, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using dcm_using, update keepusing(x) generate(how)",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable x was float, now double to accommodate using data's values)",
+            "(label dcm_gl already defined)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "",
+            "    Matched                                 7",
+            "        not updated                         3  (how==3)",
+            "        missing updated                     3  (how==4)",
+            "        nonmissing conflict                 1  (how==5)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list id x how, nolabel",
+          "lines": [
+            "     +---------------+",
+            "     | id    x   how |",
+            "     |---------------|",
+            "  1. |  1   .a     4 |",
+            "  2. |  2    .     4 |",
+            "  3. |  3   .a     3 |",
+            "  4. |  4    5     3 |",
+            "  5. |  5    .     3 |",
+            "     |---------------|",
+            "  6. |  6   .b     4 |",
+            "  7. |  7    5     5 |",
+            "     +---------------+"
+          ]
+        },
+        { "command": "use dcm_master, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using dcm_using, update assert(match master)",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable x was float, now double to accommodate using data's values)",
+            "(label dcm_gl already defined)",
+            "after merge, not all observations from master or matched",
+            "(merged result left in memory)"
+          ]
+        },
+        {
+          "command": "tabulate _merge",
+          "lines": [
+            "   Matching result from |",
+            "                  merge |      Freq.     Percent        Cum.",
+            "------------------------+-----------------------------------",
+            "            Matched (3) |          2       28.57       28.57",
+            "    Missing updated (4) |          1       14.29       42.86",
+            "Nonmissing conflict (5) |          4       57.14      100.00",
+            "------------------------+-----------------------------------",
+            "                  Total |          7      100.00"
+          ]
+        },
+        { "command": "use dcm_master, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using dcm_using, update assert(1 2 3)",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable x was float, now double to accommodate using data's values)",
+            "(label dcm_gl already defined)",
+            "after merge, not all observations from master, from using, or matched",
+            "(merged result left in memory)"
+          ]
+        },
+        { "command": "use dcm_master, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using dcm_using, assert(match_upd)",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable x was float, now double to accommodate using data's values)",
+            "(label dcm_gl already defined)",
+            "after merge, not all observations matched and updated",
+            "(merged result left in memory)"
+          ]
+        },
+        { "command": "use dcm_master, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using dcm_using, assert(bogus)",
+          "lines": [
+            "bogus:  invalid resulttype",
+            "    results, specified in options assert() and keep(), are the integers 1",
+            "    through 5, or master (equivalent to 1), using (2), match (3), match_update",
+            "    (4), or match_conflict (5).  The last two arise only when option update is",
+            "    specified."
+          ]
+        },
+        { "command": "use dcm_master, clear", "lines": [] },
+        {
+          "command": "merge 1:1 _n using dcm_using, update",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable x was float, now double to accommodate using data's values)",
+            "(label dcm_gl already defined)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "",
+            "    Matched                                 7",
+            "        not updated                         2  (_merge==3)",
+            "        missing updated                     1  (_merge==4)",
+            "        nonmissing conflict                 4  (_merge==5)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list id x z _merge, nolabel",
+          "lines": [
+            "     +----------------------+",
+            "     | id    x   z   _merge |",
+            "     |----------------------|",
+            "  1. |  1   .a   1        4 |",
+            "  2. |  2    .   2        5 |",
+            "  3. |  3   .a   3        3 |",
+            "  4. |  4    5   4        5 |",
+            "  5. |  5    .   5        3 |",
+            "     |----------------------|",
+            "  6. |  6   .b   6        5 |",
+            "  7. |  7    5   7        5 |",
+            "     +----------------------+"
+          ]
+        },
+        { "command": "use dcm_master, clear", "lines": [] },
+        {
+          "command": "capture noisily merge m:1 _n using dcm_using",
+          "lines": [
+            "m:1 _n invalid",
+            "    the syntax for a sequential merge is merge 1:1 _n ...",
+            "    the syntax for a m:1 match merge is merge m:1 varlist ..."
+          ]
+        },
+        { "command": "use dcm_master, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using using, keep(match) nogenerate",
+          "lines": [
+            "(variable id was int, now long to accommodate using data's values)",
+            "(variable x was float, now double to accommodate using data's values)",
+            "(label dcm_gl already defined)",
+            "",
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 7",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list id x z",
+          "lines": [
+            "     +-------------+",
+            "     | id    x   z |",
+            "     |-------------|",
+            "  1. |  1    .   1 |",
+            "  2. |  2   .a   2 |",
+            "  3. |  3   .a   3 |",
+            "  4. |  4    5   4 |",
+            "  5. |  5    .   5 |",
+            "     |-------------|",
+            "  6. |  6   .c   6 |",
+            "  7. |  7    5   7 |",
+            "     +-------------+"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "datacmds-collapse-zero-weights",
+      "source": "clear\nset obs 8\ngenerate g = ceil(_n/2)\ngenerate x = _n\ngenerate w = cond(g==2, 0, 1)\nreplace w = . in 7\nreplace w = 0 in 8\npreserve\ncollapse (mean) x (count) n=x [aw=w], by(g)\nlist\nrestore\npreserve\ncollapse (sum) x (percent) p=x [pw=w], by(g)\nlist\nrestore\npreserve\ncollapse (median) x (count) n=x [iw=w], by(g)\nlist\nrestore\npreserve\ncollapse (sum) x [fw=w], by(g)\nlist\nrestore\npreserve\ncollapse (mean) x (firstnm) f=x [aw=w]\nlist\nrestore\ncapture noisily collapse (mean) x if x > 100, by(g)\nreplace w = 0\ncapture noisily collapse (mean) x [aw=w], by(g)\ndescribe, short\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 8",
+          "lines": ["Number of observations (_N) was 0, now 8."]
+        },
+        { "command": "generate g = ceil(_n/2)", "lines": [] },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate w = cond(g==2, 0, 1)", "lines": [] },
+        {
+          "command": "replace w = . in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "replace w = 0 in 8", "lines": ["(1 real change made)"] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (mean) x (count) n=x [aw=w], by(g)",
+          "lines": ["(note: aweights not used to compute counts)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------+",
+            "     | g     x   n |",
+            "     |-------------|",
+            "  1. | 1   1.5   2 |",
+            "  2. | 3   5.5   2 |",
+            "     +-------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (sum) x (percent) p=x [pw=w], by(g)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------+",
+            "     | g    x    p |",
+            "     |-------------|",
+            "  1. | 1    3   50 |",
+            "  2. | 3   11   50 |",
+            "     +-------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        {
+          "command": "collapse (median) x (count) n=x [iw=w], by(g)",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------+",
+            "     | g     x   n |",
+            "     |-------------|",
+            "  1. | 1   1.5   2 |",
+            "  2. | 3   5.5   2 |",
+            "     +-------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "collapse (sum) x [fw=w], by(g)", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------+",
+            "     | g    x |",
+            "     |--------|",
+            "  1. | 1    3 |",
+            "  2. | 3   11 |",
+            "     +--------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        { "command": "preserve", "lines": [] },
+        { "command": "collapse (mean) x (firstnm) f=x [aw=w]", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------+",
+            "     |   x   f |",
+            "     |---------|",
+            "  1. | 3.5   1 |",
+            "     +---------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        {
+          "command": "capture noisily collapse (mean) x if x > 100, by(g)",
+          "lines": ["no observations"]
+        },
+        { "command": "replace w = 0", "lines": ["(5 real changes made)"] },
+        {
+          "command": "capture noisily collapse (mean) x [aw=w], by(g)",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             8",
+            "    Variables:             3",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "datacmds-reshape-missing-j-and-labels",
+      "source": "set linesize 80\nclear\ninput id t x\n1 1 5\n1 . 6\nend\ncapture noisily reshape wide x, i(id) j(t)\nlist\nclear\ninput id t x\n1 1 5\n1 2 6\nend\nreshape wide x, i(id) j(t)\nclear\ninput id x1 x2\n1 5 6\nend\ncapture noisily reshape long\nclear\ninput id t x\n1 1 5\n1 2 6\n2 1 7\nend\nlabel variable x \"Score\"\nlabel define dcr_xl 5 \"five\"\nlabel values x dcr_xl\nlabel variable t \"Time\"\nlabel define dcr_tl 1 \"one\" 2 \"two\"\nlabel values t dcr_tl\nreshape wide x, i(id) j(t)\ndescribe x1 x2\nreshape long x, i(id) j(t)\ndescribe t x\nlist\nreshape wide\nreshape long\ndescribe t x\nreshape long\nreshape wide\nreshape wide\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 80", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id t x",
+          "lines": [
+            "            id          t          x",
+            "  1. 1 1 5",
+            "  2. 1 . 6",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "capture noisily reshape wide x, i(id) j(t)",
+          "lines": ["variable t contains missing values"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------+",
+            "     | id   t   x |",
+            "     |------------|",
+            "  1. |  1   1   5 |",
+            "  2. |  1   .   6 |",
+            "     +------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id t x",
+          "lines": [
+            "            id          t          x",
+            "  1. 1 1 5",
+            "  2. 1 2 6",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "reshape wide x, i(id) j(t)",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Long   ->   Wide",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                2   ->   1",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                 t   ->   (dropped)",
+            "xij variables:",
+            "                                      x   ->   x1 x2",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x1 x2",
+          "lines": [
+            "            id         x1         x2",
+            "  1. 1 5 6",
+            "  2. end"
+          ]
+        },
+        {
+          "command": "capture noisily reshape long",
+          "lines": [
+            "data have not been reshaped yet",
+            "    What you typed is a syntax error because the data have not been reshaped",
+            "    previously. The basic syntax of reshape is",
+            "",
+            "         long                                wide",
+            "        +---------------+                   +------------------+",
+            "        | i   j   a   b |                   | i   a1 a2  b1 b2 |",
+            "        |---------------| <--- reshape ---> |------------------|",
+            "        | 1   1   1   2 |                   | 1   1   3   2  4 |",
+            "        | 1   2   3   4 |                   | 2   5   7   6  8 |",
+            "        | 2   1   5   6 |                   +------------------+",
+            "        | 2   2   7   8 |",
+            "        +---------------+",
+            "",
+            "        long to wide: reshape wide a b, i(i) j(j)    (j existing variable)",
+            "        wide to long: reshape long a b, i(i) j(j)    (j new variable)"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id t x",
+          "lines": [
+            "            id          t          x",
+            "  1. 1 1 5",
+            "  2. 1 2 6",
+            "  3. 2 1 7",
+            "  4. end"
+          ]
+        },
+        { "command": "label variable x \"Score\"", "lines": [] },
+        { "command": "label define dcr_xl 5 \"five\"", "lines": [] },
+        { "command": "label values x dcr_xl", "lines": [] },
+        { "command": "label variable t \"Time\"", "lines": [] },
+        { "command": "label define dcr_tl 1 \"one\" 2 \"two\"", "lines": [] },
+        { "command": "label values t dcr_tl", "lines": [] },
+        {
+          "command": "reshape wide x, i(id) j(t)",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Long   ->   Wide",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                3   ->   2",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                 t   ->   (dropped)",
+            "xij variables:",
+            "                                      x   ->   x1 x2",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "describe x1 x2",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "x1              float   %9.0g      dcr_xl     1 x",
+            "x2              float   %9.0g      dcr_xl     2 x"
+          ]
+        },
+        {
+          "command": "reshape long x, i(id) j(t)",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                2   ->   4",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                     ->   t",
+            "xij variables:",
+            "                                  x1 x2   ->   x",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "describe t x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "t               byte    %10.0g     dcr_tl     Time",
+            "x               float   %9.0g      dcr_xl     Score"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------+",
+            "     | id     t      x |",
+            "     |-----------------|",
+            "  1. |  1   one   five |",
+            "  2. |  1   two      6 |",
+            "  3. |  2   one      7 |",
+            "  4. |  2   two      . |",
+            "     +-----------------+"
+          ]
+        },
+        {
+          "command": "reshape wide",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Long   ->   Wide",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                4   ->   2",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                 t   ->   (dropped)",
+            "xij variables:",
+            "                                      x   ->   x1 x2",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "reshape long",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                2   ->   4",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                     ->   t",
+            "xij variables:",
+            "                                  x1 x2   ->   x",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "describe t x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "t               byte    %10.0g     dcr_tl     Time",
+            "x               float   %9.0g      dcr_xl     Score"
+          ]
+        },
+        { "command": "reshape long", "lines": ["(data are already long)"] },
+        {
+          "command": "reshape wide",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Long   ->   Wide",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                4   ->   2",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                 t   ->   (dropped)",
+            "xij variables:",
+            "                                      x   ->   x1 x2",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "reshape wide", "lines": ["(data are already wide)"] },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "datacmds-reshape-stubs-and-errors",
+      "source": "set linesize 80\nclear\ninput id x1_a x2_a\n1 3 4\n2 5 6\nend\nreshape long x@_a, i(id) j(k)\nlist\nreshape wide\ndescribe x1_a x2_a\nclear\ninput id inc_w1 inc_w2 z\n1 3 4 9\n2 5 6 8\nend\nreshape long inc_w@, i(id) j(wave)\nlist\nclear\ninput id ab1c ab2c\n1 3 4\nend\nreshape long a@c, i(id) j(k) string\nlist\ndescribe k\nclear\ninput id inc01 inc02 inc10\n1 3 4 5\n2 6 7 8\nend\nreshape long inc, i(id) j(m)\nlist\nclear\ninput id inc01 inc02 inc10\n1 3 4 5\nend\nreshape long inc, i(id) j(m) string\nlist\nclear\ninput id t x\n1 1 5\n1 2 6\n2 1 7\nend\nreshape wide x, i(id) j(t 1 2 3)\nlist\nclear\ninput id x1 x2 x4\n1 5 6 7\nend\nreshape long x, i(id) j(t 1-4)\nlist\nclear\ninput z id t a b w\n1 1 1 5 6 9\n1 1 2 7 8 9\n2 2 1 1 2 3\nend\nreshape wide b a, i(id) j(t)\nlist\nreshape long\nlist\nclear\ninput id byte x1 int x2 float x3\n1 1 2 3.5\nend\nreshape long x, i(id) j(t)\ndescribe x\nclear\ninput id x1 x2\n1 5 6\nend\nlabel define dcs_l2 6 \"six\"\nlabel values x2 dcs_l2\nformat x1 %5.2f\nreshape long x, i(id) j(t)\ndescribe x\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 80", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x1_a x2_a",
+          "lines": [
+            "            id       x1_a       x2_a",
+            "  1. 1 3 4",
+            "  2. 2 5 6",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "reshape long x@_a, i(id) j(k)",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                2   ->   4",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                     ->   k",
+            "xij variables:",
+            "                              x1_a x2_a   ->   x_a",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------+",
+            "     | id   k   x_a |",
+            "     |--------------|",
+            "  1. |  1   1     3 |",
+            "  2. |  1   2     4 |",
+            "  3. |  2   1     5 |",
+            "  4. |  2   2     6 |",
+            "     +--------------+"
+          ]
+        },
+        {
+          "command": "reshape wide",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Long   ->   Wide",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                4   ->   2",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                 k   ->   (dropped)",
+            "xij variables:",
+            "                                    x_a   ->   x1_a x2_a",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "describe x1_a x2_a",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "x1_a            float   %9.0g                 1 x_a",
+            "x2_a            float   %9.0g                 2 x_a"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id inc_w1 inc_w2 z",
+          "lines": [
+            "            id     inc_w1     inc_w2          z",
+            "  1. 1 3 4 9",
+            "  2. 2 5 6 8",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "reshape long inc_w@, i(id) j(wave)",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                2   ->   4",
+            "Number of variables                   4   ->   4",
+            "j variable (2 values)                     ->   wave",
+            "xij variables:",
+            "                          inc_w1 inc_w2   ->   inc_w",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------+",
+            "     | id   wave   inc_w   z |",
+            "     |-----------------------|",
+            "  1. |  1      1       3   9 |",
+            "  2. |  1      2       4   9 |",
+            "  3. |  2      1       5   8 |",
+            "  4. |  2      2       6   8 |",
+            "     +-----------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id ab1c ab2c",
+          "lines": [
+            "            id       ab1c       ab2c",
+            "  1. 1 3 4",
+            "  2. end"
+          ]
+        },
+        {
+          "command": "reshape long a@c, i(id) j(k) string",
+          "lines": [
+            "(j = b1 b2)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                1   ->   2",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                     ->   k",
+            "xij variables:",
+            "                              ab1c ab2c   ->   ac",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------+",
+            "     | id    k   ac |",
+            "     |--------------|",
+            "  1. |  1   b1    3 |",
+            "  2. |  1   b2    4 |",
+            "     +--------------+"
+          ]
+        },
+        {
+          "command": "describe k",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "k               str2    %9s"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id inc01 inc02 inc10",
+          "lines": [
+            "            id      inc01      inc02      inc10",
+            "  1. 1 3 4 5",
+            "  2. 2 6 7 8",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "reshape long inc, i(id) j(m)",
+          "lines": [
+            "(j = 1 2 10)",
+            "(variable inc1 not found)",
+            "(variable inc2 not found)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                2   ->   6",
+            "Number of variables                   4   ->   5",
+            "j variable (3 values)                     ->   m",
+            "xij variables:",
+            "                        inc1 inc2 inc10   ->   inc",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------------------+",
+            "     | id    m   inc01   inc02   inc |",
+            "     |-------------------------------|",
+            "  1. |  1    1       3       4     . |",
+            "  2. |  1    2       3       4     . |",
+            "  3. |  1   10       3       4     5 |",
+            "  4. |  2    1       6       7     . |",
+            "  5. |  2    2       6       7     . |",
+            "     |-------------------------------|",
+            "  6. |  2   10       6       7     8 |",
+            "     +-------------------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id inc01 inc02 inc10",
+          "lines": [
+            "            id      inc01      inc02      inc10",
+            "  1. 1 3 4 5",
+            "  2. end"
+          ]
+        },
+        {
+          "command": "reshape long inc, i(id) j(m) string",
+          "lines": [
+            "(j = 01 02 10)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                1   ->   3",
+            "Number of variables                   4   ->   3",
+            "j variable (3 values)                     ->   m",
+            "xij variables:",
+            "                      inc01 inc02 inc10   ->   inc",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------+",
+            "     | id    m   inc |",
+            "     |---------------|",
+            "  1. |  1   01     3 |",
+            "  2. |  1   02     4 |",
+            "  3. |  1   10     5 |",
+            "     +---------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id t x",
+          "lines": [
+            "            id          t          x",
+            "  1. 1 1 5",
+            "  2. 1 2 6",
+            "  3. 2 1 7",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "reshape wide x, i(id) j(t 1 2 3)",
+          "lines": [
+            "(no data for t == 3)",
+            "",
+            "Data                               Long   ->   Wide",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                3   ->   2",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                 t   ->   (dropped)",
+            "xij variables:",
+            "                                      x   ->   x1 x2",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------+",
+            "     | id   x1   x2 |",
+            "     |--------------|",
+            "  1. |  1    5    6 |",
+            "  2. |  2    7    . |",
+            "     +--------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x1 x2 x4",
+          "lines": [
+            "            id         x1         x2         x4",
+            "  1. 1 5 6 7",
+            "  2. end"
+          ]
+        },
+        {
+          "command": "reshape long x, i(id) j(t 1-4)",
+          "lines": [
+            "(variable x3 not found)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                1   ->   4",
+            "Number of variables                   4   ->   3",
+            "j variable (4 values)                     ->   t",
+            "xij variables:",
+            "                           x1 x2 ... x4   ->   x",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------+",
+            "     | id   t   x |",
+            "     |------------|",
+            "  1. |  1   1   5 |",
+            "  2. |  1   2   6 |",
+            "  3. |  1   3   . |",
+            "  4. |  1   4   7 |",
+            "     +------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input z id t a b w",
+          "lines": [
+            "             z         id          t          a          b          w",
+            "  1. 1 1 1 5 6 9",
+            "  2. 1 1 2 7 8 9",
+            "  3. 2 2 1 1 2 3",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "reshape wide b a, i(id) j(t)",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Long   ->   Wide",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                3   ->   2",
+            "Number of variables                   6   ->   7",
+            "j variable (2 values)                 t   ->   (dropped)",
+            "xij variables:",
+            "                                      b   ->   b1 b2",
+            "                                      a   ->   a1 a2",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------------------+",
+            "     | id   a1   b1   a2   b2   z   w |",
+            "     |--------------------------------|",
+            "  1. |  1    5    6    7    8   1   9 |",
+            "  2. |  2    1    2    .    .   2   3 |",
+            "     +--------------------------------+"
+          ]
+        },
+        {
+          "command": "reshape long",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                2   ->   4",
+            "Number of variables                   7   ->   6",
+            "j variable (2 values)                     ->   t",
+            "xij variables:",
+            "                                  b1 b2   ->   b",
+            "                                  a1 a2   ->   a",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------------+",
+            "     | id   t   a   b   z   w |",
+            "     |------------------------|",
+            "  1. |  1   1   5   6   1   9 |",
+            "  2. |  1   2   7   8   1   9 |",
+            "  3. |  2   1   1   2   2   3 |",
+            "  4. |  2   2   .   .   2   3 |",
+            "     +------------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id byte x1 int x2 float x3",
+          "lines": [
+            "            id        x1        x2         x3",
+            "  1. 1 1 2 3.5",
+            "  2. end"
+          ]
+        },
+        {
+          "command": "reshape long x, i(id) j(t)",
+          "lines": [
+            "(j = 1 2 3)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                1   ->   3",
+            "Number of variables                   4   ->   3",
+            "j variable (3 values)                     ->   t",
+            "xij variables:",
+            "                               x1 x2 x3   ->   x",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "describe x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "x               float   %9.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x1 x2",
+          "lines": [
+            "            id         x1         x2",
+            "  1. 1 5 6",
+            "  2. end"
+          ]
+        },
+        { "command": "label define dcs_l2 6 \"six\"", "lines": [] },
+        { "command": "label values x2 dcs_l2", "lines": [] },
+        { "command": "format x1 %5.2f", "lines": [] },
+        {
+          "command": "reshape long x, i(id) j(t)",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                1   ->   2",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                     ->   t",
+            "xij variables:",
+            "                                  x1 x2   ->   x",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "describe x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "x               float   %9.0g      dcs_l2"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "datacmds-reshape-error-listing",
+      "source": "set linesize 80\nclear\ninput id t x z\n1 1 5 1\n1 2 6 2\n2 1 7 3\nend\ncapture noisily reshape wide x, i(id) j(t)\nreshape error\nlist\nclear\ninput id wave x\n1 1 5\n1 1 6\n2 1 7\nend\ncapture noisily reshape wide x, i(id) j(wave)\nreshape error\nclear\ninput id x1 x2\n1 5 6\n1 7 8\n2 1 2\nend\ncapture noisily reshape long x, i(id) j(t)\nreshape error\nclear\ninput id str5 grp x\n1 \"a b\" 5\n1 \"c\" 6\nend\ncapture noisily reshape wide x, i(id) j(grp) string\ncapture noisily reshape error\nclear\ninput id str3 g x\n1 \" a\" 5\nend\ncapture noisily reshape wide x, i(id) j(g) string\nclear\ninput id t x\n1 1 5\n1 2 6\nend\nreshape wide x, i(id) j(t)\nreshape error\nclear\ninput id t x\n1 1 5\n1 2 6\nend\ncapture noisily reshape wide x, i(id)\ncapture noisily reshape wide x, j(t)\ncapture noisily reshape wide x, i(id) j(q)\ncapture noisily reshape long x, i(id) j(t)\ncapture noisily reshape wide x y, i(id) j(t)\ncapture noisily reshape wide x, i(id) j(t a b)\ncapture noisily reshape wide x, i(id) j(t 3-1)\ngenerate _merge = 1\ncapture noisily reshape wide x, i(id) j(t)\nclear\ninput id x1 str2 x2\n1 1 \"a\"\nend\ncapture noisily reshape long x, i(id) j(t)\nclear\ninput id x x1 x2\n1 0 1 2\nend\ncapture noisily reshape long x, i(id) j(t)\ncapture noisily reshape long y, i(id) j(t)\nclear\ninput id t x\n1 -1 5\n1 2 6\nend\ncapture noisily reshape wide x, i(id) j(t)\nclear\nset obs 30\ngenerate id = 1\ngenerate t = _n + 1000\ngenerate y = _n\nreshape wide y, i(id) j(t)\nreshape long y, i(id) j(t)\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 80", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id t x z",
+          "lines": [
+            "            id          t          x          z",
+            "  1. 1 1 5 1",
+            "  2. 1 2 6 2",
+            "  3. 2 1 7 3",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "capture noisily reshape wide x, i(id) j(t)",
+          "lines": [
+            "(j = 1 2)",
+            "variable z not constant within id",
+            "    Your data are currently long. You are performing a reshape wide. You typed",
+            "    something like",
+            "",
+            "        . reshape wide a b, i(id) j(t)",
+            "",
+            "    There are variables other than a, b, id, t in your data. They must be",
+            "    constant within id because that is the only way they can fit into wide",
+            "    data without loss of information.",
+            "",
+            "    The variable or variables listed above are not constant within id. Perhaps",
+            "    the values are in error. Type reshape error for a list of the problem",
+            "    observations.",
+            "",
+            "    Either that, or the values vary because they should vary, in which case",
+            "    you must either add the variables to the list of xij variables to be",
+            "    reshaped, or drop them."
+          ]
+        },
+        {
+          "command": "reshape error",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "i (id) indicates the top-level grouping such as subject id.",
+            "j (t) indicates the subgrouping such as time.",
+            "xij variable is x.",
+            "Thus, the following variable(s) should be constant within i:",
+            "      z",
+            "",
+            "z not constant within i (id) for 1 value of i:",
+            "",
+            "     +------------+",
+            "     | id   t   z |",
+            "     |------------|",
+            "  1. |  1   1   1 |",
+            "  2. |  1   2   2 |",
+            "     +------------+",
+            "",
+            "(data now sorted by id t)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------+",
+            "     | id   t   x   z |",
+            "     |----------------|",
+            "  1. |  1   1   5   1 |",
+            "  2. |  1   2   6   2 |",
+            "  3. |  2   1   7   3 |",
+            "     +----------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id wave x",
+          "lines": [
+            "            id       wave          x",
+            "  1. 1 1 5",
+            "  2. 1 1 6",
+            "  3. 2 1 7",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "capture noisily reshape wide x, i(id) j(wave)",
+          "lines": [
+            "(j = 1)",
+            "values of variable wave not unique within id",
+            "    Your data are currently long. You are performing a reshape wide. You",
+            "    specified i(id) and j(wave). There are observations within i(id) with the",
+            "    same value of j(wave). In the long data, variables i() and j() together",
+            "    must uniquely identify the observations.",
+            "",
+            "         long                                wide",
+            "        +---------------+                   +------------------+",
+            "        | i   j   a   b |                   | i   a1 a2  b1 b2 |",
+            "        |---------------| <--- reshape ---> |------------------|",
+            "        | 1   1   1   2 |                   | 1   1   3   2  4 |",
+            "        | 1   2   3   4 |                   | 2   5   7   6  8 |",
+            "        | 2   1   5   6 |                   +------------------+",
+            "        | 2   2   7   8 |",
+            "        +---------------+",
+            "    Type reshape error for a list of the problem variables."
+          ]
+        },
+        {
+          "command": "reshape error",
+          "lines": [
+            "(j = 1)",
+            "",
+            "i (id) indicates the top-level grouping such as subject id.",
+            "j (wave) indicates the subgrouping such as time.",
+            "The data are in the long form; j should be unique within i.",
+            "",
+            "There are multiple observations on the same wave within id.",
+            "",
+            "The following 2 of 3 observations have repeated wave values:",
+            "",
+            "     +-----------+",
+            "     | id   wave |",
+            "     |-----------|",
+            "  1. |  1      1 |",
+            "  2. |  1      1 |",
+            "     +-----------+",
+            "",
+            "(data now sorted by id wave)"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x1 x2",
+          "lines": [
+            "            id         x1         x2",
+            "  1. 1 5 6",
+            "  2. 1 7 8",
+            "  3. 2 1 2",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "capture noisily reshape long x, i(id) j(t)",
+          "lines": [
+            "(j = 1 2)",
+            "variable id does not uniquely identify the observations",
+            "    Your data are currently wide. You are performing a reshape long. You",
+            "    specified i(id) and j(t). In the current wide form, variable id should",
+            "    uniquely identify the observations. Remember this picture:",
+            "",
+            "         long                                wide",
+            "        +---------------+                   +------------------+",
+            "        | i   j   a   b |                   | i   a1 a2  b1 b2 |",
+            "        |---------------| <--- reshape ---> |------------------|",
+            "        | 1   1   1   2 |                   | 1   1   3   2  4 |",
+            "        | 1   2   3   4 |                   | 2   5   7   6  8 |",
+            "        | 2   1   5   6 |                   +------------------+",
+            "        | 2   2   7   8 |",
+            "        +---------------+",
+            "    Type reshape error for a list of the problem observations."
+          ]
+        },
+        {
+          "command": "reshape error",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "i (id) indicates the top-level grouping such as subject id.",
+            "",
+            "The data are currently in the wide form; there should be a single",
+            "observation per i.",
+            "",
+            "2 of 3 observations have duplicate i values:",
+            "",
+            "     +----+",
+            "     | id |",
+            "     |----|",
+            "  1. |  1 |",
+            "  2. |  1 |",
+            "     +----+",
+            "",
+            "(data now sorted by id)"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id str5 grp x",
+          "lines": [
+            "            id        grp          x",
+            "  1. 1 \"a b\" 5",
+            "  2. 1 \"c\" 6",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "capture noisily reshape wide x, i(id) j(grp) string",
+          "lines": [
+            "string j variable grp not allowed to contain spaces;",
+            "    encode string variable grp into a numeric variable and use the new numeric",
+            "    variable as the j variable"
+          ]
+        },
+        {
+          "command": "capture noisily reshape error",
+          "lines": [
+            "string j variable grp not allowed to contain spaces;",
+            "    encode string variable grp into a numeric variable and use the new numeric",
+            "    variable as the j variable"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id str3 g x",
+          "lines": [
+            "            id          g          x",
+            "  1. 1 \" a\" 5",
+            "  2. end"
+          ]
+        },
+        {
+          "command": "capture noisily reshape wide x, i(id) j(g) string",
+          "lines": ["variable g has leading or trailing blanks"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id t x",
+          "lines": [
+            "            id          t          x",
+            "  1. 1 1 5",
+            "  2. 1 2 6",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "reshape wide x, i(id) j(t)",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Long   ->   Wide",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                2   ->   1",
+            "Number of variables                   3   ->   3",
+            "j variable (2 values)                 t   ->   (dropped)",
+            "xij variables:",
+            "                                      x   ->   x1 x2",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "reshape error",
+          "lines": [
+            "(j = 1 2)",
+            "id is unique; there is no problem on this score"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id t x",
+          "lines": [
+            "            id          t          x",
+            "  1. 1 1 5",
+            "  2. 1 2 6",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "capture noisily reshape wide x, i(id)",
+          "lines": [
+            "option j() required",
+            "         long                                wide",
+            "        +---------------+                   +------------------+",
+            "        | i   j   a   b |                   | i   a1 a2  b1 b2 |",
+            "        |---------------| <--- reshape ---> |------------------|",
+            "        | 1   1   1   2 |                   | 1   1   3   2  4 |",
+            "        | 1   2   3   4 |                   | 2   5   7   6  8 |",
+            "        | 2   1   5   6 |                   +------------------+",
+            "        | 2   2   7   8 |",
+            "        +---------------+",
+            "",
+            "        long to wide: reshape wide a b, i(i) j(j)    (j existing variable)",
+            "        wide to long: reshape long a b, i(i) j(j)    (j new variable)"
+          ]
+        },
+        {
+          "command": "capture noisily reshape wide x, j(t)",
+          "lines": [
+            "option i() required",
+            "",
+            "         long                                wide",
+            "        +---------------+                   +------------------+",
+            "        | i   j   a   b |                   | i   a1 a2  b1 b2 |",
+            "        |---------------| <--- reshape ---> |------------------|",
+            "        | 1   1   1   2 |                   | 1   1   3   2  4 |",
+            "        | 1   2   3   4 |                   | 2   5   7   6  8 |",
+            "        | 2   1   5   6 |                   +------------------+",
+            "        | 2   2   7   8 |",
+            "        +---------------+",
+            "",
+            "        long to wide: reshape wide a b, i(i) j(j)    (j existing variable)",
+            "        wide to long: reshape long a b, i(i) j(j)    (j new variable)"
+          ]
+        },
+        {
+          "command": "capture noisily reshape wide x, i(id) j(q)",
+          "lines": ["variable q not found", "    Data are already wide."]
+        },
+        {
+          "command": "capture noisily reshape long x, i(id) j(t)",
+          "lines": ["variable t already exists", "    Data are already long."]
+        },
+        {
+          "command": "capture noisily reshape wide x y, i(id) j(t)",
+          "lines": ["variable y not found"]
+        },
+        {
+          "command": "capture noisily reshape wide x, i(id) j(t a b)",
+          "lines": ["variable t is numeric"]
+        },
+        {
+          "command": "capture noisily reshape wide x, i(id) j(t 3-1)",
+          "lines": ["3-1: invalid range"]
+        },
+        { "command": "generate _merge = 1", "lines": [] },
+        {
+          "command": "capture noisily reshape wide x, i(id) j(t)",
+          "lines": [
+            "cannot reshape data containing variable _merge",
+            "    Either drop or rename variable _merge."
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x1 str2 x2",
+          "lines": [
+            "            id         x1         x2",
+            "  1. 1 1 \"a\"",
+            "  2. end"
+          ]
+        },
+        {
+          "command": "capture noisily reshape long x, i(id) j(t)",
+          "lines": [
+            "(j = 1 2)",
+            "variable x2 type mismatch with other x variables"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x x1 x2",
+          "lines": [
+            "            id          x         x1         x2",
+            "  1. 1 0 1 2",
+            "  2. end"
+          ]
+        },
+        {
+          "command": "capture noisily reshape long x, i(id) j(t)",
+          "lines": ["(j = 1 2)", "variable x already defined"]
+        },
+        {
+          "command": "capture noisily reshape long y, i(id) j(t)",
+          "lines": [
+            "no xij variables found",
+            "    You typed something like reshape wide a b, i(i) j(j).",
+            "    reshape looked for existing variables named a# and b# but could not find",
+            "    any. Remember this picture:",
+            "",
+            "         long                                wide",
+            "        +---------------+                   +------------------+",
+            "        | i   j   a   b |                   | i   a1 a2  b1 b2 |",
+            "        |---------------| <--- reshape ---> |------------------|",
+            "        | 1   1   1   2 |                   | 1   1   3   2  4 |",
+            "        | 1   2   3   4 |                   | 2   5   7   6  8 |",
+            "        | 2   1   5   6 |                   +------------------+",
+            "        | 2   2   7   8 |",
+            "        +---------------+",
+            "",
+            "        long to wide: reshape wide a b, i(i) j(j)    (j existing variable)",
+            "        wide to long: reshape long a b, i(i) j(j)    (j new variable)"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id t x",
+          "lines": [
+            "            id          t          x",
+            "  1. 1 -1 5",
+            "  2. 1 2 6",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "capture noisily reshape wide x, i(id) j(t)",
+          "lines": ["(j = -1 2)", "x-1 invalid variable name"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate id = 1", "lines": [] },
+        { "command": "generate t = _n + 1000", "lines": [] },
+        { "command": "generate y = _n", "lines": [] },
+        {
+          "command": "reshape wide y, i(id) j(t)",
+          "lines": [
+            "(j = 1001 1002 1003 1004 1005 1006 1007 1008 1009 1010 1011 1012 1013 1014 1015",
+            "> 1016 1017 1018 1019 1020 1021 1022 1023 1024 1025 1026 1027 1028 1029 1030)",
+            "",
+            "Data                               Long   ->   Wide",
+            "-----------------------------------------------------------------------------",
+            "Number of observations               30   ->   1",
+            "Number of variables                   3   ->   31",
+            "j variable (30 values)                t   ->   (dropped)",
+            "xij variables:",
+            "                                      y   ->   y1001 y1002 ... y1030",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "reshape long y, i(id) j(t)",
+          "lines": [
+            "(j = 1001 1002 1003 1004 1005 1006 1007 1008 1009 1010 1011 1012 1013 1014 1015",
+            "> 1016 1017 1018 1019 1020 1021 1022 1023 1024 1025 1026 1027 1028 1029 1030)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                1   ->   30",
+            "Number of variables                  31   ->   3",
+            "j variable (30 values)                    ->   t",
+            "xij variables:",
+            "                  y1001 y1002 ... y1030   ->   y",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "datacmds-xtset-time-units",
+      "source": "set linesize 80\nclear\nset obs 60\ngenerate id = ceil(_n/12)\nbysort id: generate m = tm(2019m1) + _n - 1\nformat m %tm\ndrop if mod(_n, 5) == 0\nxtset id m\nxtdescribe\ncapture noisily xtset id m, delta(2)\ngenerate q = qofd(dofm(m))\nformat q %tq\nbysort id q: keep if _n == 1\nxtset id q\nxtdescribe\nclear\nset obs 30\ngenerate id = ceil(_n/10)\nbysort id: generate t = _n * 2\nxtset id t, delta(2)\nxtdescribe\ngenerate y = _n\ngenerate ly = L.y\ngenerate fy = F2.y\ngenerate dy = D.y\nlist id t y ly fy dy in 1/4\nxtset\nxtset id t\nxtset id t, delta(2) noquery\ndrop if t == 6\nxtset id t, delta(2)\nxtdescribe\ncapture noisily xtset id t, delta(4)\ncapture noisily xtset id t, delta(0)\ncapture noisily xtset id t, delta(-1)\ncapture noisily xtset id t, delta(1.5)\ncapture noisily xtset id t, delta(abc)\nclear\nset obs 4\ngenerate t = 2 + 3*(_n > 1) + 2*(_n>2)*(_n-2)\ntsset t, delta(2)\ntsset t, delta(1)\nformat t %tm\ntsset t, delta(2)\ntsset t, monthly delta(1)\nclear\nset obs 24\ngenerate id = ceil(_n/8)\nbysort id: generate d = td(01jan2020) + 7*(_n-1)\nformat d %td\nxtset id d, delta(7)\nxtdescribe\nxtset, clear\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 80", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate id = ceil(_n/12)", "lines": [] },
+        {
+          "command": "bysort id: generate m = tm(2019m1) + _n - 1",
+          "lines": []
+        },
+        { "command": "format m %tm", "lines": [] },
+        {
+          "command": "drop if mod(_n, 5) == 0",
+          "lines": ["(12 observations deleted)"]
+        },
+        {
+          "command": "xtset id m",
+          "lines": [
+            "Panel variable: id (unbalanced)",
+            " Time variable: m, 2019m1 to 2019m12, but with gaps",
+            "         Delta: 1 month"
+          ]
+        },
+        {
+          "command": "xtdescribe",
+          "lines": [
+            "      id:  1, 2, ..., 5                                      n =          5",
+            "       m:  2019m1, 2019m2, ..., 2019m12                      T =         12",
+            "           Delta(m) = 1 month",
+            "           Span(m)  = 12 periods",
+            "           (id*m uniquely identifies each observation)",
+            "",
+            "Distribution of T_i:   min      5%     25%       50%       75%     95%     max",
+            "                         9       9       9        10        10      10      10",
+            "",
+            "     Freq.  Percent    Cum. |  Pattern",
+            " ---------------------------+--------------",
+            "        1     20.00   20.00 |  .1111.1111.1",
+            "        1     20.00   40.00 |  1.1111.1111.",
+            "        1     20.00   60.00 |  11.1111.1111",
+            "        1     20.00   80.00 |  111.1111.111",
+            "        1     20.00  100.00 |  1111.1111.11",
+            " ---------------------------+--------------",
+            "        5    100.00         |  XXXXXXXXXXXX"
+          ]
+        },
+        {
+          "command": "capture noisily xtset id m, delta(2)",
+          "lines": ["time values with period less than delta() found"]
+        },
+        { "command": "generate q = qofd(dofm(m))", "lines": [] },
+        { "command": "format q %tq", "lines": [] },
+        {
+          "command": "bysort id q: keep if _n == 1",
+          "lines": ["(28 observations deleted)"]
+        },
+        {
+          "command": "xtset id q",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: q, 2019q1 to 2019q4",
+            "         Delta: 1 quarter"
+          ]
+        },
+        {
+          "command": "xtdescribe",
+          "lines": [
+            "      id:  1, 2, ..., 5                                      n =          5",
+            "       q:  2019q1, 2019q2, ..., 2019q4                       T =          4",
+            "           Delta(q) = 1 quarter",
+            "           Span(q)  = 4 periods",
+            "           (id*q uniquely identifies each observation)",
+            "",
+            "Distribution of T_i:   min      5%     25%       50%       75%     95%     max",
+            "                         4       4       4         4         4       4       4",
+            "",
+            "     Freq.  Percent    Cum. |  Pattern",
+            " ---------------------------+---------",
+            "        5    100.00  100.00 |  1111",
+            " ---------------------------+---------",
+            "        5    100.00         |  XXXX"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate id = ceil(_n/10)", "lines": [] },
+        { "command": "bysort id: generate t = _n * 2", "lines": [] },
+        {
+          "command": "xtset id t, delta(2)",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 2 to 20",
+            "         Delta: 2 units"
+          ]
+        },
+        {
+          "command": "xtdescribe",
+          "lines": [
+            "      id:  1, 2, ..., 3                                      n =          3",
+            "       t:  2, 4, ..., 20                                     T =         10",
+            "           Delta(t) = 2 units",
+            "           Span(t)  = 10 periods",
+            "           (id*t uniquely identifies each observation)",
+            "",
+            "Distribution of T_i:   min      5%     25%       50%       75%     95%     max",
+            "                        10      10      10        10        10      10      10",
+            "",
+            "     Freq.  Percent    Cum. |  Pattern",
+            " ---------------------------+------------",
+            "        3    100.00  100.00 |  1111111111",
+            " ---------------------------+------------",
+            "        3    100.00         |  XXXXXXXXXX"
+          ]
+        },
+        { "command": "generate y = _n", "lines": [] },
+        {
+          "command": "generate ly = L.y",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "generate fy = F2.y",
+          "lines": ["(6 missing values generated)"]
+        },
+        {
+          "command": "generate dy = D.y",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "list id t y ly fy dy in 1/4",
+          "lines": [
+            "     +---------------------------+",
+            "     | id   t   y   ly   fy   dy |",
+            "     |---------------------------|",
+            "  1. |  1   2   1    .    3    . |",
+            "  2. |  1   4   2    1    4    1 |",
+            "  3. |  1   6   3    2    5    1 |",
+            "  4. |  1   8   4    3    6    1 |",
+            "     +---------------------------+"
+          ]
+        },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 2 to 20",
+            "         Delta: 2 units"
+          ]
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 2 to 20, but with gaps",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "xtset id t, delta(2) noquery", "lines": [] },
+        { "command": "drop if t == 6", "lines": ["(3 observations deleted)"] },
+        {
+          "command": "xtset id t, delta(2)",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 2 to 20, but with gaps",
+            "         Delta: 2 units"
+          ]
+        },
+        {
+          "command": "xtdescribe",
+          "lines": [
+            "      id:  1, 2, ..., 3                                      n =          3",
+            "       t:  2, 4, ..., 20                                     T =          9",
+            "           Delta(t) = 2 units",
+            "           Span(t)  = 10 periods",
+            "           (id*t uniquely identifies each observation)",
+            "",
+            "Distribution of T_i:   min      5%     25%       50%       75%     95%     max",
+            "                         9       9       9         9         9       9       9",
+            "",
+            "     Freq.  Percent    Cum. |  Pattern",
+            " ---------------------------+------------",
+            "        3    100.00  100.00 |  11.1111111",
+            " ---------------------------+------------",
+            "        3    100.00         |  XX.XXXXXXX"
+          ]
+        },
+        {
+          "command": "capture noisily xtset id t, delta(4)",
+          "lines": ["time values with period less than delta() found"]
+        },
+        {
+          "command": "capture noisily xtset id t, delta(0)",
+          "lines": ["delta(0) evaluates to zero"]
+        },
+        {
+          "command": "capture noisily xtset id t, delta(-1)",
+          "lines": ["delta(-1) evaluates to a negative number"]
+        },
+        {
+          "command": "capture noisily xtset id t, delta(1.5)",
+          "lines": ["delta(1.5) evaluates to a noninteger value"]
+        },
+        {
+          "command": "capture noisily xtset id t, delta(abc)",
+          "lines": ["invalid argument in delta(): abc"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        {
+          "command": "generate t = 2 + 3*(_n > 1) + 2*(_n>2)*(_n-2)",
+          "lines": []
+        },
+        {
+          "command": "tsset t, delta(2)",
+          "lines": [
+            "Time variable: t, 2 to 9, but with a gap",
+            "        Delta: 2 units"
+          ]
+        },
+        {
+          "command": "tsset t, delta(1)",
+          "lines": [
+            "Time variable: t, 2 to 9, but with gaps",
+            "        Delta: 1 unit"
+          ]
+        },
+        { "command": "format t %tm", "lines": [] },
+        {
+          "command": "tsset t, delta(2)",
+          "lines": [
+            "Time variable: t, 1960m3 to 1960m10, but with a gap",
+            "        Delta: 2 months"
+          ]
+        },
+        {
+          "command": "tsset t, monthly delta(1)",
+          "lines": [
+            "Time variable: t, 1960m3 to 1960m10, but with gaps",
+            "        Delta: 1 month"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 24",
+          "lines": ["Number of observations (_N) was 0, now 24."]
+        },
+        { "command": "generate id = ceil(_n/8)", "lines": [] },
+        {
+          "command": "bysort id: generate d = td(01jan2020) + 7*(_n-1)",
+          "lines": []
+        },
+        { "command": "format d %td", "lines": [] },
+        {
+          "command": "xtset id d, delta(7)",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: d, 01jan2020 to 19feb2020",
+            "         Delta: 7 days"
+          ]
+        },
+        {
+          "command": "xtdescribe",
+          "lines": [
+            "      id:  1, 2, ..., 3                                      n =          3",
+            "       d:  01jan2020, 08jan2020, ..., 19feb2020              T =          8",
+            "           Delta(d) = 7 days",
+            "           Span(d)  = 8 periods",
+            "           (id*d uniquely identifies each observation)",
+            "",
+            "Distribution of T_i:   min      5%     25%       50%       75%     95%     max",
+            "                         8       8       8         8         8       8       8",
+            "",
+            "     Freq.  Percent    Cum. |  Pattern",
+            " ---------------------------+----------",
+            "        3    100.00  100.00 |  11111111",
+            " ---------------------------+----------",
+            "        3    100.00         |  XXXXXXXX"
+          ]
+        },
+        { "command": "xtset, clear", "lines": [] },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "datacmds-split-many-pieces",
+      "source": "set linesize 80\nclear\nset obs 3\ngenerate str200 s = \"w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12\" in 1\nsplit s, generate(p)\ndisplay \"`r(varlist)'|\"\nreturn list\ndisplay r(nvars)\nsplit s, generate(response_part)\nds\nds, varwidth(5)\nds, skip(4)\ncapture noisily ds, varwidth(3)\nreplace s = s + \" w13 w14 w15 w16 w17 w18 w19\" in 1\nsplit s, generate(answer_part)\nsplit s in 1, generate(q) limit(1)\nclear\ninput str20 nums\n\"1,2,3\"\n\"4,,6\"\n\"7,x,1000\"\nend\nsplit nums, parse(\",\") destring\ndescribe nums1 nums2 nums3\nlist\nsplit nums, parse(\",\") destring generate(f) force\nlist f*\nsplit nums, parse(\",\") destring generate(g) ignore(\"x\")\nlist g*\nsplit nums, parse(\",\") destring generate(h) float\ndescribe h*\ncapture noisily split nums, parse(\",\") generate(k) force\ncapture noisily split nums, parse(\",\") generate(k) percent\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 80", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "generate str200 s = \"w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12\" in 1",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "split s, generate(p)",
+          "lines": [
+            "variables created as string:",
+            "p1   p2   p3   p4   p5   p6   p7   p8   p9   p10  p11  p12"
+          ]
+        },
+        {
+          "command": "display \"`r(varlist)'|\"",
+          "lines": ["p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 |"]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "              r(k_new) =  12",
+            "",
+            "macros:",
+            "            r(varlist) : \"p1 p2 p3 p4 p5 p6 p7 p8 p9 p10 p11 p12 \""
+          ]
+        },
+        { "command": "display r(nvars)", "lines": ["12"] },
+        {
+          "command": "split s, generate(response_part)",
+          "lines": [
+            "variables created as string:",
+            "response_~t1  response_p~4  response_p~7  response_~10",
+            "response_~t2  response_p~5  response_p~8  response_~11",
+            "response_p~3  response_p~6  response_p~9  response_~12"
+          ]
+        },
+        {
+          "command": "ds",
+          "lines": [
+            "s             p5            p10           response_p~3  response_p~8",
+            "p1            p6            p11           response_p~4  response_p~9",
+            "p2            p7            p12           response_p~5  response_~10",
+            "p3            p8            response_~t1  response_p~6  response_~11",
+            "p4            p9            response_~t2  response_p~7  response_~12"
+          ]
+        },
+        {
+          "command": "ds, varwidth(5)",
+          "lines": [
+            "s      p3     p6     p9     p12    res~3  res~6  res~9  re~12",
+            "p1     p4     p7     p10    re~t1  res~4  res~7  re~10",
+            "p2     p5     p8     p11    re~t2  res~5  res~8  re~11"
+          ]
+        },
+        {
+          "command": "ds, skip(4)",
+          "lines": [
+            "s               p5              p10             response_p~3    response_p~8",
+            "p1              p6              p11             response_p~4    response_p~9",
+            "p2              p7              p12             response_p~5    response_~10",
+            "p3              p8              response_~t1    response_p~6    response_~11",
+            "p4              p9              response_~t2    response_p~7    response_~12"
+          ]
+        },
+        {
+          "command": "capture noisily ds, varwidth(3)",
+          "lines": ["varwidth() should be in the range 5..32"]
+        },
+        {
+          "command": "replace s = s + \" w13 w14 w15 w16 w17 w18 w19\" in 1",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "split s, generate(answer_part)",
+          "lines": [
+            "variables created as string:",
+            "answer_part1  answer_part5  answer_part9  answer_pa~13  answer_pa~17",
+            "answer_part2  answer_part6  answer_pa~10  answer_pa~14  answer_pa~18",
+            "answer_part3  answer_part7  answer_pa~11  answer_pa~15  answer_pa~19",
+            "answer_part4  answer_part8  answer_pa~12  answer_pa~16"
+          ]
+        },
+        {
+          "command": "split s in 1, generate(q) limit(1)",
+          "lines": ["variable created as string:", "q1"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str20 nums",
+          "lines": [
+            "                     nums",
+            "  1. \"1,2,3\"",
+            "  2. \"4,,6\"",
+            "  3. \"7,x,1000\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "split nums, parse(\",\") destring",
+          "lines": [
+            "variables born as string:",
+            "nums1  nums2  nums3",
+            "nums1: all characters numeric; replaced as byte",
+            "nums2: contains nonnumeric characters; no replace",
+            "nums3: all characters numeric; replaced as int"
+          ]
+        },
+        {
+          "command": "describe nums1 nums2 nums3",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "nums1           byte    %10.0g",
+            "nums2           str1    %9s",
+            "nums3           int     %10.0g"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------------------+",
+            "     |     nums   nums1   nums2   nums3 |",
+            "     |----------------------------------|",
+            "  1. |    1,2,3       1       2       3 |",
+            "  2. |     4,,6       4               6 |",
+            "  3. | 7,x,1000       7       x    1000 |",
+            "     +----------------------------------+"
+          ]
+        },
+        {
+          "command": "split nums, parse(\",\") destring generate(f) force",
+          "lines": [
+            "variables born as string:",
+            "f1  f2  f3",
+            "f1: all characters numeric; replaced as byte",
+            "f2: contains nonnumeric characters; replaced as byte",
+            "(2 missing values generated)",
+            "f3: all characters numeric; replaced as int"
+          ]
+        },
+        {
+          "command": "list f*",
+          "lines": [
+            "     +----------------+",
+            "     | f1   f2     f3 |",
+            "     |----------------|",
+            "  1. |  1    2      3 |",
+            "  2. |  4    .      6 |",
+            "  3. |  7    .   1000 |",
+            "     +----------------+"
+          ]
+        },
+        {
+          "command": "split nums, parse(\",\") destring generate(g) ignore(\"x\")",
+          "lines": [
+            "variables born as string:",
+            "g1  g2  g3",
+            "g1: all characters numeric; replaced as byte",
+            "g2: character x removed; replaced as byte",
+            "(2 missing values generated)",
+            "g3: all characters numeric; replaced as int"
+          ]
+        },
+        {
+          "command": "list g*",
+          "lines": [
+            "     +----------------+",
+            "     | g1   g2     g3 |",
+            "     |----------------|",
+            "  1. |  1    2      3 |",
+            "  2. |  4    .      6 |",
+            "  3. |  7    .   1000 |",
+            "     +----------------+"
+          ]
+        },
+        {
+          "command": "split nums, parse(\",\") destring generate(h) float",
+          "lines": [
+            "variables born as string:",
+            "h1  h2  h3",
+            "h1: all characters numeric; replaced as byte",
+            "h2: contains nonnumeric characters; no replace",
+            "h3: all characters numeric; replaced as int"
+          ]
+        },
+        {
+          "command": "describe h*",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------",
+            "h1              byte    %9.0g",
+            "h2              str1    %9s",
+            "h3              int     %9.0g"
+          ]
+        },
+        {
+          "command": "capture noisily split nums, parse(\",\") generate(k) force",
+          "lines": ["may not specify force without specifying destring"]
+        },
+        {
+          "command": "capture noisily split nums, parse(\",\") generate(k) percent",
+          "lines": ["may not specify percent without specifying destring"]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "datacmds-destring-messages",
+      "source": "clear\ninput str10 a str10 b str10 c\n\"1%\" \"1,000\" \"007\"\n\"25%\" \"2,500\" \"x\"\n\"\" \".\" \"3\"\nend\ndestring a, generate(an) percent\ndestring b, generate(bn) ignore(\",\")\ncapture noisily destring c, generate(cn)\ndestring c, generate(cn) force\ndestring a b, generate(a2 b2) ignore(\"%,\") float\ndescribe an bn cn a2 b2\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str10 a str10 b str10 c",
+          "lines": [
+            "              a           b           c",
+            "  1. \"1%\" \"1,000\" \"007\"",
+            "  2. \"25%\" \"2,500\" \"x\"",
+            "  3. \"\" \".\" \"3\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "destring a, generate(an) percent",
+          "lines": [
+            "a: character % removed; an generated as double",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "destring b, generate(bn) ignore(\",\")",
+          "lines": [
+            "b: character , removed; bn generated as int",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "capture noisily destring c, generate(cn)",
+          "lines": ["c: contains nonnumeric characters; no generate"]
+        },
+        {
+          "command": "destring c, generate(cn) force",
+          "lines": [
+            "c: contains nonnumeric characters; cn generated as byte",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "destring a b, generate(a2 b2) ignore(\"%,\") float",
+          "lines": [
+            "a: character % removed; a2 generated as byte",
+            "(1 missing value generated)",
+            "b: character , removed; b2 generated as int",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "describe an bn cn a2 b2",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "an              double  %10.0g",
+            "bn              int     %10.0g",
+            "cn              byte    %10.0g",
+            "a2              byte    %9.0g",
+            "b2              int     %9.0g"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------------------------------------+",
+            "     |   a   a2    an       b     b2     bn     c   cn |",
+            "     |-------------------------------------------------|",
+            "  1. |  1%    1   .01   1,000   1000   1000   007    7 |",
+            "  2. | 25%   25   .25   2,500   2500   2500     x    . |",
+            "  3. |        .     .       .      .      .     3    3 |",
+            "     +-------------------------------------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "datacmds-encode-noextend-recode-empty-label",
+      "source": "clear\ninput str3 yn\n\"yes\"\n\"no\"\n\"\"\n\"yes\"\nend\nlabel define dce_newl 1 \"yes\"\ncapture noisily encode yn, gen(ynm) label(dce_newl) noextend\ncapture noisily encode yn, gen(z) label(dce_nol) noextend\ncapture noisily label list dce_nol\ncapture noisily encode yn, gen(z2) noextend\nlabel define dce_full 1 \"yes\" 2 \"no\"\nencode yn, gen(ynf) label(dce_full) noextend\nlist\ncapture noisily encode yn in 2/3, gen(z3) label(dce_newl) noextend\nencode yn if yn != \"no\", gen(z4) label(dce_newl) noextend\nlist\nclear\nset obs 30\ngenerate byte q = mod(_n,6)\ncapture noisily recode q (0=0 \"\") (1=1 \"b\"), gen(emp)\ncapture noisily recode q (0=0 \"a\") (else=9 \"\"), gen(emp)\nrecode q (0=0 \" \") (1=1 \"b\"), gen(emp2)\nlabel list emp2\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str3 yn",
+          "lines": [
+            "            yn",
+            "  1. \"yes\"",
+            "  2. \"no\"",
+            "  3. \"\"",
+            "  4. \"yes\"",
+            "  5. end"
+          ]
+        },
+        { "command": "label define dce_newl 1 \"yes\"", "lines": [] },
+        {
+          "command": "capture noisily encode yn, gen(ynm) label(dce_newl) noextend",
+          "lines": ["Unexpected values encountered:", "no"]
+        },
+        {
+          "command": "capture noisily encode yn, gen(z) label(dce_nol) noextend",
+          "lines": ["Unexpected values encountered:", "no", "yes"]
+        },
+        {
+          "command": "capture noisily label list dce_nol",
+          "lines": ["value label dce_nol not found"]
+        },
+        {
+          "command": "capture noisily encode yn, gen(z2) noextend",
+          "lines": ["noextend option not allowed without label() option"]
+        },
+        { "command": "label define dce_full 1 \"yes\" 2 \"no\"", "lines": [] },
+        {
+          "command": "encode yn, gen(ynf) label(dce_full) noextend",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------+",
+            "     |  yn   ynf |",
+            "     |-----------|",
+            "  1. | yes   yes |",
+            "  2. |  no    no |",
+            "  3. |         . |",
+            "  4. | yes   yes |",
+            "     +-----------+"
+          ]
+        },
+        {
+          "command": "capture noisily encode yn in 2/3, gen(z3) label(dce_newl) noextend",
+          "lines": ["Unexpected values encountered:", "no"]
+        },
+        {
+          "command": "encode yn if yn != \"no\", gen(z4) label(dce_newl) noextend",
+          "lines": []
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------+",
+            "     |  yn   ynf    z4 |",
+            "     |-----------------|",
+            "  1. | yes   yes   yes |",
+            "  2. |  no    no     . |",
+            "  3. |         .     . |",
+            "  4. | yes   yes   yes |",
+            "     +-----------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate byte q = mod(_n,6)", "lines": [] },
+        {
+          "command": "capture noisily recode q (0=0 \"\") (1=1 \"b\"), gen(emp)",
+          "lines": [") expected, \"\" found"]
+        },
+        {
+          "command": "capture noisily recode q (0=0 \"a\") (else=9 \"\"), gen(emp)",
+          "lines": [") expected, \"\" found"]
+        },
+        {
+          "command": "recode q (0=0 \" \") (1=1 \"b\"), gen(emp2)",
+          "lines": ["(0 differences between q and emp2)"]
+        },
+        {
+          "command": "label list emp2",
+          "lines": ["emp2:", "           0", "           1 b"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

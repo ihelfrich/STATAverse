@@ -5245,3 +5245,447 @@ list
 restore
 capture noisily collapse (sebinomial) sb=b [aw=w]
 capture noisily collapse (semean) sb=b [iw=w]
+=== datacmds-inspect-label-rules
+set linesize 80
+clear
+set obs 20
+generate x = _n
+label variable x "A"
+inspect x
+label variable x "Age (years)"
+inspect x
+label variable x "Respondent age at interview"
+inspect x
+label variable x "Respondent age at the time of the first interview, in years"
+inspect x
+generate household_income_total = _n*2.5
+inspect household_income_total
+label variable household_income_total "Total income"
+inspect household_income_total
+generate kids = mod(_n, 4)
+inspect kids
+set linesize 200
+=== datacmds-merge-update-missing-codes
+set linesize 80
+clear
+set obs 7
+generate int id = _n
+generate float x = .
+replace x = .a in 2/3
+replace x = 5 in 4
+replace x = .c in 6
+replace x = 5 in 7
+generate byte g = mod(_n, 2)
+label define dcm_gl 0 "even" 1 "odd"
+label values g dcm_gl
+save dcm_master, replace
+clear
+set obs 7
+generate long id = _n
+generate double x = .a
+replace x = . in 2
+replace x = . in 5
+replace x = .b in 6
+replace x = 6 in 7
+generate byte g = 1
+label define dcm_gl 1 "ODD"
+label values g dcm_gl
+generate z = _n
+save dcm_using, replace
+save using, replace
+use dcm_master, clear
+merge 1:1 id using dcm_using, update
+list, nolabel
+use dcm_master, clear
+merge 1:1 id using dcm_using, update replace
+list id x g _merge, nolabel
+use dcm_master, clear
+merge 1:1 id using dcm_using, update keepusing(x) generate(how)
+list id x how, nolabel
+use dcm_master, clear
+capture noisily merge 1:1 id using dcm_using, update assert(match master)
+tabulate _merge
+use dcm_master, clear
+capture noisily merge 1:1 id using dcm_using, update assert(1 2 3)
+use dcm_master, clear
+capture noisily merge 1:1 id using dcm_using, assert(match_upd)
+use dcm_master, clear
+capture noisily merge 1:1 id using dcm_using, assert(bogus)
+use dcm_master, clear
+merge 1:1 _n using dcm_using, update
+list id x z _merge, nolabel
+use dcm_master, clear
+capture noisily merge m:1 _n using dcm_using
+use dcm_master, clear
+merge 1:1 id using using, keep(match) nogenerate
+list id x z
+set linesize 200
+=== datacmds-collapse-zero-weights
+clear
+set obs 8
+generate g = ceil(_n/2)
+generate x = _n
+generate w = cond(g==2, 0, 1)
+replace w = . in 7
+replace w = 0 in 8
+preserve
+collapse (mean) x (count) n=x [aw=w], by(g)
+list
+restore
+preserve
+collapse (sum) x (percent) p=x [pw=w], by(g)
+list
+restore
+preserve
+collapse (median) x (count) n=x [iw=w], by(g)
+list
+restore
+preserve
+collapse (sum) x [fw=w], by(g)
+list
+restore
+preserve
+collapse (mean) x (firstnm) f=x [aw=w]
+list
+restore
+capture noisily collapse (mean) x if x > 100, by(g)
+replace w = 0
+capture noisily collapse (mean) x [aw=w], by(g)
+describe, short
+=== datacmds-reshape-missing-j-and-labels
+set linesize 80
+clear
+input id t x
+1 1 5
+1 . 6
+end
+capture noisily reshape wide x, i(id) j(t)
+list
+clear
+input id t x
+1 1 5
+1 2 6
+end
+reshape wide x, i(id) j(t)
+clear
+input id x1 x2
+1 5 6
+end
+capture noisily reshape long
+clear
+input id t x
+1 1 5
+1 2 6
+2 1 7
+end
+label variable x "Score"
+label define dcr_xl 5 "five"
+label values x dcr_xl
+label variable t "Time"
+label define dcr_tl 1 "one" 2 "two"
+label values t dcr_tl
+reshape wide x, i(id) j(t)
+describe x1 x2
+reshape long x, i(id) j(t)
+describe t x
+list
+reshape wide
+reshape long
+describe t x
+reshape long
+reshape wide
+reshape wide
+set linesize 200
+=== datacmds-reshape-stubs-and-errors
+set linesize 80
+clear
+input id x1_a x2_a
+1 3 4
+2 5 6
+end
+reshape long x@_a, i(id) j(k)
+list
+reshape wide
+describe x1_a x2_a
+clear
+input id inc_w1 inc_w2 z
+1 3 4 9
+2 5 6 8
+end
+reshape long inc_w@, i(id) j(wave)
+list
+clear
+input id ab1c ab2c
+1 3 4
+end
+reshape long a@c, i(id) j(k) string
+list
+describe k
+clear
+input id inc01 inc02 inc10
+1 3 4 5
+2 6 7 8
+end
+reshape long inc, i(id) j(m)
+list
+clear
+input id inc01 inc02 inc10
+1 3 4 5
+end
+reshape long inc, i(id) j(m) string
+list
+clear
+input id t x
+1 1 5
+1 2 6
+2 1 7
+end
+reshape wide x, i(id) j(t 1 2 3)
+list
+clear
+input id x1 x2 x4
+1 5 6 7
+end
+reshape long x, i(id) j(t 1-4)
+list
+clear
+input z id t a b w
+1 1 1 5 6 9
+1 1 2 7 8 9
+2 2 1 1 2 3
+end
+reshape wide b a, i(id) j(t)
+list
+reshape long
+list
+clear
+input id byte x1 int x2 float x3
+1 1 2 3.5
+end
+reshape long x, i(id) j(t)
+describe x
+clear
+input id x1 x2
+1 5 6
+end
+label define dcs_l2 6 "six"
+label values x2 dcs_l2
+format x1 %5.2f
+reshape long x, i(id) j(t)
+describe x
+set linesize 200
+=== datacmds-reshape-error-listing
+set linesize 80
+clear
+input id t x z
+1 1 5 1
+1 2 6 2
+2 1 7 3
+end
+capture noisily reshape wide x, i(id) j(t)
+reshape error
+list
+clear
+input id wave x
+1 1 5
+1 1 6
+2 1 7
+end
+capture noisily reshape wide x, i(id) j(wave)
+reshape error
+clear
+input id x1 x2
+1 5 6
+1 7 8
+2 1 2
+end
+capture noisily reshape long x, i(id) j(t)
+reshape error
+clear
+input id str5 grp x
+1 "a b" 5
+1 "c" 6
+end
+capture noisily reshape wide x, i(id) j(grp) string
+capture noisily reshape error
+clear
+input id str3 g x
+1 " a" 5
+end
+capture noisily reshape wide x, i(id) j(g) string
+clear
+input id t x
+1 1 5
+1 2 6
+end
+reshape wide x, i(id) j(t)
+reshape error
+clear
+input id t x
+1 1 5
+1 2 6
+end
+capture noisily reshape wide x, i(id)
+capture noisily reshape wide x, j(t)
+capture noisily reshape wide x, i(id) j(q)
+capture noisily reshape long x, i(id) j(t)
+capture noisily reshape wide x y, i(id) j(t)
+capture noisily reshape wide x, i(id) j(t a b)
+capture noisily reshape wide x, i(id) j(t 3-1)
+generate _merge = 1
+capture noisily reshape wide x, i(id) j(t)
+clear
+input id x1 str2 x2
+1 1 "a"
+end
+capture noisily reshape long x, i(id) j(t)
+clear
+input id x x1 x2
+1 0 1 2
+end
+capture noisily reshape long x, i(id) j(t)
+capture noisily reshape long y, i(id) j(t)
+clear
+input id t x
+1 -1 5
+1 2 6
+end
+capture noisily reshape wide x, i(id) j(t)
+clear
+set obs 30
+generate id = 1
+generate t = _n + 1000
+generate y = _n
+reshape wide y, i(id) j(t)
+reshape long y, i(id) j(t)
+set linesize 200
+=== datacmds-xtset-time-units
+set linesize 80
+clear
+set obs 60
+generate id = ceil(_n/12)
+bysort id: generate m = tm(2019m1) + _n - 1
+format m %tm
+drop if mod(_n, 5) == 0
+xtset id m
+xtdescribe
+capture noisily xtset id m, delta(2)
+generate q = qofd(dofm(m))
+format q %tq
+bysort id q: keep if _n == 1
+xtset id q
+xtdescribe
+clear
+set obs 30
+generate id = ceil(_n/10)
+bysort id: generate t = _n * 2
+xtset id t, delta(2)
+xtdescribe
+generate y = _n
+generate ly = L.y
+generate fy = F2.y
+generate dy = D.y
+list id t y ly fy dy in 1/4
+xtset
+xtset id t
+xtset id t, delta(2) noquery
+drop if t == 6
+xtset id t, delta(2)
+xtdescribe
+capture noisily xtset id t, delta(4)
+capture noisily xtset id t, delta(0)
+capture noisily xtset id t, delta(-1)
+capture noisily xtset id t, delta(1.5)
+capture noisily xtset id t, delta(abc)
+clear
+set obs 4
+generate t = 2 + 3*(_n > 1) + 2*(_n>2)*(_n-2)
+tsset t, delta(2)
+tsset t, delta(1)
+format t %tm
+tsset t, delta(2)
+tsset t, monthly delta(1)
+clear
+set obs 24
+generate id = ceil(_n/8)
+bysort id: generate d = td(01jan2020) + 7*(_n-1)
+format d %td
+xtset id d, delta(7)
+xtdescribe
+xtset, clear
+set linesize 200
+=== datacmds-split-many-pieces
+set linesize 80
+clear
+set obs 3
+generate str200 s = "w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12" in 1
+split s, generate(p)
+display "`r(varlist)'|"
+return list
+display r(nvars)
+split s, generate(response_part)
+ds
+ds, varwidth(5)
+ds, skip(4)
+capture noisily ds, varwidth(3)
+replace s = s + " w13 w14 w15 w16 w17 w18 w19" in 1
+split s, generate(answer_part)
+split s in 1, generate(q) limit(1)
+clear
+input str20 nums
+"1,2,3"
+"4,,6"
+"7,x,1000"
+end
+split nums, parse(",") destring
+describe nums1 nums2 nums3
+list
+split nums, parse(",") destring generate(f) force
+list f*
+split nums, parse(",") destring generate(g) ignore("x")
+list g*
+split nums, parse(",") destring generate(h) float
+describe h*
+capture noisily split nums, parse(",") generate(k) force
+capture noisily split nums, parse(",") generate(k) percent
+set linesize 200
+=== datacmds-destring-messages
+clear
+input str10 a str10 b str10 c
+"1%" "1,000" "007"
+"25%" "2,500" "x"
+"" "." "3"
+end
+destring a, generate(an) percent
+destring b, generate(bn) ignore(",")
+capture noisily destring c, generate(cn)
+destring c, generate(cn) force
+destring a b, generate(a2 b2) ignore("%,") float
+describe an bn cn a2 b2
+list
+=== datacmds-encode-noextend-recode-empty-label
+clear
+input str3 yn
+"yes"
+"no"
+""
+"yes"
+end
+label define dce_newl 1 "yes"
+capture noisily encode yn, gen(ynm) label(dce_newl) noextend
+capture noisily encode yn, gen(z) label(dce_nol) noextend
+capture noisily label list dce_nol
+capture noisily encode yn, gen(z2) noextend
+label define dce_full 1 "yes" 2 "no"
+encode yn, gen(ynf) label(dce_full) noextend
+list
+capture noisily encode yn in 2/3, gen(z3) label(dce_newl) noextend
+encode yn if yn != "no", gen(z4) label(dce_newl) noextend
+list
+clear
+set obs 30
+generate byte q = mod(_n,6)
+capture noisily recode q (0=0 "") (1=1 "b"), gen(emp)
+capture noisily recode q (0=0 "a") (else=9 ""), gen(emp)
+recode q (0=0 " ") (1=1 "b"), gen(emp2)
+label list emp2

@@ -315,3 +315,189 @@ test("append, tostring, duplicates and mvdecode print Stata's messages", () => {
     "           h: 1000 missing values generated",
   ]);
 });
+
+// The tests below cover the faults a second review found (13 November
+// 2026). Each expected value was recorded from Stata 19 MP (version 17, set
+// processors 1) on the same simulated data.
+
+test("outsheet writes comma formats without their thousands separators", () => {
+  const s = new Session();
+  s.run(
+    [
+      "clear",
+      "input long id double inc double big float g float d",
+      "1 1234.5678 1234567 1234.5 22000",
+      "2 -0.5 -9876543.2 -0.25 22001",
+      "3 . 12 1e6 .",
+      "end",
+      "format inc %12.2fc",
+      "format big %15.0fc",
+      "format g %9.0gc",
+      "format d %tdMon_DD,_CCYY",
+      "outsheet using o1.csv, comma replace",
+      "outsheet using o2.txt, replace",
+      'outsheet using o3.csv, delimiter(";") replace',
+      "format inc %-12.2fc",
+      "format d %tdDD/NN/CCYY",
+      "outsheet inc d using o4.csv, comma replace",
+    ].join("\n"),
+  );
+  // The files Stata 19 wrote. A date format with a comma keeps it.
+  assert.equal(
+    s.files.get("o1.csv").text,
+    "id,inc,big,g,d\n1,1234.57,1234567,1234.5,Mar 26, 2020\n2,-0.50,-9876543,-.25,Mar 27, 2020\n3,,12,1000000,\n",
+  );
+  assert.equal(
+    s.files.get("o2.txt").text,
+    "id\tinc\tbig\tg\td\n1\t1234.57\t1234567\t1234.5\tMar 26, 2020\n2\t-0.50\t-9876543\t-.25\tMar 27, 2020\n3\t\t12\t1000000\t\n",
+  );
+  assert.equal(
+    s.files.get("o3.csv").text,
+    "id;inc;big;g;d\n1;1234.57;1234567;1234.5;Mar 26, 2020\n2;-0.50;-9876543;-.25;Mar 27, 2020\n3;;12;1000000;\n",
+  );
+  assert.equal(
+    s.files.get("o4.csv").text,
+    "inc,d\n1234.57,26/03/2020\n-0.50,27/03/2020\n,\n",
+  );
+});
+
+test("merge, update fills a missing value from a different missing value", () => {
+  const master = dta(
+      "clear\ninput id x\n1 .\n2 .a\n3 .a\n4 5\n5 .\n6 .c\n7 5\nend",
+    ),
+    using = dta(
+      "clear\ninput id x\n1 .a\n2 .\n3 .a\n4 .a\n5 .\n6 .b\n7 6\nend",
+    );
+  const s = createConsoleSession();
+  s.addData("m.dta", master);
+  s.addData("u.dta", using);
+  const report = s
+    .run("use m.dta, clear\nmerge 1:1 id using u.dta, update")
+    .output.at(-1).lines;
+  // Stata 19: not updated 3, missing updated 3, nonmissing conflict 1.
+  assert.deepEqual(report.slice(-5, -1), [
+    "    Matched                                 7",
+    "        not updated                         3  (_merge==3)",
+    "        missing updated                     3  (_merge==4)",
+    "        nonmissing conflict                 1  (_merge==5)",
+  ]);
+  const values = () =>
+    s
+      .run("list x _merge, noobs nolabel clean")
+      .output.at(-1)
+      .lines.filter((line) => line.trim())
+      .slice(1)
+      .map((line) => line.trim().split(/\s+/).join(" "));
+  assert.deepEqual(values(), [
+    ".a 4",
+    ". 4",
+    ".a 3",
+    "5 3",
+    ". 3",
+    ".b 4",
+    "5 5",
+  ]);
+  s.run("use m.dta, clear\nmerge 1:1 id using u.dta, update replace");
+  assert.deepEqual(values(), [
+    ".a 4",
+    ". 4",
+    ".a 3",
+    "5 3",
+    ". 3",
+    ".b 4",
+    "6 5",
+  ]);
+});
+
+test("merge 1:1 _n and a using file named using.dta", () => {
+  const master = dta(
+      [
+        "clear",
+        "input int id float x",
+        "1 1.5\n2 .\n3 3.5\n4 .a\n5 5.5\n6 .",
+        "end",
+      ].join("\n"),
+    ),
+    right = dta(
+      [
+        "clear",
+        "input long id double x",
+        "1 9.25\n2 2.25\n4 4.25\n5 .\n6 .b\n7 7.25",
+        "end",
+      ].join("\n"),
+    );
+  const s = createConsoleSession();
+  s.addData("master.dta", master);
+  s.addData("using.dta", right);
+  const out = s.run(
+    "use master.dta, clear\nmerge 1:1 _n using using.dta, update",
+  );
+  assert.equal(out.rc, 0);
+  // Stata 19: the widening notes, then 6 matched: 0 not updated, 1 missing
+  // updated and 5 conflicts.
+  assert.deepEqual(out.output.at(-1).lines.slice(0, 2), [
+    "(variable id was int, now long to accommodate using data's values)",
+    "(variable x was float, now double to accommodate using data's values)",
+  ]);
+  assert.deepEqual(out.output.at(-1).lines.slice(-4, -1), [
+    "        not updated                         0  (_merge==3)",
+    "        missing updated                     1  (_merge==4)",
+    "        nonmissing conflict                 5  (_merge==5)",
+  ]);
+  assert.deepEqual(
+    s
+      .run("list id x, noobs clean")
+      .output.at(-1)
+      .lines.filter((line) => line.trim())
+      .slice(1)
+      .map((line) => line.trim().split(/\s+/).join(" ")),
+    ["1 1.5", "2 2.25", "3 3.5", "4 .", "5 5.5", "6 7.25"],
+  );
+  // Stata 19: a using file called using.dta merges by key as well.
+  const keyed = s.run("use master.dta, clear\nmerge 1:1 id using using.dta");
+  assert.equal(keyed.rc, 0);
+  // Stata 19: an assert() that fails leaves the merged result in memory.
+  const failed = s.run(
+    "use master.dta, clear\nmerge 1:1 id using using.dta, assert(match master)",
+  );
+  assert.equal(failed.rc, 9);
+  assert.equal(s.run("count").output.at(-1).lines[0].trim(), "7");
+});
+
+test("reshape keeps its settings with the data, through save and use", () => {
+  const s = createConsoleSession();
+  s.run(
+    "clear\ninput id t x\n1 1 5\n1 2 6\n2 1 7\n2 2 8\nend\nreshape wide x, i(id) j(t)\nsave rw, replace\nclear\nuse rw, clear",
+  );
+  // Stata 19: reshape long alone reverses the reshape after save and use.
+  assert.equal(s.run("reshape long").rc, 0);
+  // Stata 19: four observations, t 1 2 1 2 and x 5 6 7 8.
+  assert.deepEqual(
+    s
+      .run("list t x, noobs clean")
+      .output.at(-1)
+      .lines.filter((line) => line.trim())
+      .slice(1)
+      .map((line) => line.trim().split(/\s+/).join(" ")),
+    ["1 5", "2 6", "1 7", "2 8"],
+  );
+  // Stata 19: other data have not been reshaped, r(111).
+  const fresh = s.run("clear\ninput id x1 x2\n1 5 6\nend\nreshape long");
+  assert.equal(fresh.rc, 111);
+  assert.match(
+    fresh.output.at(-1).lines.join("\n"),
+    /^data have not been reshaped yet\n/,
+  );
+});
+
+test("reshape long reads labels saved by reshape wide, as Stata 19 does", () => {
+  const s = createConsoleSession();
+  s.run(
+    'clear\ninput id t x\n1 1 5\n1 2 6\n2 1 7\nend\nlabel variable x "Score"\nlabel define xl 5 "five"\nlabel values x xl\nlabel variable t "Time"\nlabel define tl 1 "one" 2 "two"\nlabel values t tl\nreshape wide x, i(id) j(t)',
+  );
+  s.run("reshape long x, i(id) j(t)");
+  // Stata 19: t byte %10.0g tl "Time"; x float %9.0g xl "Score".
+  const described = s.run("describe t x").output.at(-1).lines;
+  assert.match(described.at(-2), /^t\s+byte\s+%10\.0g\s+tl\s+Time$/);
+  assert.match(described.at(-1), /^x\s+float\s+%9\.0g\s+xl\s+Score$/);
+});

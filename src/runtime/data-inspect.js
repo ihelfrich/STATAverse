@@ -6,6 +6,7 @@ import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { count, perGroup, percentile } from "./reports.js";
+import { deltaText } from "./panel.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing, isStringType, missingName } from "./values.js";
 
@@ -81,7 +82,8 @@ function inspectOne(session, name, rows, ctx) {
     head = `${name}:${variable.label ? `  ${variable.label}` : ""}`
       .slice(0, 40)
       .trimEnd(),
-    underline = head.length + 2;
+    // The rule is two dashes longer than a header without a label.
+    underline = head.length + (variable.label ? 0 : 2);
   ctx.out(head.padEnd(48) + "Number of observations");
   ctx.out(
     underline <= 38
@@ -530,14 +532,17 @@ function xtdescribe(session, text, ctx) {
       `${timeName} must have multiple distinct nonmissing values`,
       459,
     );
-  // A missing time is a value of its own in the count of periods.
-  const T = distinct.length + (present.length < times.length ? 1 : 0),
-    tv0 = distinct[0],
-    tv1 = distinct.at(-1),
+  // A missing time is a value of its own in the count of periods. Periods
+  // are counted in units of the delta() set by xtset.
+  const delta =
+      timeName === session.panel?.time ? (session.panel.delta ?? 1) : 1,
+    T = distinct.length + (present.length < times.length ? 1 : 0),
+    tv0 = distinct[0] / delta,
+    tv1 = distinct.at(-1) / delta,
     span = tv1 - tv0 + 1;
   let step = Infinity;
   for (let k = 1; k < distinct.length; k++)
-    step = Math.min(step, distinct[k] - distinct[k - 1]);
+    step = Math.min(step, (distinct[k] - distinct[k - 1]) / delta);
   if (patterns !== 0 && Math.trunc((tv1 - tv0) / step) + 1 > options.width)
     step = Math.trunc((tv1 - tv0) / (options.width - 1));
   const panels = new Map();
@@ -560,11 +565,12 @@ function xtdescribe(session, text, ctx) {
   );
   // PrettyPrintT: the first, second and last periods in the time format.
   const tf = data.get(timeName).format,
-    per = (v) => fmt(v, tf),
+    per = (v) => fmt(v * delta, tf),
     lines = [`${per(tv0)},`];
-  if (lines[0].length + per(distinct[1]).length < 46)
-    lines[0] = `${lines[0]} ${per(distinct[1])}, ...,`;
-  else lines.push(`${per(distinct[1])}, ...,`);
+  const secondTime = per(distinct[1] / delta);
+  if (lines[0].length + secondTime.length < 46)
+    lines[0] = `${lines[0]} ${secondTime}, ...,`;
+  else lines.push(`${secondTime}, ...,`);
   if (lines.at(-1).length + per(tv1).length < 50)
     lines[lines.length - 1] += ` ${per(tv1)}`;
   else lines.push(per(tv1));
@@ -577,7 +583,9 @@ function xtdescribe(session, text, ctx) {
       applyFormat(T, "%11.0f"),
   );
   for (const extra of lines.slice(1)) ctx.out(" ".repeat(11) + extra);
-  ctx.out(`${" ".repeat(11)}Delta(${timeName}) = 1 unit`);
+  ctx.out(
+    `${" ".repeat(11)}Delta(${timeName}) = ${deltaText({ data, panel: { time: timeName, delta } })}`,
+  );
   ctx.out(`${" ".repeat(11)}Span(${timeName})  = ${span} periods`);
   const seen = new Set();
   let unique = true;
@@ -622,7 +630,9 @@ function xtdescribe(session, text, ctx) {
   for (const key of ids) {
     const cells = edges.map(
       ([l, u]) =>
-        panels.get(key).filter((i) => l < time[i] && time[i] <= u).length,
+        panels
+          .get(key)
+          .filter((i) => l < time[i] / delta && time[i] / delta <= u).length,
     );
     const name = cells.join(",");
     if (!groups.has(name)) groups.set(name, { cells, count: 0 });
@@ -719,7 +729,8 @@ function outsheet(session, text, ctx) {
           if (label !== undefined) return wrap(label);
           if (value === MISSING) return "";
           if (isMissing(value)) return missingName(value);
-          return fmt(value, v.format);
+          // outsheet writes a comma format without its thousands separators.
+          return fmt(value, v.format.replace(/^(%-?0?\d*\.\d+[fge])c$/, "$1"));
         })
         .join(delimiter),
     );

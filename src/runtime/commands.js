@@ -1631,13 +1631,16 @@ function collapse(session, text, ctx) {
   if (new Set(names).size !== names.length)
     throw new StataError("a target variable is named twice", 198);
   const by = parsed.options.by ?? [],
-    // cw keeps only observations with every source variable present.
+    // cw keeps only observations with every source variable present. An
+    // observation whose weight is zero or missing is left out, so a group
+    // with no positive weight does not appear.
     rows = session
       .rows(parsed, null)
       .filter(
         (i) =>
-          !parsed.options.cw ||
-          targets.every((t) => !gap(data.get(t.source).data, i)),
+          (!weights || (!isMissing(weights[i]) && weights[i] !== 0)) &&
+          (!parsed.options.cw ||
+            targets.every((t) => !gap(data.get(t.source).data, i))),
       ),
     groups = new Map(),
     // What a (percent) is a share of: every observation, or all the
@@ -1657,6 +1660,7 @@ function collapse(session, text, ctx) {
           return [column, all];
         }),
     );
+  if (!rows.length) throw new StataError("no observations", 2000);
   for (const i of rows) {
     const key = JSON.stringify(by.map((k) => data.get(k).data[i]));
     if (!groups.has(key)) groups.set(key, []);

@@ -3,6 +3,7 @@
 import { StataError } from "./errors.js";
 import { greatest } from "./extremes.js";
 import { count, describe, percentile } from "./reports.js";
+import { abbreviateVariable, displayInColumns } from "./utilities.js";
 import { abbreviate } from "./estimation.js";
 import { applyFormat } from "./format.js";
 import {
@@ -326,13 +327,22 @@ function separate(session, text, ctx) {
 
 function split(session, text, ctx) {
   const parsed = session.parse(
-      "varname [if] [in] [, Parse(string asis) Generate(name) Limit(integer 0) noTrim | DESTRING]",
+      "varname [if] [in] [, Parse(string asis) Generate(name) Limit(integer 0) noTrim DESTRING force float Ignore(string asis) percent]",
       text,
     ),
     data = session.data,
-    source = data.get(parsed.varlist[0]);
+    source = data.get(parsed.varlist[0]),
+    options = parsed.options;
   if (!isStringType(source.type))
     throw new StataError(`${source.name} is not a string variable`, 109);
+  // The options split passes on to destring need destring.
+  if (!options.destring)
+    for (const option of ["force", "float", "ignore", "percent"])
+      if (options[option] !== undefined && options[option] !== false)
+        throw new StataError(
+          `may not specify ${option} without specifying destring`,
+          198,
+        );
   // parse() lists separators as words; a quoted one may hold blanks, so
   // parse(" ") splits at each single blank. Without parse(), or with
   // parse(""), split.ado splits at blanks and trims what is left at each
@@ -396,15 +406,39 @@ function split(session, text, ctx) {
       ),
     ),
   );
-  if (names.length) {
-    ctx.out(`variable${names.length > 1 ? "s" : ""} created as string: `);
-    ctx.out(names.join("  "));
-  }
-  session.results.r = {
-    varlist: names.join(" "),
-    nvars: String(names.length),
+  // split.ado lists the new variables with ds; r(nvars) is hidden.
+  const results = {
+    varlist: names.map((name) => name + " ").join(""),
     k_new: names.length,
   };
+  Object.defineProperty(results, "nvars", {
+    value: String(names.length),
+    enumerable: false,
+  });
+  ctx.out(
+    `variable${names.length > 1 ? "s" : ""} ${options.destring ? "born" : "created"} as string: `,
+  );
+  displayInColumns(
+    session,
+    names.map((name) => abbreviateVariable(data, name, 12)),
+    ctx,
+  );
+  if (options.destring) {
+    const extra = [
+      options.force ? "force" : "",
+      options.float ? "float" : "",
+      options.ignore !== undefined ? `ignore(${options.ignore})` : "",
+      options.percent ? "percent" : "",
+    ].join(" ");
+    session.dispatch(
+      `destring ${names.join(" ")}, replace ${extra}`,
+      ctx.frame,
+      {},
+      { push: (line) => ctx.out(line) },
+      ctx.output,
+    );
+  }
+  session.results.r = results;
 }
 
 function insobs(session, text, ctx) {

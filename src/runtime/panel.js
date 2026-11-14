@@ -20,11 +20,93 @@ const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const sum = (values) => values.reduce((a, b) => a + b, 0);
 const mean = (values) => sum(values) / values.length;
 
+// The unit options of xtset and tsset, with the format each gives the time
+// variable.
+const UNIT_FORMATS = {
+  daily: "%td",
+  weekly: "%tw",
+  monthly: "%tm",
+  quarterly: "%tq",
+  halfyearly: "%th",
+  yearly: "%ty",
+};
+// The name xtset gives one period of a time format.
+const UNIT_NAMES = {
+  d: "day",
+  w: "week",
+  m: "month",
+  q: "quarter",
+  h: "halfyear",
+  y: "year",
+};
+
+/** "1 unit", "2 months": the delta in the units of the time format. */
+export function deltaText(session) {
+  const panel = session.panel,
+    delta = panel.delta ?? 1,
+    format = session.data.get(panel.time).format,
+    unit = UNIT_NAMES[/^%-?t([dwmqhy])/.exec(format)?.[1]] ?? "unit";
+  return `${delta} ${unit}${delta === 1 ? "" : "s"}`;
+}
+
+/** The options of xtset and tsset: delta() and the unit options. */
+function timeOptions(text) {
+  const options = { delta: 1, format: null, noquery: false, clear: false },
+    pattern = /([A-Za-z]+)\s*(\(\s*([^)]*?)\s*\))?/gy;
+  let rest = text.trim(),
+    m;
+  pattern.lastIndex = 0;
+  while (rest) {
+    pattern.lastIndex = 0;
+    if (!(m = pattern.exec(rest))) throw new StataError("invalid syntax", 198);
+    rest = rest.slice(m[0].length).trim();
+    const word = m[1].toLowerCase(),
+      argument = m[3];
+    if (word.length >= 3 && "delta".startsWith(word) && m[2]) {
+      const value = Number(argument);
+      if (argument === "" || !Number.isFinite(value))
+        throw new StataError(`invalid argument in delta(): ${argument}`, 198);
+      if (value === 0)
+        throw new StataError(`delta(${argument}) evaluates to zero`, 198);
+      if (value < 0)
+        throw new StataError(
+          `delta(${argument}) evaluates to a negative number`,
+          198,
+        );
+      if (!Number.isInteger(value))
+        throw new StataError(
+          `delta(${argument}) evaluates to a noninteger value`,
+          198,
+        );
+      options.delta = value;
+    } else if (!m[2] && UNIT_FORMATS[word]) options.format = UNIT_FORMATS[word];
+    else if (!m[2] && word === "noquery") options.noquery = true;
+    else if (!m[2] && word === "clear") options.clear = true;
+    else
+      throw new StataError(
+        `option ${word}${m[2] ? "()" : ""} not allowed\n    In the browser xtset and tsset take delta(#), noquery and the unit options daily, weekly, monthly, quarterly, halfyearly and yearly.`,
+        198,
+      );
+  }
+  return options;
+}
+
 function xtset(session, text, ctx) {
-  const words = text.replace(/,.*$/, "").trim().split(/\s+/).filter(Boolean),
+  const comma = text.indexOf(","),
+    words = (comma < 0 ? text : text.slice(0, comma))
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean),
+    options = timeOptions(comma < 0 ? "" : text.slice(comma + 1)),
     data = session.data;
   if (words.length > 2)
     throw new StataError("too many variables specified", 103);
+  if (options.clear) {
+    session.panel = null;
+    return;
+  }
+  if (!words.length && (options.delta !== 1 || options.format))
+    throw new StataError("varlist required", 100);
   if (words.length) {
     if (/^clear$/.test(words[0])) {
       session.panel = null;
@@ -37,15 +119,17 @@ function xtset(session, text, ctx) {
           `string variables not allowed in varlist;\n${name} is a string variable`,
           109,
         );
+    const previous = session.panel;
     if (ctx.timeOnly) {
       if (names.length === 2) session.panel = { id: names[0], time: names[1] };
       else session.panel = { id: null, time: names[0] };
     } else session.panel = { id: names[0], time: names[1] ?? null };
+    session.panel.delta = options.delta;
     data.sort([session.panel.id, session.panel.time].filter(Boolean));
     if (session.panel.time) {
       const id = session.panel.id ? data.get(session.panel.id).data : null,
         time = data.get(session.panel.time).data;
-      for (let i = 1; i < data.n; i++)
+      for (let i = 1; i < data.n; i++) {
         if (
           (!id || id[i] === id[i - 1]) &&
           time[i] === time[i - 1] &&
@@ -54,7 +138,22 @@ function xtset(session, text, ctx) {
           session.panel = null;
           throw new StataError("repeated time values within panel", 451);
         }
-    }
+        if (
+          (!id || id[i] === id[i - 1]) &&
+          !isMissing(time[i]) &&
+          time[i] - time[i - 1] < options.delta
+        ) {
+          session.panel = previous;
+          throw new StataError(
+            "time values with period less than delta() found",
+            451,
+          );
+        }
+      }
+      if (options.format) data.get(session.panel.time).format = options.format;
+    } else if (options.delta !== 1 || options.format)
+      throw new StataError("time variable not specified", 198);
+    if (options.noquery) return;
   }
   const panel = session.panel;
   if (!panel)
@@ -89,18 +188,18 @@ function xtset(session, text, ctx) {
       low = least(values),
       high = greatest(values);
     // A gap is a missing period inside some panel.
-    let gaps = false;
+    let gaps = 0;
     const id = panel.id ? data.get(panel.id).data : null;
     for (let i = 1; i < data.n; i++)
       if (
         (!id || id[i] === id[i - 1]) &&
-        variable.data[i] - variable.data[i - 1] > 1
+        variable.data[i] - variable.data[i - 1] > (panel.delta ?? 1)
       )
-        gaps = true;
+        gaps++;
     ctx.out(
-      `${panel.id ? " " : ""}Time variable: ${panel.time}, ${show(low)} to ${show(high)}${gaps ? ", but with gaps" : ""}`,
+      `${panel.id ? " " : ""}Time variable: ${panel.time}, ${show(low)} to ${show(high)}${gaps === 1 ? ", but with a gap" : gaps ? ", but with gaps" : ""}`,
     );
-    ctx.out(`${panel.id ? " " : ""}        Delta: 1 unit`);
+    ctx.out(`${panel.id ? " " : ""}        Delta: ${deltaText(session)}`);
   }
 }
 
@@ -131,12 +230,14 @@ export function timeSeriesOperator(session, operator, order, name) {
     const row = index.get(`${columns.id ? columns.id[i] : ""}|${t + shift}`);
     return row === undefined ? MISSING : data.get(variable.name).data[row];
   };
-  const k = order || 1;
-  if (operator === "L") return (i) => at(i, -k);
-  if (operator === "F") return (i) => at(i, k);
+  // Under delta(), a lag of one is one delta earlier.
+  const k = order || 1,
+    step = panel.delta ?? 1;
+  if (operator === "L") return (i) => at(i, -k * step);
+  if (operator === "F") return (i) => at(i, k * step);
   // D is the difference; D2 is the difference of differences.
   const difference = (i, depth, shift) => {
-    if (depth === 0) return at(i, shift);
+    if (depth === 0) return at(i, shift * step);
     const a = difference(i, depth - 1, shift),
       b = difference(i, depth - 1, shift - 1);
     return isMissing(a) || isMissing(b) ? MISSING : a - b;
