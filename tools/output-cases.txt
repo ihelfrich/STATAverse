@@ -7301,3 +7301,341 @@ list in -1, noobs
 import delimited using dlm_u8.csv, clear
 list
 import delimited using dlm_nums.csv, clear
+=== excel-export-import-roundtrip
+clear
+set obs 4
+generate id = _n
+generate str10 name = word("Ann Bob Carla Dee", _n)
+replace name = "" in 4
+generate double income = 1000.5 * _n
+replace income = . in 2
+generate byte female = mod(_n, 2)
+replace female = .a in 3
+label define sexl 0 "male" 1 "female"
+label values female sexl
+generate bdate = mdy(1, 10 * _n, 2020)
+format bdate %td
+generate float share = _n / 8
+label variable income "Annual income"
+label variable name "Student name"
+export excel using rt1.xlsx, firstrow(variables) replace
+capture noisily export excel using rt1.xlsx
+display _rc
+export excel using rt2.xlsx, firstrow(varlabels) nolabel replace
+export excel name income using rt3.xlsx, missing("NA") replace
+import excel using rt1.xlsx, describe
+return list
+import excel using rt1.xlsx, firstrow clear
+list
+local a : type id
+local b : format id
+local c : variable label id
+display "id `a' `b' `c'"
+local a : type name
+local b : format name
+local c : variable label name
+display "name `a' `b' `c'"
+local a : type income
+local b : format income
+local c : variable label income
+display "income `a' `b' `c'"
+local a : type female
+local b : format female
+local c : variable label female
+display "female `a' `b' `c'"
+local a : type bdate
+local b : format bdate
+local c : variable label bdate
+display "bdate `a' `b' `c'"
+local a : type share
+local b : format share
+local c : variable label share
+display "share `a' `b' `c'"
+import excel using rt2.xlsx, firstrow clear
+list
+local a : variable label id
+display "id `a'"
+local a : variable label Studentname
+display "Studentname `a'"
+local a : variable label Annualincome
+display "Annualincome `a'"
+local a : variable label female
+display "female `a'"
+import excel using rt3.xlsx, clear
+list
+=== excel-import-options
+clear
+set obs 5
+generate id = _n
+generate str6 grp = cond(mod(_n, 2), "Treat", "Ctrl")
+generate double score = 60 + 7.25 * _n
+replace score = . in 3
+export excel using opts.xlsx, sheet("first") firstrow(variables) replace
+export excel id score using opts.xlsx, sheet("second") cell(B3) firstrow(variables)
+capture noisily export excel id using opts.xlsx, sheet("second")
+display _rc
+export excel id using opts.xlsx, sheet("second", modify) cell(E2)
+import excel using opts.xlsx, describe
+import excel using opts.xlsx, sheet("second") clear
+list
+import excel using opts.xlsx, sheet("first") cellrange(A2:B4) clear
+list
+import excel using opts.xlsx, sheet("first") firstrow case(upper) clear
+list
+import excel using opts.xlsx, sheet("first") firstrow allstring clear
+list
+import excel using opts.xlsx, sheet("first") firstrow allstring("%6.2f") clear
+list
+import excel C A using opts.xlsx, sheet("first") clear
+list
+import excel x=B y using opts.xlsx, sheet("first") clear
+list
+import excel x y=A z using opts.xlsx, sheet("first") clear
+list
+capture noisily import excel using opts.xlsx, sheet("third") clear
+display _rc
+capture noisily import excel using opts.xlsx, sheet("first") cellrange(Z99) clear
+display _rc
+capture noisily import excel using opts.xlsx, sheet("first") cellrange(A1:C99) clear
+display _rc
+capture noisily import excel using opts.xlsx, sheet("first") cellrange(B2:A1) clear
+display _rc
+capture noisily import excel using opts.xlsx, case(proper) clear
+display _rc
+capture noisily import excel using nosuch.xlsx, clear
+display _rc
+capture noisily import excel A A using opts.xlsx, clear
+display _rc
+capture noisily import excel A using opts.xlsx, firstrow clear
+display _rc
+set obs 3
+capture noisily import excel using opts.xlsx
+display _rc
+=== putexcel-cells-and-expressions
+clear
+putexcel set px.xlsx, replace
+putexcel A1 = "label"
+putexcel B2 = 3.25
+putexcel C3 = 2+2
+scalar s = 7
+putexcel D4 = s
+putexcel E5 = ("text" + "more")
+putexcel F6 = (1/3)
+putexcel A7 = "a" B7 = 2 C7 = "c"
+putexcel A9 = .
+putexcel A10 = formula(SUM(B2:D4))
+capture noisily putexcel A11 = nosuchname
+display _rc
+capture noisily putexcel ZZZZ1 = 1
+display _rc
+capture noisily putexcel A1 =
+display _rc
+putexcel describe
+putexcel set px.xlsx, sheet("two") modify
+putexcel A1 = "on two"
+capture noisily putexcel set px.xlsx
+display _rc
+putexcel clear
+capture noisily putexcel A1 = 1
+display _rc
+import excel using px.xlsx, describe
+import excel using px.xlsx, allstring clear
+list
+import excel using px.xlsx, sheet("two") clear
+list
+=== sasxport5-roundtrip
+clear
+set obs 4
+generate id = _n
+generate str12 name = word("Ann Bob Carla Dee", _n)
+generate double income = 1000.5 * _n
+replace income = .a in 2
+generate byte female = mod(_n, 2)
+label define sexl 0 "male" 1 "female"
+label values female sexl
+generate bdate = mdy(2, _n, 2020)
+format bdate %td
+label variable income "Annual income"
+export sasxport5 sx.xpt, replace
+capture noisily export sasxport5 sx.xpt
+display _rc
+import sasxport5 sx.xpt, clear
+list
+label list
+local a : type id
+local b : format id
+local c : value label id
+display "id `a' `b' `c'"
+local a : type name
+local b : format name
+local c : value label name
+display "name `a' `b' `c'"
+local a : type income
+local b : format income
+local c : value label income
+display "income `a' `b' `c'"
+local a : type female
+local b : format female
+local c : value label female
+display "female `a' `b' `c'"
+local a : type bdate
+local b : format bdate
+local c : value label bdate
+display "bdate `a' `b' `c'"
+generate verylongname = 1
+capture noisily export sasxport5 sx2.xpt, replace
+display _rc
+export sasxport5 sx2.xpt, replace rename vallabfile(none)
+import sasxport5 sx2.xpt, clear
+display c(k)
+capture noisily import sasxport5 nosuch.xpt, clear
+display _rc
+capture noisily import sasxport8 sx.xpt, clear
+display _rc
+=== excel-header-names-and-number-text
+clear
+set obs 4
+generate double a = cond(_n == 1, 1/3, cond(_n == 2, 1e-10, cond(_n == 3, 3e10, -.5)))
+generate double b = cond(_n == 1, 1.23456789012345e15, cond(_n == 2, 123456789.123, cond(_n == 3, 100000, .000015)))
+generate c = _n
+generate d = _n * 2
+generate e = _n * 3
+generate f = _n * 4
+generate g = mdy(_n, 1, 2024)
+format g %td
+label variable a "Age (years)"
+label variable b "%change"
+label variable c "2019"
+label variable d "x y"
+label variable e "Age (years)"
+label variable f "in"
+label variable g "1st date"
+export excel using hdr.xlsx, firstrow(varlabels) replace
+import excel using hdr.xlsx, firstrow clear
+list
+local x : variable label C
+display "`x'"
+local x : variable label E
+display "`x'"
+import excel using hdr.xlsx, allstring clear
+list
+import excel using hdr.xlsx, firstrow case(lower) clear
+list
+=== excel-export-number-formats
+clear
+set obs 3
+generate int m = ym(2024, _n)
+format m %tm
+generate int q = yq(2024, _n)
+format q %tq
+generate int w = yw(2024, _n)
+format w %tw
+generate int h = yh(2024, _n)
+format h %th
+generate int y = 2020 + _n
+format y %ty
+generate double a = 1234.5678 * _n
+format a %9.2f
+generate double c = 1234567.891 * _n
+format c %12.2fc
+generate double e = 1234.5678 * _n
+format e %8.2e
+generate double g = 1234.5678 * _n
+format g %12.0gc
+generate double f1 = 1234.5678 * _n
+format f1 %9.1f
+export excel m using nf2.xlsx, datestring("%tdCCYY-NN-DD") replace
+export excel using nf.xlsx, firstrow(variables) replace
+import excel using nf.xlsx, firstrow clear
+display "`: type m' `: format m' `: format q' `: format w' `: format h' `: format y'"
+display "`: format a' `: format c' `: format e' `: format g' `: format f1'"
+list
+import excel using nf2.xlsx, clear
+list
+=== excel-export-refusals
+clear
+set obs 3
+generate id = _n
+generate str3 s = "ab"
+capture noisily export excel id using bad.xlsx, sheet("bad/name") replace
+display _rc
+capture noisily export excel id using bad.xlsx, sheet("a[b]") replace
+capture noisily export excel id using bad.xlsx, sheet("'quoted'") replace
+capture noisily export excel s id using bad.xlsx, sheet("abcdefghijklmnopqrstuvwxyz123456") replace
+display _rc
+capture noisily export excel id using bad.xlsx, sheet("abcdefghijklmnopqrstuvwxyz123456") firstrow(variables) replace
+capture noisily export excel id using bad.xlsx, sheet("abcdefghijklmnopqrstuvwxyz12345") replace
+capture noisily export excel id using bad.xlsx if id > 5, replace
+display _rc
+capture noisily export sasxport5 id using one.xpt, replace
+capture noisily export sasxport5 id s using "two.xpt" in 1/2, replace
+import sasxport5 two.xpt, clear
+list
+capture noisily export sasxport5 two.xpt, vallabfile(xpt) replace
+display _rc
+drop in 1/2
+capture noisily export excel id using none.xlsx, replace
+display _rc
+capture noisily export excel id using none.xlsx, firstrow(variables) replace
+capture noisily export sasxport5 none.xpt, replace
+display _rc
+=== excel-cellrange-data-area
+clear
+set obs 3
+generate id = _n
+generate score = 70 + _n
+export excel using area.xlsx, cell(C3) firstrow(variables) replace
+import excel using area.xlsx, describe
+capture noisily import excel using area.xlsx, cellrange(A1) firstrow clear
+display _rc " " _N " " c(k)
+capture noisily import excel using area.xlsx, cellrange(C1) firstrow clear
+capture noisily import excel using area.xlsx, cellrange(B3:D6) clear
+capture noisily import excel using area.xlsx, cellrange(:D5) firstrow clear
+list
+capture noisily import excel using area.xlsx, cellrange(C3) firstrow clear
+list
+capture noisily import excel using area.xlsx, cellrange(5) clear
+capture noisily import excel using area.xlsx, cellrange(AAAA1) clear
+capture noisily import excel using area.xlsx, cellrange(A0) clear
+capture noisily import excel using area.xlsx, cellrange(1A) clear
+capture noisily import excel using area.xlsx, cellrange(C3:D) clear
+capture noisily import excel using area.xlsx, cellrange(:) clear
+capture noisily import excel using area.xlsx, cellrange(C3:XFE9) clear
+capture noisily import excel using area.xlsx, cellrange(C3:D1048577) clear
+display _rc " " _N " " c(k)
+=== excel-sheet-names-and-wide-sheets
+clear
+set obs 2
+generate v = _n
+export excel using names.xlsx, sheet("Ñandú sheet") replace
+export excel using names.xlsx, sheet("x")
+import excel using names.xlsx, describe
+import excel using names.xlsx, sheet("Ñandú sheet") clear
+list
+putexcel set names.xlsx, modify sheet("x")
+putexcel XFD1 = 9
+capture noisily import excel using names.xlsx, sheet("x") clear
+display _rc " " _N " " c(k)
+=== putexcel-modify-keeps-workbook
+clear
+set obs 3
+generate id = _n
+generate str5 name = "n" + string(_n)
+generate double when = mdy(1, _n, 2024)
+format when %td
+export excel using keep.xlsx, firstrow(variables) replace
+putexcel set keep.xlsx, modify sheet("Sheet1")
+putexcel E2 = "added"
+putexcel B3 = 42
+putexcel C4 = 7
+export excel id using keep.xlsx, sheet("more")
+export excel name using keep.xlsx, sheet("Sheet1", modify) cell(F1)
+import excel using keep.xlsx, describe
+import excel using keep.xlsx, sheet("Sheet1") firstrow clear
+list
+import excel using keep.xlsx, sheet("more") clear
+list
+capture noisily export sasxport5 k.xpt, replace
+export sasxport5 k.xpt, rename replace
+capture noisily import sasxport5 k.xpt
+display _rc

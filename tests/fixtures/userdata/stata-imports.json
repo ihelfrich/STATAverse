@@ -1,0 +1,4045 @@
+{
+  "source": "Recorded from Stata 19 MP (version 17, set processors 1, linesize 80): each command run on the files in this folder, the lines it printed, then every variable's name, type, format, labels and values (numbers in %21.0g, at most 40 values; n is the number of observations).",
+  "results": [
+    {
+      "command": "import excel using student.xlsx, describe",
+      "rc": 0,
+      "printed": [
+        "     Sheet | Range",
+        "  ---------+---------",
+        "     Notes | A1:A1",
+        "      Data | A1:H8",
+        "      Wide | A1:E2"
+      ],
+      "variables": []
+    },
+    {
+      "command": "import excel using student.xlsx, sheet(\"Data\") cellrange(A3) firstrow clear",
+      "rc": 0,
+      "printed": ["(8 vars, 5 obs)"],
+      "variables": [
+        {
+          "name": "StudentID",
+          "type": "str3",
+          "format": "%9s",
+          "label": "Student ID",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["101", "102", "", "103", "104"]
+        },
+        {
+          "name": "Score",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "Score",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["78.5", ".", ".", "91", "66"]
+        },
+        {
+          "name": "Date",
+          "type": "double",
+          "format": "%tc",
+          "label": "Date",
+          "valueLabel": "",
+          "n": 5,
+          "values": [
+            "2019686400000",
+            "2020377600000",
+            ".",
+            "2021284800000",
+            "2022105600000"
+          ]
+        },
+        {
+          "name": "Passed",
+          "type": "byte",
+          "format": "%1.0f",
+          "label": "Passed",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["1", "0", ".", "1", "0"]
+        },
+        {
+          "name": "Group",
+          "type": "str9",
+          "format": "%9s",
+          "label": "Group",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["Treatment", "Control", "", "Treatment", "Control"]
+        },
+        {
+          "name": "Total",
+          "type": "int",
+          "format": "%10.0g",
+          "label": "Total",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["157", ".", ".", "182", "132"]
+        },
+        {
+          "name": "Pct",
+          "type": "double",
+          "format": "%6.4f",
+          "label": "Pct",
+          "valueLabel": "",
+          "n": 5,
+          "values": [".25", ".5", ".", "1", ".125"]
+        },
+        {
+          "name": "Name",
+          "type": "str5",
+          "format": "%9s",
+          "label": "Name",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["Alice", "Bob", "", "Carl", ""]
+        }
+      ]
+    },
+    {
+      "command": "import excel using student.xlsx, sheet(\"Data\") clear",
+      "rc": 0,
+      "printed": ["(8 vars, 8 obs)"],
+      "variables": [
+        {
+          "name": "A",
+          "type": "str31",
+          "format": "%31s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": [
+            "Survey of students, spring 2024",
+            "",
+            "Student ID",
+            "101",
+            "102",
+            "",
+            "103",
+            "104"
+          ]
+        },
+        {
+          "name": "B",
+          "type": "str5",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": ["", "", "Score", "78.5", "", "", "91", "66"]
+        },
+        {
+          "name": "C",
+          "type": "str18",
+          "format": "%18s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": [
+            "",
+            "",
+            "Date",
+            "01jan2024",
+            "09jan2024",
+            "",
+            "19jan2024 12:00:00",
+            "29jan2024"
+          ]
+        },
+        {
+          "name": "D",
+          "type": "str6",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": ["", "", "Passed", "1", "0", "", "1", "0"]
+        },
+        {
+          "name": "E",
+          "type": "str9",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": [
+            "",
+            "",
+            "Group",
+            "Treatment",
+            "Control",
+            "",
+            "Treatment",
+            "Control"
+          ]
+        },
+        {
+          "name": "F",
+          "type": "str5",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": ["", "", "Total", "157", "", "", "182", "132"]
+        },
+        {
+          "name": "G",
+          "type": "str4",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": ["", "", "Pct", ".25", ".5", "", "1", ".125"]
+        },
+        {
+          "name": "H",
+          "type": "str5",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": ["", "", "Name", "Alice", "Bob", "", "Carl", ""]
+        }
+      ]
+    },
+    {
+      "command": "import excel using student.xlsx, sheet(\"Data\") cellrange(A3:G8) firstrow case(lower) clear",
+      "rc": 0,
+      "printed": ["(7 vars, 5 obs)"],
+      "variables": [
+        {
+          "name": "studentid",
+          "type": "str3",
+          "format": "%9s",
+          "label": "Student ID",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["101", "102", "", "103", "104"]
+        },
+        {
+          "name": "score",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "Score",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["78.5", ".", ".", "91", "66"]
+        },
+        {
+          "name": "date",
+          "type": "double",
+          "format": "%tc",
+          "label": "Date",
+          "valueLabel": "",
+          "n": 5,
+          "values": [
+            "2019686400000",
+            "2020377600000",
+            ".",
+            "2021284800000",
+            "2022105600000"
+          ]
+        },
+        {
+          "name": "passed",
+          "type": "byte",
+          "format": "%1.0f",
+          "label": "Passed",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["1", "0", ".", "1", "0"]
+        },
+        {
+          "name": "group",
+          "type": "str9",
+          "format": "%9s",
+          "label": "Group",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["Treatment", "Control", "", "Treatment", "Control"]
+        },
+        {
+          "name": "total",
+          "type": "int",
+          "format": "%10.0g",
+          "label": "Total",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["157", ".", ".", "182", "132"]
+        },
+        {
+          "name": "pct",
+          "type": "double",
+          "format": "%6.4f",
+          "label": "Pct",
+          "valueLabel": "",
+          "n": 5,
+          "values": [".25", ".5", ".", "1", ".125"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using student.xlsx, sheet(\"Wide\") firstrow clear",
+      "rc": 0,
+      "printed": ["(5 vars, 1 obs)"],
+      "variables": [
+        {
+          "name": "Score",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "Score",
+          "valueLabel": "",
+          "n": 1,
+          "values": ["1"]
+        },
+        {
+          "name": "B",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "2019",
+          "valueLabel": "",
+          "n": 1,
+          "values": ["2"]
+        },
+        {
+          "name": "C",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "2020",
+          "valueLabel": "",
+          "n": 1,
+          "values": ["3"]
+        },
+        {
+          "name": "xy",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "x y",
+          "valueLabel": "",
+          "n": 1,
+          "values": ["4"]
+        },
+        {
+          "name": "E",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "Score",
+          "valueLabel": "",
+          "n": 1,
+          "values": ["5"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using student.xlsx, sheet(\"Data\") cellrange(A3) firstrow allstring(\"%9.2f\") clear",
+      "rc": 0,
+      "printed": ["(8 vars, 5 obs)"],
+      "variables": [
+        {
+          "name": "StudentID",
+          "type": "str6",
+          "format": "%9s",
+          "label": "Student ID",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["101.00", "102.00", "", "103.00", "104"]
+        },
+        {
+          "name": "Score",
+          "type": "str5",
+          "format": "%9s",
+          "label": "Score",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["78.50", "", "", "91.00", "66.00"]
+        },
+        {
+          "name": "Date",
+          "type": "str18",
+          "format": "%18s",
+          "label": "Date",
+          "valueLabel": "",
+          "n": 5,
+          "values": [
+            "01jan2024",
+            "09jan2024",
+            "",
+            "19jan2024 12:00:00",
+            "29jan2024"
+          ]
+        },
+        {
+          "name": "Passed",
+          "type": "str1",
+          "format": "%9s",
+          "label": "Passed",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["1", "0", "", "1", "0"]
+        },
+        {
+          "name": "Group",
+          "type": "str9",
+          "format": "%9s",
+          "label": "Group",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["Treatment", "Control", "", "Treatment", "Control"]
+        },
+        {
+          "name": "Total",
+          "type": "str6",
+          "format": "%9s",
+          "label": "Total",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["157.00", "", "", "182.00", "132.00"]
+        },
+        {
+          "name": "Pct",
+          "type": "str4",
+          "format": "%9s",
+          "label": "Pct",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["0.25", "0.50", "", "1.00", "0.12"]
+        },
+        {
+          "name": "Name",
+          "type": "str5",
+          "format": "%9s",
+          "label": "Name",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["Alice", "Bob", "", "Carl", ""]
+        }
+      ]
+    },
+    {
+      "command": "import excel using student.xlsx, sheet(\"Notes\") firstrow clear",
+      "rc": 0,
+      "printed": ["(1 var, 0 obs)"],
+      "variables": [
+        {
+          "name": "ReadmedataareontheDatash",
+          "type": "float",
+          "format": "%9.0g",
+          "label": "Read me: data are on the Data sheet",
+          "valueLabel": "",
+          "n": 0,
+          "values": []
+        }
+      ]
+    },
+    {
+      "command": "import excel using types.xlsx, firstrow clear",
+      "rc": 0,
+      "printed": ["(24 vars, 4 obs)"],
+      "variables": [
+        {
+          "name": "int8",
+          "type": "int",
+          "format": "%10.0g",
+          "label": "int8",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", "127", "-127"]
+        },
+        {
+          "name": "int16",
+          "type": "int",
+          "format": "%10.0g",
+          "label": "int16",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["300", "-300", "32740", "0"]
+        },
+        {
+          "name": "int32",
+          "type": "long",
+          "format": "%10.0g",
+          "label": "int32",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["70000", "-70000", "2147483620", "0"]
+        },
+        {
+          "name": "big",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "big",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["30000000000", "1234567890123450", "9007199254740992", "0"]
+        },
+        {
+          "name": "neg",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "neg",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["-5", "-127", "100", "0"]
+        },
+        {
+          "name": "frac",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "frac",
+          "valueLabel": "",
+          "n": 4,
+          "values": [
+            "1.5",
+            "2.25",
+            "-.1000000000000000056",
+            "1.00000000000000e-10"
+          ]
+        },
+        {
+          "name": "allmiss",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "allmiss",
+          "valueLabel": "",
+          "n": 4,
+          "values": [".", ".", ".", "."]
+        },
+        {
+          "name": "mixed",
+          "type": "str3",
+          "format": "%9s",
+          "label": "mixed",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "two", "3", "4.5"]
+        },
+        {
+          "name": "I",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "in",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["7", "8", "9", "10"]
+        },
+        {
+          "name": "averylongheadernamethatexc",
+          "type": "str1",
+          "format": "%9s",
+          "label": "a very long header name that exceeds thirty two characters",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["x", "y", "z", "w"]
+        },
+        {
+          "name": "K",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "2019",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", "3", "4"]
+        },
+        {
+          "name": "L",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["2", "3", "4", "5"]
+        },
+        {
+          "name": "Ünïcode",
+          "type": "str6",
+          "format": "%9s",
+          "label": "Ünïcode",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["é", "ü", "日本", ""]
+        },
+        {
+          "name": "spaced",
+          "type": "str1",
+          "format": "%9s",
+          "label": " spaced ",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["a", "b", "c", "d"]
+        },
+        {
+          "name": "abc",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "1abc",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", "3", "4"]
+        },
+        {
+          "name": "date1",
+          "type": "int",
+          "format": "%tdnn/dd/CCYY",
+          "label": "date1",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["23376", "23377", "-21914", "-21856"]
+        },
+        {
+          "name": "dt",
+          "type": "double",
+          "format": "%tc",
+          "label": "dt",
+          "valueLabel": "",
+          "n": 4,
+          "values": [
+            "2019708000000",
+            "2019772800000",
+            "-1893326400000",
+            "-1888272000000"
+          ]
+        },
+        {
+          "name": "pct",
+          "type": "double",
+          "format": "%6.4f",
+          "label": "pct",
+          "valueLabel": "",
+          "n": 4,
+          "values": [".5", "1", ".125", "2"]
+        },
+        {
+          "name": "ws",
+          "type": "str6",
+          "format": "%9s",
+          "label": "ws",
+          "valueLabel": "",
+          "n": 4,
+          "values": [" lead", "trail ", " both ", ""]
+        },
+        {
+          "name": "tm",
+          "type": "double",
+          "format": "%tcHH:MM:SS",
+          "label": "tm",
+          "valueLabel": "",
+          "n": 4,
+          "values": [
+            "-1893391200000",
+            "-1893412800000",
+            "-1893434400000",
+            "-1893369600999.993652"
+          ]
+        },
+        {
+          "name": "fixed2",
+          "type": "double",
+          "format": "%14.2f",
+          "label": "fixed2",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1.25", "2", "3.5", "0"]
+        },
+        {
+          "name": "comma",
+          "type": "long",
+          "format": "%10.0gc",
+          "label": "comma",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1234", "1000000", "-5", "0"]
+        },
+        {
+          "name": "dup",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "dup",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "3", "5", "7"]
+        },
+        {
+          "name": "X",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "dup",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["2", "4", "6", "8"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using types.xlsx, clear",
+      "rc": 0,
+      "printed": ["(24 vars, 5 obs)"],
+      "variables": [
+        {
+          "name": "A",
+          "type": "str4",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["int8", "1", "2", "127", "-127"]
+        },
+        {
+          "name": "B",
+          "type": "str5",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["int16", "300", "-300", "32740", "0"]
+        },
+        {
+          "name": "C",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["int32", "70000", "-70000", "2147483620", "0"]
+        },
+        {
+          "name": "D",
+          "type": "str16",
+          "format": "%16s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": [
+            "big",
+            "30000000000",
+            "1234567890123450",
+            "9007199254740992",
+            "0"
+          ]
+        },
+        {
+          "name": "E",
+          "type": "str4",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["neg", "-5", "-127", "100", "0"]
+        },
+        {
+          "name": "F",
+          "type": "str17",
+          "format": "%17s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["frac", "1.5", "2.25", "-.1", "1.00000000000e-10"]
+        },
+        {
+          "name": "G",
+          "type": "str7",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["allmiss", "", "", "", ""]
+        },
+        {
+          "name": "H",
+          "type": "str5",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["mixed", "1", "two", "3", "4.5"]
+        },
+        {
+          "name": "I",
+          "type": "str2",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["in", "7", "8", "9", "10"]
+        },
+        {
+          "name": "J",
+          "type": "str58",
+          "format": "%58s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": [
+            "a very long header name that exceeds thirty two characters",
+            "x",
+            "y",
+            "z",
+            "w"
+          ]
+        },
+        {
+          "name": "K",
+          "type": "int",
+          "format": "%10.0g",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["2019", "1", "2", "3", "4"]
+        },
+        {
+          "name": "L",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": [".", "2", "3", "4", "5"]
+        },
+        {
+          "name": "M",
+          "type": "str9",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["Ünïcode", "é", "ü", "日本", ""]
+        },
+        {
+          "name": "N",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": [" spaced ", "a", "b", "c", "d"]
+        },
+        {
+          "name": "O",
+          "type": "str4",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["1abc", "1", "2", "3", "4"]
+        },
+        {
+          "name": "P",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": [
+            "date1",
+            "  1/1/2024",
+            "  1/2/2024",
+            "  1/1/1900",
+            " 2/28/1900"
+          ]
+        },
+        {
+          "name": "Q",
+          "type": "str18",
+          "format": "%18s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": [
+            "dt",
+            "01jan2024 06:00:00",
+            "02jan2024 00:00:00",
+            "01jan1900 12:00:00",
+            "01mar1900 00:00:00"
+          ]
+        },
+        {
+          "name": "R",
+          "type": "str4",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["pct", ".5", "1", ".125", "2"]
+        },
+        {
+          "name": "S",
+          "type": "str6",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["ws", " lead", "trail ", " both ", ""]
+        },
+        {
+          "name": "T",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["tm", "18:00:00", "12:00:00", "06:00:00", "23:59:59"]
+        },
+        {
+          "name": "U",
+          "type": "str6",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["fixed2", "1.25", "2", "3.5", "0"]
+        },
+        {
+          "name": "V",
+          "type": "str7",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["comma", "1234", "1000000", "-5", "0"]
+        },
+        {
+          "name": "W",
+          "type": "str3",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["dup", "1", "3", "5", "7"]
+        },
+        {
+          "name": "X",
+          "type": "str3",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["dup", "2", "4", "6", "8"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using types.xlsx, firstrow allstring clear",
+      "rc": 0,
+      "printed": ["(24 vars, 4 obs)"],
+      "variables": [
+        {
+          "name": "int8",
+          "type": "str4",
+          "format": "%9s",
+          "label": "int8",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", "127", "-127"]
+        },
+        {
+          "name": "int16",
+          "type": "str5",
+          "format": "%9s",
+          "label": "int16",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["300", "-300", "32740", "0"]
+        },
+        {
+          "name": "int32",
+          "type": "str10",
+          "format": "%10s",
+          "label": "int32",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["70000", "-70000", "2147483620", "0"]
+        },
+        {
+          "name": "big",
+          "type": "str16",
+          "format": "%16s",
+          "label": "big",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["30000000000", "1234567890123450", "9007199254740992", "0"]
+        },
+        {
+          "name": "neg",
+          "type": "str4",
+          "format": "%9s",
+          "label": "neg",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["-5", "-127", "100", "0"]
+        },
+        {
+          "name": "frac",
+          "type": "str17",
+          "format": "%17s",
+          "label": "frac",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1.5", "2.25", "-.1", "1.00000000000e-10"]
+        },
+        {
+          "name": "allmiss",
+          "type": "str1",
+          "format": "%9s",
+          "label": "allmiss",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["", "", "", ""]
+        },
+        {
+          "name": "mixed",
+          "type": "str3",
+          "format": "%9s",
+          "label": "mixed",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "two", "3", "4.5"]
+        },
+        {
+          "name": "I",
+          "type": "str2",
+          "format": "%9s",
+          "label": "in",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["7", "8", "9", "10"]
+        },
+        {
+          "name": "averylongheadernamethatexc",
+          "type": "str1",
+          "format": "%9s",
+          "label": "a very long header name that exceeds thirty two characters",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["x", "y", "z", "w"]
+        },
+        {
+          "name": "K",
+          "type": "str1",
+          "format": "%9s",
+          "label": "2019",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", "3", "4"]
+        },
+        {
+          "name": "L",
+          "type": "str1",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["2", "3", "4", "5"]
+        },
+        {
+          "name": "Ünïcode",
+          "type": "str6",
+          "format": "%9s",
+          "label": "Ünïcode",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["é", "ü", "日本", ""]
+        },
+        {
+          "name": "spaced",
+          "type": "str1",
+          "format": "%9s",
+          "label": " spaced ",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["a", "b", "c", "d"]
+        },
+        {
+          "name": "abc",
+          "type": "str1",
+          "format": "%9s",
+          "label": "1abc",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", "3", "4"]
+        },
+        {
+          "name": "date1",
+          "type": "str10",
+          "format": "%10s",
+          "label": "date1",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["  1/1/2024", "  1/2/2024", "  1/1/1900", " 2/28/1900"]
+        },
+        {
+          "name": "dt",
+          "type": "str18",
+          "format": "%18s",
+          "label": "dt",
+          "valueLabel": "",
+          "n": 4,
+          "values": [
+            "01jan2024 06:00:00",
+            "02jan2024 00:00:00",
+            "01jan1900 12:00:00",
+            "01mar1900 00:00:00"
+          ]
+        },
+        {
+          "name": "pct",
+          "type": "str4",
+          "format": "%9s",
+          "label": "pct",
+          "valueLabel": "",
+          "n": 4,
+          "values": [".5", "1", ".125", "2"]
+        },
+        {
+          "name": "ws",
+          "type": "str6",
+          "format": "%9s",
+          "label": "ws",
+          "valueLabel": "",
+          "n": 4,
+          "values": [" lead", "trail ", " both ", ""]
+        },
+        {
+          "name": "tm",
+          "type": "str8",
+          "format": "%9s",
+          "label": "tm",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["18:00:00", "12:00:00", "06:00:00", "23:59:59"]
+        },
+        {
+          "name": "fixed2",
+          "type": "str4",
+          "format": "%9s",
+          "label": "fixed2",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1.25", "2", "3.5", "0"]
+        },
+        {
+          "name": "comma",
+          "type": "str7",
+          "format": "%9s",
+          "label": "comma",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1234", "1000000", "-5", "0"]
+        },
+        {
+          "name": "dup",
+          "type": "str1",
+          "format": "%9s",
+          "label": "dup",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "3", "5", "7"]
+        },
+        {
+          "name": "X",
+          "type": "str1",
+          "format": "%9s",
+          "label": "dup",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["2", "4", "6", "8"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using d1904.xlsx, firstrow clear",
+      "rc": 0,
+      "printed": ["(3 vars, 3 obs)"],
+      "variables": [
+        {
+          "name": "when",
+          "type": "int",
+          "format": "%tdnn/dd/CCYY",
+          "label": "when",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["20597", "-20454", "-20453"]
+        },
+        {
+          "name": "stamp",
+          "type": "double",
+          "format": "%tcnn/dd/ccYY_hh:MM",
+          "label": "stamp",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["1779624000000", "-1767074400000", "-1758585600000"]
+        },
+        {
+          "name": "n",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "n",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["1", "2", "3"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using fmts.xlsx, sheet(\"frac\") firstrow clear",
+      "rc": 0,
+      "printed": ["(39 vars, 2 obs)"],
+      "variables": [
+        {
+          "name": "f1",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "f1",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f2",
+          "type": "double",
+          "format": "%14.2f",
+          "label": "f2",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f3",
+          "type": "double",
+          "format": "%10.0gc",
+          "label": "f3",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f4",
+          "type": "double",
+          "format": "%14.2fc",
+          "label": "f4",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f9",
+          "type": "double",
+          "format": "%4.2f",
+          "label": "f9",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f10",
+          "type": "double",
+          "format": "%6.4f",
+          "label": "f10",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f11",
+          "type": "double",
+          "format": "%10.2e",
+          "label": "f11",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f12",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "f12",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f13",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "f13",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f14",
+          "type": "double",
+          "format": "%tdnn/dd/CCYY",
+          "label": "f14",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376.25", "23377"]
+        },
+        {
+          "name": "f15",
+          "type": "double",
+          "format": "%tddd-Mon-YY",
+          "label": "f15",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376.25", "23377"]
+        },
+        {
+          "name": "f16",
+          "type": "double",
+          "format": "%tddd-Mon",
+          "label": "f16",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376.25", "23377"]
+        },
+        {
+          "name": "f17",
+          "type": "double",
+          "format": "%tdMon-YY",
+          "label": "f17",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376.25", "23377"]
+        },
+        {
+          "name": "f18",
+          "type": "double",
+          "format": "%tchh:MM_AM",
+          "label": "f18",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019708000000", "2019772800000"]
+        },
+        {
+          "name": "f19",
+          "type": "double",
+          "format": "%tchh:MM:SS_AM",
+          "label": "f19",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019708000000", "2019772800000"]
+        },
+        {
+          "name": "f20",
+          "type": "double",
+          "format": "%tchH:MM",
+          "label": "f20",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019708000000", "2019772800000"]
+        },
+        {
+          "name": "f21",
+          "type": "double",
+          "format": "%tcHH:MM:SS",
+          "label": "f21",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019708000000", "2019772800000"]
+        },
+        {
+          "name": "f22",
+          "type": "double",
+          "format": "%tcnn/dd/ccYY_hh:MM",
+          "label": "f22",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019708000000", "2019772800000"]
+        },
+        {
+          "name": "f37",
+          "type": "double",
+          "format": "%10.0gc",
+          "label": "f37",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f38",
+          "type": "double",
+          "format": "%10.0gc",
+          "label": "f38",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f39",
+          "type": "double",
+          "format": "%14.2fc",
+          "label": "f39",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f40",
+          "type": "double",
+          "format": "%14.2fc",
+          "label": "f40",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f45",
+          "type": "double",
+          "format": "%tcMM:SS",
+          "label": "f45",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019708000000", "2019772800000"]
+        },
+        {
+          "name": "f46",
+          "type": "double",
+          "format": "%tcHH:MM:SS",
+          "label": "f46",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019708000000", "2019772800000"]
+        },
+        {
+          "name": "f47",
+          "type": "double",
+          "format": "%tcMM:SS",
+          "label": "f47",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019708000000", "2019772800000"]
+        },
+        {
+          "name": "f48",
+          "type": "double",
+          "format": "%10.1e",
+          "label": "f48",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f49",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "f49",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f164",
+          "type": "double",
+          "format": "%td",
+          "label": "f164",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376.25", "23377"]
+        },
+        {
+          "name": "f165",
+          "type": "double",
+          "format": "%td",
+          "label": "f165",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376.25", "23377"]
+        },
+        {
+          "name": "f166",
+          "type": "double",
+          "format": "%tc",
+          "label": "f166",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019708000000", "2019772800000"]
+        },
+        {
+          "name": "f167",
+          "type": "double",
+          "format": "%td",
+          "label": "f167",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376.25", "23377"]
+        },
+        {
+          "name": "f168",
+          "type": "double",
+          "format": "%tc",
+          "label": "f168",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019708000000", "2019772800000"]
+        },
+        {
+          "name": "f169",
+          "type": "double",
+          "format": "%tcHH:MM:SS",
+          "label": "f169",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019708000000", "2019772800000"]
+        },
+        {
+          "name": "f170",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "f170",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f171",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "f171",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f172",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "f172",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f173",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "f173",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292.25", "45293"]
+        },
+        {
+          "name": "f174",
+          "type": "double",
+          "format": "%td",
+          "label": "f174",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376.25", "23377"]
+        },
+        {
+          "name": "f175",
+          "type": "double",
+          "format": "%td",
+          "label": "f175",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376.25", "23377"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using fmts.xlsx, sheet(\"whole\") firstrow clear",
+      "rc": 0,
+      "printed": ["(39 vars, 2 obs)"],
+      "variables": [
+        {
+          "name": "f1",
+          "type": "long",
+          "format": "%10.0g",
+          "label": "f1",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f2",
+          "type": "long",
+          "format": "%14.2f",
+          "label": "f2",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f3",
+          "type": "long",
+          "format": "%10.0gc",
+          "label": "f3",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f4",
+          "type": "long",
+          "format": "%14.2fc",
+          "label": "f4",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f9",
+          "type": "long",
+          "format": "%4.2f",
+          "label": "f9",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f10",
+          "type": "long",
+          "format": "%6.4f",
+          "label": "f10",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f11",
+          "type": "long",
+          "format": "%10.2e",
+          "label": "f11",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f12",
+          "type": "long",
+          "format": "%10.0g",
+          "label": "f12",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f13",
+          "type": "long",
+          "format": "%10.0g",
+          "label": "f13",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f14",
+          "type": "int",
+          "format": "%tdnn/dd/CCYY",
+          "label": "f14",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376", "-21912"]
+        },
+        {
+          "name": "f15",
+          "type": "int",
+          "format": "%tddd-Mon-YY",
+          "label": "f15",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376", "-21912"]
+        },
+        {
+          "name": "f16",
+          "type": "int",
+          "format": "%tddd-Mon",
+          "label": "f16",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376", "-21912"]
+        },
+        {
+          "name": "f17",
+          "type": "int",
+          "format": "%tdMon-YY",
+          "label": "f17",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376", "-21912"]
+        },
+        {
+          "name": "f18",
+          "type": "double",
+          "format": "%tchh:MM_AM",
+          "label": "f18",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019686400000", "-1893196800000"]
+        },
+        {
+          "name": "f19",
+          "type": "double",
+          "format": "%tchh:MM:SS_AM",
+          "label": "f19",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019686400000", "-1893196800000"]
+        },
+        {
+          "name": "f20",
+          "type": "double",
+          "format": "%tchH:MM",
+          "label": "f20",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019686400000", "-1893196800000"]
+        },
+        {
+          "name": "f21",
+          "type": "double",
+          "format": "%tcHH:MM:SS",
+          "label": "f21",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019686400000", "-1893196800000"]
+        },
+        {
+          "name": "f22",
+          "type": "double",
+          "format": "%tcnn/dd/ccYY_hh:MM",
+          "label": "f22",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019686400000", "-1893196800000"]
+        },
+        {
+          "name": "f37",
+          "type": "long",
+          "format": "%10.0gc",
+          "label": "f37",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f38",
+          "type": "long",
+          "format": "%10.0gc",
+          "label": "f38",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f39",
+          "type": "long",
+          "format": "%14.2fc",
+          "label": "f39",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f40",
+          "type": "long",
+          "format": "%14.2fc",
+          "label": "f40",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f45",
+          "type": "double",
+          "format": "%tcMM:SS",
+          "label": "f45",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019686400000", "-1893196800000"]
+        },
+        {
+          "name": "f46",
+          "type": "double",
+          "format": "%tcHH:MM:SS",
+          "label": "f46",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019686400000", "-1893196800000"]
+        },
+        {
+          "name": "f47",
+          "type": "double",
+          "format": "%tcMM:SS",
+          "label": "f47",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019686400000", "-1893196800000"]
+        },
+        {
+          "name": "f48",
+          "type": "long",
+          "format": "%10.1e",
+          "label": "f48",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f49",
+          "type": "long",
+          "format": "%10.0g",
+          "label": "f49",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f164",
+          "type": "int",
+          "format": "%td",
+          "label": "f164",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376", "-21912"]
+        },
+        {
+          "name": "f165",
+          "type": "int",
+          "format": "%td",
+          "label": "f165",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376", "-21912"]
+        },
+        {
+          "name": "f166",
+          "type": "double",
+          "format": "%tc",
+          "label": "f166",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019686400000", "-1893196800000"]
+        },
+        {
+          "name": "f167",
+          "type": "int",
+          "format": "%td",
+          "label": "f167",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376", "-21912"]
+        },
+        {
+          "name": "f168",
+          "type": "double",
+          "format": "%tc",
+          "label": "f168",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019686400000", "-1893196800000"]
+        },
+        {
+          "name": "f169",
+          "type": "double",
+          "format": "%tcHH:MM:SS",
+          "label": "f169",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019686400000", "-1893196800000"]
+        },
+        {
+          "name": "f170",
+          "type": "long",
+          "format": "%10.0g",
+          "label": "f170",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f171",
+          "type": "long",
+          "format": "%10.0g",
+          "label": "f171",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f172",
+          "type": "long",
+          "format": "%10.0g",
+          "label": "f172",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f173",
+          "type": "long",
+          "format": "%10.0g",
+          "label": "f173",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["45292", "3"]
+        },
+        {
+          "name": "f174",
+          "type": "int",
+          "format": "%td",
+          "label": "f174",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376", "-21912"]
+        },
+        {
+          "name": "f175",
+          "type": "int",
+          "format": "%td",
+          "label": "f175",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376", "-21912"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using fmts.xlsx, sheet(\"frac\") clear",
+      "rc": 0,
+      "printed": ["(39 vars, 3 obs)"],
+      "variables": [
+        {
+          "name": "A",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f1", "45292.25", "45293"]
+        },
+        {
+          "name": "B",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f2", "45292.25", "45293"]
+        },
+        {
+          "name": "C",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f3", "45292.25", "45293"]
+        },
+        {
+          "name": "D",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f4", "45292.25", "45293"]
+        },
+        {
+          "name": "E",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f9", "45292.25", "45293"]
+        },
+        {
+          "name": "F",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f10", "45292.25", "45293"]
+        },
+        {
+          "name": "G",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f11", "45292.25", "45293"]
+        },
+        {
+          "name": "H",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f12", "45292.25", "45293"]
+        },
+        {
+          "name": "I",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f13", "45292.25", "45293"]
+        },
+        {
+          "name": "J",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f14", "  1/1/2024", "  1/2/2024"]
+        },
+        {
+          "name": "K",
+          "type": "str9",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f15", " 1-Jan-24", " 2-Jan-24"]
+        },
+        {
+          "name": "L",
+          "type": "str6",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f16", " 1-Jan", " 2-Jan"]
+        },
+        {
+          "name": "M",
+          "type": "str6",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f17", "Jan-24", "Jan-24"]
+        },
+        {
+          "name": "N",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f18", " 6:00 AM", "12:00 AM"]
+        },
+        {
+          "name": "O",
+          "type": "str11",
+          "format": "%11s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f19", " 6:00:00 AM", "12:00:00 AM"]
+        },
+        {
+          "name": "P",
+          "type": "str5",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f20", " 6:00", " 0:00"]
+        },
+        {
+          "name": "Q",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f21", "06:00:00", "00:00:00"]
+        },
+        {
+          "name": "R",
+          "type": "str16",
+          "format": "%16s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f22", "   1/1/2024 6:00", "  1/2/2024 12:00"]
+        },
+        {
+          "name": "S",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f37", "45292.25", "45293"]
+        },
+        {
+          "name": "T",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f38", "45292.25", "45293"]
+        },
+        {
+          "name": "U",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f39", "45292.25", "45293"]
+        },
+        {
+          "name": "V",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f40", "45292.25", "45293"]
+        },
+        {
+          "name": "W",
+          "type": "str5",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f45", "00:00", "00:00"]
+        },
+        {
+          "name": "X",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f46", "06:00:00", "00:00:00"]
+        },
+        {
+          "name": "Y",
+          "type": "str5",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f47", "00:00", "00:00"]
+        },
+        {
+          "name": "Z",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f48", "45292.25", "45293"]
+        },
+        {
+          "name": "AA",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f49", "45292.25", "45293"]
+        },
+        {
+          "name": "AB",
+          "type": "str9",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f164", "01jan2024", "02jan2024"]
+        },
+        {
+          "name": "AC",
+          "type": "str9",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f165", "01jan2024", "02jan2024"]
+        },
+        {
+          "name": "AD",
+          "type": "str18",
+          "format": "%18s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f166", "01jan2024 06:00:00", "02jan2024 00:00:00"]
+        },
+        {
+          "name": "AE",
+          "type": "str9",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f167", "01jan2024", "02jan2024"]
+        },
+        {
+          "name": "AF",
+          "type": "str18",
+          "format": "%18s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f168", "01jan2024 06:00:00", "02jan2024 00:00:00"]
+        },
+        {
+          "name": "AG",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f169", "06:00:00", "00:00:00"]
+        },
+        {
+          "name": "AH",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f170", "45292.25", "45293"]
+        },
+        {
+          "name": "AI",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f171", "45292.25", "45293"]
+        },
+        {
+          "name": "AJ",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f172", "45292.25", "45293"]
+        },
+        {
+          "name": "AK",
+          "type": "str8",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f173", "45292.25", "45293"]
+        },
+        {
+          "name": "AL",
+          "type": "str9",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f174", "01jan2024", "02jan2024"]
+        },
+        {
+          "name": "AM",
+          "type": "str9",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["f175", "01jan2024", "02jan2024"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using gaps.xlsx, clear",
+      "rc": 0,
+      "printed": ["(0 vars, 0 obs)"],
+      "variables": []
+    },
+    {
+      "command": "import excel using gaps.xlsx, sheet(\"My Data\") clear",
+      "rc": 0,
+      "printed": ["(6 vars, 7 obs)"],
+      "variables": [
+        {
+          "name": "A",
+          "type": "str1",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 7,
+          "values": ["", "", "", "m", "", "", ""]
+        },
+        {
+          "name": "B",
+          "type": "str12",
+          "format": "%12s",
+          "label": "",
+          "valueLabel": "",
+          "n": 7,
+          "values": ["Merged title", "x", "1", "2", "", "4", ""]
+        },
+        {
+          "name": "C",
+          "type": "str4",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 7,
+          "values": ["", "flag", "1", "0", "", "1", ""]
+        },
+        {
+          "name": "D",
+          "type": "str3",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 7,
+          "values": ["", "err", "", "3", "", "", ""]
+        },
+        {
+          "name": "E",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "",
+          "valueLabel": "",
+          "n": 7,
+          "values": [".", ".", ".", ".", ".", ".", "."]
+        },
+        {
+          "name": "F",
+          "type": "str4",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 7,
+          "values": ["", "late", "q", "", "", "", ""]
+        }
+      ]
+    },
+    {
+      "command": "import excel using gaps.xlsx, sheet(\"My Data\") firstrow cellrange(B3) clear",
+      "rc": 0,
+      "printed": ["(5 vars, 5 obs)"],
+      "variables": [
+        {
+          "name": "x",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "x",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["1", "2", ".", "4", "."]
+        },
+        {
+          "name": "flag",
+          "type": "byte",
+          "format": "%1.0f",
+          "label": "flag",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["1", "0", ".", "1", "."]
+        },
+        {
+          "name": "err",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "err",
+          "valueLabel": "",
+          "n": 5,
+          "values": [".", "3", ".", ".", "."]
+        },
+        {
+          "name": "E",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "",
+          "valueLabel": "",
+          "n": 5,
+          "values": [".", ".", ".", ".", "."]
+        },
+        {
+          "name": "late",
+          "type": "str1",
+          "format": "%9s",
+          "label": "late",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["q", "", "", "", ""]
+        }
+      ]
+    },
+    {
+      "command": "import excel using gaps.xlsx, sheet(\"Bools\") firstrow clear",
+      "rc": 0,
+      "printed": ["(2 vars, 2 obs)"],
+      "variables": [
+        {
+          "name": "b",
+          "type": "byte",
+          "format": "%1.0f",
+          "label": "b",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["1", "0"]
+        },
+        {
+          "name": "s",
+          "type": "str3",
+          "format": "%9s",
+          "label": "s",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["yes", "1"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using mix.xlsx, firstrow clear",
+      "rc": 0,
+      "printed": ["(17 vars, 2 obs)"],
+      "variables": [
+        {
+          "name": "vA",
+          "type": "int",
+          "format": "%td",
+          "label": "vA",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["-21910", "23376"]
+        },
+        {
+          "name": "vB",
+          "type": "int",
+          "format": "%td",
+          "label": "vB",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376", "-21910"]
+        },
+        {
+          "name": "vC",
+          "type": "int",
+          "format": "%td",
+          "label": "vC",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376", "23377"]
+        },
+        {
+          "name": "vD",
+          "type": "int",
+          "format": "%td",
+          "label": "vD",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23377", "23376"]
+        },
+        {
+          "name": "vE",
+          "type": "double",
+          "format": "%tc",
+          "label": "vE",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["2019686400000", "2019816000000"]
+        },
+        {
+          "name": "vF",
+          "type": "double",
+          "format": "%tc",
+          "label": "vF",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["-1893412800000", "2019686400000"]
+        },
+        {
+          "name": "vG",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "vG",
+          "valueLabel": "",
+          "n": 2,
+          "values": [".5", "3"]
+        },
+        {
+          "name": "vH",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "vH",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["3", ".5"]
+        },
+        {
+          "name": "vI",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "vI",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["1.5", "1000"]
+        },
+        {
+          "name": "vJ",
+          "type": "str10",
+          "format": "%10s",
+          "label": "vJ",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["  1/1/2024", "x"]
+        },
+        {
+          "name": "vK",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "vK",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["1", "5"]
+        },
+        {
+          "name": "vL",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "vL",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["5", "1"]
+        },
+        {
+          "name": "vM",
+          "type": "byte",
+          "format": "%1.0f",
+          "label": "vM",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["1", "."]
+        },
+        {
+          "name": "vN",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "vN",
+          "valueLabel": "",
+          "n": 2,
+          "values": [".", "."]
+        },
+        {
+          "name": "vO",
+          "type": "double",
+          "format": "%td",
+          "label": "vO",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376", "-21912.5"]
+        },
+        {
+          "name": "vP",
+          "type": "double",
+          "format": "%tdnn/dd/CCYY",
+          "label": "vP",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["23376.5", "23377"]
+        },
+        {
+          "name": "vQ",
+          "type": "long",
+          "format": "%td",
+          "label": "vQ",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["78084", "23376"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using mix.xlsx, clear",
+      "rc": 0,
+      "printed": ["(17 vars, 3 obs)"],
+      "variables": [
+        {
+          "name": "A",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vA", "5", "  1/1/2024"]
+        },
+        {
+          "name": "B",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vB", "  1/1/2024", "5"]
+        },
+        {
+          "name": "C",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vC", "  1/1/2024", " 2-Jan-24"]
+        },
+        {
+          "name": "D",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vD", " 2-Jan-24", "  1/1/2024"]
+        },
+        {
+          "name": "E",
+          "type": "str16",
+          "format": "%16s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vE", "  1/1/2024", "  1/2/2024 12:00"]
+        },
+        {
+          "name": "F",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vF", "12:00:00", "  1/1/2024"]
+        },
+        {
+          "name": "G",
+          "type": "str2",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vG", ".5", "3"]
+        },
+        {
+          "name": "H",
+          "type": "str2",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vH", "3", ".5"]
+        },
+        {
+          "name": "I",
+          "type": "str4",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vI", "1.5", "1000"]
+        },
+        {
+          "name": "J",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vJ", "  1/1/2024", "x"]
+        },
+        {
+          "name": "K",
+          "type": "str2",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vK", "1", "5"]
+        },
+        {
+          "name": "L",
+          "type": "str2",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vL", "5", "1"]
+        },
+        {
+          "name": "M",
+          "type": "str2",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vM", "1", ""]
+        },
+        {
+          "name": "N",
+          "type": "str2",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vN", "", ""]
+        },
+        {
+          "name": "O",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vO", "  1/1/2024", "2.5"]
+        },
+        {
+          "name": "P",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vP", "  1/1/2024", "  1/2/2024"]
+        },
+        {
+          "name": "Q",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vQ", "100000", "  1/1/2024"]
+        }
+      ]
+    },
+    {
+      "command": "import excel x y=A z using mix.xlsx, clear",
+      "rc": 0,
+      "printed": ["(3 vars, 3 obs)"],
+      "variables": [
+        {
+          "name": "x",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vA", "5", "  1/1/2024"]
+        },
+        {
+          "name": "y",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vA", "5", "  1/1/2024"]
+        },
+        {
+          "name": "z",
+          "type": "str10",
+          "format": "%10s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["vB", "  1/1/2024", "5"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using course-stata.xlsx, firstrow clear",
+      "rc": 0,
+      "printed": ["(5 vars, 4 obs)"],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "id",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", "3", "4"]
+        },
+        {
+          "name": "name",
+          "type": "str10",
+          "format": "%10s",
+          "label": "name",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["Ann", "Bob", "Carla Diaz", ""]
+        },
+        {
+          "name": "income",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "income",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["52000.5", ".", "61000", "47000.25"]
+        },
+        {
+          "name": "female",
+          "type": "str6",
+          "format": "%9s",
+          "label": "female",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["female", "male", "female", "male"]
+        },
+        {
+          "name": "bdate",
+          "type": "int",
+          "format": "%tdnn/dd/CCYY",
+          "label": "bdate",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["21915", "22000", ".", "22100"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using course-stata.xls, firstrow clear",
+      "rc": 0,
+      "printed": ["(5 vars, 4 obs)"],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "id",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", "3", "4"]
+        },
+        {
+          "name": "name",
+          "type": "str10",
+          "format": "%10s",
+          "label": "name",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["Ann", "Bob", "Carla Diaz", ""]
+        },
+        {
+          "name": "income",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "income",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["52000.5", ".", "61000", "47000.25"]
+        },
+        {
+          "name": "female",
+          "type": "str6",
+          "format": "%9s",
+          "label": "female",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["female", "male", "female", "male"]
+        },
+        {
+          "name": "bdate",
+          "type": "int",
+          "format": "%tdnn/dd/CCYY",
+          "label": "bdate",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["21915", "22000", ".", "22100"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using student.xls, sheet(\"Data\") cellrange(A3) firstrow clear",
+      "rc": 0,
+      "printed": ["(8 vars, 5 obs)"],
+      "variables": [
+        {
+          "name": "StudentID",
+          "type": "str3",
+          "format": "%9s",
+          "label": "Student ID",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["101", "102", "", "103", "104"]
+        },
+        {
+          "name": "Score",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "Score",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["78.5", ".", ".", "91", "66"]
+        },
+        {
+          "name": "Date",
+          "type": "double",
+          "format": "%tc",
+          "label": "Date",
+          "valueLabel": "",
+          "n": 5,
+          "values": [
+            "2019686400000",
+            "2020377600000",
+            ".",
+            "2021284800000",
+            "2022105600000"
+          ]
+        },
+        {
+          "name": "Passed",
+          "type": "byte",
+          "format": "%1.0f",
+          "label": "Passed",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["1", "0", ".", "1", "0"]
+        },
+        {
+          "name": "Group",
+          "type": "str9",
+          "format": "%9s",
+          "label": "Group",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["Treatment", "Control", "", "Treatment", "Control"]
+        },
+        {
+          "name": "Total",
+          "type": "int",
+          "format": "%10.0g",
+          "label": "Total",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["157", ".", ".", "182", "132"]
+        },
+        {
+          "name": "Pct",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "Pct",
+          "valueLabel": "",
+          "n": 5,
+          "values": [".25", ".5", ".", "1", ".125"]
+        },
+        {
+          "name": "Name",
+          "type": "str5",
+          "format": "%9s",
+          "label": "Name",
+          "valueLabel": "",
+          "n": 5,
+          "values": ["Alice", "Bob", "", "Carl", ""]
+        }
+      ]
+    },
+    {
+      "command": "import excel using student.xls, sheet(\"Data\") clear",
+      "rc": 0,
+      "printed": ["(8 vars, 8 obs)"],
+      "variables": [
+        {
+          "name": "A",
+          "type": "str31",
+          "format": "%31s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": [
+            "Survey of students, spring 2024",
+            "",
+            "Student ID",
+            "101",
+            "102",
+            "",
+            "103",
+            "104"
+          ]
+        },
+        {
+          "name": "B",
+          "type": "str5",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": ["", "", "Score", "78.5", "", "", "91", "66"]
+        },
+        {
+          "name": "C",
+          "type": "str18",
+          "format": "%18s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": [
+            "",
+            "",
+            "Date",
+            "01jan2024",
+            "09jan2024",
+            "",
+            "19jan2024 12:00:00",
+            "29jan2024"
+          ]
+        },
+        {
+          "name": "D",
+          "type": "str6",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": ["", "", "Passed", "1", "0", "", "1", "0"]
+        },
+        {
+          "name": "E",
+          "type": "str9",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": [
+            "",
+            "",
+            "Group",
+            "Treatment",
+            "Control",
+            "",
+            "Treatment",
+            "Control"
+          ]
+        },
+        {
+          "name": "F",
+          "type": "str5",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": ["", "", "Total", "157", "", "", "182", "132"]
+        },
+        {
+          "name": "G",
+          "type": "str4",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": ["", "", "Pct", ".25", ".5", "", "1", ".125"]
+        },
+        {
+          "name": "H",
+          "type": "str5",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 8,
+          "values": ["", "", "Name", "Alice", "Bob", "", "Carl", ""]
+        }
+      ]
+    },
+    {
+      "command": "import excel using d1904.xls, firstrow clear",
+      "rc": 0,
+      "printed": ["(3 vars, 3 obs)"],
+      "variables": [
+        {
+          "name": "when",
+          "type": "int",
+          "format": "%td",
+          "label": "when",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["20597", "-20454", "-20453"]
+        },
+        {
+          "name": "stamp",
+          "type": "double",
+          "format": "%tc",
+          "label": "stamp",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["1779624000000", "-1767074400000", "-1758585600000"]
+        },
+        {
+          "name": "n",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "n",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["1", "2", "3"]
+        }
+      ]
+    },
+    {
+      "command": "import excel using sst.xls, firstrow clear",
+      "rc": 0,
+      "printed": ["(4 vars, 600 obs)"],
+      "variables": [
+        {
+          "name": "id",
+          "type": "int",
+          "format": "%10.0g",
+          "label": "id",
+          "valueLabel": "",
+          "n": 600,
+          "values": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+            "13",
+            "14",
+            "15",
+            "16",
+            "17",
+            "18",
+            "19",
+            "20",
+            "21",
+            "22",
+            "23",
+            "24",
+            "25",
+            "26",
+            "27",
+            "28",
+            "29",
+            "30",
+            "31",
+            "32",
+            "33",
+            "34",
+            "35",
+            "36",
+            "37",
+            "38",
+            "39",
+            "40"
+          ]
+        },
+        {
+          "name": "word",
+          "type": "str51",
+          "format": "%51s",
+          "label": "word",
+          "valueLabel": "",
+          "n": 600,
+          "values": [
+            "entry 2 ü日éü日é zz",
+            "entry 3 ü日éü日éü日é zzz",
+            "entry 4 ü日éü日éü日éü日é zzzz",
+            "entry 5  zzzzz",
+            "entry 6 ü日é zzzzzz",
+            "entry 7 ü日éü日é zzzzzzz",
+            "entry 8 ü日éü日éü日é zzzzzzzz",
+            "entry 9 ü日éü日éü日éü日é zzzzzzzzz",
+            "entry 10  zzzzzzzzzz",
+            "entry 11 ü日é zzzzzzzzzzz",
+            "entry 12 ü日éü日é zzzzzzzzzzzz",
+            "entry 13 ü日éü日éü日é ",
+            "entry 14 ü日éü日éü日éü日é z",
+            "entry 15  zz",
+            "entry 16 ü日é zzz",
+            "entry 17 ü日éü日é zzzz",
+            "entry 18 ü日éü日éü日é zzzzz",
+            "entry 19 ü日éü日éü日éü日é zzzzzz",
+            "entry 20  zzzzzzz",
+            "entry 21 ü日é zzzzzzzz",
+            "entry 22 ü日éü日é zzzzzzzzz",
+            "entry 23 ü日éü日éü日é zzzzzzzzzz",
+            "entry 24 ü日éü日éü日éü日é zzzzzzzzzzz",
+            "entry 25  zzzzzzzzzzzz",
+            "entry 26 ü日é ",
+            "entry 27 ü日éü日é z",
+            "entry 28 ü日éü日éü日é zz",
+            "entry 29 ü日éü日éü日éü日é zzz",
+            "entry 30  zzzz",
+            "entry 31 ü日é zzzzz",
+            "entry 32 ü日éü日é zzzzzz",
+            "entry 33 ü日éü日éü日é zzzzzzz",
+            "entry 34 ü日éü日éü日éü日é zzzzzzzz",
+            "entry 35  zzzzzzzzz",
+            "entry 36 ü日é zzzzzzzzzz",
+            "entry 37 ü日éü日é zzzzzzzzzzz",
+            "entry 38 ü日éü日éü日é zzzzzzzzzzzz",
+            "entry 39 ü日éü日éü日éü日é ",
+            "entry 40  z",
+            "entry 41 ü日é zz"
+          ]
+        },
+        {
+          "name": "x",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "x",
+          "valueLabel": "",
+          "n": 600,
+          "values": [
+            "2.740000000000000213",
+            "4.11000000000000032",
+            "5.480000000000000426",
+            "6.849999999999999645",
+            "8.220000000000000639",
+            "9.589999999999999858",
+            "10.96000000000000085",
+            "12.33000000000000185",
+            "13.69999999999999929",
+            "15.07000000000000028",
+            "16.44000000000000128",
+            "17.81000000000000227",
+            "19.17999999999999972",
+            "20.55000000000000071",
+            "21.92000000000000171",
+            "23.2900000000000027",
+            "24.66000000000000369",
+            "26.03000000000000114",
+            "27.39999999999999858",
+            "28.77000000000000313",
+            "30.14000000000000057",
+            "31.51000000000000156",
+            "32.88000000000000256",
+            "34.25",
+            "35.62000000000000455",
+            "36.99000000000000199",
+            "38.35999999999999943",
+            "39.73000000000000398",
+            "41.10000000000000142",
+            "42.47000000000000597",
+            "43.84000000000000341",
+            "45.21000000000000085",
+            "46.5800000000000054",
+            "47.95000000000000284",
+            "49.32000000000000739",
+            "50.69000000000000483",
+            "52.06000000000000227",
+            "53.43000000000000682",
+            "54.79999999999999716",
+            "56.17000000000000171"
+          ]
+        },
+        {
+          "name": "flag",
+          "type": "byte",
+          "format": "%1.0f",
+          "label": "flag",
+          "valueLabel": "",
+          "n": 600,
+          "values": [
+            "0",
+            "1",
+            "0",
+            "0",
+            "1",
+            "0",
+            "0",
+            "1",
+            "0",
+            "0",
+            "1",
+            "0",
+            "0",
+            "1",
+            "0",
+            "0",
+            "1",
+            "0",
+            "0",
+            "1",
+            "0",
+            "0",
+            "1",
+            "0",
+            "0",
+            "1",
+            "0",
+            "0",
+            "1",
+            "0",
+            "0",
+            "1",
+            "0",
+            "0",
+            "1",
+            "0",
+            "0",
+            "1",
+            "0",
+            "0"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "import spss using survey.sav, clear",
+      "rc": 0,
+      "printed": [
+        "note: invalid string value a for value label labels2, skipped",
+        "note: no values defined for value label labels2, removed",
+        "note: invalid string value b for value label labels2, skipped",
+        "note: may not attach value label to string variable: no label applied",
+        "(11 vars, 4 obs)"
+      ],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%3.0f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", "3", "4"]
+        },
+        {
+          "name": "score",
+          "type": "double",
+          "format": "%8.2f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1.25", ".", "3.5", "100"]
+        },
+        {
+          "name": "sex",
+          "type": "byte",
+          "format": "%8.2f",
+          "label": "Sex of respondent",
+          "valueLabel": "labels0",
+          "n": 4,
+          "values": ["1", "2", "1", "."]
+        },
+        {
+          "name": "likert",
+          "type": "byte",
+          "format": "%8.2f",
+          "label": "Agreement",
+          "valueLabel": "labels1",
+          "n": 4,
+          "values": ["1", "5", ".", "3"]
+        },
+        {
+          "name": "name",
+          "type": "str6",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["Ann", "Bob", "", "Dörte"]
+        },
+        {
+          "name": "longvariablename_here",
+          "type": "byte",
+          "format": "%8.2f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["10", "20", "30", "40"]
+        },
+        {
+          "name": "dob",
+          "type": "double",
+          "format": "%tcDD-Mon-CCYY",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1296777600000", "0", ".", "-11903673600000"]
+        },
+        {
+          "name": "ts",
+          "type": "double",
+          "format": "%tcdd-Mon-CCYY_HH:MM:SS",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1296792306000", "0", ".", "1925078399000"]
+        },
+        {
+          "name": "big",
+          "type": "double",
+          "format": "%12.4f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": [
+            "1000000000000000",
+            "-2.5",
+            ".3333333333333333148",
+            ".1000000000000000056"
+          ]
+        },
+        {
+          "name": "longtext",
+          "type": "str300",
+          "format": "%300s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": [
+            "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "short",
+            "",
+            "y"
+          ]
+        },
+        {
+          "name": "grp",
+          "type": "str1",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["a", "b", "a", "c"]
+        }
+      ]
+    },
+    {
+      "command": "import spss using survey.zsav, clear",
+      "rc": 0,
+      "printed": [
+        "note: invalid string value a for value label labels2, skipped",
+        "note: no values defined for value label labels2, removed",
+        "note: invalid string value b for value label labels2, skipped",
+        "note: may not attach value label to string variable: no label applied",
+        "(11 vars, 4 obs)"
+      ],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%3.0f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", "3", "4"]
+        },
+        {
+          "name": "score",
+          "type": "double",
+          "format": "%8.2f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1.25", ".", "3.5", "100"]
+        },
+        {
+          "name": "sex",
+          "type": "byte",
+          "format": "%8.2f",
+          "label": "Sex of respondent",
+          "valueLabel": "labels0",
+          "n": 4,
+          "values": ["1", "2", "1", "."]
+        },
+        {
+          "name": "likert",
+          "type": "byte",
+          "format": "%8.2f",
+          "label": "Agreement",
+          "valueLabel": "labels1",
+          "n": 4,
+          "values": ["1", "5", ".", "3"]
+        },
+        {
+          "name": "name",
+          "type": "str6",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["Ann", "Bob", "", "Dörte"]
+        },
+        {
+          "name": "longvariablename_here",
+          "type": "byte",
+          "format": "%8.2f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["10", "20", "30", "40"]
+        },
+        {
+          "name": "dob",
+          "type": "double",
+          "format": "%tcDD-Mon-CCYY",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1296777600000", "0", ".", "-11903673600000"]
+        },
+        {
+          "name": "ts",
+          "type": "double",
+          "format": "%tcdd-Mon-CCYY_HH:MM:SS",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1296792306000", "0", ".", "1925078399000"]
+        },
+        {
+          "name": "big",
+          "type": "double",
+          "format": "%12.4f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": [
+            "1000000000000000",
+            "-2.5",
+            ".3333333333333333148",
+            ".1000000000000000056"
+          ]
+        },
+        {
+          "name": "longtext",
+          "type": "str300",
+          "format": "%300s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": [
+            "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "short",
+            "",
+            "y"
+          ]
+        },
+        {
+          "name": "grp",
+          "type": "str1",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["a", "b", "a", "c"]
+        }
+      ]
+    },
+    {
+      "command": "import spss using survey-plain.sav, clear",
+      "rc": 0,
+      "printed": [
+        "note: invalid string value a for value label labels2, skipped",
+        "note: no values defined for value label labels2, removed",
+        "note: invalid string value b for value label labels2, skipped",
+        "note: may not attach value label to string variable: no label applied",
+        "(11 vars, 4 obs)"
+      ],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%3.0f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", "3", "4"]
+        },
+        {
+          "name": "score",
+          "type": "double",
+          "format": "%8.2f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1.25", ".", "3.5", "100"]
+        },
+        {
+          "name": "sex",
+          "type": "byte",
+          "format": "%8.2f",
+          "label": "Sex of respondent",
+          "valueLabel": "labels0",
+          "n": 4,
+          "values": ["1", "2", "1", "."]
+        },
+        {
+          "name": "likert",
+          "type": "byte",
+          "format": "%8.2f",
+          "label": "Agreement",
+          "valueLabel": "labels1",
+          "n": 4,
+          "values": ["1", "5", ".", "3"]
+        },
+        {
+          "name": "name",
+          "type": "str6",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["Ann", "Bob", "", "Dörte"]
+        },
+        {
+          "name": "longvariablename_here",
+          "type": "byte",
+          "format": "%8.2f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["10", "20", "30", "40"]
+        },
+        {
+          "name": "dob",
+          "type": "double",
+          "format": "%tcDD-Mon-CCYY",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1296777600000", "0", ".", "-11903673600000"]
+        },
+        {
+          "name": "ts",
+          "type": "double",
+          "format": "%tcdd-Mon-CCYY_HH:MM:SS",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1296792306000", "0", ".", "1925078399000"]
+        },
+        {
+          "name": "big",
+          "type": "double",
+          "format": "%12.4f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": [
+            "1000000000000000",
+            "-2.5",
+            ".3333333333333333148",
+            ".1000000000000000056"
+          ]
+        },
+        {
+          "name": "longtext",
+          "type": "str300",
+          "format": "%300s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": [
+            "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "short",
+            "",
+            "y"
+          ]
+        },
+        {
+          "name": "grp",
+          "type": "str1",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["a", "b", "a", "c"]
+        }
+      ]
+    },
+    {
+      "command": "import spss using formats.sav, clear",
+      "rc": 0,
+      "printed": [
+        "may not label 1.5",
+        "note: invalid numeric value for value label labels0, skipped",
+        "note: invalid numeric format %",
+        "(8 vars, 4 obs)"
+      ],
+      "variables": [
+        {
+          "name": "adate",
+          "type": "double",
+          "format": "%tcNN/DD/CCYY",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["4102660800000", "315619200000", ".", "-1903759999750"]
+        },
+        {
+          "name": "time",
+          "type": "double",
+          "format": "%tchH:MM:SS",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": [
+            "-11903756399500",
+            "-11903760000000",
+            ".",
+            "-11903669939000"
+          ]
+        },
+        {
+          "name": "dtime",
+          "type": "long",
+          "format": "%tcjjj_HH:MM:SS",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["3600500", "0", ".", "90061000"]
+        },
+        {
+          "name": "comma",
+          "type": "double",
+          "format": "%10.2fc",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1234.5", "2", ".", "-3"]
+        },
+        {
+          "name": "dollar",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1234.5", "2", ".", "-3"]
+        },
+        {
+          "name": "n",
+          "type": "byte",
+          "format": "%05.0f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", ".", "3"]
+        },
+        {
+          "name": "half",
+          "type": "double",
+          "format": "%8.2f",
+          "label": "",
+          "valueLabel": "labels0",
+          "n": 4,
+          "values": ["1", "1.5", "2", "."]
+        },
+        {
+          "name": "rng",
+          "type": "byte",
+          "format": "%8.2f",
+          "label": "",
+          "valueLabel": "labels1",
+          "n": 4,
+          "values": ["1", ".", ".", "."]
+        }
+      ]
+    },
+    {
+      "command": "import spss id score if id > 2 using survey.sav, clear",
+      "rc": 0,
+      "printed": [
+        "note: invalid string value a for value label labels2, skipped",
+        "note: no values defined for value label labels2, removed",
+        "note: invalid string value b for value label labels2, skipped",
+        "note: may not attach value label to string variable: no label applied",
+        "(2 vars, 2 obs)"
+      ],
+      "variables": [
+        {
+          "name": "id",
+          "type": "byte",
+          "format": "%3.0f",
+          "label": "",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["3", "4"]
+        },
+        {
+          "name": "score",
+          "type": "double",
+          "format": "%8.2f",
+          "label": "",
+          "valueLabel": "",
+          "n": 2,
+          "values": ["3.5", "100"]
+        }
+      ]
+    },
+    {
+      "command": "import spss using survey.sav, case(upper) clear",
+      "rc": 0,
+      "printed": [
+        "note: invalid string value a for value label labels2, skipped",
+        "note: no values defined for value label labels2, removed",
+        "note: invalid string value b for value label labels2, skipped",
+        "note: may not attach value label to string variable: no label applied",
+        "(11 vars, 4 obs)"
+      ],
+      "variables": [
+        {
+          "name": "ID",
+          "type": "byte",
+          "format": "%3.0f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", "3", "4"]
+        },
+        {
+          "name": "SCORE",
+          "type": "double",
+          "format": "%8.2f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1.25", ".", "3.5", "100"]
+        },
+        {
+          "name": "SEX",
+          "type": "byte",
+          "format": "%8.2f",
+          "label": "Sex of respondent",
+          "valueLabel": "labels0",
+          "n": 4,
+          "values": ["1", "2", "1", "."]
+        },
+        {
+          "name": "LIKERT",
+          "type": "byte",
+          "format": "%8.2f",
+          "label": "Agreement",
+          "valueLabel": "labels1",
+          "n": 4,
+          "values": ["1", "5", ".", "3"]
+        },
+        {
+          "name": "NAME",
+          "type": "str6",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["Ann", "Bob", "", "Dörte"]
+        },
+        {
+          "name": "LONGVARIABLENAME_HERE",
+          "type": "byte",
+          "format": "%8.2f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["10", "20", "30", "40"]
+        },
+        {
+          "name": "DOB",
+          "type": "double",
+          "format": "%tcDD-Mon-CCYY",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1296777600000", "0", ".", "-11903673600000"]
+        },
+        {
+          "name": "TS",
+          "type": "double",
+          "format": "%tcdd-Mon-CCYY_HH:MM:SS",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1296792306000", "0", ".", "1925078399000"]
+        },
+        {
+          "name": "BIG",
+          "type": "double",
+          "format": "%12.4f",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": [
+            "1000000000000000",
+            "-2.5",
+            ".3333333333333333148",
+            ".1000000000000000056"
+          ]
+        },
+        {
+          "name": "LONGTEXT",
+          "type": "str300",
+          "format": "%300s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": [
+            "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "short",
+            "",
+            "y"
+          ]
+        },
+        {
+          "name": "GRP",
+          "type": "str1",
+          "format": "%9s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["a", "b", "a", "c"]
+        }
+      ]
+    },
+    {
+      "command": "import sasxport5 nhanes-like.xpt, clear",
+      "rc": 0,
+      "printed": [],
+      "variables": [
+        {
+          "name": "seqn",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["1001", "1002", "1003"]
+        },
+        {
+          "name": "riagendr",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "Gender",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["2", "1", "."]
+        },
+        {
+          "name": "ridageyr",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["2", "2", "66"]
+        }
+      ]
+    },
+    {
+      "command": "import sasxport5 sim5-stata.xpt, clear",
+      "rc": 0,
+      "printed": [],
+      "variables": [
+        {
+          "name": "id",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", "3", "4"]
+        },
+        {
+          "name": "name",
+          "type": "str12",
+          "format": "%12s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["Ann", "Bob", "Carla Diaz", ""]
+        },
+        {
+          "name": "income",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "Annual income",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["52000.5", ".", "61000", "47000.25"]
+        },
+        {
+          "name": "female",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "",
+          "valueLabel": "sexl",
+          "n": 4,
+          "values": ["1", "0", "1", "0"]
+        },
+        {
+          "name": "bdate",
+          "type": "double",
+          "format": "%d",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["21915", "22000", ".", "22100"]
+        }
+      ]
+    },
+    {
+      "command": "import sasxport8 v8.xpt, clear",
+      "rc": 0,
+      "printed": ["(3 vars, 4 obs)"],
+      "variables": [
+        {
+          "name": "a",
+          "type": "double",
+          "format": "%10.0g",
+          "label": "Variable A label",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["1", "2", "3.5", "."]
+        },
+        {
+          "name": "s3",
+          "type": "str3",
+          "format": "%7s",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["abc", "de", "f", ""]
+        },
+        {
+          "name": "dt",
+          "type": "int",
+          "format": "%td",
+          "label": "",
+          "valueLabel": "",
+          "n": 4,
+          "values": ["15009", "0", ".", "-1"]
+        }
+      ]
+    },
+    {
+      "command": "import sasxport8 long8.xpt, clear",
+      "rc": 0,
+      "printed": ["(2 vars, 3 obs)"],
+      "variables": [
+        {
+          "name": "longvariablename_over8",
+          "type": "byte",
+          "format": "%10.0g",
+          "label": "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["1", "2", "3"]
+        },
+        {
+          "name": "x",
+          "type": "str3",
+          "format": "%7s",
+          "label": "",
+          "valueLabel": "",
+          "n": 3,
+          "values": ["a", "bb", "ccc"]
+        }
+      ]
+    }
+  ]
+}

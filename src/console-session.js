@@ -7,6 +7,7 @@ import { StataError } from "./runtime/errors.js";
 import { toCSV } from "./datasets.js";
 import { LIBRARY } from "./console-datasets.js";
 import { readDta, writeDta } from "./console-dta.js";
+import { binaryKind, checkForeign } from "./runtime/foreign.js";
 
 const library = Object.fromEntries(
   Object.entries(LIBRARY).map(([id, entry]) => [id, entry.data]),
@@ -88,8 +89,20 @@ export function createConsoleSession() {
       added.set(name, file);
       return { memory: memory() };
     },
-    /** A .dta file: read once, then there for use, merge and append. */
+    /**
+     * A .dta file: read once, then there for use, merge and append. A
+     * workbook, SPSS or SAS file is kept as its bytes for import excel,
+     * import spss and import sasxport5/8, and checked as it is added.
+     */
     addData(name, bytes) {
+      const kind = binaryKind(name);
+      if (kind) {
+        const file = { bytes: new Uint8Array(bytes) },
+          check = checkForeign(kind, name, file);
+        added.set(name, file);
+        put(name, file);
+        return { memory: memory(), kind, ...check };
+      }
       const data = readDta(bytes);
       added.set(name, data);
       put(name, data);
@@ -103,6 +116,18 @@ export function createConsoleSession() {
       added.delete(name);
       session.files?.delete(name);
       return { memory: memory() };
+    },
+    /**
+     * A file in the session's folder, such as a workbook written by export
+     * excel or putexcel, for the page to offer as a download: { bytes } or
+     * { text }, or null when there is no such file.
+     */
+    readFile(name) {
+      const file = session.files?.get(name);
+      if (!file) return null;
+      if (file.bytes instanceof Uint8Array) return { name, bytes: file.bytes };
+      if (typeof file.text === "string") return { name, text: file.text };
+      return { name, bytes: writeDta(file) };
     },
     /** The data in memory as the bytes of a .dta file. */
     exportData() {

@@ -30,6 +30,7 @@ import { TIMESERIES_COMMANDS } from "./timeseries.js";
 import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
+import { FOREIGN_COMMANDS } from "./foreign.js";
 import { MATRIX_COMMANDS } from "./matrix.js";
 import { DATA_COMMANDS } from "./data-commands.js";
 import {
@@ -1737,6 +1738,8 @@ export const COMMANDS = [
   ...TIMESERIES_COMMANDS,
   ...GRAPH_COMMANDS,
   ...MARGINS_COMMANDS,
+  // Before DELIMITED_COMMANDS: its import and export hand delimited text on.
+  ...FOREIGN_COMMANDS,
   ...DELIMITED_COMMANDS,
   ...MATRIX_COMMANDS,
   ...ESTIMATION_COMMANDS,

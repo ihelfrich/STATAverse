@@ -52109,6 +52109,1276 @@
       ]
     },
     {
+      "id": "excel-export-import-roundtrip",
+      "source": "clear\nset obs 4\ngenerate id = _n\ngenerate str10 name = word(\"Ann Bob Carla Dee\", _n)\nreplace name = \"\" in 4\ngenerate double income = 1000.5 * _n\nreplace income = . in 2\ngenerate byte female = mod(_n, 2)\nreplace female = .a in 3\nlabel define sexl 0 \"male\" 1 \"female\"\nlabel values female sexl\ngenerate bdate = mdy(1, 10 * _n, 2020)\nformat bdate %td\ngenerate float share = _n / 8\nlabel variable income \"Annual income\"\nlabel variable name \"Student name\"\nexport excel using rt1.xlsx, firstrow(variables) replace\ncapture noisily export excel using rt1.xlsx\ndisplay _rc\nexport excel using rt2.xlsx, firstrow(varlabels) nolabel replace\nexport excel name income using rt3.xlsx, missing(\"NA\") replace\nimport excel using rt1.xlsx, describe\nreturn list\nimport excel using rt1.xlsx, firstrow clear\nlist\nlocal a : type id\nlocal b : format id\nlocal c : variable label id\ndisplay \"id `a' `b' `c'\"\nlocal a : type name\nlocal b : format name\nlocal c : variable label name\ndisplay \"name `a' `b' `c'\"\nlocal a : type income\nlocal b : format income\nlocal c : variable label income\ndisplay \"income `a' `b' `c'\"\nlocal a : type female\nlocal b : format female\nlocal c : variable label female\ndisplay \"female `a' `b' `c'\"\nlocal a : type bdate\nlocal b : format bdate\nlocal c : variable label bdate\ndisplay \"bdate `a' `b' `c'\"\nlocal a : type share\nlocal b : format share\nlocal c : variable label share\ndisplay \"share `a' `b' `c'\"\nimport excel using rt2.xlsx, firstrow clear\nlist\nlocal a : variable label id\ndisplay \"id `a'\"\nlocal a : variable label Studentname\ndisplay \"Studentname `a'\"\nlocal a : variable label Annualincome\ndisplay \"Annualincome `a'\"\nlocal a : variable label female\ndisplay \"female `a'\"\nimport excel using rt3.xlsx, clear\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "generate str10 name = word(\"Ann Bob Carla Dee\", _n)",
+          "lines": []
+        },
+        {
+          "command": "replace name = \"\" in 4",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "generate double income = 1000.5 * _n", "lines": [] },
+        {
+          "command": "replace income = . in 2",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "generate byte female = mod(_n, 2)", "lines": [] },
+        {
+          "command": "replace female = .a in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "label define sexl 0 \"male\" 1 \"female\"", "lines": [] },
+        { "command": "label values female sexl", "lines": [] },
+        {
+          "command": "generate bdate = mdy(1, 10 * _n, 2020)",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "format bdate %td", "lines": [] },
+        { "command": "generate float share = _n / 8", "lines": [] },
+        { "command": "label variable income \"Annual income\"", "lines": [] },
+        { "command": "label variable name \"Student name\"", "lines": [] },
+        {
+          "command": "export excel using rt1.xlsx, firstrow(variables) replace",
+          "lines": ["file rt1.xlsx saved"]
+        },
+        {
+          "command": "capture noisily export excel using rt1.xlsx",
+          "lines": ["file rt1.xlsx already exists"]
+        },
+        { "command": "display _rc", "lines": ["602"] },
+        {
+          "command": "export excel using rt2.xlsx, firstrow(varlabels) nolabel replace",
+          "lines": ["file rt2.xlsx saved"]
+        },
+        {
+          "command": "export excel name income using rt3.xlsx, missing(\"NA\") replace",
+          "lines": ["file rt3.xlsx saved"]
+        },
+        {
+          "command": "import excel using rt1.xlsx, describe",
+          "lines": [
+            "     Sheet | Range",
+            "  ---------+---------",
+            "    Sheet1 | A1:F5"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "        r(N_worksheet) =  1",
+            "",
+            "macros:",
+            "        r(worksheet_1) : \"Sheet1\"",
+            "            r(range_1) : \"A1:F5\""
+          ]
+        },
+        {
+          "command": "import excel using rt1.xlsx, firstrow clear",
+          "lines": ["(6 vars, 4 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------------------------------------+",
+            "     | id    name   income   female       bdate   share |",
+            "     |--------------------------------------------------|",
+            "  1. |  1     Ann   1000.5   female   1/10/2020    .125 |",
+            "  2. |  2     Bob        .     male   1/20/2020     .25 |",
+            "  3. |  3   Carla   3001.5       .a   1/30/2020    .375 |",
+            "  4. |  4             4002     male           .      .5 |",
+            "     +--------------------------------------------------+"
+          ]
+        },
+        { "command": "local a : type id", "lines": [] },
+        { "command": "local b : format id", "lines": [] },
+        { "command": "local c : variable label id", "lines": [] },
+        {
+          "command": "display \"id `a' `b' `c'\"",
+          "lines": ["id byte %10.0g id"]
+        },
+        { "command": "local a : type name", "lines": [] },
+        { "command": "local b : format name", "lines": [] },
+        { "command": "local c : variable label name", "lines": [] },
+        {
+          "command": "display \"name `a' `b' `c'\"",
+          "lines": ["name str5 %9s name"]
+        },
+        { "command": "local a : type income", "lines": [] },
+        { "command": "local b : format income", "lines": [] },
+        { "command": "local c : variable label income", "lines": [] },
+        {
+          "command": "display \"income `a' `b' `c'\"",
+          "lines": ["income double %10.0g income"]
+        },
+        { "command": "local a : type female", "lines": [] },
+        { "command": "local b : format female", "lines": [] },
+        { "command": "local c : variable label female", "lines": [] },
+        {
+          "command": "display \"female `a' `b' `c'\"",
+          "lines": ["female str6 %9s female"]
+        },
+        { "command": "local a : type bdate", "lines": [] },
+        { "command": "local b : format bdate", "lines": [] },
+        { "command": "local c : variable label bdate", "lines": [] },
+        {
+          "command": "display \"bdate `a' `b' `c'\"",
+          "lines": ["bdate int %tdnn/dd/CCYY bdate"]
+        },
+        { "command": "local a : type share", "lines": [] },
+        { "command": "local b : format share", "lines": [] },
+        { "command": "local c : variable label share", "lines": [] },
+        {
+          "command": "display \"share `a' `b' `c'\"",
+          "lines": ["share double %10.0g share"]
+        },
+        {
+          "command": "import excel using rt2.xlsx, firstrow clear",
+          "lines": ["(6 vars, 4 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------------------------------------------+",
+            "     | id   Studen~e   Annual~e   female       bdate   share |",
+            "     |-------------------------------------------------------|",
+            "  1. |  1        Ann     1000.5        1   1/10/2020    .125 |",
+            "  2. |  2        Bob          .        0   1/20/2020     .25 |",
+            "  3. |  3      Carla     3001.5        .   1/30/2020    .375 |",
+            "  4. |  4                  4002        0           .      .5 |",
+            "     +-------------------------------------------------------+"
+          ]
+        },
+        { "command": "local a : variable label id", "lines": [] },
+        { "command": "display \"id `a'\"", "lines": ["id id"] },
+        { "command": "local a : variable label Studentname", "lines": [] },
+        {
+          "command": "display \"Studentname `a'\"",
+          "lines": ["Studentname Student name"]
+        },
+        { "command": "local a : variable label Annualincome", "lines": [] },
+        {
+          "command": "display \"Annualincome `a'\"",
+          "lines": ["Annualincome Annual income"]
+        },
+        { "command": "local a : variable label female", "lines": [] },
+        { "command": "display \"female `a'\"", "lines": ["female female"] },
+        {
+          "command": "import excel using rt3.xlsx, clear",
+          "lines": ["(2 vars, 4 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------+",
+            "     |     A        B |",
+            "     |----------------|",
+            "  1. |   Ann   1000.5 |",
+            "  2. |   Bob       NA |",
+            "  3. | Carla   3001.5 |",
+            "  4. |           4002 |",
+            "     +----------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "excel-import-options",
+      "source": "clear\nset obs 5\ngenerate id = _n\ngenerate str6 grp = cond(mod(_n, 2), \"Treat\", \"Ctrl\")\ngenerate double score = 60 + 7.25 * _n\nreplace score = . in 3\nexport excel using opts.xlsx, sheet(\"first\") firstrow(variables) replace\nexport excel id score using opts.xlsx, sheet(\"second\") cell(B3) firstrow(variables)\ncapture noisily export excel id using opts.xlsx, sheet(\"second\")\ndisplay _rc\nexport excel id using opts.xlsx, sheet(\"second\", modify) cell(E2)\nimport excel using opts.xlsx, describe\nimport excel using opts.xlsx, sheet(\"second\") clear\nlist\nimport excel using opts.xlsx, sheet(\"first\") cellrange(A2:B4) clear\nlist\nimport excel using opts.xlsx, sheet(\"first\") firstrow case(upper) clear\nlist\nimport excel using opts.xlsx, sheet(\"first\") firstrow allstring clear\nlist\nimport excel using opts.xlsx, sheet(\"first\") firstrow allstring(\"%6.2f\") clear\nlist\nimport excel C A using opts.xlsx, sheet(\"first\") clear\nlist\nimport excel x=B y using opts.xlsx, sheet(\"first\") clear\nlist\nimport excel x y=A z using opts.xlsx, sheet(\"first\") clear\nlist\ncapture noisily import excel using opts.xlsx, sheet(\"third\") clear\ndisplay _rc\ncapture noisily import excel using opts.xlsx, sheet(\"first\") cellrange(Z99) clear\ndisplay _rc\ncapture noisily import excel using opts.xlsx, sheet(\"first\") cellrange(A1:C99) clear\ndisplay _rc\ncapture noisily import excel using opts.xlsx, sheet(\"first\") cellrange(B2:A1) clear\ndisplay _rc\ncapture noisily import excel using opts.xlsx, case(proper) clear\ndisplay _rc\ncapture noisily import excel using nosuch.xlsx, clear\ndisplay _rc\ncapture noisily import excel A A using opts.xlsx, clear\ndisplay _rc\ncapture noisily import excel A using opts.xlsx, firstrow clear\ndisplay _rc\nset obs 3\ncapture noisily import excel using opts.xlsx\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "generate str6 grp = cond(mod(_n, 2), \"Treat\", \"Ctrl\")",
+          "lines": []
+        },
+        { "command": "generate double score = 60 + 7.25 * _n", "lines": [] },
+        {
+          "command": "replace score = . in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "export excel using opts.xlsx, sheet(\"first\") firstrow(variables) replace",
+          "lines": ["file opts.xlsx saved"]
+        },
+        {
+          "command": "export excel id score using opts.xlsx, sheet(\"second\") cell(B3) firstrow(variables)",
+          "lines": ["file opts.xlsx saved"]
+        },
+        {
+          "command": "capture noisily export excel id using opts.xlsx, sheet(\"second\")",
+          "lines": [
+            "worksheet second already exists; specify option sheet(..., modify) or option sheet(..., replace)"
+          ]
+        },
+        { "command": "display _rc", "lines": ["602"] },
+        {
+          "command": "export excel id using opts.xlsx, sheet(\"second\", modify) cell(E2)",
+          "lines": ["file opts.xlsx saved"]
+        },
+        {
+          "command": "import excel using opts.xlsx, describe",
+          "lines": [
+            "     Sheet | Range",
+            "  ---------+---------",
+            "     first | A1:C6",
+            "    second | B2:E8"
+          ]
+        },
+        {
+          "command": "import excel using opts.xlsx, sheet(\"second\") clear",
+          "lines": ["(4 vars, 7 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------+",
+            "     |  B       C   D   E |",
+            "     |--------------------|",
+            "  1. |              .   1 |",
+            "  2. | id   score   .   2 |",
+            "  3. |  1   67.25   .   3 |",
+            "  4. |  2    74.5   .   4 |",
+            "  5. |  3           .   5 |",
+            "     |--------------------|",
+            "  6. |  4      89   .   . |",
+            "  7. |  5   96.25   .   . |",
+            "     +--------------------+"
+          ]
+        },
+        {
+          "command": "import excel using opts.xlsx, sheet(\"first\") cellrange(A2:B4) clear",
+          "lines": ["(2 vars, 3 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------+",
+            "     | A       B |",
+            "     |-----------|",
+            "  1. | 1   Treat |",
+            "  2. | 2    Ctrl |",
+            "  3. | 3   Treat |",
+            "     +-----------+"
+          ]
+        },
+        {
+          "command": "import excel using opts.xlsx, sheet(\"first\") firstrow case(upper) clear",
+          "lines": ["(3 vars, 5 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------+",
+            "     | ID     GRP   SCORE |",
+            "     |--------------------|",
+            "  1. |  1   Treat   67.25 |",
+            "  2. |  2    Ctrl    74.5 |",
+            "  3. |  3   Treat       . |",
+            "  4. |  4    Ctrl      89 |",
+            "  5. |  5   Treat   96.25 |",
+            "     +--------------------+"
+          ]
+        },
+        {
+          "command": "import excel using opts.xlsx, sheet(\"first\") firstrow allstring clear",
+          "lines": ["(3 vars, 5 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------+",
+            "     | id     grp   score |",
+            "     |--------------------|",
+            "  1. |  1   Treat   67.25 |",
+            "  2. |  2    Ctrl    74.5 |",
+            "  3. |  3   Treat         |",
+            "  4. |  4    Ctrl      89 |",
+            "  5. |  5   Treat   96.25 |",
+            "     +--------------------+"
+          ]
+        },
+        {
+          "command": "import excel using opts.xlsx, sheet(\"first\") firstrow allstring(\"%6.2f\") clear",
+          "lines": ["(3 vars, 5 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------+",
+            "     |   id     grp   score |",
+            "     |----------------------|",
+            "  1. | 1.00   Treat   67.25 |",
+            "  2. | 2.00    Ctrl   74.50 |",
+            "  3. | 3.00   Treat         |",
+            "  4. | 4.00    Ctrl   89.00 |",
+            "  5. | 5.00   Treat   96.25 |",
+            "     +----------------------+"
+          ]
+        },
+        {
+          "command": "import excel C A using opts.xlsx, sheet(\"first\") clear",
+          "lines": ["(2 vars, 6 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------+",
+            "     |  C       A |",
+            "     |------------|",
+            "  1. | id     grp |",
+            "  2. |  1   Treat |",
+            "  3. |  2    Ctrl |",
+            "  4. |  3   Treat |",
+            "  5. |  4    Ctrl |",
+            "     |------------|",
+            "  6. |  5   Treat |",
+            "     +------------+"
+          ]
+        },
+        {
+          "command": "import excel x=B y using opts.xlsx, sheet(\"first\") clear",
+          "lines": ["(2 vars, 6 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------+",
+            "     |     x    y |",
+            "     |------------|",
+            "  1. |   grp   id |",
+            "  2. | Treat    1 |",
+            "  3. |  Ctrl    2 |",
+            "  4. | Treat    3 |",
+            "  5. |  Ctrl    4 |",
+            "     |------------|",
+            "  6. | Treat    5 |",
+            "     +------------+"
+          ]
+        },
+        {
+          "command": "import excel x y=A z using opts.xlsx, sheet(\"first\") clear",
+          "lines": ["(3 vars, 6 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------+",
+            "     |  x    y       z |",
+            "     |-----------------|",
+            "  1. | id   id     grp |",
+            "  2. |  1    1   Treat |",
+            "  3. |  2    2    Ctrl |",
+            "  4. |  3    3   Treat |",
+            "  5. |  4    4    Ctrl |",
+            "     |-----------------|",
+            "  6. |  5    5   Treat |",
+            "     +-----------------+"
+          ]
+        },
+        {
+          "command": "capture noisily import excel using opts.xlsx, sheet(\"third\") clear",
+          "lines": ["worksheet third not found"]
+        },
+        { "command": "display _rc", "lines": ["601"] },
+        {
+          "command": "capture noisily import excel using opts.xlsx, sheet(\"first\") cellrange(Z99) clear",
+          "lines": [
+            "invalid column range in option cellrange();",
+            "    The upper left column is right of the data area in the worksheet."
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily import excel using opts.xlsx, sheet(\"first\") cellrange(A1:C99) clear",
+          "lines": [
+            "invalid row range in option cellrange();",
+            "    The lower right row is after the data area in the worksheet."
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily import excel using opts.xlsx, sheet(\"first\") cellrange(B2:A1) clear",
+          "lines": [
+            "invalid column range B2 in option cellrange();",
+            "    The upper left column is to the right of the lower right column."
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily import excel using opts.xlsx, case(proper) clear",
+          "lines": [
+            "proper: invalid argument in option case();",
+            "   use upper, lower, or preserve"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily import excel using nosuch.xlsx, clear",
+          "lines": ["file nosuch.xlsx not found"]
+        },
+        { "command": "display _rc", "lines": ["601"] },
+        {
+          "command": "capture noisily import excel A A using opts.xlsx, clear",
+          "lines": ["variable multiply defined", "A"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily import excel A using opts.xlsx, firstrow clear",
+          "lines": [
+            "option firstrow not allowed with extvarlist; specify option cellrange() to skip the first row"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "capture noisily import excel using opts.xlsx",
+          "lines": ["no; data in memory would be lost"]
+        },
+        { "command": "display _rc", "lines": ["4"] }
+      ]
+    },
+    {
+      "id": "putexcel-cells-and-expressions",
+      "source": "clear\nputexcel set px.xlsx, replace\nputexcel A1 = \"label\"\nputexcel B2 = 3.25\nputexcel C3 = 2+2\nscalar s = 7\nputexcel D4 = s\nputexcel E5 = (\"text\" + \"more\")\nputexcel F6 = (1/3)\nputexcel A7 = \"a\" B7 = 2 C7 = \"c\"\nputexcel A9 = .\nputexcel A10 = formula(SUM(B2:D4))\ncapture noisily putexcel A11 = nosuchname\ndisplay _rc\ncapture noisily putexcel ZZZZ1 = 1\ndisplay _rc\ncapture noisily putexcel A1 =\ndisplay _rc\nputexcel describe\nputexcel set px.xlsx, sheet(\"two\") modify\nputexcel A1 = \"on two\"\ncapture noisily putexcel set px.xlsx\ndisplay _rc\nputexcel clear\ncapture noisily putexcel A1 = 1\ndisplay _rc\nimport excel using px.xlsx, describe\nimport excel using px.xlsx, allstring clear\nlist\nimport excel using px.xlsx, sheet(\"two\") clear\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "putexcel set px.xlsx, replace",
+          "lines": [
+            "note: file will be replaced when the first putexcel command is issued."
+          ]
+        },
+        {
+          "command": "putexcel A1 = \"label\"",
+          "lines": ["file px.xlsx saved"]
+        },
+        { "command": "putexcel B2 = 3.25", "lines": ["file px.xlsx saved"] },
+        { "command": "putexcel C3 = 2+2", "lines": ["file px.xlsx saved"] },
+        { "command": "scalar s = 7", "lines": [] },
+        { "command": "putexcel D4 = s", "lines": ["file px.xlsx saved"] },
+        {
+          "command": "putexcel E5 = (\"text\" + \"more\")",
+          "lines": ["file px.xlsx saved"]
+        },
+        { "command": "putexcel F6 = (1/3)", "lines": ["file px.xlsx saved"] },
+        {
+          "command": "putexcel A7 = \"a\" B7 = 2 C7 = \"c\"",
+          "lines": ["file px.xlsx saved"]
+        },
+        { "command": "putexcel A9 = .", "lines": ["file px.xlsx saved"] },
+        {
+          "command": "putexcel A10 = formula(SUM(B2:D4))",
+          "lines": ["file px.xlsx saved"]
+        },
+        {
+          "command": "capture noisily putexcel A11 = nosuchname",
+          "lines": ["nosuchname not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily putexcel ZZZZ1 = 1",
+          "lines": ["ZZZZ1: Excel column out of range"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily putexcel A1 =",
+          "lines": ["invalid syntax: nothing found where expression expected"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "putexcel describe",
+          "lines": [
+            "  -----------------+--------------",
+            "  Filename         |  px.xlsx",
+            "  Filetype         |  xlsx",
+            "  Write mode       |  modify",
+            "  Sheetname        |  Sheet1",
+            "  Locale           |  UTF-8",
+            "  Open file handle |  no"
+          ]
+        },
+        {
+          "command": "putexcel set px.xlsx, sheet(\"two\") modify",
+          "lines": []
+        },
+        {
+          "command": "putexcel A1 = \"on two\"",
+          "lines": ["file px.xlsx saved"]
+        },
+        {
+          "command": "capture noisily putexcel set px.xlsx",
+          "lines": [
+            "file px.xlsx already exists; you must specify either option modify or option replace"
+          ]
+        },
+        { "command": "display _rc", "lines": ["602"] },
+        { "command": "putexcel clear", "lines": [] },
+        {
+          "command": "capture noisily putexcel A1 = 1",
+          "lines": ["no Excel file specified"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "import excel using px.xlsx, describe",
+          "lines": [
+            "     Sheet | Range",
+            "  ---------+---------",
+            "    Sheet1 | A1:F10",
+            "       two | A1:A1"
+          ]
+        },
+        {
+          "command": "import excel using px.xlsx, allstring clear",
+          "lines": ["(6 vars, 10 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------------------------+",
+            "     |     A      B   C   D          E                   F |",
+            "     |-----------------------------------------------------|",
+            "  1. | label                                               |",
+            "  2. |         3.25                                        |",
+            "  3. |                4                                    |",
+            "  4. |                    7                                |",
+            "  5. |                        textmore                     |",
+            "     |-----------------------------------------------------|",
+            "  6. |                                   .3333333333333333 |",
+            "  7. |     a      2   c                                    |",
+            "  8. |                                                     |",
+            "  9. |                                                     |",
+            " 10. |                                                     |",
+            "     +-----------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "import excel using px.xlsx, sheet(\"two\") clear",
+          "lines": ["(1 var, 1 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------+",
+            "     |      A |",
+            "     |--------|",
+            "  1. | on two |",
+            "     +--------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sasxport5-roundtrip",
+      "source": "clear\nset obs 4\ngenerate id = _n\ngenerate str12 name = word(\"Ann Bob Carla Dee\", _n)\ngenerate double income = 1000.5 * _n\nreplace income = .a in 2\ngenerate byte female = mod(_n, 2)\nlabel define sexl 0 \"male\" 1 \"female\"\nlabel values female sexl\ngenerate bdate = mdy(2, _n, 2020)\nformat bdate %td\nlabel variable income \"Annual income\"\nexport sasxport5 sx.xpt, replace\ncapture noisily export sasxport5 sx.xpt\ndisplay _rc\nimport sasxport5 sx.xpt, clear\nlist\nlabel list\nlocal a : type id\nlocal b : format id\nlocal c : value label id\ndisplay \"id `a' `b' `c'\"\nlocal a : type name\nlocal b : format name\nlocal c : value label name\ndisplay \"name `a' `b' `c'\"\nlocal a : type income\nlocal b : format income\nlocal c : value label income\ndisplay \"income `a' `b' `c'\"\nlocal a : type female\nlocal b : format female\nlocal c : value label female\ndisplay \"female `a' `b' `c'\"\nlocal a : type bdate\nlocal b : format bdate\nlocal c : value label bdate\ndisplay \"bdate `a' `b' `c'\"\ngenerate verylongname = 1\ncapture noisily export sasxport5 sx2.xpt, replace\ndisplay _rc\nexport sasxport5 sx2.xpt, replace rename vallabfile(none)\nimport sasxport5 sx2.xpt, clear\ndisplay c(k)\ncapture noisily import sasxport5 nosuch.xpt, clear\ndisplay _rc\ncapture noisily import sasxport8 sx.xpt, clear\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "generate str12 name = word(\"Ann Bob Carla Dee\", _n)",
+          "lines": []
+        },
+        { "command": "generate double income = 1000.5 * _n", "lines": [] },
+        {
+          "command": "replace income = .a in 2",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "generate byte female = mod(_n, 2)", "lines": [] },
+        { "command": "label define sexl 0 \"male\" 1 \"female\"", "lines": [] },
+        { "command": "label values female sexl", "lines": [] },
+        { "command": "generate bdate = mdy(2, _n, 2020)", "lines": [] },
+        { "command": "format bdate %td", "lines": [] },
+        { "command": "label variable income \"Annual income\"", "lines": [] },
+        {
+          "command": "export sasxport5 sx.xpt, replace",
+          "lines": ["file sx.xpt saved", "file formats.xpf saved"]
+        },
+        {
+          "command": "capture noisily export sasxport5 sx.xpt",
+          "lines": ["file sx.xpt already exists"]
+        },
+        { "command": "display _rc", "lines": ["602"] },
+        { "command": "import sasxport5 sx.xpt, clear", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------------------------------+",
+            "     | id    name   income   female       bdate |",
+            "     |------------------------------------------|",
+            "  1. |  1     Ann   1000.5   female   01feb2020 |",
+            "  2. |  2     Bob       .a     male   02feb2020 |",
+            "  3. |  3   Carla   3001.5   female   03feb2020 |",
+            "  4. |  4     Dee     4002     male   04feb2020 |",
+            "     +------------------------------------------+"
+          ]
+        },
+        {
+          "command": "label list",
+          "lines": ["sexl:", "           0 male", "           1 female"]
+        },
+        { "command": "local a : type id", "lines": [] },
+        { "command": "local b : format id", "lines": [] },
+        { "command": "local c : value label id", "lines": [] },
+        {
+          "command": "display \"id `a' `b' `c'\"",
+          "lines": ["id double %10.0g"]
+        },
+        { "command": "local a : type name", "lines": [] },
+        { "command": "local b : format name", "lines": [] },
+        { "command": "local c : value label name", "lines": [] },
+        {
+          "command": "display \"name `a' `b' `c'\"",
+          "lines": ["name str12 %12s"]
+        },
+        { "command": "local a : type income", "lines": [] },
+        { "command": "local b : format income", "lines": [] },
+        { "command": "local c : value label income", "lines": [] },
+        {
+          "command": "display \"income `a' `b' `c'\"",
+          "lines": ["income double %10.0g"]
+        },
+        { "command": "local a : type female", "lines": [] },
+        { "command": "local b : format female", "lines": [] },
+        { "command": "local c : value label female", "lines": [] },
+        {
+          "command": "display \"female `a' `b' `c'\"",
+          "lines": ["female double %10.0g sexl"]
+        },
+        { "command": "local a : type bdate", "lines": [] },
+        { "command": "local b : format bdate", "lines": [] },
+        { "command": "local c : value label bdate", "lines": [] },
+        {
+          "command": "display \"bdate `a' `b' `c'\"",
+          "lines": ["bdate double %d"]
+        },
+        { "command": "generate verylongname = 1", "lines": [] },
+        {
+          "command": "capture noisily export sasxport5 sx2.xpt, replace",
+          "lines": [
+            "the following variable(s) have names that must be changed to fit into .xpt format:  (suggested renamings shown):",
+            "",
+            "                    verylongname -> VERYLONG",
+            "",
+            "specify option rename to save .xpt file with suggested names"
+          ]
+        },
+        { "command": "display _rc", "lines": ["110"] },
+        {
+          "command": "export sasxport5 sx2.xpt, replace rename vallabfile(none)",
+          "lines": [
+            "the following variable(s) were renamed in the output file:",
+            "",
+            "                    verylongname -> VERYLONG",
+            "",
+            "file sx2.xpt saved"
+          ]
+        },
+        {
+          "command": "import sasxport5 sx2.xpt, clear",
+          "lines": [
+            "Warning:  file sx2.xpt contains variables with value labels, but value label file formats.xpf or FORMATS.xpf could not be opened"
+          ]
+        },
+        { "command": "display c(k)", "lines": ["6"] },
+        {
+          "command": "capture noisily import sasxport5 nosuch.xpt, clear",
+          "lines": ["file nosuch.xpt not found"]
+        },
+        { "command": "display _rc", "lines": ["601"] },
+        {
+          "command": "capture noisily import sasxport8 sx.xpt, clear",
+          "lines": [
+            "invalid xport version",
+            "   version 5 sas xport file cannot be used with this command. Use import sasxport5 to import this file"
+          ]
+        },
+        { "command": "display _rc", "lines": ["603"] }
+      ]
+    },
+    {
+      "id": "excel-header-names-and-number-text",
+      "source": "clear\nset obs 4\ngenerate double a = cond(_n == 1, 1/3, cond(_n == 2, 1e-10, cond(_n == 3, 3e10, -.5)))\ngenerate double b = cond(_n == 1, 1.23456789012345e15, cond(_n == 2, 123456789.123, cond(_n == 3, 100000, .000015)))\ngenerate c = _n\ngenerate d = _n * 2\ngenerate e = _n * 3\ngenerate f = _n * 4\ngenerate g = mdy(_n, 1, 2024)\nformat g %td\nlabel variable a \"Age (years)\"\nlabel variable b \"%change\"\nlabel variable c \"2019\"\nlabel variable d \"x y\"\nlabel variable e \"Age (years)\"\nlabel variable f \"in\"\nlabel variable g \"1st date\"\nexport excel using hdr.xlsx, firstrow(varlabels) replace\nimport excel using hdr.xlsx, firstrow clear\nlist\nlocal x : variable label C\ndisplay \"`x'\"\nlocal x : variable label E\ndisplay \"`x'\"\nimport excel using hdr.xlsx, allstring clear\nlist\nimport excel using hdr.xlsx, firstrow case(lower) clear\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        {
+          "command": "generate double a = cond(_n == 1, 1/3, cond(_n == 2, 1e-10, cond(_n == 3, 3e10, -.5)))",
+          "lines": []
+        },
+        {
+          "command": "generate double b = cond(_n == 1, 1.23456789012345e15, cond(_n == 2, 123456789.123, cond(_n == 3, 100000, .000015)))",
+          "lines": []
+        },
+        { "command": "generate c = _n", "lines": [] },
+        { "command": "generate d = _n * 2", "lines": [] },
+        { "command": "generate e = _n * 3", "lines": [] },
+        { "command": "generate f = _n * 4", "lines": [] },
+        { "command": "generate g = mdy(_n, 1, 2024)", "lines": [] },
+        { "command": "format g %td", "lines": [] },
+        { "command": "label variable a \"Age (years)\"", "lines": [] },
+        { "command": "label variable b \"%change\"", "lines": [] },
+        { "command": "label variable c \"2019\"", "lines": [] },
+        { "command": "label variable d \"x y\"", "lines": [] },
+        { "command": "label variable e \"Age (years)\"", "lines": [] },
+        { "command": "label variable f \"in\"", "lines": [] },
+        { "command": "label variable g \"1st date\"", "lines": [] },
+        {
+          "command": "export excel using hdr.xlsx, firstrow(varlabels) replace",
+          "lines": ["file hdr.xlsx saved"]
+        },
+        {
+          "command": "import excel using hdr.xlsx, firstrow clear",
+          "lines": ["(7 vars, 4 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------------------------+",
+            "     |  Ageyears      change   C   xy    E    F     stdate |",
+            "     |-----------------------------------------------------|",
+            "  1. | .33333333   1.235e+15   1    2    3    4   1/1/2024 |",
+            "  2. | 1.000e-10   1.235e+08   2    4    6    8   2/1/2024 |",
+            "  3. | 3.000e+10      100000   3    6    9   12   3/1/2024 |",
+            "  4. |       -.5     .000015   4    8   12   16   4/1/2024 |",
+            "     +-----------------------------------------------------+"
+          ]
+        },
+        { "command": "local x : variable label C", "lines": [] },
+        { "command": "display \"`x'\"", "lines": ["2019"] },
+        { "command": "local x : variable label E", "lines": [] },
+        { "command": "display \"`x'\"", "lines": ["Age (years)"] },
+        {
+          "command": "import excel using hdr.xlsx, allstring clear",
+          "lines": ["(7 vars, 5 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------------------------------------------------------+",
+            "     |                 A                  B      C     D             E    F            G |",
+            "     |-----------------------------------------------------------------------------------|",
+            "  1. |       Age (years)            %change   2019   x y   Age (years)   in     1st date |",
+            "  2. | .3333333333333333   1234567890123450      1     2             3    4     1/1/2024 |",
+            "  3. | 1.00000000000e-10      123456789.123      2     4             6    8     2/1/2024 |",
+            "  4. |       30000000000             100000      3     6             9   12     3/1/2024 |",
+            "  5. |               -.5            .000015      4     8            12   16     4/1/2024 |",
+            "     +-----------------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "import excel using hdr.xlsx, firstrow case(lower) clear",
+          "lines": ["(7 vars, 4 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------------------------+",
+            "     |  ageyears      change   c   xy    e    f     stdate |",
+            "     |-----------------------------------------------------|",
+            "  1. | .33333333   1.235e+15   1    2    3    4   1/1/2024 |",
+            "  2. | 1.000e-10   1.235e+08   2    4    6    8   2/1/2024 |",
+            "  3. | 3.000e+10      100000   3    6    9   12   3/1/2024 |",
+            "  4. |       -.5     .000015   4    8   12   16   4/1/2024 |",
+            "     +-----------------------------------------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "excel-export-number-formats",
+      "source": "clear\nset obs 3\ngenerate int m = ym(2024, _n)\nformat m %tm\ngenerate int q = yq(2024, _n)\nformat q %tq\ngenerate int w = yw(2024, _n)\nformat w %tw\ngenerate int h = yh(2024, _n)\nformat h %th\ngenerate int y = 2020 + _n\nformat y %ty\ngenerate double a = 1234.5678 * _n\nformat a %9.2f\ngenerate double c = 1234567.891 * _n\nformat c %12.2fc\ngenerate double e = 1234.5678 * _n\nformat e %8.2e\ngenerate double g = 1234.5678 * _n\nformat g %12.0gc\ngenerate double f1 = 1234.5678 * _n\nformat f1 %9.1f\nexport excel m using nf2.xlsx, datestring(\"%tdCCYY-NN-DD\") replace\nexport excel using nf.xlsx, firstrow(variables) replace\nimport excel using nf.xlsx, firstrow clear\ndisplay \"`: type m' `: format m' `: format q' `: format w' `: format h' `: format y'\"\ndisplay \"`: format a' `: format c' `: format e' `: format g' `: format f1'\"\nlist\nimport excel using nf2.xlsx, clear\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate int m = ym(2024, _n)", "lines": [] },
+        { "command": "format m %tm", "lines": [] },
+        { "command": "generate int q = yq(2024, _n)", "lines": [] },
+        { "command": "format q %tq", "lines": [] },
+        { "command": "generate int w = yw(2024, _n)", "lines": [] },
+        { "command": "format w %tw", "lines": [] },
+        {
+          "command": "generate int h = yh(2024, _n)",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "format h %th", "lines": [] },
+        { "command": "generate int y = 2020 + _n", "lines": [] },
+        { "command": "format y %ty", "lines": [] },
+        { "command": "generate double a = 1234.5678 * _n", "lines": [] },
+        { "command": "format a %9.2f", "lines": [] },
+        { "command": "generate double c = 1234567.891 * _n", "lines": [] },
+        { "command": "format c %12.2fc", "lines": [] },
+        { "command": "generate double e = 1234.5678 * _n", "lines": [] },
+        { "command": "format e %8.2e", "lines": [] },
+        { "command": "generate double g = 1234.5678 * _n", "lines": [] },
+        { "command": "format g %12.0gc", "lines": [] },
+        { "command": "generate double f1 = 1234.5678 * _n", "lines": [] },
+        { "command": "format f1 %9.1f", "lines": [] },
+        {
+          "command": "export excel m using nf2.xlsx, datestring(\"%tdCCYY-NN-DD\") replace",
+          "lines": ["file nf2.xlsx saved"]
+        },
+        {
+          "command": "export excel using nf.xlsx, firstrow(variables) replace",
+          "lines": ["file nf.xlsx saved"]
+        },
+        {
+          "command": "import excel using nf.xlsx, firstrow clear",
+          "lines": ["(10 vars, 3 obs)"]
+        },
+        {
+          "command": "display \"`: type m' `: format m' `: format q' `: format w' `: format h' `: format y'\"",
+          "lines": [
+            "int %tdnn/dd/CCYY %tdnn/dd/CCYY %tdnn/dd/CCYY %tdnn/dd/CCYY %tdnn/dd/CCYY"
+          ]
+        },
+        {
+          "command": "display \"`: format a' `: format c' `: format e' `: format g' `: format f1'\"",
+          "lines": ["%14.2f %14.2fc %10.2e %10.0gc %10.0g"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------------------------------------------------------------------------------------------------------+",
+            "     |        m          q           w          h          y         a              c          e           g          f1 |",
+            "     |-------------------------------------------------------------------------------------------------------------------|",
+            "  1. | 1/1/2024   1/1/2024    1/1/2024   1/1/2024   1/1/2021   1234.57   1,234,567.89   1.23e+03   1,234.568   1234.5678 |",
+            "  2. | 2/1/2024   4/1/2024    1/8/2024   7/1/2024   1/1/2022   2469.14   2,469,135.78   2.47e+03   2,469.136   2469.1356 |",
+            "  3. | 3/1/2024   7/1/2024   1/15/2024          .   1/1/2023   3703.70   3,703,703.67   3.70e+03   3,703.703   3703.7034 |",
+            "     +-------------------------------------------------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "import excel using nf2.xlsx, clear",
+          "lines": ["(1 var, 3 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------+",
+            "     |          A |",
+            "     |------------|",
+            "  1. | 1962-02-07 |",
+            "  2. | 1962-02-08 |",
+            "  3. | 1962-02-09 |",
+            "     +------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "excel-export-refusals",
+      "source": "clear\nset obs 3\ngenerate id = _n\ngenerate str3 s = \"ab\"\ncapture noisily export excel id using bad.xlsx, sheet(\"bad/name\") replace\ndisplay _rc\ncapture noisily export excel id using bad.xlsx, sheet(\"a[b]\") replace\ncapture noisily export excel id using bad.xlsx, sheet(\"'quoted'\") replace\ncapture noisily export excel s id using bad.xlsx, sheet(\"abcdefghijklmnopqrstuvwxyz123456\") replace\ndisplay _rc\ncapture noisily export excel id using bad.xlsx, sheet(\"abcdefghijklmnopqrstuvwxyz123456\") firstrow(variables) replace\ncapture noisily export excel id using bad.xlsx, sheet(\"abcdefghijklmnopqrstuvwxyz12345\") replace\ncapture noisily export excel id using bad.xlsx if id > 5, replace\ndisplay _rc\ncapture noisily export sasxport5 id using one.xpt, replace\ncapture noisily export sasxport5 id s using \"two.xpt\" in 1/2, replace\nimport sasxport5 two.xpt, clear\nlist\ncapture noisily export sasxport5 two.xpt, vallabfile(xpt) replace\ndisplay _rc\ndrop in 1/2\ncapture noisily export excel id using none.xlsx, replace\ndisplay _rc\ncapture noisily export excel id using none.xlsx, firstrow(variables) replace\ncapture noisily export sasxport5 none.xpt, replace\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate str3 s = \"ab\"", "lines": [] },
+        {
+          "command": "capture noisily export excel id using bad.xlsx, sheet(\"bad/name\") replace",
+          "lines": [
+            "         _xlbkaddsheet():  9901  Stata returned error",
+            "export_excel_write_file():     -  function returned error",
+            "export_excel_export_file():     -  function returned error",
+            "                 <istmt>:     -  function returned error"
+          ]
+        },
+        { "command": "display _rc", "lines": ["9901"] },
+        {
+          "command": "capture noisily export excel id using bad.xlsx, sheet(\"a[b]\") replace",
+          "lines": [
+            "         _xlbkaddsheet():  9901  Stata returned error",
+            "export_excel_write_file():     -  function returned error",
+            "export_excel_export_file():     -  function returned error",
+            "                 <istmt>:     -  function returned error"
+          ]
+        },
+        {
+          "command": "capture noisily export excel id using bad.xlsx, sheet(\"'quoted'\") replace",
+          "lines": [
+            "         _xlbkaddsheet():  9901  Stata returned error",
+            "export_excel_write_file():     -  function returned error",
+            "export_excel_export_file():     -  function returned error",
+            "                 <istmt>:     -  function returned error"
+          ]
+        },
+        {
+          "command": "capture noisily export excel s id using bad.xlsx, sheet(\"abcdefghijklmnopqrstuvwxyz123456\") replace",
+          "lines": [
+            "      _xlshwritestrcol():  9901  Stata returned error",
+            "    export_excel_write():     -  function returned error",
+            "export_excel_write_file():     -  function returned error",
+            "export_excel_export_file():     -  function returned error",
+            "                 <istmt>:     -  function returned error"
+          ]
+        },
+        { "command": "display _rc", "lines": ["9901"] },
+        {
+          "command": "capture noisily export excel id using bad.xlsx, sheet(\"abcdefghijklmnopqrstuvwxyz123456\") firstrow(variables) replace",
+          "lines": [
+            "         _xlshwritestr():  9901  Stata returned error",
+            "    export_excel_write():     -  function returned error",
+            "export_excel_write_file():     -  function returned error",
+            "export_excel_export_file():     -  function returned error",
+            "                 <istmt>:     -  function returned error"
+          ]
+        },
+        {
+          "command": "capture noisily export excel id using bad.xlsx, sheet(\"abcdefghijklmnopqrstuvwxyz12345\") replace",
+          "lines": ["file bad.xlsx saved"]
+        },
+        {
+          "command": "capture noisily export excel id using bad.xlsx if id > 5, replace",
+          "lines": ["observations must be between 1 and 1048576"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily export sasxport5 id using one.xpt, replace",
+          "lines": ["file one.xpt saved"]
+        },
+        {
+          "command": "capture noisily export sasxport5 id s using \"two.xpt\" in 1/2, replace",
+          "lines": ["file two.xpt saved"]
+        },
+        { "command": "import sasxport5 two.xpt, clear", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------+",
+            "     | id    s |",
+            "     |---------|",
+            "  1. |  1   ab |",
+            "  2. |  2   ab |",
+            "     +---------+"
+          ]
+        },
+        {
+          "command": "capture noisily export sasxport5 two.xpt, vallabfile(xpt) replace",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "drop in 1/2", "lines": ["(2 observations deleted)"] },
+        {
+          "command": "capture noisily export excel id using none.xlsx, replace",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily export excel id using none.xlsx, firstrow(variables) replace",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily export sasxport5 none.xpt, replace",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] }
+      ]
+    },
+    {
+      "id": "excel-cellrange-data-area",
+      "source": "clear\nset obs 3\ngenerate id = _n\ngenerate score = 70 + _n\nexport excel using area.xlsx, cell(C3) firstrow(variables) replace\nimport excel using area.xlsx, describe\ncapture noisily import excel using area.xlsx, cellrange(A1) firstrow clear\ndisplay _rc \" \" _N \" \" c(k)\ncapture noisily import excel using area.xlsx, cellrange(C1) firstrow clear\ncapture noisily import excel using area.xlsx, cellrange(B3:D6) clear\ncapture noisily import excel using area.xlsx, cellrange(:D5) firstrow clear\nlist\ncapture noisily import excel using area.xlsx, cellrange(C3) firstrow clear\nlist\ncapture noisily import excel using area.xlsx, cellrange(5) clear\ncapture noisily import excel using area.xlsx, cellrange(AAAA1) clear\ncapture noisily import excel using area.xlsx, cellrange(A0) clear\ncapture noisily import excel using area.xlsx, cellrange(1A) clear\ncapture noisily import excel using area.xlsx, cellrange(C3:D) clear\ncapture noisily import excel using area.xlsx, cellrange(:) clear\ncapture noisily import excel using area.xlsx, cellrange(C3:XFE9) clear\ncapture noisily import excel using area.xlsx, cellrange(C3:D1048577) clear\ndisplay _rc \" \" _N \" \" c(k)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate score = 70 + _n", "lines": [] },
+        {
+          "command": "export excel using area.xlsx, cell(C3) firstrow(variables) replace",
+          "lines": ["file area.xlsx saved"]
+        },
+        {
+          "command": "import excel using area.xlsx, describe",
+          "lines": [
+            "     Sheet | Range",
+            "  ---------+---------",
+            "    Sheet1 | C3:D6"
+          ]
+        },
+        {
+          "command": "capture noisily import excel using area.xlsx, cellrange(A1) firstrow clear",
+          "lines": [
+            "invalid column range in option cellrange();",
+            "    The upper left column is left of the data area in the worksheet."
+          ]
+        },
+        { "command": "display _rc \" \" _N \" \" c(k)", "lines": ["198 0 0"] },
+        {
+          "command": "capture noisily import excel using area.xlsx, cellrange(C1) firstrow clear",
+          "lines": [
+            "invalid row range in option cellrange();",
+            "    The upper left row is before the data area in the worksheet."
+          ]
+        },
+        {
+          "command": "capture noisily import excel using area.xlsx, cellrange(B3:D6) clear",
+          "lines": [
+            "invalid column range in option cellrange();",
+            "    The upper left column is left of the data area in the worksheet."
+          ]
+        },
+        {
+          "command": "capture noisily import excel using area.xlsx, cellrange(:D5) firstrow clear",
+          "lines": ["(2 vars, 2 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------+",
+            "     | id   score |",
+            "     |------------|",
+            "  1. |  1      71 |",
+            "  2. |  2      72 |",
+            "     +------------+"
+          ]
+        },
+        {
+          "command": "capture noisily import excel using area.xlsx, cellrange(C3) firstrow clear",
+          "lines": ["(2 vars, 3 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------+",
+            "     | id   score |",
+            "     |------------|",
+            "  1. |  1      71 |",
+            "  2. |  2      72 |",
+            "  3. |  3      73 |",
+            "     +------------+"
+          ]
+        },
+        {
+          "command": "capture noisily import excel using area.xlsx, cellrange(5) clear",
+          "lines": ["invalid cell range 5 in option cellrange()"]
+        },
+        {
+          "command": "capture noisily import excel using area.xlsx, cellrange(AAAA1) clear",
+          "lines": ["column name AAAA out of range in option cellrange()"]
+        },
+        {
+          "command": "capture noisily import excel using area.xlsx, cellrange(A0) clear",
+          "lines": ["row number 0 out of range in option cellrange()"]
+        },
+        {
+          "command": "capture noisily import excel using area.xlsx, cellrange(1A) clear",
+          "lines": ["invalid column name 1A in option cellrange()"]
+        },
+        {
+          "command": "capture noisily import excel using area.xlsx, cellrange(C3:D) clear",
+          "lines": ["invalid cell range D in option cellrange()"]
+        },
+        {
+          "command": "capture noisily import excel using area.xlsx, cellrange(:) clear",
+          "lines": ["invalid cell range in option cellrange()"]
+        },
+        {
+          "command": "capture noisily import excel using area.xlsx, cellrange(C3:XFE9) clear",
+          "lines": ["column name XFE out of range in option cellrange()"]
+        },
+        {
+          "command": "capture noisily import excel using area.xlsx, cellrange(C3:D1048577) clear",
+          "lines": ["row number 1048577 out of range in option cellrange()"]
+        },
+        { "command": "display _rc \" \" _N \" \" c(k)", "lines": ["198 3 2"] }
+      ]
+    },
+    {
+      "id": "excel-sheet-names-and-wide-sheets",
+      "source": "clear\nset obs 2\ngenerate v = _n\nexport excel using names.xlsx, sheet(\"Ñandú sheet\") replace\nexport excel using names.xlsx, sheet(\"x\")\nimport excel using names.xlsx, describe\nimport excel using names.xlsx, sheet(\"Ñandú sheet\") clear\nlist\nputexcel set names.xlsx, modify sheet(\"x\")\nputexcel XFD1 = 9\ncapture noisily import excel using names.xlsx, sheet(\"x\") clear\ndisplay _rc \" \" _N \" \" c(k)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate v = _n", "lines": [] },
+        {
+          "command": "export excel using names.xlsx, sheet(\"Ñandú sheet\") replace",
+          "lines": ["file names.xlsx saved"]
+        },
+        {
+          "command": "export excel using names.xlsx, sheet(\"x\")",
+          "lines": ["file names.xlsx saved"]
+        },
+        {
+          "command": "import excel using names.xlsx, describe",
+          "lines": [
+            "          Sheet | Range",
+            "  --------------+--------------",
+            "  Ñandú sheet | A1:A2",
+            "              x | A1:A2"
+          ]
+        },
+        {
+          "command": "import excel using names.xlsx, sheet(\"Ñandú sheet\") clear",
+          "lines": ["(1 var, 2 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---+",
+            "     | A |",
+            "     |---|",
+            "  1. | 1 |",
+            "  2. | 2 |",
+            "     +---+"
+          ]
+        },
+        {
+          "command": "putexcel set names.xlsx, modify sheet(\"x\")",
+          "lines": []
+        },
+        { "command": "putexcel XFD1 = 9", "lines": ["file names.xlsx saved"] },
+        {
+          "command": "capture noisily import excel using names.xlsx, sheet(\"x\") clear",
+          "lines": [
+            "no room to add more variables",
+            "    Up to 5,000 variables are currently allowed, although you could reset the maximum using set maxvar; see help memory.",
+            "no room to add more variables",
+            "    Up to 5,000 variables are currently allowed, although you could reset the maximum using set maxvar; see help memory."
+          ]
+        },
+        {
+          "command": "display _rc \" \" _N \" \" c(k)",
+          "lines": ["900 2 5000"]
+        }
+      ]
+    },
+    {
+      "id": "putexcel-modify-keeps-workbook",
+      "source": "clear\nset obs 3\ngenerate id = _n\ngenerate str5 name = \"n\" + string(_n)\ngenerate double when = mdy(1, _n, 2024)\nformat when %td\nexport excel using keep.xlsx, firstrow(variables) replace\nputexcel set keep.xlsx, modify sheet(\"Sheet1\")\nputexcel E2 = \"added\"\nputexcel B3 = 42\nputexcel C4 = 7\nexport excel id using keep.xlsx, sheet(\"more\")\nexport excel name using keep.xlsx, sheet(\"Sheet1\", modify) cell(F1)\nimport excel using keep.xlsx, describe\nimport excel using keep.xlsx, sheet(\"Sheet1\") firstrow clear\nlist\nimport excel using keep.xlsx, sheet(\"more\") clear\nlist\ncapture noisily export sasxport5 k.xpt, replace\nexport sasxport5 k.xpt, rename replace\ncapture noisily import sasxport5 k.xpt\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate str5 name = \"n\" + string(_n)", "lines": [] },
+        { "command": "generate double when = mdy(1, _n, 2024)", "lines": [] },
+        { "command": "format when %td", "lines": [] },
+        {
+          "command": "export excel using keep.xlsx, firstrow(variables) replace",
+          "lines": ["file keep.xlsx saved"]
+        },
+        {
+          "command": "putexcel set keep.xlsx, modify sheet(\"Sheet1\")",
+          "lines": []
+        },
+        {
+          "command": "putexcel E2 = \"added\"",
+          "lines": ["file keep.xlsx saved"]
+        },
+        { "command": "putexcel B3 = 42", "lines": ["file keep.xlsx saved"] },
+        { "command": "putexcel C4 = 7", "lines": ["file keep.xlsx saved"] },
+        {
+          "command": "export excel id using keep.xlsx, sheet(\"more\")",
+          "lines": ["file keep.xlsx saved"]
+        },
+        {
+          "command": "export excel name using keep.xlsx, sheet(\"Sheet1\", modify) cell(F1)",
+          "lines": ["file keep.xlsx saved"]
+        },
+        {
+          "command": "import excel using keep.xlsx, describe",
+          "lines": [
+            "     Sheet | Range",
+            "  ---------+---------",
+            "    Sheet1 | A1:F4",
+            "      more | A1:A3"
+          ]
+        },
+        {
+          "command": "import excel using keep.xlsx, sheet(\"Sheet1\") firstrow clear",
+          "lines": ["(6 vars, 3 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------------------------------+",
+            "     | id   name       when   D       E   n1 |",
+            "     |---------------------------------------|",
+            "  1. |  1     n1   1/1/2024   .   added   n2 |",
+            "  2. |  2     42   1/2/2024   .           n3 |",
+            "  3. |  3     n3   1/7/1900   .              |",
+            "     +---------------------------------------+"
+          ]
+        },
+        {
+          "command": "import excel using keep.xlsx, sheet(\"more\") clear",
+          "lines": ["(1 var, 3 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---+",
+            "     | A |",
+            "     |---|",
+            "  1. | 1 |",
+            "  2. | 2 |",
+            "  3. | 3 |",
+            "     +---+"
+          ]
+        },
+        {
+          "command": "capture noisily export sasxport5 k.xpt, replace",
+          "lines": [
+            "the following variable(s) have names that must be changed to fit into .xpt format:  (suggested renamings shown):",
+            "",
+            "                               A -> A",
+            "",
+            "specify option rename to save .xpt file with suggested names"
+          ]
+        },
+        {
+          "command": "export sasxport5 k.xpt, rename replace",
+          "lines": [
+            "the following variable(s) were renamed in the output file:",
+            "",
+            "                               A -> A",
+            "",
+            "file k.xpt saved"
+          ]
+        },
+        {
+          "command": "capture noisily import sasxport5 k.xpt",
+          "lines": ["no; dataset in memory has changed since last saved"]
+        },
+        { "command": "display _rc", "lines": ["4"] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
