@@ -2,11 +2,11 @@
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { chi2tail, ttail } from "./distributions.js";
-import { coefficientSpace, termRows } from "./estimation.js";
+import { coefficientSpace, stripeName, termRows } from "./estimation.js";
 import { normal } from "./functions.js";
 import { count } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
-import { MISSING, isMissing } from "./values.js";
+import { MISSING, isMissing, missingValue } from "./values.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 
@@ -159,14 +159,28 @@ export function estimatesTable(session, text, ctx) {
     ),
     options = parsed.options,
     all = session.storedEstimates ?? new Map(),
-    names = head.trim()
-      ? head
-          .trim()
-          .split(/\s+/)
-          .flatMap((name) =>
-            name === "_all" || name === "*" ? [...all.keys()] : [name],
+    // The active results named again under a stored name (m1 .) are
+    // shown once, as Stata shows them.
+    names = (
+      head.trim()
+        ? head
+            .trim()
+            .split(/\s+/)
+            .flatMap((name) =>
+              name === "_all" || name === "*" ? [...all.keys()] : [name],
+            )
+        : ["."]
+    ).filter(
+      (name, k, listed) =>
+        listed.indexOf(name) === k &&
+        !(
+          name === "." &&
+          listed.some(
+            (other) =>
+              other !== "." && all.get(other)?.model === session.estimates,
           )
-      : ["."],
+        ),
+    ),
     entries = names.map((name) => entry(session, name)),
     format = options.b || "%10.0g",
     seFormat = options.se2 || format,
@@ -230,6 +244,9 @@ export function estimatesTable(session, text, ctx) {
         status,
         b: space.b[i],
         se: Math.sqrt(space.V[i][i]),
+        variance: space.V[i][i],
+        // As e(b) names it, for r(coef) of a single model.
+        stripe: stripeName({ name: e.name, omitted: e.omitted }),
         model,
       };
     });
@@ -340,6 +357,8 @@ export function estimatesTable(session, text, ctx) {
     });
     if (options.stats) {
       ctx.out(split);
+      // With equations headed, the statistics are headed too.
+      if (headed) ctx.out(`${"Statistics".padEnd(13)}|`);
       for (const name of options.stats.trim().split(/\s+/))
         ctx.out(
           `${name.padStart(12)} |${columns
@@ -365,6 +384,53 @@ export function estimatesTable(session, text, ctx) {
       );
     ctx.out("");
   }
+  // r(names), r(stats) and r(coef), as estimates table leaves them: each
+  // model's coefficient and variance, .b for a base level, .o for an
+  // omitted coefficient, .e for an empty cell and .z where the model has
+  // no such coefficient. A single model's rows are named as its e(b)
+  // names them (0b.female, o.age2); several models' rows are not marked.
+  const coded = (c, value) =>
+      !c
+        ? missingValue("z")
+        : c.status === "value"
+          ? value
+          : missingValue(
+              { base: "b", omitted: "o", empty: "e" }[c.status] ?? "",
+            ),
+    every = list.flatMap(({ equation, rows }) =>
+      [...rows.values()].map((row) => ({ equation, row })),
+    ),
+    rowName = ({ equation, row }) => {
+      const name =
+        entries.length === 1 && row.cells[0] ? row.cells[0].stripe : row.key;
+      return equation === "_" ? name : `${equation}:${name}`;
+    },
+    statNames = options.stats ? options.stats.trim().split(/\s+/) : [];
+  session.results.r = {
+    names: names.join(" "),
+    ...(statNames.length && {
+      "matrix:stats": {
+        rowNames: statNames,
+        colNames: names.map(shown),
+        values: statNames.map((stat) =>
+          entries.map(({ model, e }) => statistic(model, e, stat)),
+        ),
+      },
+    }),
+    "matrix:coef": {
+      rowNames: every.map(rowName),
+      colNames: names.flatMap((name) => [
+        `${shown(name)}:b`,
+        `${shown(name)}:var`,
+      ]),
+      values: every.map(({ row }) =>
+        entries.flatMap((_, m) => [
+          coded(row.cells[m], row.cells[m]?.b),
+          coded(row.cells[m], row.cells[m]?.variance),
+        ]),
+      ),
+    },
+  };
 }
 // star(.1 .05 .01) and se(%9.3f) share their names with the bare options.
 const normalise = (text) =>

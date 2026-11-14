@@ -19,12 +19,18 @@ const text = (result) =>
     .join("\n")
     .trim();
 // The column names matrix list prints, and one element at full precision.
-const names = (s, matrix) =>
-  text(s.run(`matrix list ${matrix}`))
-    .split("\n")
-    .find((line) => line.includes("._at#"))
-    .trim()
-    .split(/\s+/);
+// As Stata does, it heads each name through its last # on one line and
+// the rest on the next.
+const names = (s, matrix) => {
+  const listed = text(s.run(`matrix list ${matrix}`)).split("\n");
+  return listed.flatMap((line, at) => {
+    if (!line.includes("._at#")) return [];
+    const [first, second] = [line, listed[at + 1]].map((one) =>
+      one.trim().split(/\s+/),
+    );
+    return first.map((part, k) => `${part}${second[k]}`);
+  });
+};
 const element = (s, expression) =>
   Number(text(s.run(`display %21.0g ${expression}`)));
 const close = (ours, theirs, what) =>

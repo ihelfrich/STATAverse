@@ -7,7 +7,7 @@ import { Dataset } from "./store.js";
 import { splitCommands, parseBlocks } from "./dofile.js";
 import { expandMacros, isMacroName, macroWords } from "./macros.js";
 import { compileExpression } from "./expression.js";
-import { applySyntax, loneEquals } from "./syntax.js";
+import { applySyntax, loneEquals, splitAtComma } from "./syntax.js";
 import { parseNumlist } from "./numlist.js";
 import { expandVarlist } from "./varlist.js";
 import { applyFormat, parseFormat, stringOf } from "./format.js";
@@ -26,7 +26,7 @@ import { changed, fold, markChanged } from "./data-commands.js";
 import { abbreviateName } from "./data-utilities.js";
 import { timeSeriesOperator } from "./panel.js";
 import { matrixAccess } from "./matrix.js";
-import { coefficientIndex } from "./estimation.js";
+import { coefficientIndex, tableResults } from "./estimation.js";
 import { echoOf } from "./echo.js";
 
 const MAX_STEPS = 200000;
@@ -239,6 +239,39 @@ const FAILED_R = new Map([
     (code, { body }) =>
       code === 111 && /^\s*res(t(o(re?)?)?)?\s/.test(body) ? {} : undefined,
   ],
+]);
+
+/** The weight type a word in [word=exp] names, "weight" for the bare one. */
+const weightOf = (word) =>
+  [
+    ["weight", 1, "weight"],
+    ["aweight", 2, "aweight"],
+    ["fweight", 2, "fweight"],
+    ["frequency", 2, "fweight"],
+    ["pweight", 2, "pweight"],
+    ["iweight", 2, "iweight"],
+  ].find(
+    ([full, minimum]) => word.length >= minimum && full.startsWith(word),
+  )?.[2];
+
+// Commands that change or read the last estimates without fitting or
+// showing them, which leave r() as they set it.
+const NO_TABLE = new Set([
+  "estimates",
+  "margins",
+  "marginsplot",
+  "predict",
+  "test",
+  "testparm",
+  "lincom",
+  "nlcom",
+  "testnl",
+  "estat",
+  "contrast",
+  "pwcompare",
+  "lrtest",
+  "hausman",
+  "ereturn",
 ]);
 
 // Graph commands clear r() when they draw, as Stata's do; kdensity and
@@ -749,6 +782,7 @@ export class Session {
           190,
         );
       let value;
+      const before = this.estimates;
       try {
         value = command.run(this, body, ctx);
       } catch (error) {
@@ -767,6 +801,30 @@ export class Session {
         if (!READ_ONLY.has(command.name)) markChanged(this);
       }
       if (drawsGraph(command.name, body)) this.results.r = {};
+      const model = this.estimates;
+      // A fit's weight expression, which estat summarize weights with, kept
+      // where the command did not keep it.
+      if (model && model !== before && !model.wexp) {
+        const weight =
+          /(?:^|\s)\[\s*([A-Za-z]+)\s*=\s*([^\]]+)\]/.exec(
+            splitAtComma(body)[0],
+          ) ?? [];
+        const type = weight[1] && weightOf(weight[1].toLowerCase());
+        if (type && (type !== "weight" || model.wtype)) {
+          model.wexp = `= ${weight[2].trim()}`;
+          if (type !== "weight") model.wtype ??= type;
+        }
+      }
+      // An estimation command, or one that shows the last estimates again,
+      // leaves r(table) as its r().
+      if (
+        model &&
+        !NO_TABLE.has(command.name) &&
+        (model !== before ||
+          (!splitAtComma(body)[0].trim() &&
+            [model.command, model.kind].includes(command.name)))
+      )
+        this.results.r = tableResults(this, model, body, command.name);
       return value;
     }
     if (this.programs.has(word)) return this.call(word, body, ctx);

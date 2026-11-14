@@ -350,7 +350,7 @@ const robustVariance = (f, asked, V, scores) =>
  * when that is fewer than the coefficients. The rank is found by sweeping
  * the largest remaining diagonal until what remains is nil.
  */
-function robustRank(V, clusters) {
+export function robustRank(V, clusters) {
   const n = V.length,
     a = V.map((row) => row.slice()),
     kept = [],
@@ -984,6 +984,8 @@ function ordered(kind) {
         vce: robust ? (asked.cluster ? "cluster" : "robust") : "oim",
         kind,
         sample: f.sample,
+        // Each observation's sampling weight, which margins averages with.
+        ...(f.w ? { weights: f.w, wtype: "pweight" } : {}),
         cuts: full.theta.slice(k),
         // The cut points as test and lincom reach them, [/]cut1 and so on:
         // their values, their covariances with each coefficient in names
@@ -1002,16 +1004,17 @@ function ordered(kind) {
             .map((_, c) => full.theta.slice(k).map((_, d) => V[k + c][k + d])),
         },
         // What margins needs: every parameter and the covariates' values.
-        outcomeModel: f.active.every((c) => c.term.variable)
-          ? {
-              theta: full.theta,
-              V,
-              k,
-              cuts,
-              outcomes: levels,
-              variables: f.active.map((c) => c.term.variable),
-            }
-          : null,
+        // The fitted columns, which margins and predict evaluate at any
+        // values of the covariates, and every column, base levels too.
+        outcomeModel: {
+          theta: full.theta,
+          V,
+          k,
+          cuts,
+          outcomes: levels,
+          columns: f.active,
+          allColumns: f.columns,
+        },
       };
     session.estimates = model;
     session.results.e = {
@@ -1258,17 +1261,16 @@ function mlogit(session, text, ctx) {
         ...(constant ? ["_cons"] : []),
       ],
       sample: f.sample,
-      outcomeModel: f.active.every((c) => c.term.variable)
-        ? {
-            theta: full.theta,
-            V: full.V,
-            k,
-            constant,
-            others,
-            outcomes,
-            variables: f.active.map((c) => c.term.variable),
-          }
-        : null,
+      outcomeModel: {
+        theta: full.theta,
+        V: full.V,
+        k,
+        constant,
+        others,
+        outcomes,
+        columns: f.active,
+        allColumns: f.columns,
+      },
     };
   session.estimates = model;
   session.results.e = {
@@ -1460,7 +1462,14 @@ export function leastSquares(x, y, w) {
     ? inverse.map((row) => row.reduce((t, v, c) => t + v * xy[c], 0))
     : null;
 }
-function poissonFit(x, y, lnFact, constant, w = null) {
+/**
+ * poisson.ado's starting values (Ipois): the least-squares coefficients
+ * over the mean of y; the same with the constant that matches the mean of
+ * exp(xb) to that of y (SolveC); and one reweighted least-squares step from
+ * there. The one with the largest log likelihood is taken. lnFact holds
+ * each outcome's ln y!, w (or null) each observation's weight.
+ */
+export function poissonStart(x, y, lnFact, constant, w = null) {
   const k = x[0].length,
     weight = (i) => (w ? w[i] : 1),
     n = y.reduce((t, _, i) => t + weight(i), 0),
@@ -1510,9 +1519,15 @@ function poissonFit(x, y, lnFact, constant, w = null) {
     else if (!(Number.isNaN(lnf1) && Number.isNaN(lnf1c)))
       candidates.push(b1.map((v, j) => (j === k - 1 ? v + offset : v)));
   }
-  const start =
+  return (
     candidates[0] ??
-    x[0].map((_, j) => (constant && j === k - 1 ? Math.log(mean || 1) : 0));
+    x[0].map((_, j) => (constant && j === k - 1 ? Math.log(mean || 1) : 0))
+  );
+}
+function poissonFit(x, y, lnFact, constant, w = null) {
+  const k = x[0].length,
+    weight = (i) => (w ? w[i] : 1),
+    start = poissonStart(x, y, lnFact, constant, w);
   // The log likelihood is b'X'y - sum exp(xb) - sum ln y!, with X'y and
   // the last sum formed once, so that a step too small to matter changes
   // it only through the exponentials.

@@ -10,12 +10,14 @@ import {
   design,
   invertSymmetric,
   quadratic,
+  statisticCell,
   tableWidth,
   termRows,
 } from "./estimation.js";
 import { count, perGroup, percentile } from "./reports.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
 import { readVce } from "./vce.js";
+import { evaluateAll } from "./expression.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const sum = (values) => values.reduce((a, b) => a + b, 0);
@@ -263,16 +265,18 @@ export function timeSeriesOperator(session, operator, order, name) {
   return (i) => difference(i, k, 0);
 }
 
-function correlation(a, b) {
-  const ma = mean(a),
-    mb = mean(b);
+function correlation(a, b, w = null) {
+  const at = (i) => (w ? w[i] : 1),
+    total = w ? sum(w) : a.length,
+    ma = w ? a.reduce((t, v, i) => t + w[i] * v, 0) / total : mean(a),
+    mb = w ? b.reduce((t, v, i) => t + w[i] * v, 0) / total : mean(b);
   let sab = 0,
     saa = 0,
     sbb = 0;
   a.forEach((v, i) => {
-    sab += (v - ma) * (b[i] - mb);
-    saa += (v - ma) ** 2;
-    sbb += (b[i] - mb) ** 2;
+    sab += at(i) * (v - ma) * (b[i] - mb);
+    saa += at(i) * (v - ma) ** 2;
+    sbb += at(i) * (b[i] - mb) ** 2;
   });
   // Variation that is only rounding, as in fitted values that are the same
   // in every panel up to the last digit, counts as none.
@@ -348,10 +352,13 @@ function pivoted(columns, scale) {
   }
   return columns.map((_, k) => k).filter((k) => chosen.has(k));
 }
-// Ordinary least squares on columns given as arrays; no constant is added.
-function ols(columns, y) {
+// Least squares on columns given as arrays, weighted by w when it is
+// given; no constant is added. rss is the weighted sum of squares.
+function ols(columns, y, w = null) {
   const k = columns.length,
-    cross = (a, b) => a.reduce((t, v, i) => t + v * b[i], 0),
+    cross = w
+      ? (a, b) => a.reduce((t, v, i) => t + w[i] * v * b[i], 0)
+      : (a, b) => a.reduce((t, v, i) => t + v * b[i], 0),
     inverse = invertSymmetric(
       columns.map((a) => columns.map((b) => cross(a, b))),
     );
@@ -369,13 +376,24 @@ function xtreg(session, text, ctx) {
   // _xt.ado's message.
   if (!panel?.id) throw new StataError("must specify panelvar; use xtset", 459);
   const parsed = session.parse(
-      "anything [if] [in] [, FE RE BE Robust VCE(string) Level(cilevel) THeta | MLE PA SA]",
+      "anything [if] [in] [aweight fweight pweight iweight] [, FE RE BE Robust VCE(string) Level(cilevel) THeta | MLE PA SA]",
       text,
     ),
     options = parsed.options,
     data = session.data,
     id = data.get(panel.id).data,
-    // The same model design as regress, so factor variables and
+    wtype = parsed.weight?.type ?? null;
+  // xtreg takes analytic, frequency and sampling weights with fe only.
+  if (wtype && (options.be || !options.fe))
+    throw new StataError("weights not allowed", 101);
+  if (wtype === "iweight") throw new StataError("iweights not allowed", 101);
+  let weightOf = null;
+  if (wtype) {
+    const compiled = session.compile(parsed.weight.exp);
+    if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
+    weightOf = evaluateAll(compiled, data.n);
+  }
+  const // The same model design as regress, so factor variables and
     // interactions are available.
     {
       dependent,
@@ -384,7 +402,13 @@ function xtreg(session, text, ctx) {
     } = design(
       session,
       parsed.anything,
-      session.rows(parsed, null).filter((i) => !isMissing(id[i])),
+      session
+        .rows(parsed, null)
+        .filter(
+          (i) =>
+            !isMissing(id[i]) &&
+            (!weightOf || (!isMissing(weightOf[i]) && weightOf[i] !== 0)),
+        ),
       true,
     ),
     dep = dependent.name,
@@ -398,6 +422,29 @@ function xtreg(session, text, ctx) {
     members = new Map(groups.map((key) => [key, []]));
   if (!N) throw new StataError("no observations", 2000);
   groupOf.forEach((key, i) => members.get(key).push(i));
+  // Each observation's weight, in the order of rows: analytic weights
+  // scaled to sum to the number of observations. A frequency weight counts
+  // its observation that many times in the number of observations.
+  let wt = null,
+    nObs = N;
+  if (weightOf) {
+    wt = rows.map((i) => weightOf[i]);
+    if (wt.some((v) => v < 0))
+      throw new StataError("negative weights encountered", 402);
+    if (wtype === "fweight" && wt.some((v) => !Number.isInteger(v)))
+      throw new StataError("may not use noninteger frequency weights", 401);
+    for (const key of groups) {
+      const list = members.get(key);
+      if (list.some((i) => wt[i] !== wt[list[0]]))
+        throw new StataError(`weight must be constant within ${panel.id}`, 199);
+    }
+    const total = sum(wt);
+    // Analytic and sampling weights are scaled to sum to the number of
+    // observations.
+    if (wtype === "aweight" || wtype === "pweight")
+      wt = wt.map((v) => (v * N) / total);
+    if (wtype === "fweight") nObs = total;
+  }
   const sizes = groups.map((key) => members.get(key).length),
     groupMean = (values) => {
       const means = new Map(
@@ -459,12 +506,19 @@ function xtreg(session, text, ctx) {
     within = ols(
       feKept.map((k) => withinAll[k]),
       y.map((v, i) => v - yBar[i]),
+      wt,
     ),
-    dfFe = N - G - feKept.length,
+    dfFe = nObs - G - feKept.length,
+    // The weighted mean over the sample.
+    wmean = (values) =>
+      wt
+        ? values.reduce((t, v, i) => t + wt[i] * v, 0) / sum(wt)
+        : mean(values),
     // Not estimable with no residual degrees of freedom.
     sigmaE2 = dfFe > 0 ? within.rss / dfFe : NaN,
     asked = readVce(session, options, /^conventional$/),
-    clustered = asked.robust,
+    // Sampling weights imply standard errors clustered on the panel.
+    clustered = asked.robust || wtype === "pweight",
     level = options.level;
   if (asked.cluster && asked.cluster.name !== panel.id)
     throw new StataError(
@@ -482,7 +536,9 @@ function xtreg(session, text, ctx) {
         correlation(
           fit.map((v, i) => v - fitBar[i]),
           y.map((v, i) => v - yBar[i]),
+          wt,
         ) ** 2,
+      // Stata's between and overall R-squared are not weighted.
       between:
         correlation(
           firsts.map((i) => fitBar[i]),
@@ -592,7 +648,7 @@ function xtreg(session, text, ctx) {
     corrLine = `sd(u_i + avg(e_i.)) = ${g(Math.sqrt(s2), "%9.0g")}`;
   } else if (useFe) {
     b = within.b;
-    constant = mean(y) - b.reduce((t, bj, j) => t + bj * mean(x[j]), 0);
+    constant = wmean(y) - b.reduce((t, bj, j) => t + bj * wmean(x[j]), 0);
     let slopeV = within.inverse.map((row) => row.map((v) => v * sigmaE2));
     df = dfFe;
     if (clustered) {
@@ -602,14 +658,15 @@ function xtreg(session, text, ctx) {
         const score = new Array(size).fill(0);
         for (const i of members.get(key))
           for (let a = 0; a < size; a++)
-            score[a] += (x[a][i] - xBar[a][i]) * within.residuals[i];
+            score[a] +=
+              (wt ? wt[i] : 1) * (x[a][i] - xBar[a][i]) * within.residuals[i];
         for (let a = 0; a < size; a++)
           for (let c = 0; c < size; c++) meat[a][c] += score[a] * score[c];
       }
       const bm = within.inverse.map((row) =>
           meat[0].map((_, c) => row.reduce((t, v, k) => t + v * meat[k][c], 0)),
         ),
-        scale = (G / (G - 1)) * ((N - 1) / (N - K - 1));
+        scale = (G / (G - 1)) * ((nObs - 1) / (nObs - K - 1));
       slopeV = bm.map((row) =>
         within.inverse[0].map(
           (_, c) =>
@@ -618,12 +675,12 @@ function xtreg(session, text, ctx) {
       );
       df = G - 1;
     }
-    const xMeans = x.map(mean),
+    const xMeans = x.map(wmean),
       vx = slopeV.map((row) => row.reduce((t, v, j) => t + v * xMeans[j], 0)),
       // The constant is the grand mean of y less the fitted mean.
       consVariance = clustered
         ? null
-        : sigmaE2 / N + xMeans.reduce((t, v, j) => t + v * vx[j], 0);
+        : sigmaE2 / nObs + xMeans.reduce((t, v, j) => t + v * vx[j], 0);
     V = [
       ...slopeV.map((row, j) => [...row, -vx[j]]),
       [...vx.map((v) => -v), consVariance],
@@ -652,7 +709,7 @@ function xtreg(session, text, ctx) {
     if (clustered) {
       // With clustering the constant's variance comes from the same
       // sandwich, built on the regressors and a column of ones.
-      const yMean = mean(y),
+      const yMean = wmean(y),
         design = [
           ...x.map((column, k) =>
             column.map((v, i) => v - xBar[k][i] + xMeans[k]),
@@ -662,6 +719,7 @@ function xtreg(session, text, ctx) {
         full = ols(
           design,
           y.map((v, i) => v - yBar[i] + yMean),
+          wt,
         ),
         size = K + 1,
         meat = Array.from({ length: size }, () => new Array(size).fill(0));
@@ -669,14 +727,14 @@ function xtreg(session, text, ctx) {
         const score = new Array(size).fill(0);
         for (const i of members.get(key))
           for (let a = 0; a < size; a++)
-            score[a] += design[a][i] * full.residuals[i];
+            score[a] += (wt ? wt[i] : 1) * design[a][i] * full.residuals[i];
         for (let a = 0; a < size; a++)
           for (let c = 0; c < size; c++) meat[a][c] += score[a] * score[c];
       }
       const bm = full.inverse.map((row) =>
           meat[0].map((_, c) => row.reduce((t, v, k) => t + v * meat[k][c], 0)),
         ),
-        scale = (G / (G - 1)) * ((N - 1) / (N - K - 1));
+        scale = (G / (G - 1)) * ((nObs - 1) / (nObs - K - 1));
       V = bm.map((row) =>
         full.inverse[0].map(
           (_, c) =>
@@ -690,7 +748,7 @@ function xtreg(session, text, ctx) {
         statistic = MISSING;
       }
     } else {
-      const pooled = ols([...x, y.map(() => 1)], y),
+      const pooled = ols([...x, y.map(() => 1)], y, wt),
         fStat = (pooled.rss - within.rss) / (G - 1) / sigmaE2;
       // e(df_m) after fe counts the absorbed panel indicators.
       extra = {
@@ -702,7 +760,7 @@ function xtreg(session, text, ctx) {
       };
       // With one panel there is nothing to test, and no footer.
       if (Number.isFinite(fStat))
-        footer = `${`F test that all u_i=0: F(${G - 1}, ${dfFe}) = ${applyFormat(fStat, "%9.2f").trim()}`.padEnd(61)}Prob > F = ${applyFormat(Ftail(G - 1, dfFe, fStat), "%6.4f").trim()}`;
+        footer = `${`F test that all u_i=0: F(${G - 1}, ${dfFe}) = ${applyFormat(fStat, "%8.2f").trim()}`.padEnd(61)}Prob > F = ${applyFormat(Ftail(G - 1, dfFe, fStat), "%6.4f").trim()}`;
     }
   } else {
     // xtreg_re.ado needs residual degrees of freedom in the within
@@ -860,7 +918,7 @@ function xtreg(session, text, ctx) {
     columns,
     constant: true,
     estimable: position.map((at) => at >= 0),
-    N,
+    N: nObs,
     df_m: K,
     df_r: df,
     rank: K + 1,
@@ -871,6 +929,9 @@ function xtreg(session, text, ctx) {
     sigma_e: finite(Math.sqrt(sigmaE2)),
     sample: rows,
     vce: clustered ? "cluster" : "conventional",
+    wtype,
+    wexp: wtype ? `= ${parsed.weight.exp}` : undefined,
+    weights: wt,
   };
   // The Gaussian log likelihood that estat ic reads: of the within
   // regression after fe, and of the regression on group means after be.
@@ -879,9 +940,14 @@ function xtreg(session, text, ctx) {
         -0.5 * n * (Math.log(2 * Math.PI) + Math.log(ss / n) + 1),
       model = session.estimates;
     if (useFe) {
-      const total = y.reduce((t, v, i) => t + (v - yBar[i]) ** 2, 0);
-      model.ll = gaussian(within.rss, N);
-      model.ll_0 = gaussian(total, N);
+      const total = y.reduce(
+          (t, v, i) => t + (wt ? wt[i] : 1) * (v - yBar[i]) ** 2,
+          0,
+        ),
+        // Analytic weights add half the sum of their logarithms.
+        shift = wtype === "aweight" ? sum(wt.map((v) => Math.log(v))) / 2 : 0;
+      model.ll = gaussian(within.rss, nObs) + shift;
+      model.ll_0 = gaussian(total, nObs) + shift;
     } else {
       const firsts = groups.map((key) => members.get(key)[0]),
         ym = firsts.map((i) => yBar[i]),
@@ -900,7 +966,7 @@ function xtreg(session, text, ctx) {
     }
   }
   session.results.e = {
-    N,
+    N: nObs,
     N_g: G,
     df_m: K,
     ...(dist === "t" ? { df_r: df, F: statistic } : { chi2: statistic }),
@@ -920,6 +986,7 @@ function xtreg(session, text, ctx) {
     depvar: dep,
     model: useBe ? "be" : useFe ? "fe" : "re",
     vce: clustered ? "cluster" : "conventional",
+    ...(wtype ? { wtype, wexp: `= ${parsed.weight.exp}` } : {}),
     ...(clustered ? { vcetype: "Robust", N_clust: G, clustvar: panel.id } : {}),
   };
   // What each estimator's regression adds to e(): the between regression
@@ -936,14 +1003,22 @@ function xtreg(session, text, ctx) {
   } else if (useFe) {
     stored.r2 = r2.within;
     stored.rss = within.rss;
-    stored.r2_a = finite(1 - ((1 - r2.within) * (N - 1)) / dfFe);
+    // A clustered variance adjusts by the regressors only.
+    stored.r2_a = finite(
+      1 - ((1 - r2.within) * (nObs - 1)) / (clustered ? nObs - K - 1 : dfFe),
+    );
+    const grand = wmean(y);
+    stored.tss = y.reduce(
+      (t, v, i) => t + (wt ? wt[i] : 1) * (v - grand) ** 2,
+      0,
+    );
     stored.ll = session.estimates.ll;
     stored.ll_0 = session.estimates.ll_0;
   } else stored.sigma = finite(Math.sqrt(sigmaU ** 2 + sigmaE2));
   const r4 = (value) => applyFormat(value, "%6.4f").trim();
   notes.forEach(ctx.out);
   ctx.out("");
-  ctx.out(`${header.padEnd(48)}${side("Number of obs", count(N))}`);
+  ctx.out(`${header.padEnd(48)}${side("Number of obs", count(nObs))}`);
   ctx.out(
     `${`Group variable: ${panel.id}`.padEnd(48)}${side("Number of groups", count(G))}`,
   );
@@ -1008,7 +1083,7 @@ function xtreg(session, text, ctx) {
           known && Number.isFinite(critical)
             ? model.b[k] + sign * critical * se
             : MISSING;
-      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(known ? finite(tail(t)) : MISSING, "%8.3f")}${g(bound(-1)).padStart(13)}${g(bound(1)).padStart(12)}`;
+      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${statisticCell(t)}${applyFormat(known ? finite(tail(t)) : MISSING, "%8.3f")}${g(bound(-1)).padStart(13)}${g(bound(1)).padStart(12)}`;
     },
     w,
   ).forEach(ctx.out);

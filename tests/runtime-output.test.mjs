@@ -142,6 +142,8 @@ for (const c of fixture.cases)
             "redteam5-estat-vce-equations",
             "redteam5b-estat-vce-interactions-logit",
             "redteam5b-estat-classification-gof",
+            // margins after ologit takes its gradients by differencing.
+            "models6-ordered-margins-factors",
           ].includes(c.id),
         )
       )
