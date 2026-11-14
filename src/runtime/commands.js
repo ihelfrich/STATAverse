@@ -17,6 +17,7 @@ import { PANEL_COMMANDS } from "./panel.js";
 import { UTILITY_COMMANDS } from "./utilities.js";
 import { EVERYDAY_COMMANDS, labelSubcommand } from "./everyday.js";
 import { MORE_ESTIMATORS } from "./more-estimators.js";
+import { CAUSAL_COMMANDS, causalPostestimation } from "./causal.js";
 import { TEST_COMMANDS } from "./tests.js";
 import { DATA_UTILITIES } from "./data-utilities.js";
 import { MORE_GRAPH_COMMANDS } from "./graphics-more.js";
@@ -2342,6 +2343,7 @@ export const COMMANDS = [
   ...UTILITY_COMMANDS,
   ...EVERYDAY_COMMANDS,
   ...MORE_ESTIMATORS,
+  ...CAUSAL_COMMANDS,
   ...TEST_COMMANDS,
   ...DATA_UTILITIES,
   ...MORE_GRAPH_COMMANDS,
@@ -2578,6 +2580,20 @@ COMMANDS.forEach((c, k) => {
     ...COMMANDS[k],
     run: (session, text, ctx) =>
       replayAfterSvy(session, c.name, text, ctx)
+        ? undefined
+        : run(session, text, ctx),
+  };
+});
+// predict and estat after teffects, heckman, didregress and xtdidregress
+// are answered by those commands' own module, which refuses what it does
+// not compute rather than let the linear model's predict run.
+COMMANDS.forEach((c, k) => {
+  if (c.name !== "predict" && c.name !== "estat") return;
+  const run = COMMANDS[k].run;
+  COMMANDS[k] = {
+    ...COMMANDS[k],
+    run: (session, text, ctx) =>
+      causalPostestimation(c.name, session, text, ctx)
         ? undefined
         : run(session, text, ctx),
   };

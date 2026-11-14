@@ -144,6 +144,17 @@ for (const c of fixture.cases)
             "redteam5b-estat-classification-gof",
             // margins after ologit takes its gradients by differencing.
             "models6-ordered-margins-factors",
+            // teffects logs gmm's criterion, which is rounding noise near
+            // zero; heckman's two-step variance carries the last digits of
+            // the first-step probit.
+            "causal-teffects-estimators",
+            "causal-teffects-options",
+            "causal-heckman",
+            "causal-heckman-forms",
+            // estat ptrends regresses on group trends in the time variable
+            // itself (values near 2000), whose F statistic, shown whole by
+            // return list, agrees with Stata's to about eight digits.
+            "causal-didregress",
           ].includes(c.id),
         )
       )

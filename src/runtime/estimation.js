@@ -1529,7 +1529,18 @@ export function coefficientSpace(model) {
   if (spaces.has(model)) return spaces.get(model);
   const entries = [],
     dropped = (k) => model.estimable?.[k] === false;
-  if (model.equations) {
+  if (model.stripe) {
+    // A model whose equations hold different coefficients (heckman,
+    // teffects) lists each with its equation.
+    model.stripe.forEach(({ equation, name }, index) =>
+      entries.push({
+        equation,
+        name,
+        index,
+        omitted: dropped(index) && !/\d+b\./.test(name),
+      }),
+    );
+  } else if (model.equations) {
     const variables = model.coefficientNames?.slice() ?? [];
     for (const name of model.names) {
       const plain = name.replace(/^[^:]+:/, "");
