@@ -351,6 +351,7 @@ function wrapNote(text, width, indent) {
 }
 
 // Stata's value labels hold whole numbers from -2147483647 to 2147483620.
+// In formats.xpf, 2147483621 stands for . and import sasxport5 takes it;
 // export sasxport5 writes the label of .a to .z as 2147483622 to
 // 2147483647, which import sasxport5 then refuses.
 const LABEL_LOW = -2147483647,
@@ -380,19 +381,35 @@ function formatsFile(session) {
   const names = column("FMTNAME"),
     starts = column("START"),
     labels = column("LABEL"),
+    types = column("TYPE"),
     out = new Map();
   if (!names || !starts || !labels) return out;
   names.forEach((fmt, i) => {
-    const value = Number(String(starts[i]).trim());
-    if (!Number.isInteger(value)) return;
-    if (value < LABEL_LOW || value > LABEL_HIGH)
+    // A format SAS made for strings (TYPE C) cannot be a value label.
+    if (types && String(types[i]).trim().toUpperCase() !== "N")
       throw new StataError(
-        `may not label ${value}\n${fileName} is not a valid value label file`,
+        wrapNote(
+          `"type" variable not equal to "N" in ${fileName} for format; value labels only allowed for numeric variables`,
+          79,
+          0,
+        ).join("\n"),
         610,
       );
-    const name = fmt.trim().toLowerCase();
+    // A start that is not a whole number Stata can label (1.5, or a SAS
+    // keyword such as LOW) makes the file invalid. 2147483621 is the
+    // label of . itself.
+    const text = String(starts[i]).trim(),
+      value = text === "" ? NaN : Number(text);
+    if (!Number.isInteger(value) || value < LABEL_LOW || value > LABEL_HIGH + 1)
+      throw new StataError(
+        `may not label ${Number.isNaN(value) ? text : value}\n${fileName} is not a valid value label file`,
+        610,
+      );
+    const name = fmt.trim().toLowerCase(),
+      key = value === LABEL_HIGH + 1 ? MISSING : value;
     if (!out.has(name)) out.set(name, new Map());
-    out.get(name).set(value, String(labels[i]));
+    // The first label of a value is the one kept.
+    if (!out.get(name).has(key)) out.get(name).set(key, String(labels[i]));
   });
   return out;
 }
@@ -509,7 +526,9 @@ export function importSasxport(session, text, ctx, version) {
     }
   } else {
     member.variables.forEach((v, k) => {
-      const format = v.format.toUpperCase(),
+      // Stata 19 maps a SAS format only when its name is in capitals, as
+      // SAS writes it: date, Comma and percent get %10.0g.
+      const format = v.format,
         // SAS's special missing values .A to .Z come in as plain missing.
         values = v.numeric
           ? member.columns[k].map((x) => (isMissing(x) ? MISSING : x))
@@ -524,11 +543,22 @@ export function importSasxport(session, text, ctx, version) {
           ...values.map((s) => new TextEncoder().encode(s).length),
         );
         data.generate(v.name, values, { type: `str${width}`, string: true });
-        data.get(v.name).format = !format
-          ? `%${v.length + 4}s`
-          : format === "$"
-            ? data.get(v.name).format
-            : `%${v.length}s`;
+        // A string is stored as wide as its longest value. When that is
+        // less than the length the file gives, it takes the format of its
+        // storage type, left-aligned under a blank format with a width.
+        // When the two agree, Stata 19 gives $w. ($, $CHAR and the rest) a
+        // format of the length, a blank format %{length+4}s, and a blank
+        // format with a width %-10.0g.
+        const variable = data.get(v.name);
+        if (v.length !== width) {
+          if (!format && v.width > 0)
+            variable.format = variable.format.replace(/^%(\d+)s$/, "%-$1s");
+        } else
+          variable.format = format
+            ? `%${width}s`
+            : v.width > 0
+              ? "%-10.0g"
+              : `%${width + 4}s`;
       }
       data.get(v.name).label = v.label;
     });
@@ -692,12 +722,6 @@ export function exportSasxport(session, text, ctx, version) {
     const kind = unquote(options.vallabfile);
     if (!["xpf", "sascode", "both", "none"].includes(kind))
       throw new StataError("invalid syntax", 198);
-    if (kind === "sascode" || kind === "both")
-      throw new StataError(
-        `vallabfile(${kind}) is not available in the browser yet`,
-        198,
-        "Use vallabfile(xpf), the default, or vallabfile(none).",
-      );
   }
   let name = unquote(withUsing ? parsed.using : parsed.anything);
   if (!name) throw new StataError("invalid file specification", 198);
@@ -754,6 +778,62 @@ export function exportSasxport(session, text, ctx, version) {
     for (const line of list) ctx.out(line);
     ctx.out("");
   }
+  const vallab = options.vallabfile ? unquote(options.vallabfile) : "xpf";
+  // A value label must be defined unless no label file is written; Stata
+  // checks this before anything else about the labels.
+  const usesLabel = (v) =>
+    !isStringType(v.type) && !/^%-?(td|d)/.test(v.format) && v.valueLabel;
+  if (vallab !== "none")
+    for (const v of data.variables)
+      if (usesLabel(v) && !data.valueLabels.has(v.valueLabel))
+        throw new StataError(`value label ${v.valueLabel} not found`, 111);
+  if (vallab === "sascode" || vallab === "both")
+    throw new StataError(
+      `vallabfile(${vallab}) is not available in the browser yet`,
+      198,
+      "Use vallabfile(xpf), the default, or vallabfile(none).",
+    );
+  // Value labels name SAS formats, of eight characters at most. A longer
+  // name is cut to eight, and one that would then clash has its last
+  // character replaced by A, B and so on; Stata asks for rename first.
+  const labelNames = new Map(),
+    labelRenames = [];
+  for (const v of data.variables) {
+    if (!usesLabel(v) || labelNames.has(v.valueLabel)) continue;
+    const taken = new Set(labelNames.values());
+    let sas = v.valueLabel.toUpperCase();
+    if (sas.length > 8) {
+      sas = sas.slice(0, 8);
+      for (let k = 0; taken.has(sas) && k < 26; k++)
+        sas = sas.slice(0, 7) + String.fromCharCode(65 + k);
+      labelRenames.push([v.valueLabel, sas]);
+    }
+    labelNames.set(v.valueLabel, sas);
+  }
+  if (labelRenames.length) {
+    const list = labelRenames.map(
+      ([from, to]) => `${from.padStart(32)} -> ${to}`,
+    );
+    if (!options.rename)
+      throw new StataError(
+        [
+          ...wrapNote(
+            "the following value label(s) have names that must be changed to fit into .xpt format:  (suggested renamings shown):",
+            session.settings?.linesize ?? 80,
+            0,
+          ),
+          "",
+          ...list,
+          "",
+          "specify option rename to save .xpt file with suggested names",
+        ].join("\n"),
+        110,
+      );
+    ctx.out("the following value label(s) were renamed in the output file:");
+    ctx.out("");
+    for (const line of list) ctx.out(line);
+    ctx.out("");
+  }
   for (const v of data.variables)
     if (
       v.type === "strL" ||
@@ -764,8 +844,7 @@ export function exportSasxport(session, text, ctx, version) {
         198,
       );
   const rows = session.rows(parsed, null),
-    labelled = [],
-    vallab = options.vallabfile ? unquote(options.vallabfile) : "xpf";
+    labelled = [];
   const variables = data.variables.map((v, k) => {
     const numeric = !isStringType(v.type);
     let format = "",
@@ -778,9 +857,7 @@ export function exportSasxport(session, text, ctx, version) {
         // The label's name is the SAS format; formats.xpf, when written,
         // must define it.
         if (data.valueLabels.has(v.valueLabel)) labelled.push(v.valueLabel);
-        else if (vallab === "xpf")
-          throw new StataError(`value label ${v.valueLabel} not found`, 111);
-        format = v.valueLabel.toUpperCase().slice(0, 8);
+        format = labelNames.get(v.valueLabel);
       } else {
         format = "BEST";
         width = 12;
@@ -817,7 +894,7 @@ export function exportSasxport(session, text, ctx, version) {
         ([a], [b]) => a - b,
       )) {
         const letter = missingName(value);
-        names.push(label.toUpperCase().slice(0, 8));
+        names.push(labelNames.get(label));
         starts.push(
           String(
             letter === null ? value : 2147483621 + letter.charCodeAt(1) - 96,
@@ -825,10 +902,8 @@ export function exportSasxport(session, text, ctx, version) {
         );
         texts.push(text);
       }
-    const labelWidth = Math.max(
-      40,
-      ...texts.map((t) => new TextEncoder().encode(t).length),
-    );
+    // Stata writes LABEL forty characters wide: a longer label is cut.
+    const labelWidth = 40;
     files.set("formats.xpf", {
       bytes: writeXport5(
         {

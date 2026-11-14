@@ -19,6 +19,7 @@ import {
 import { createConsoleSession } from "../src/console-session.js";
 import { applyFormat } from "../src/runtime/format.js";
 import { Session } from "../src/runtime/session.js";
+import { MISSING } from "../src/runtime/values.js";
 
 const fixture = (name) =>
   new Uint8Array(
@@ -547,4 +548,320 @@ test("F11: infix with lines, and what is refused", () => {
   // Value labels in infile's variable list are refused with a way round.
   const refused = s.run("infile x y:lab using two.raw, clear");
   assert.equal(refused.rc, 198);
+});
+
+// ----- A later round on the files group's fixes -----
+// Every expected value below was recorded from Stata 19 MP (version 17, set
+// processors 1) reading the same bytes.
+
+test("infile free format: an empty line is a missing value only after a comma, and a quoted empty value is not a number", () => {
+  const s = withFiles({
+    "tb.raw": "1 Ann 3.5\n\t\n2 Bob 4\n3 Cal 5\n",
+    "crlfblank.raw": "1 Ann 3.5\r\n\r\n2 Bob 4\r\n3 Cal 5\r\n",
+    "tabbed.raw": '1\tAnn\t3.5\n2\t"Bo b"\t4\n\t\t\n3\tCal\t5\n',
+    "c3.raw": "1 Ann 3.5\n2 Bob 4\n\n3,Cal,5\n",
+    "c5.raw": "1 Ann 3.5,\n\n2 Bob 4\n",
+    "q.raw": '1 Ann 3.5\n""\n2 Bob 4\n3 Cal 5\n',
+    "qe.raw": '1 "" 3\n"" B 4\n\'\' C 5\n',
+    "q1.raw": '1 "A,B" 3\n\n2 C 4\n',
+  });
+  for (const [file, n] of [
+    ["tb.raw", 3],
+    ["crlfblank.raw", 3],
+    ["c3.raw", 3],
+    ["q1.raw", 2],
+  ]) {
+    const result = s.run(`infile id str5 name score using ${file}, clear`);
+    assert.deepEqual(lines(result), [`(${n} observations read)`], file);
+  }
+  assert.deepEqual(rows(s), ["1|A,B|3", "2|C|4"]);
+  s.run("infile id str10 name score using tabbed.raw, clear");
+  assert.deepEqual(rows(s), ["1|Ann|3.5", "2|Bo b|4", "3|Cal|5"]);
+  let result = s.run("infile id str5 name score using c5.raw, clear");
+  assert.deepEqual(lines(result), [
+    "'Bob' cannot be read as a number for id[3]",
+    "(eof not at end of obs)",
+    "(3 observations read)",
+  ]);
+  assert.deepEqual(rows(s), ["1|Ann|3.5", ".||2", ".|4|."]);
+  result = s.run("infile id str5 name score using q.raw, clear");
+  assert.deepEqual(lines(result), [
+    "'' cannot be read as a number for id[2]",
+    "'Bob' cannot be read as a number for score[2]",
+    "'Cal' cannot be read as a number for score[3]",
+    "(eof not at end of obs)",
+    "(4 observations read)",
+  ]);
+  result = s.run("infile id str5 name score using qe.raw, clear");
+  assert.deepEqual(lines(result), [
+    "'' cannot be read as a number for id[2]",
+    "'' cannot be read as a number for id[3]",
+    "(3 observations read)",
+  ]);
+  assert.deepEqual(rows(s), ["1||3", ".|B|4", ".|C|5"]);
+  s.run("infile str5 a str5 b str5 c using qe.raw, clear");
+  assert.deepEqual(rows(s), ["1||3", "|B|4", "|C|5"]);
+});
+
+test("infix and infile read a Latin-1 file's bytes as they are, one column each", async () => {
+  const s = createConsoleSession(),
+    give = (name, bytes) => giveFile(s, name, fileKind(name), bytes),
+    latin1 = (text) => new Uint8Array(Buffer.from(text, "latin1"));
+  await give(
+    "latfix.dat",
+    latin1("M\xfcller  42 3.5\nSm\xeethe  37 2.0\nBrown   29 4.0\n"),
+  );
+  await give("latin1.dat", latin1("Jos\xe9 12\nAnn  34\n"));
+  await give("lat.raw", latin1("1 Jos\xe9 3\n2 Ann 4\n"));
+  await give("lat.dat", latin1("M\xfcller 42\nSm\xeeth  37\n"));
+  await give(
+    "lat.dct",
+    latin1(
+      "infile dictionary using lat.dat {\n  str6 name %6s\n  age %3f\n}\n",
+    ),
+  );
+  const shown = async (commands) =>
+    (await s.run(commands, { doFile: true })).output
+      .filter((o) => /^list/.test(o.command ?? ""))
+      .flatMap((o) => o.lines)
+      .flatMap((line) => line.split("\n"))
+      .filter((line) => /^\s+\d+\. \|/.test(line))
+      .map((line) => line.replace(/^\s+\d+\. /, "").trim());
+  // Stata's log holds the raw byte, shown here as U+FFFD.
+  assert.deepEqual(
+    await shown(`infix str name 1-7 age 9-10 gpa 12-14 using latfix.dat, clear
+list
+generate l = strlen(name)
+list l`),
+    [
+      "| M�ller    42   3.5 |",
+      "| Sm�the    37     2 |",
+      "|  Brown    29     4 |",
+      "| 6 |",
+      "| 6 |",
+      "| 5 |",
+    ],
+  );
+  assert.deepEqual(
+    await shown(`infix str name 1-4 age 6-7 using latin1.dat, clear
+list`),
+    ["| Jos�    12 |", "|  Ann    34 |"],
+  );
+  assert.deepEqual(
+    await shown(`infile id str10 name n using lat.raw, clear
+generate l = strlen(name)
+list l`),
+    ["| 4 |", "| 3 |"],
+  );
+  assert.deepEqual(
+    await shown(`infile using lat.dct, clear
+list
+generate l = strlen(name)
+list l`),
+    ["| M�ller    42 |", "|  Sm�th    37 |", "| 6 |", "| 5 |"],
+  );
+});
+
+// formats.xpf made as the testers made it in Stata: a dataset of FMTNAME,
+// START and LABEL written with export sasxport5, then given that name.
+function withFormats(make) {
+  const s = new Session();
+  s.run(`clear
+set obs 3
+generate byte x = _n
+label define mylbl 1 "a" 2 "b" 3 "c"
+label values x mylbl
+export sasxport5 s.xpt, replace rename
+clear
+${make}
+export sasxport5 v.xpt, replace rename`);
+  s.files.set("formats.xpf", s.files.get("v.xpt"));
+  s.run("clear");
+  return s;
+}
+const oneRow = (start, label) => `set obs 1
+generate str8 FMTNAME = "MYLBL"
+generate str16 START = "${start}"
+generate str40 LABEL = "${label}"`;
+
+test("import sasxport5 reads formats.xpf as Stata 19 does: . is 2147483621, the first label stays, and bad rows make it invalid", () => {
+  let s = withFormats(oneRow("2147483621", "just above"));
+  let result = s.run("import sasxport5 s.xpt, clear");
+  assert.equal(result.rc, 0);
+  assert.deepEqual(
+    [...s.data.valueLabels.get("mylbl")],
+    [[MISSING, "just above"]],
+  );
+  assert.deepEqual(lines(s.run("label list")), [
+    "mylbl:",
+    "           . just above",
+  ]);
+  assert.deepEqual(rows(s), ["1", "2", "3"]);
+
+  s = withFormats(`set obs 2
+generate str8 FMTNAME = "MYLBL"
+generate str16 START = "1"
+generate str40 LABEL = cond(_n == 1, "first", "second")`);
+  assert.equal(s.run("import sasxport5 s.xpt, clear").rc, 0);
+  assert.deepEqual([...s.data.valueLabels.get("mylbl")], [[1, "first"]]);
+
+  s = withFormats(oneRow("1.5", "one and a half"));
+  result = s.run("import sasxport5 s.xpt, clear");
+  assert.equal(result.rc, 610);
+  assert.deepEqual(lines(result).slice(0, 2), [
+    "may not label 1.5",
+    "formats.xpf is not a valid value label file",
+  ]);
+  assert.equal(s.data.n + s.data.variables.length, 0);
+
+  // A SAS keyword: Stata 19 prints a number made from the field's bytes
+  // (3.3957e-314), which is not reproduced; the error and its code are.
+  s = withFormats(oneRow("LOW", "low"));
+  result = s.run("import sasxport5 s.xpt, clear");
+  assert.equal(result.rc, 610);
+  assert.equal(lines(result)[1], "formats.xpf is not a valid value label file");
+  assert.equal(s.data.n + s.data.variables.length, 0);
+
+  s = withFormats(`set obs 2
+generate str8 FMTNAME = cond(_n == 1, "MYLBL", "$MYLBL")
+generate str16 START = cond(_n == 1, "1", "M")
+generate str16 END = START
+generate str1 TYPE = cond(_n == 1, "N", "C")
+generate str40 LABEL = cond(_n == 1, "one", "em")`);
+  result = s.run("import sasxport5 s.xpt, clear");
+  assert.equal(result.rc, 610);
+  assert.deepEqual(lines(result).slice(0, 2), [
+    '"type" variable not equal to "N" in formats.xpf for format; value labels only',
+    "allowed for numeric variables",
+  ]);
+  assert.equal(s.data.n + s.data.variables.length, 0);
+});
+
+test("import delimited reports a quote left open before rowrange() on the first row read", () => {
+  const s = withFiles({
+    "n1.csv": 'id,name\n1,"Ann\n\n2,Bob\n3,Cal\n',
+    "n2.csv": 'id,name\n1,"Ann\n\n\n2,Bob\n3,"Cal\n',
+    "multi.csv":
+      '\n\n\nid,name,score\n1,"Ann\n\nSmith",3\n2,Bob,4\n\n3,"Cal",5',
+  });
+  const notes = (command) =>
+    lines(s.run(command))
+      .filter((line) => line.startsWith("Note: Unmatched"))
+      .map((line) => /row (\d+)/.exec(line)[1]);
+  assert.deepEqual(
+    notes("import delimited using n1.csv, clear rowrange(3:5)"),
+    ["4"],
+  );
+  assert.deepEqual(
+    notes("import delimited using n1.csv, clear varnames(1) rowrange(3:5)"),
+    ["4"],
+  );
+  assert.deepEqual(
+    notes("import delimited using n2.csv, clear varnames(1) rowrange(3:5)"),
+    ["5"],
+  );
+  assert.deepEqual(
+    notes("import delimited using n2.csv, clear varnames(1) rowrange(4:6)"),
+    ["5", "6"],
+  );
+  assert.deepEqual(
+    notes(
+      "import delimited using n2.csv, clear varnames(1) rowrange(3:5) emptylines(include)",
+    ),
+    [],
+  );
+  assert.deepEqual(
+    notes("import delimited using multi.csv, clear varnames(4) rowrange(6:8)"),
+    ["7"],
+  );
+});
+
+// strings8.xpt was written by Stata 19's export sasxport8 from eight string
+// variables (a str3 holding "abc", str5, str6, a str20 holding "ab", a
+// str12 holding eleven characters, str1, str9 and str10). The tests set
+// each variable's format name and width byte by byte, as SAS-made files
+// carry them.
+function patched8(name, edit) {
+  const bytes = Buffer.from(fixture(name)),
+    start = bytes.indexOf("HEADER RECORD*******NAMSTV8") + 80;
+  for (let k = 0; start + 140 * (k + 1) <= bytes.length; k++) {
+    const at = start + 140 * k;
+    if (!/^[A-Za-z_]/.test(bytes.toString("latin1", at + 8, at + 9))) break;
+    const out = edit(k, bytes.toString("latin1", at + 56, at + 64).trim());
+    if (!out) continue;
+    bytes.write(out.format.padEnd(8, " "), at + 56, "latin1");
+    bytes.writeUInt16BE(out.width ?? 0, at + 64);
+    bytes.writeUInt16BE(0, at + 66);
+  }
+  return new Uint8Array(bytes);
+}
+
+test("import sasxport8 gives string formats and lower-case format names as Stata 19 does", () => {
+  const formats = (format, width) => {
+    const s = withFiles({
+      "p.xpt": patched8("strings8.xpt", () => ({ format, width })),
+    });
+    assert.equal(s.run("import sasxport8 p.xpt, clear").rc, 0);
+    return s.data.variables.map((v) => `${v.type} ${v.format}`);
+  };
+  // The format Stata's export writes ($w.), and $ or $CHAR with any width.
+  const asWritten = [
+    "str3 %3s",
+    "str5 %5s",
+    "str6 %6s",
+    "str2 %9s",
+    "str11 %11s",
+    "str1 %1s",
+    "str9 %9s",
+    "str10 %10s",
+  ];
+  assert.deepEqual(formats("$", 0), asWritten);
+  assert.deepEqual(formats("$", 2), asWritten);
+  assert.deepEqual(formats("$CHAR", 0), asWritten);
+  assert.deepEqual(formats("$CHAR", 30), asWritten);
+  assert.deepEqual(formats("", 0), [
+    "str3 %7s",
+    "str5 %9s",
+    "str6 %10s",
+    "str2 %9s",
+    "str11 %11s",
+    "str1 %5s",
+    "str9 %13s",
+    "str10 %14s",
+  ]);
+  assert.deepEqual(formats("", 5), [
+    "str3 %-10.0g",
+    "str5 %-10.0g",
+    "str6 %-10.0g",
+    "str2 %-9s",
+    "str11 %-11s",
+    "str1 %-10.0g",
+    "str9 %-10.0g",
+    "str10 %-10.0g",
+  ]);
+  // A format name not in capitals is not mapped: Stata 19 gives Comma,
+  // Date, percent and dollar %10.0g.
+  const s = withFiles({
+    "lower.xpt": patched8("sasformats8.xpt", (k, format) =>
+      /^[A-Z]+$/.test(format)
+        ? {
+            format:
+              k % 2 || format.length === 1
+                ? format.toLowerCase()
+                : format[0] + format.slice(1).toLowerCase(),
+          }
+        : null,
+    ),
+  });
+  assert.equal(s.run("import sasxport8 lower.xpt, clear").rc, 0);
+  assert.ok(s.data.variables.length > 20);
+  for (const v of s.data.variables) assert.equal(v.format, "%10.0g", v.name);
+});
+
+test("import spss looks for name.sav only when no extension is given", () => {
+  const s = withFiles({ "survey.zsav": fixture("survey.zsav") });
+  const result = s.run('import spss using "survey", clear');
+  assert.equal(result.rc, 601);
+  assert.equal(lines(result)[0], "file survey.sav not found");
+  assert.equal(s.run('import spss using "survey.zsav", clear').rc, 0);
 });

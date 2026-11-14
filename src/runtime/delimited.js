@@ -213,6 +213,9 @@ function numberOf(cell, cfg) {
   if (t.length === 2 && t[0] === "." && t[1] >= "a" && t[1] <= "z")
     return missingValue(t[1]);
   if (cfg.nan && t === "NaN") return MISSING;
+  // A group separator that is a letter, or the decimal separator itself,
+  // leaves Stata 19 reading no cell as a number.
+  if (cfg.noNumbers) return undefined;
   if (cfg.group) t = t.split(cfg.group).join("");
   if (cfg.decimal !== ".") {
     if (t.includes(".")) return undefined;
@@ -599,6 +602,8 @@ function importDelimited(session, text, ctx) {
     delimiters =
       o.delimiters !== undefined ? delimiterOption(o.delimiters) : null,
     { stored } = storedFile(session, fileName(typedFile), ".csv");
+  if (cell.group && (cell.group === cell.decimal || /\p{L}/u.test(cell.group)))
+    cell.noNumbers = true;
   if (!o.clear && (session.data.variables.length || session.data.n))
     throw new StataError("no; data in memory would be lost", 4);
 
@@ -670,10 +675,14 @@ function importDelimited(session, text, ctx) {
     }
   }
   // A quote left open is reported on the rows read; one left open on the
-  // rows rowrange() passes over is reported once, on the start row.
-  const notes = new Set(
-    unmatched.filter((line) => line < rows[0]).length ? [rows[0]] : [],
-  );
+  // rows rowrange() passes over is reported once, on the first row read,
+  // and not at all when that row is an empty one emptylines(include) keeps.
+  const firstRead = kept[inRange[0]],
+    notes = new Set(
+      unmatched.some((line) => line < rows[0]) && firstRead?.fields.length
+        ? [Math.max(firstRead.line, rows[0])]
+        : [],
+    );
   for (const line of unmatched)
     if (line >= rows[0] && line <= stop) notes.add(line);
   for (const line of notes)
@@ -727,7 +736,13 @@ function importDelimited(session, text, ctx) {
       data = below;
     } else data = after(-1);
   }
-  const width = Math.max(widest(data), header?.length ?? 0),
+  // Under varnames(#), the rows from the names row to the end of
+  // rowrange() count for the number of variables, as they do for types.
+  const width = Math.max(
+      widest(data),
+      header?.length ?? 0,
+      typed ? widest(typed) : 0,
+    ),
     from = cols[0] - 1,
     to = Math.min(cols[1], width),
     columns = [];

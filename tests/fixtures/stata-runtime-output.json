@@ -100054,6 +100054,1321 @@
       ]
     },
     {
+      "id": "files-r6-infile-free-empty-lines",
+      "source": "clear\ninput str20 line\n\"1 Ann 3.5\"\n\"\"\n\"2 Bob 4\"\n\"   \"\n\"3 Cal 5\"\nend\nexport delimited using r6em.raw, replace novarnames delimiter(tab)\ninfile id str5 name score using r6em.raw, clear\nlist\nclear\ninput str20 line\n\"1 Ann 3.5\"\n\"\"\n\"2,Bob,4\"\n\"3 Cal 5\"\nend\nexport delimited using r6c2.raw, replace novarnames delimiter(tab)\ninfile id str5 name score using r6c2.raw, clear\nlist\nclear\ninput str20 line\n\"1,Ann,3.5\"\n\"\"\n\"2 Bob 4\"\n\"3 Cal 5\"\nend\nexport delimited using r6c1.raw, replace novarnames delimiter(tab)\ninfile id str5 name score using r6c1.raw, clear\nlist\nclear\ninput str20 line\n\"1 A 3\"\n\"2,B,4\"\n\"\"\n\"\"\n\"3 C 5\"\nend\nexport delimited using r6cm.raw, replace novarnames delimiter(tab)\ninfile id str5 name score using r6cm.raw, clear\nlist\nclear\ninput str20 line\n\",1 A 3\"\n\"2 B 4\"\nend\nexport delimited using r6lead.raw, replace novarnames delimiter(tab)\ninfile id str5 name score using r6lead.raw, clear\nlist\nclear\ninput str20 line\n\"1 A 3\"\n\"2 B 4,\"\nend\nexport delimited using r6trail.raw, replace novarnames delimiter(tab)\ninfile id str5 name score using r6trail.raw, clear\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str20 line",
+          "lines": [
+            "                     line",
+            "  1. \"1 Ann 3.5\"",
+            "  2. \"\"",
+            "  3. \"2 Bob 4\"",
+            "  4. \"   \"",
+            "  5. \"3 Cal 5\"",
+            "  6. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6em.raw, replace novarnames delimiter(tab)",
+          "lines": ["(file r6em.raw not found)", "file r6em.raw saved"]
+        },
+        {
+          "command": "infile id str5 name score using r6em.raw, clear",
+          "lines": ["(3 observations read)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------+",
+            "     | id   name   score |",
+            "     |-------------------|",
+            "  1. |  1    Ann     3.5 |",
+            "  2. |  2    Bob       4 |",
+            "  3. |  3    Cal       5 |",
+            "     +-------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str20 line",
+          "lines": [
+            "                     line",
+            "  1. \"1 Ann 3.5\"",
+            "  2. \"\"",
+            "  3. \"2,Bob,4\"",
+            "  4. \"3 Cal 5\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6c2.raw, replace novarnames delimiter(tab)",
+          "lines": ["(file r6c2.raw not found)", "file r6c2.raw saved"]
+        },
+        {
+          "command": "infile id str5 name score using r6c2.raw, clear",
+          "lines": ["(3 observations read)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------+",
+            "     | id   name   score |",
+            "     |-------------------|",
+            "  1. |  1    Ann     3.5 |",
+            "  2. |  2    Bob       4 |",
+            "  3. |  3    Cal       5 |",
+            "     +-------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str20 line",
+          "lines": [
+            "                     line",
+            "  1. \"1,Ann,3.5\"",
+            "  2. \"\"",
+            "  3. \"2 Bob 4\"",
+            "  4. \"3 Cal 5\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6c1.raw, replace novarnames delimiter(tab)",
+          "lines": ["(file r6c1.raw not found)", "file r6c1.raw saved"]
+        },
+        {
+          "command": "infile id str5 name score using r6c1.raw, clear",
+          "lines": [
+            "'Bob' cannot be read as a number for score[2]",
+            "'Cal' cannot be read as a number for score[3]",
+            "(eof not at end of obs)",
+            "(4 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------+",
+            "     | id   name   score |",
+            "     |-------------------|",
+            "  1. |  1    Ann     3.5 |",
+            "  2. |  .      2       . |",
+            "  3. |  4      3       . |",
+            "  4. |  5              . |",
+            "     +-------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str20 line",
+          "lines": [
+            "                     line",
+            "  1. \"1 A 3\"",
+            "  2. \"2,B,4\"",
+            "  3. \"\"",
+            "  4. \"\"",
+            "  5. \"3 C 5\"",
+            "  6. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6cm.raw, replace novarnames delimiter(tab)",
+          "lines": ["(file r6cm.raw not found)", "file r6cm.raw saved"]
+        },
+        {
+          "command": "infile id str5 name score using r6cm.raw, clear",
+          "lines": [
+            "'C' cannot be read as a number for id[4]",
+            "(eof not at end of obs)",
+            "(4 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------+",
+            "     | id   name   score |",
+            "     |-------------------|",
+            "  1. |  1      A       3 |",
+            "  2. |  2      B       4 |",
+            "  3. |  .              3 |",
+            "  4. |  .      5       . |",
+            "     +-------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str20 line",
+          "lines": [
+            "                     line",
+            "  1. \",1 A 3\"",
+            "  2. \"2 B 4\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6lead.raw, replace novarnames delimiter(tab)",
+          "lines": ["(file r6lead.raw not found)", "file r6lead.raw saved"]
+        },
+        {
+          "command": "infile id str5 name score using r6lead.raw, clear",
+          "lines": [
+            "'A' cannot be read as a number for score[1]",
+            "'B' cannot be read as a number for score[2]",
+            "(eof not at end of obs)",
+            "(3 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------+",
+            "     | id   name   score |",
+            "     |-------------------|",
+            "  1. |  .      1       . |",
+            "  2. |  3      2       . |",
+            "  3. |  4              . |",
+            "     +-------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str20 line",
+          "lines": [
+            "                     line",
+            "  1. \"1 A 3\"",
+            "  2. \"2 B 4,\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6trail.raw, replace novarnames delimiter(tab)",
+          "lines": ["(file r6trail.raw not found)", "file r6trail.raw saved"]
+        },
+        {
+          "command": "infile id str5 name score using r6trail.raw, clear",
+          "lines": ["(eof not at end of obs)", "(3 observations read)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------+",
+            "     | id   name   score |",
+            "     |-------------------|",
+            "  1. |  1      A       3 |",
+            "  2. |  2      B       4 |",
+            "  3. |  .              . |",
+            "     +-------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "files-r6-infile-dictionary-decimals-and-records",
+      "source": "clear\ninput str40 line\n\"infile dictionary {\"\n\"  a %5.2f\"\n\"  b %5.2g\"\n\"  c %5.2e\"\n\"  d %5.1f\"\n\"  e %6.2f\"\n\"  f %4.0f\"\n\"}\"\n\"  123  123  123 -123 1.5e2  12 \"\n\"  1 2    7 . 12   .5   1  \"\nend\nexport delimited using r6dec.dct, replace novarnames delimiter(tab)\ninfile using r6dec.dct, clear\nformat a-f %12.4f\nlist\nclear\ninput str40 line\n\"infile dictionary {\"\n\"  a %5.2f\"\n\"  b %3.1f\"\n\"}\"\n\"  .a  12\"\n\" 1e2 1.\"\n\"  1,5 -12\"\nend\nexport delimited using r6nums.dct, replace novarnames delimiter(tab)\ninfile using r6nums.dct, clear\nlist\nclear\ninput str40 line\n\"  1 20M3.50Economics\"\n\"  2 19F3.90History\"\n\"  3 21F2.75Physics\"\nend\nexport delimited using r6data.dat, replace novarnames delimiter(tab)\nclear\ninput str40 line\n\"infile dictionary using r6data.dat {\"\n\"_lrecl(20)\"\n\"  id %3f\"\n\"}\"\nend\nexport delimited using r6lrecl.dct, replace novarnames delimiter(tab)\ninfile using r6lrecl.dct, clear\nlist\nclear\ninput str40 line\n\"infile dictionary using r6data.dat {\"\n\"_lrecl(4)\"\n\"  id %3f\"\n\"  age %3f\"\n\"}\"\nend\nexport delimited using r6lrecl4.dct, replace novarnames delimiter(tab)\ninfile using r6lrecl4.dct, clear\nlist\nclear\ninput str40 line\n\"infile dictionary {\"\n\"_firstlineoffile(2)\"\n\"  id %3f\"\n\"  age %3f\"\n\"}\"\n\"skip me\"\n\"  1 20\"\n\"  2 19\"\nend\nexport delimited using r6first.dct, replace novarnames delimiter(tab)\ninfile using r6first.dct, clear\nlist\nclear\ninput str40 line\n\"infile dictionary using r6data.dat {\"\n\"_firstline(2)\"\n\"  id %3f\"\n\"}\"\nend\nexport delimited using r6first2.dct, replace novarnames delimiter(tab)\ninfile using r6first2.dct, clear\nlist\nclear\ninput str40 line\n\"infile dictionary using r6data.dat {\"\n\"  int major %5s\"\n\"}\"\nend\nexport delimited using r6mis.dct, replace novarnames delimiter(tab)\ninfile using r6mis.dct, clear\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infile dictionary {\"",
+            "  2. \"  a %5.2f\"",
+            "  3. \"  b %5.2g\"",
+            "  4. \"  c %5.2e\"",
+            "  5. \"  d %5.1f\"",
+            "  6. \"  e %6.2f\"",
+            "  7. \"  f %4.0f\"",
+            "  8. \"}\"",
+            "  9. \"  123  123  123 -123 1.5e2  12 \"",
+            " 10. \"  1 2    7 . 12   .5   1  \"",
+            " 11. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6dec.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6dec.dct not found)", "file r6dec.dct saved"]
+        },
+        {
+          "command": "infile using r6dec.dct, clear",
+          "lines": [
+            "infile dictionary {",
+            "  a %5.2f",
+            "  b %5.2g",
+            "  c %5.2e",
+            "  d %5.1f",
+            "  e %6.2f",
+            "  f %4.0f",
+            "}",
+            "",
+            "(2 observations read)"
+          ]
+        },
+        { "command": "format a-f %12.4f", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------------------------------------------+",
+            "     |      a        b        c          d          e         f |",
+            "     |----------------------------------------------------------|",
+            "  1. | 1.2300   1.2300   1.2300   -12.3000   150.0000   12.0000 |",
+            "  2. | 0.1200   0.0700   0.1200     0.5000     0.0100         . |",
+            "     +----------------------------------------------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infile dictionary {\"",
+            "  2. \"  a %5.2f\"",
+            "  3. \"  b %3.1f\"",
+            "  4. \"}\"",
+            "  5. \"  .a  12\"",
+            "  6. \" 1e2 1.\"",
+            "  7. \"  1,5 -12\"",
+            "  8. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6nums.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6nums.dct not found)", "file r6nums.dct saved"]
+        },
+        {
+          "command": "infile using r6nums.dct, clear",
+          "lines": [
+            "infile dictionary {",
+            "  a %5.2f",
+            "  b %3.1f",
+            "}",
+            "",
+            "'1.,5' cannot be read as a number for a[3]",
+            "(3 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------+",
+            "     |   a     b |",
+            "     |-----------|",
+            "  1. |  .a   1.2 |",
+            "  2. | 100     1 |",
+            "  3. |   .   -.1 |",
+            "     +-----------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"  1 20M3.50Economics\"",
+            "  2. \"  2 19F3.90History\"",
+            "  3. \"  3 21F2.75Physics\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6data.dat, replace novarnames delimiter(tab)",
+          "lines": ["(file r6data.dat not found)", "file r6data.dat saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infile dictionary using r6data.dat {\"",
+            "  2. \"_lrecl(20)\"",
+            "  3. \"  id %3f\"",
+            "  4. \"}\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6lrecl.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6lrecl.dct not found)", "file r6lrecl.dct saved"]
+        },
+        {
+          "command": "infile using r6lrecl.dct, clear",
+          "lines": [
+            "infile dictionary using r6data.dat {",
+            "_lrecl(20)",
+            "  id %3f",
+            "}",
+            "",
+            "(3 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----+",
+            "     | id |",
+            "     |----|",
+            "  1. |  1 |",
+            "  2. |  2 |",
+            "  3. | 32 |",
+            "     +----+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infile dictionary using r6data.dat {\"",
+            "  2. \"_lrecl(4)\"",
+            "  3. \"  id %3f\"",
+            "  4. \"  age %3f\"",
+            "  5. \"}\"",
+            "  6. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6lrecl4.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6lrecl4.dct not found)", "file r6lrecl4.dct saved"]
+        },
+        {
+          "command": "infile using r6lrecl4.dct, clear",
+          "lines": [
+            "infile dictionary using r6data.dat {",
+            "_lrecl(4)",
+            "  id %3f",
+            "  age %3f",
+            "}",
+            "",
+            "'20M' cannot be read as a number for id[2]",
+            "'E' cannot be read as a number for age[3]",
+            "'con' cannot be read as a number for id[4]",
+            "'o' cannot be read as a number for age[4]",
+            "'mic' cannot be read as a number for id[5]",
+            "'s' cannot be read as a number for age[5]",
+            "'19F' cannot be read as a number for id[7]",
+            "'H' cannot be read as a number for age[8]",
+            "'ist' cannot be read as a number for id[9]",
+            "'o' cannot be read as a number for age[9]",
+            "'ry' cannot be read as a number for id[10]",
+            "'F2.' cannot be read as a number for id[12]",
+            "'5Ph' cannot be read as a number for id[13]",
+            "'y' cannot be read as a number for age[13]",
+            "'sic' cannot be read as a number for id[14]",
+            "'s' cannot be read as a number for age[14]",
+            "(14 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------+",
+            "     | id   age |",
+            "     |----------|",
+            "  1. |  1     . |",
+            "  2. |  .     3 |",
+            "  3. | .5     . |",
+            "  4. |  .     . |",
+            "  5. |  .     . |",
+            "     |----------|",
+            "  6. |  2     . |",
+            "  7. |  .     3 |",
+            "  8. | .9     . |",
+            "  9. |  .     . |",
+            " 10. |  .     . |",
+            "     |----------|",
+            " 11. | 32     1 |",
+            " 12. |  .     7 |",
+            " 13. |  .     . |",
+            " 14. |  .     . |",
+            "     +----------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infile dictionary {\"",
+            "  2. \"_firstlineoffile(2)\"",
+            "  3. \"  id %3f\"",
+            "  4. \"  age %3f\"",
+            "  5. \"}\"",
+            "  6. \"skip me\"",
+            "  7. \"  1 20\"",
+            "  8. \"  2 19\"",
+            "  9. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6first.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6first.dct not found)", "file r6first.dct saved"]
+        },
+        {
+          "command": "infile using r6first.dct, clear",
+          "lines": [
+            "infile dictionary {",
+            "_firstlineoffile(2)",
+            "  id %3f",
+            "  age %3f",
+            "}",
+            "",
+            "(2 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------+",
+            "     | id   age |",
+            "     |----------|",
+            "  1. |  1    20 |",
+            "  2. |  2    19 |",
+            "     +----------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infile dictionary using r6data.dat {\"",
+            "  2. \"_firstline(2)\"",
+            "  3. \"  id %3f\"",
+            "  4. \"}\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6first2.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6first2.dct not found)", "file r6first2.dct saved"]
+        },
+        {
+          "command": "infile using r6first2.dct, clear",
+          "lines": [
+            "infile dictionary using r6data.dat {",
+            "_firstline(2)",
+            "  id %3f",
+            "}",
+            "",
+            "(2 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----+",
+            "     | id |",
+            "     |----|",
+            "  1. |  2 |",
+            "  2. |  3 |",
+            "     +----+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infile dictionary using r6data.dat {\"",
+            "  2. \"  int major %5s\"",
+            "  3. \"}\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6mis.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6mis.dct not found)", "file r6mis.dct saved"]
+        },
+        {
+          "command": "infile using r6mis.dct, clear",
+          "lines": [
+            "infile dictionary using r6data.dat {",
+            "  int major %5s",
+            "}",
+            "",
+            "'1 2' cannot be read as a number for major[1]",
+            "'2 1' cannot be read as a number for major[2]",
+            "'3 2' cannot be read as a number for major[3]",
+            "(3 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------+",
+            "     | major |",
+            "     |-------|",
+            "  1. |     . |",
+            "  2. |     . |",
+            "  3. |     . |",
+            "     +-------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "files-r6-infile-infix-dictionary-errors",
+      "source": "clear\ninput str40 line\n\"  1 20M3.50Economics\"\n\"  2 19F3.90History\"\n\"  3 21F2.75Physics\"\nend\nexport delimited using r6derr.dat, replace novarnames delimiter(tab)\nclear\ninput str40 line\n\"infile dictionary using r6derr.dat {\"\n\"_col(1) int id %3f\"\n\"_col(7) str1 sex %1s\"\n\"}\"\nend\nexport delimited using r6col.dct, replace novarnames delimiter(tab)\ncapture noisily infile using r6col.dct, clear\ndisplay _rc\nclear\ninput str40 line\n\"infile dictionary using r6derr.dat {\"\n\"  id %3f\"\n\"  age %2f\"\n\"  ?bad %2f\"\n\"  x %2f\"\n\"}\"\nend\nexport delimited using r6mid.dct, replace novarnames delimiter(tab)\ncapture noisily infile using r6mid.dct, clear\ndisplay _rc\nclear\ninput str40 line\n\"infile dictionary using r6derr.dat {\"\n\"  id %3f\"\n\"* c\"\n\"  id %2f\"\n\"}\"\nend\nexport delimited using r6dup.dct, replace novarnames delimiter(tab)\ncapture noisily infile using r6dup.dct, clear\ndisplay _rc\nclear\ninput str40 line\n\"infile dictionary using r6derr.dat {\"\n\"  1x %3f\"\n\"}\"\nend\nexport delimited using r6num.dct, replace novarnames delimiter(tab)\ncapture noisily infile using r6num.dct, clear\ndisplay _rc\nclear\ninput str40 line\n\"infile dictionary using r6derr.dat {\"\n\"  str3 id %3.1f\"\n\"  age %3.1s\"\n\"}\"\nend\nexport delimited using r6sdec.dct, replace novarnames delimiter(tab)\ncapture noisily infile using r6sdec.dct, clear\ndisplay _rc\nclear\ninput str40 line\n\"infile dictionary {\"\n\"// a comment\"\n\"  id %3f\"\n\"}\"\n\"  1\"\nend\nexport delimited using r6cmt.dct, replace novarnames delimiter(tab)\ncapture noisily infile using r6cmt.dct, clear\ndisplay _rc\nclear\ninput str40 line\n\"infix dictionary using r6derr.dat {\"\n\"_lrecl(20)\"\n\"  id 1-3\"\n\"}\"\nend\nexport delimited using r6ixl.dct, replace novarnames delimiter(tab)\ncapture noisily infix using r6ixl.dct, clear\ndisplay _rc\nclear\ninput str40 line\n\"infix dictionary using r6derr.dat {\"\n\"  id 1-3\"\n\"  ?x 4-5\"\n\"}\"\nend\nexport delimited using r6ixq.dct, replace novarnames delimiter(tab)\ncapture noisily infix using r6ixq.dct, clear\ndisplay _rc\nclear\ninput str40 line\n\"infix dictionary using r6derr.dat {\"\n\"  id 1-3\"\n\"  id 4-5\"\n\"}\"\nend\nexport delimited using r6ixd.dct, replace novarnames delimiter(tab)\ncapture noisily infix using r6ixd.dct, clear\ndisplay _rc\nclear\ninput str40 line\n\"infix dictionary using r6derr.dat {\"\n\"  id 1-3\"\n\"  age 4-x\"\n\"}\"\nend\nexport delimited using r6ixm.dct, replace novarnames delimiter(tab)\ncapture noisily infix using r6ixm.dct, clear\ndisplay _rc\nclear\ninput str40 line\n\"infix dictionary using r6derr.dat {\"\n\"  id 1-3\"\n\"/\"\n\"  age 4-5\"\n\"}\"\nend\nexport delimited using r6ixs.dct, replace novarnames delimiter(tab)\ninfix using r6ixs.dct, clear\nlist\ninfix id 1-3 / age 4-5 using r6derr.dat, clear\nlist\ncapture noisily infix id using r6derr.dat, clear\ndisplay _rc\ncapture noisily infix id 1-3 age using r6derr.dat, clear\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"  1 20M3.50Economics\"",
+            "  2. \"  2 19F3.90History\"",
+            "  3. \"  3 21F2.75Physics\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6derr.dat, replace novarnames delimiter(tab)",
+          "lines": ["(file r6derr.dat not found)", "file r6derr.dat saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infile dictionary using r6derr.dat {\"",
+            "  2. \"_col(1) int id %3f\"",
+            "  3. \"_col(7) str1 sex %1s\"",
+            "  4. \"}\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6col.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6col.dct not found)", "file r6col.dct saved"]
+        },
+        {
+          "command": "capture noisily infile using r6col.dct, clear",
+          "lines": [
+            "infile dictionary using r6derr.dat {",
+            "_col(1) int id %3f",
+            "( invalid name",
+            "dictionary invalid"
+          ]
+        },
+        { "command": "display _rc", "lines": ["614"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infile dictionary using r6derr.dat {\"",
+            "  2. \"  id %3f\"",
+            "  3. \"  age %2f\"",
+            "  4. \"  ?bad %2f\"",
+            "  5. \"  x %2f\"",
+            "  6. \"}\"",
+            "  7. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6mid.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6mid.dct not found)", "file r6mid.dct saved"]
+        },
+        {
+          "command": "capture noisily infile using r6mid.dct, clear",
+          "lines": [
+            "infile dictionary using r6derr.dat {",
+            "  id %3f",
+            "  age %2f",
+            "  ?bad %2f",
+            "? invalid name",
+            "dictionary invalid"
+          ]
+        },
+        { "command": "display _rc", "lines": ["614"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infile dictionary using r6derr.dat {\"",
+            "  2. \"  id %3f\"",
+            "  3. \"* c\"",
+            "  4. \"  id %2f\"",
+            "  5. \"}\"",
+            "  6. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6dup.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6dup.dct not found)", "file r6dup.dct saved"]
+        },
+        {
+          "command": "capture noisily infile using r6dup.dct, clear",
+          "lines": [
+            "infile dictionary using r6derr.dat {",
+            "  id %3f",
+            "* c",
+            "  id %2f",
+            "variable id already defined",
+            "dictionary invalid"
+          ]
+        },
+        { "command": "display _rc", "lines": ["614"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infile dictionary using r6derr.dat {\"",
+            "  2. \"  1x %3f\"",
+            "  3. \"}\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6num.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6num.dct not found)", "file r6num.dct saved"]
+        },
+        {
+          "command": "capture noisily infile using r6num.dct, clear",
+          "lines": [
+            "infile dictionary using r6derr.dat {",
+            "  1x %3f",
+            "1x invalid name",
+            "dictionary invalid"
+          ]
+        },
+        { "command": "display _rc", "lines": ["614"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infile dictionary using r6derr.dat {\"",
+            "  2. \"  str3 id %3.1f\"",
+            "  3. \"  age %3.1s\"",
+            "  4. \"}\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6sdec.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6sdec.dct not found)", "file r6sdec.dct saved"]
+        },
+        {
+          "command": "capture noisily infile using r6sdec.dct, clear",
+          "lines": [
+            "infile dictionary using r6derr.dat {",
+            "  str3 id %3.1f",
+            "  age %3.1s",
+            "invalid %format"
+          ]
+        },
+        { "command": "display _rc", "lines": ["120"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infile dictionary {\"",
+            "  2. \"// a comment\"",
+            "  3. \"  id %3f\"",
+            "  4. \"}\"",
+            "  5. \"  1\"",
+            "  6. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6cmt.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6cmt.dct not found)", "file r6cmt.dct saved"]
+        },
+        {
+          "command": "capture noisily infile using r6cmt.dct, clear",
+          "lines": [
+            "infile dictionary {",
+            "// a comment",
+            "/ invalid name",
+            "dictionary invalid"
+          ]
+        },
+        { "command": "display _rc", "lines": ["614"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infix dictionary using r6derr.dat {\"",
+            "  2. \"_lrecl(20)\"",
+            "  3. \"  id 1-3\"",
+            "  4. \"}\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6ixl.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6ixl.dct not found)", "file r6ixl.dct saved"]
+        },
+        {
+          "command": "capture noisily infix using r6ixl.dct, clear",
+          "lines": [
+            "infix dictionary using r6derr.dat {",
+            "_lrecl(20)",
+            "( invalid name"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infix dictionary using r6derr.dat {\"",
+            "  2. \"  id 1-3\"",
+            "  3. \"  ?x 4-5\"",
+            "  4. \"}\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6ixq.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6ixq.dct not found)", "file r6ixq.dct saved"]
+        },
+        {
+          "command": "capture noisily infix using r6ixq.dct, clear",
+          "lines": [
+            "infix dictionary using r6derr.dat {",
+            "  id 1-3",
+            "  ?x 4-5",
+            "? invalid name"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infix dictionary using r6derr.dat {\"",
+            "  2. \"  id 1-3\"",
+            "  3. \"  id 4-5\"",
+            "  4. \"}\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6ixd.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6ixd.dct not found)", "file r6ixd.dct saved"]
+        },
+        {
+          "command": "capture noisily infix using r6ixd.dct, clear",
+          "lines": [
+            "infix dictionary using r6derr.dat {",
+            "  id 1-3",
+            "  id 4-5",
+            "variable id already defined"
+          ]
+        },
+        { "command": "display _rc", "lines": ["110"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infix dictionary using r6derr.dat {\"",
+            "  2. \"  id 1-3\"",
+            "  3. \"  age 4-x\"",
+            "  4. \"}\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6ixm.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6ixm.dct not found)", "file r6ixm.dct saved"]
+        },
+        {
+          "command": "capture noisily infix using r6ixm.dct, clear",
+          "lines": [
+            "infix dictionary using r6derr.dat {",
+            "  id 1-3",
+            "  age 4-x",
+            "dictionary invalid"
+          ]
+        },
+        { "command": "display _rc", "lines": ["614"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"infix dictionary using r6derr.dat {\"",
+            "  2. \"  id 1-3\"",
+            "  3. \"/\"",
+            "  4. \"  age 4-5\"",
+            "  5. \"}\"",
+            "  6. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6ixs.dct, replace novarnames delimiter(tab)",
+          "lines": ["(file r6ixs.dct not found)", "file r6ixs.dct saved"]
+        },
+        {
+          "command": "infix using r6ixs.dct, clear",
+          "lines": [
+            "infix dictionary using r6derr.dat {",
+            "  id 1-3",
+            "/",
+            "  age 4-5",
+            "}",
+            "unexpected end of file",
+            "(2 observations read)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------+",
+            "     | id   age |",
+            "     |----------|",
+            "  1. |  1     1 |",
+            "  2. |  3     . |",
+            "     +----------+"
+          ]
+        },
+        {
+          "command": "infix id 1-3 / age 4-5 using r6derr.dat, clear",
+          "lines": ["unexpected end of file", "(2 observations read)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------+",
+            "     | id   age |",
+            "     |----------|",
+            "  1. |  1     1 |",
+            "  2. |  3     . |",
+            "     +----------+"
+          ]
+        },
+        {
+          "command": "capture noisily infix id using r6derr.dat, clear",
+          "lines": ["using invalid varname"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily infix id 1-3 age using r6derr.dat, clear",
+          "lines": ["using invalid varname"]
+        },
+        { "command": "display _rc", "lines": ["198"] }
+      ]
+    },
+    {
+      "id": "files-r6-infile-infix-clear-first",
+      "source": "clear\ninput str40 line\n\"  1 20M3.50Economics\"\n\"  2 19F3.90History\"\nend\nexport delimited using r6dclr.dat, replace novarnames delimiter(tab)\nclear\nlabel define r6yn 1 \"yes\"\nset obs 2\ngenerate keepme = 1\ncapture noisily infix id 1-3 using r6nothere.dat, clear\ndisplay _rc\ndescribe, short\nlabel list\ninfix id 1-3 using r6dclr.dat\nlist\nset obs 3\ncapture noisily infix id 1-3 id 4-5 using r6dclr.dat, clear\ndescribe, short\ngenerate x = 1\ncapture noisily infile id id using r6dclr.dat, clear\ndescribe, short\ngenerate x = 1\ncapture noisily infile id using r6dclr.dat, clear foo\ndisplay _rc\ndescribe, short\ngenerate x = 1\ninfix id 1-3 using r6dclr.dat, clear\nlabel list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str40 line",
+          "lines": [
+            "                                         line",
+            "  1. \"  1 20M3.50Economics\"",
+            "  2. \"  2 19F3.90History\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6dclr.dat, replace novarnames delimiter(tab)",
+          "lines": ["(file r6dclr.dat not found)", "file r6dclr.dat saved"]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "label define r6yn 1 \"yes\"", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate keepme = 1", "lines": [] },
+        {
+          "command": "capture noisily infix id 1-3 using r6nothere.dat, clear",
+          "lines": ["file r6nothere.dat not found"]
+        },
+        { "command": "display _rc", "lines": ["601"] },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             0",
+            "    Variables:             0",
+            "Sorted by:"
+          ]
+        },
+        { "command": "label list", "lines": ["r6yn:", "           1 yes"] },
+        {
+          "command": "infix id 1-3 using r6dclr.dat",
+          "lines": ["(2 observations read)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----+",
+            "     | id |",
+            "     |----|",
+            "  1. |  1 |",
+            "  2. |  2 |",
+            "     +----+"
+          ]
+        },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 2, now 3."]
+        },
+        {
+          "command": "capture noisily infix id 1-3 id 4-5 using r6dclr.dat, clear",
+          "lines": ["variable id already defined"]
+        },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             0",
+            "    Variables:             0",
+            "Sorted by:"
+          ]
+        },
+        { "command": "generate x = 1", "lines": [] },
+        {
+          "command": "capture noisily infile id id using r6dclr.dat, clear",
+          "lines": ["variable id already defined"]
+        },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             0",
+            "    Variables:             0",
+            "Sorted by:"
+          ]
+        },
+        { "command": "generate x = 1", "lines": [] },
+        {
+          "command": "capture noisily infile id using r6dclr.dat, clear foo",
+          "lines": ["option foo not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             0",
+            "    Variables:             0",
+            "Sorted by:"
+          ]
+        },
+        { "command": "generate x = 1", "lines": [] },
+        {
+          "command": "infix id 1-3 using r6dclr.dat, clear",
+          "lines": ["(2 observations read)"]
+        },
+        { "command": "label list", "lines": ["r6yn:", "           1 yes"] }
+      ]
+    },
+    {
+      "id": "files-r6-sasxport5-label-names-and-widths",
+      "source": "clear\nset obs 2\ngenerate byte educ = _n\ngenerate byte empl = 2 - _n\nlabel define education_level 1 \"High school\" 2 \"College\"\nlabel define education_other 0 \"No\" 1 \"Yes\"\nlabel values educ education_level\nlabel values empl education_other\ncapture noisily export sasxport5 r6c.xpt, replace\ndisplay _rc\nexport sasxport5 r6c.xpt, replace rename\nimport sasxport5 r6c.xpt, clear\ndescribe\nlabel list\nclear\nset obs 2\ngenerate byte q = _n\nlabel define r6big 1 \"a label that is quite long indeed, more than forty characters long\" 2 \"short\"\nlabel values q r6big\nexport sasxport5 r6e.xpt, replace\nimport sasxport5 r6e.xpt, clear\nlabel list\nclear\nset obs 4\ngenerate id = _n\ngenerate byte sex = cond(_n <= 2, 1, 2)\nlabel values sex r6nolbl\ncapture noisily export sasxport5 r6a.xpt, replace vallabfile(sascode)\ndisplay _rc\ncapture noisily export sasxport5 r6a.xpt, replace vallabfile(both)\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate byte educ = _n", "lines": [] },
+        { "command": "generate byte empl = 2 - _n", "lines": [] },
+        {
+          "command": "label define education_level 1 \"High school\" 2 \"College\"",
+          "lines": []
+        },
+        {
+          "command": "label define education_other 0 \"No\" 1 \"Yes\"",
+          "lines": []
+        },
+        { "command": "label values educ education_level", "lines": [] },
+        { "command": "label values empl education_other", "lines": [] },
+        {
+          "command": "capture noisily export sasxport5 r6c.xpt, replace",
+          "lines": [
+            "the following value label(s) have names that must be changed to fit into .xpt format:  (suggested renamings shown):",
+            "",
+            "                 education_level -> EDUCATIO",
+            "                 education_other -> EDUCATIA",
+            "",
+            "specify option rename to save .xpt file with suggested names"
+          ]
+        },
+        { "command": "display _rc", "lines": ["110"] },
+        {
+          "command": "export sasxport5 r6c.xpt, replace rename",
+          "lines": [
+            "the following value label(s) were renamed in the output file:",
+            "",
+            "                 education_level -> EDUCATIO",
+            "                 education_other -> EDUCATIA",
+            "",
+            "file r6c.xpt saved",
+            "file formats.xpf saved"
+          ]
+        },
+        { "command": "import sasxport5 r6c.xpt, clear", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "educ            double  %10.0g     educatio",
+            "empl            double  %10.0g     educatia",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "label list",
+          "lines": [
+            "educatia:",
+            "           0 No",
+            "           1 Yes",
+            "educatio:",
+            "           1 High school",
+            "           2 College"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate byte q = _n", "lines": [] },
+        {
+          "command": "label define r6big 1 \"a label that is quite long indeed, more than forty characters long\" 2 \"short\"",
+          "lines": []
+        },
+        { "command": "label values q r6big", "lines": [] },
+        {
+          "command": "export sasxport5 r6e.xpt, replace",
+          "lines": ["file r6e.xpt saved", "file formats.xpf saved"]
+        },
+        { "command": "import sasxport5 r6e.xpt, clear", "lines": [] },
+        {
+          "command": "label list",
+          "lines": [
+            "r6big:",
+            "           1 a label that is quite long indeed, more",
+            "           2 short"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate byte sex = cond(_n <= 2, 1, 2)", "lines": [] },
+        { "command": "label values sex r6nolbl", "lines": [] },
+        {
+          "command": "capture noisily export sasxport5 r6a.xpt, replace vallabfile(sascode)",
+          "lines": ["value label r6nolbl not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily export sasxport5 r6a.xpt, replace vallabfile(both)",
+          "lines": ["value label r6nolbl not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] }
+      ]
+    },
+    {
+      "id": "files-r6-delimited-columns-separators",
+      "source": "clear\ninput str20 line\n\"a,b\"\n\"1,2,3,4\"\n\"5,6\"\n\"7,8\"\nend\nexport delimited using r6wide.csv, replace novarnames delimiter(tab)\nimport delimited using r6wide.csv, clear varnames(1) rowrange(3:4)\nlist\nclear\ninput str20 line\n\"a,b\"\n\"1,2,3\"\n\"\"\n\"5,6\"\n\"7,8\"\n\"9,10,11,12,13\"\nend\nexport delimited using r6wide2.csv, replace novarnames delimiter(tab)\nimport delimited using r6wide2.csv, clear varnames(1) rowrange(4:5)\nlist\nclear\ninput str20 line\n\"a;b\"\n\"x;1.234.567\"\n\"y;2.5\"\nend\nexport delimited using r6same.csv, replace novarnames delimiter(tab)\nimport delimited using r6same.csv, clear delimiters(\";\") groupseparator(.)\ndescribe\nlist\nclear\ninput str20 line\n\"a;b\"\n\"x;1x234\"\n\"y;2\"\nend\nexport delimited using r6letters.csv, replace novarnames delimiter(tab)\nimport delimited using r6letters.csv, clear delimiters(\";\") groupseparator(x)\ndescribe\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str20 line",
+          "lines": [
+            "                     line",
+            "  1. \"a,b\"",
+            "  2. \"1,2,3,4\"",
+            "  3. \"5,6\"",
+            "  4. \"7,8\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6wide.csv, replace novarnames delimiter(tab)",
+          "lines": ["(file r6wide.csv not found)", "file r6wide.csv saved"]
+        },
+        {
+          "command": "import delimited using r6wide.csv, clear varnames(1) rowrange(3:4)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(4 vars, 2 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------+",
+            "     | a   b   v3   v4 |",
+            "     |-----------------|",
+            "  1. | 5   6    .    . |",
+            "  2. | 7   8    .    . |",
+            "     +-----------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str20 line",
+          "lines": [
+            "                     line",
+            "  1. \"a,b\"",
+            "  2. \"1,2,3\"",
+            "  3. \"\"",
+            "  4. \"5,6\"",
+            "  5. \"7,8\"",
+            "  6. \"9,10,11,12,13\"",
+            "  7. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6wide2.csv, replace novarnames delimiter(tab)",
+          "lines": ["(file r6wide2.csv not found)", "file r6wide2.csv saved"]
+        },
+        {
+          "command": "import delimited using r6wide2.csv, clear varnames(1) rowrange(4:5)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(3 vars, 2 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------+",
+            "     | a   b   v3 |",
+            "     |------------|",
+            "  1. | 5   6    . |",
+            "  2. | 7   8    . |",
+            "     +------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str20 line",
+          "lines": [
+            "                     line",
+            "  1. \"a;b\"",
+            "  2. \"x;1.234.567\"",
+            "  3. \"y;2.5\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6same.csv, replace novarnames delimiter(tab)",
+          "lines": ["(file r6same.csv not found)", "file r6same.csv saved"]
+        },
+        {
+          "command": "import delimited using r6same.csv, clear delimiters(\";\") groupseparator(.)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(2 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             3",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              str1    %9s",
+            "v2              str9    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------+",
+            "     | v1          v2 |",
+            "     |----------------|",
+            "  1. |  a           b |",
+            "  2. |  x   1.234.567 |",
+            "  3. |  y         2.5 |",
+            "     +----------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str20 line",
+          "lines": [
+            "                     line",
+            "  1. \"a;b\"",
+            "  2. \"x;1x234\"",
+            "  3. \"y;2\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using r6letters.csv, replace novarnames delimiter(tab)",
+          "lines": [
+            "(file r6letters.csv not found)",
+            "file r6letters.csv saved"
+          ]
+        },
+        {
+          "command": "import delimited using r6letters.csv, clear delimiters(\";\") groupseparator(x)",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-9)",
+            "(2 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             3",
+            "    Variables:             2",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              str1    %9s",
+            "v2              str5    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------+",
+            "     | v1      v2 |",
+            "     |------------|",
+            "  1. |  a       b |",
+            "  2. |  x   1x234 |",
+            "  3. |  y       2 |",
+            "     +------------+"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
