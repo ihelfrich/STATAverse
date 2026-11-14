@@ -16,8 +16,40 @@ import { COMMANDS, extendedFunction } from "./commands.js";
 import { timeSeriesOperator } from "./panel.js";
 import { matrixAccess } from "./matrix.js";
 import { coefficientIndex } from "./estimation.js";
+import { echoOf } from "./echo.js";
 
 const MAX_STEPS = 200000;
+
+// The prefixes a block may carry (quietly {, capture noisily foreach ... {),
+// and the loops that follow them.
+const PREFIX_WORD =
+    /^(?:(cap(?:t(?:u(?:re?)?)?)?)|(qui(?:e(?:t(?:ly?)?)?)?)|(n(?:o(?:i(?:s(?:i(?:ly?)?)?)?)?)?))(?:\s+|$)/,
+  LOOP_HEADER = /^(?:foreach|forv(?:a(?:l(?:u(?:es?)?)?)?)?|while)\s/;
+
+/** The prefixes of a block's header and what is left after them. */
+function prefixesOf(header) {
+  const found = {
+    rest: header.trim(),
+    quiet: false,
+    capture: false,
+    noisy: false,
+    any: false,
+  };
+  let m;
+  while ((m = PREFIX_WORD.exec(found.rest))) {
+    found.any = true;
+    if (m[1]) found.capture = true;
+    else if (m[2]) found.quiet = true;
+    else {
+      found.quiet = false;
+      found.noisy = true;
+    }
+    found.rest = found.rest.slice(m[0].length).trim();
+  }
+  // capture alone is as quiet as quietly.
+  found.silent = found.quiet || (found.capture && !found.noisy);
+  return found;
+}
 // c(current_date) in Stata's form, such as "10 Nov 2026".
 function currentDate() {
   const now = new Date(),
@@ -379,6 +411,11 @@ export class Session {
     this.steps = 0;
     this.line = 0;
     this.inProgram = 0;
+    this.loopDepth = 0;
+    this.folding = 0;
+    this.quietDepth = 0;
+    // The do-file's own lines, for echoing the loops it runs.
+    this.sourceLines = source.replace(/\r\n?/g, "\n").split("\n");
     let rc = 0;
     try {
       this.runNodes(parseBlocks(splitCommands(source)), frame, output);
@@ -436,9 +473,83 @@ export class Session {
           options: node.options,
         });
       } else if (node.kind === "input") this.input(node, frame, output);
-      else if (node.kind === "block") this.runBlock(node, frame, output);
+      else if (node.kind === "block") this.block(node, frame, output);
       else this.runLine(node.text, frame, output);
     }
+  }
+
+  /**
+   * One block. An error that stopped it before any command could report it
+   * (foreach over a variable that does not exist, say) is reported here.
+   * When foldLoops is set, as the Console sets it, a loop run from the
+   * do-file is shown as Stata shows it: one record, the loop's lines echoed
+   * once, then all that it printed. A quiet block shows only its first line.
+   */
+  block(node, frame, output) {
+    const prefixes = prefixesOf(node.header),
+      fold =
+        this.foldLoops &&
+        !this.inProgram &&
+        !this.folding &&
+        (LOOP_HEADER.test(prefixes.rest + " ") ||
+          (!prefixes.rest && prefixes.silent));
+    if (!fold) {
+      try {
+        this.runBlock(node, frame, output);
+      } catch (error) {
+        if (error instanceof StataError && !error.recorded) {
+          error.recorded = true;
+          this.record(
+            output,
+            `${node.header} {`,
+            [...(error.message ? [error.message] : []), `r(${error.code});`],
+            error.code,
+          );
+        }
+        throw error;
+      }
+      return;
+    }
+    const inner = [],
+      at = this.line;
+    let failure = null;
+    this.folding++;
+    try {
+      this.runBlock(node, frame, inner);
+    } catch (error) {
+      failure = error;
+    } finally {
+      this.folding--;
+    }
+    const { command, echo } = echoOf(
+        this.sourceLines ?? [],
+        node.line,
+        node.end || node.line,
+      ),
+      lines = inner.flatMap((record) => record.lines);
+    let rc = 0;
+    if (failure instanceof StataError) {
+      if (!failure.recorded) {
+        failure.recorded = true;
+        if (failure.message) lines.push(failure.message);
+        lines.push(`r(${failure.code});`);
+      }
+      rc = failure.code;
+    }
+    const record = {
+        command,
+        echo: prefixes.silent ? [] : echo,
+        lines,
+        rc,
+      },
+      graphs = inner.map((each) => each.graph).filter(Boolean);
+    if (at) record.line = at;
+    if (graphs.length) {
+      record.graph = graphs.at(-1);
+      if (graphs.length > 1) record.graphs = graphs;
+    }
+    output.push(record);
+    if (failure) throw failure;
   }
 
   record(output, command, lines, rc, graph, line = this.line) {
@@ -454,54 +565,64 @@ export class Session {
     if (!text) return;
     const at = this.line,
       lines = [],
-      flags = { quiet: false, capture: false, by: null, ...inherited };
+      quietDepth = this.quietDepth ?? 0,
+      flags = {
+        // Inside quietly { } only noisily prints.
+        quiet: quietDepth > 0,
+        capture: false,
+        by: null,
+        ...inherited,
+      };
+    // do and include in the Console are shown before what the file printed:
+    // the file sets flags.leadAt to where the record belongs, and reports
+    // its own errors there.
+    const put = (shown, rc, graph) => {
+      this.record(output, raw, shown, rc, graph, at);
+      if (flags.leadAt !== undefined && flags.leadAt < output.length - 1)
+        output.splice(flags.leadAt, 0, output.pop());
+    };
     try {
       this.dispatch(text, frame, flags, lines, output);
     } catch (error) {
+      this.quietDepth = quietDepth;
       if (!(error instanceof StataError)) {
         if (error instanceof Signal) {
-          this.record(output, raw, lines, 0, undefined, at);
+          put(lines, 0);
           throw error;
         }
         throw error;
       }
+      const reported = flags.leadAt !== undefined && error.recorded;
       if (flags.capture) {
         this.rc = error.code;
-        this.record(
-          output,
-          raw,
-          flags.noisy
+        put(
+          flags.noisy && !reported
             ? [...lines, ...(error.message ? [error.message] : [])]
             : [],
           0,
-          undefined,
-          at,
         );
         return;
       }
-      this.record(
-        output,
-        raw,
-        [
-          ...lines,
-          ...(error.message ? [error.message] : []),
-          `r(${error.code});`,
-        ],
-        error.code,
-        undefined,
-        at,
-      );
+      if (reported) put(lines, 0);
+      else
+        put(
+          [
+            ...lines,
+            ...(error.message ? [error.message] : []),
+            `r(${error.code});`,
+          ],
+          error.code,
+        );
+      error.recorded = true;
       throw error;
     }
+    this.quietDepth = quietDepth;
     if (flags.capture) this.rc = 0;
     // quietly silences text, not graphs.
-    this.record(
-      output,
-      raw,
+    put(
       flags.quiet || (flags.capture && !flags.noisy) ? [] : lines,
       0,
       flags.graph,
-      at,
     );
   }
 
@@ -529,6 +650,8 @@ export class Session {
       else break;
       rest = rest.replace(/^:\s*/, "");
     }
+    // noisily prints even inside quietly { }, and so does what it runs.
+    if (flags.noisy) this.quietDepth = 0;
     if (!rest) return;
     const word = /^[A-Za-z_#][A-Za-z_0-9]*/.exec(rest)?.[0];
     if (!word)
@@ -554,8 +677,10 @@ export class Session {
           this.graphs.set(name, picture);
           if (!/,[\s\S]*\bnodraw\b/.test(body)) {
             flags.graph = picture;
-            // The graph shown last is the one graph export writes.
+            // The graph shown last is the one graph export writes; each
+            // graph shown has a window by its name, as name() finds it.
             this.currentGraph = picture;
+            (this.windows ??= new Map()).set(name, picture);
           }
         },
         output,
@@ -613,14 +738,29 @@ export class Session {
   }
 
   runBlock(node, frame, output) {
+    const prefixes = prefixesOf(node.header);
+    if (
+      prefixes.any &&
+      (!prefixes.rest || LOOP_HEADER.test(prefixes.rest + " "))
+    )
+      return this.prefixedBlock(node, prefixes, frame, output);
     const header = this.expand(node.header, frame).trim();
     let m;
     const body = () => this.runNodes(node.body, frame, output);
+    // A loop run from a do-file is a unit of its own: exit there leaves the
+    // loop, and the do-file goes on. In a program, exit ends the program.
+    const outermost = !this.inProgram && !this.loopDepth;
     const loop = (iterate) => {
+      this.loopDepth = (this.loopDepth ?? 0) + 1;
       try {
         iterate();
       } catch (error) {
-        if (!(error instanceof Signal && error.kind === "break")) throw error;
+        if (outermost && error instanceof Signal && error.kind === "exit") {
+          if (error.code) throw new StataError("", error.code);
+        } else if (!(error instanceof Signal && error.kind === "break"))
+          throw error;
+      } finally {
+        this.loopDepth -= 1;
       }
     };
     const once = () => {
@@ -684,27 +824,56 @@ export class Session {
         if (taken) body();
         frame.lastIf = taken;
       }
-    } else if (
-      /^(cap(t(u(re?)?)?)?|qui(e(t(ly?)?)?)?|n(o(i(s(i(ly?)?)?)?)?)?)(\s+(cap(t(u(re?)?)?)?|qui(e(t(ly?)?)?)?|n(o(i(s(i(ly?)?)?)?)?)?))*$/.test(
-        header,
-      )
-    ) {
-      const capture = /\bcap/.test(header),
-        quiet = /\bqui/.test(header) || (capture && !/\bn/.test(header)),
-        inner = [];
-      try {
-        this.runNodes(node.body, frame, inner);
-        if (capture) this.rc = 0;
-      } catch (error) {
-        if (!(error instanceof StataError) || !capture) {
-          if (!quiet) for (const entry of inner) output.push(entry);
-          throw error;
-        }
-        this.rc = error.code;
-      }
-      if (!quiet) for (const entry of inner) output.push(entry);
     } else
       throw new StataError(`${header.split(/\s/)[0]} { is not supported`, 199);
+  }
+
+  /**
+   * quietly { }, capture { } and noisily { }, and a loop with such prefixes
+   * (quietly foreach ... {). Inside a quiet block only noisily prints, and
+   * errors. capture keeps an error from stopping the do-file; after a
+   * captured loop _rc is 0, as in Stata.
+   */
+  prefixedBlock(node, prefixes, frame, output) {
+    const inner = [],
+      quietDepth = this.quietDepth ?? 0;
+    if (prefixes.silent) this.quietDepth = quietDepth + 1;
+    else if (prefixes.noisy) this.quietDepth = 0;
+    // What a quiet block shows: what noisily printed, errors and graphs.
+    const keep = (record) =>
+      !prefixes.silent ||
+      record.lines.length ||
+      record.graph ||
+      record.echo?.length;
+    try {
+      if (prefixes.rest)
+        this.runBlock({ ...node, header: prefixes.rest }, frame, inner);
+      else this.runNodes(node.body, frame, inner);
+      if (prefixes.capture) this.rc = 0;
+    } catch (error) {
+      this.quietDepth = quietDepth;
+      if (!(error instanceof StataError) || !prefixes.capture) {
+        for (const record of inner) if (keep(record)) output.push(record);
+        throw error;
+      }
+      this.rc = prefixes.rest ? 0 : error.code;
+      // The error is reported only with noisily, and without its r().
+      const failed = inner.findLast((record) => record.rc);
+      if (failed) {
+        failed.rc = 0;
+        failed.lines = prefixes.silent
+          ? []
+          : failed.lines.filter((line) => !/^r\(\d+\);$/.test(line));
+      } else if (!prefixes.silent && error.message)
+        inner.push({
+          command: `${node.header} {`,
+          lines: [error.message],
+          rc: 0,
+          line: this.line,
+        });
+    }
+    this.quietDepth = quietDepth;
+    for (const record of inner) if (keep(record)) output.push(record);
   }
 
   truth(text) {

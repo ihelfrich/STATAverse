@@ -724,8 +724,18 @@ function finish(rc, commands, started, output = []) {
   status.textContent = rc
     ? `Stopped at an error, return code ${rc}. Commands before it took effect.`
     : `Ran ${commands} command${commands === 1 ? "" : "s"} in ${seconds} seconds.`;
-  if (missing && !uploads.has(missing))
-    status.textContent += ` ${missing} is not among your files, so it must be added again: open Data and add it. ${shelf ? "Files you add are kept in this browser until you remove them." : "This browser is not keeping added files, so they are gone after a reload."}`;
+  if (missing) {
+    // Files are found without regard to case, as Stata finds them on macOS
+    // and Windows, but the Console's files are not in folders.
+    const base = missing.replace(/^.*[\\/]/, ""),
+      have = [...uploads.keys()].find(
+        (name) => name.toLowerCase() === base.toLowerCase(),
+      );
+    if (have && base !== missing)
+      status.textContent += ` ${have} is among your files, but files here are not in folders: name it without the folder, as ${have}.`;
+    else if (!have)
+      status.textContent += ` ${missing} is not among your files: open Data and add it. ${shelf ? "Files you add are kept in this browser until you remove them." : "This browser is not keeping added files, so they are gone after a reload."}`;
+  }
   busy(false);
   status.dataset.state = rc ? "error" : "done";
   if (rc) fox.failed(rc);
@@ -1318,6 +1328,14 @@ async function keepMade(made) {
       });
       uploads.set(each.name, { blob, made: true });
       await shelve(each.name, blob, true);
+      // The session gets the file's bytes, so that a later run reads the
+      // PNG or PDF as Stata would; an SVG it already has as text.
+      if (each.format !== "svg")
+        await ask({
+          kind: "binary",
+          name: each.name,
+          bytes: new Uint8Array(await blob.arrayBuffer()),
+        }).catch(() => {});
       kept.push(each.name);
     } catch {
       status.textContent = `${each.name} could not be drawn as ${each.format.toUpperCase()} in this browser.`;
@@ -1422,7 +1440,10 @@ async function restoreFiles() {
       uploads.set(file.name, { blob: file.blob, made: file.made });
       showVariables(result.memory);
     } catch {
+      // A file that cannot be read back is taken off the shelf, so that it
+      // is reported once, not on every visit.
       lost.push(file.name);
+      await shelf?.remove(file.name).catch(() => {});
     }
   }
   showUploads();
@@ -1492,11 +1513,17 @@ await newSession("Ready.");
 {
   const { count, lost } = await restoreFiles();
   if (count || lost.length)
-    status.textContent = `Ready. ${
+    status.textContent = [
+      "Ready.",
       count
         ? `Your file${count === 1 ? " is" : "s are"} here from this browser: ${[...uploads.keys()].join(", ")}.`
-        : ""
-    }${lost.length ? ` ${lost.join(", ")} could not be read back, so add ${lost.length === 1 ? "it" : "them"} again.` : ""}`.trim();
+        : "",
+      lost.length
+        ? `${lost.join(", ")} could not be read back and ${lost.length === 1 ? "was" : "were"} removed from this browser; add ${lost.length === 1 ? "it" : "them"} again.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
 }
 try {
   if (localStorage.getItem(MODE_KEY) === "map") setMode(true);

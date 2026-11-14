@@ -8,6 +8,8 @@ import { applyFormat } from "./format.js";
 import { count, list } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { Dataset } from "./store.js";
+import { fingerprint } from "./fingerprint.js";
+import { findFile } from "./files.js";
 import {
   MISSING,
   byteLength,
@@ -33,17 +35,6 @@ export function fileName(text) {
   return /\.[A-Za-z0-9]+$/.test(name) ? name : name + ".dta";
 }
 const files = (session) => (session.files ??= new Map());
-const fingerprint = (data) =>
-  JSON.stringify([
-    data.n,
-    data.variables.map((v) => [
-      v.name,
-      v.type,
-      v.format,
-      v.label,
-      Array.from(v.data),
-    ]),
-  ]);
 /** True when the data in memory differ from what was last saved or loaded. */
 function changed(session) {
   return (
@@ -52,7 +43,7 @@ function changed(session) {
   );
 }
 export function load(session, name) {
-  const stored = files(session).get(name);
+  const stored = files(session).get(findFile(files(session), name));
   if (!stored) throw new StataError(`file ${name} not found`, 601);
   if (typeof stored.text === "string")
     throw new StataError(

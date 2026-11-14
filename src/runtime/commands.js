@@ -657,6 +657,11 @@ function clear(session, text) {
     session.scalars.clear();
     session.programs.clear();
     session.results = { r: {}, e: {}, s: {} };
+    // Graphs are dropped too; their windows stay open, empty.
+    session.graphs?.clear();
+    session.currentGraph = null;
+    for (const name of session.windows?.keys() ?? [])
+      session.windows.set(name, null);
   }
 }
 

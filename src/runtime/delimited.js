@@ -7,6 +7,8 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { count } from "./reports.js";
 import { Dataset } from "./store.js";
+import { fingerprint } from "./fingerprint.js";
+import { findFile } from "./files.js";
 import {
   MISSING,
   inferType,
@@ -85,20 +87,66 @@ function fileName(text) {
   if (!name) throw new StataError("invalid file specification", 198);
   return name;
 }
+/**
+ * The text of a file kept as bytes, as Stata 19 reads it: binary zeros are
+ * dropped (and counted, with the number of line ends before the first), and
+ * a file that is not UTF-8 is read as ISO-8859-1, or as windows-1252 when
+ * it has bytes that only windows-1252 prints; plain ASCII counts as
+ * ISO-8859-1.
+ */
+function textOfBytes(bytes) {
+  const kept = new Uint8Array(bytes.length);
+  let n = 0,
+    zeros = 0,
+    zeroLine = 0,
+    ends = 0,
+    high = false,
+    windows = false;
+  for (const byte of bytes) {
+    if (byte === 0) {
+      if (!zeros++) zeroLine = Math.max(1, ends);
+      continue;
+    }
+    if (byte === 10) ends++;
+    if (byte >= 0x80) high = true;
+    if (byte >= 0x80 && byte <= 0x9f) windows = true;
+    kept[n++] = byte;
+  }
+  const body = kept.subarray(0, n);
+  let utf8 = !zeros;
+  if (utf8 && high)
+    try {
+      new TextDecoder("utf-8", { fatal: true }).decode(body);
+    } catch {
+      utf8 = false;
+    }
+  // Stata names the encoding it chose for every file, ASCII included.
+  const encoding =
+    utf8 && high ? "UTF-8" : windows ? "windows-1252" : "ISO-8859-1";
+  return {
+    text: new TextDecoder(utf8 ? "utf-8" : "windows-1252").decode(body),
+    encoding,
+    zeros,
+    zeroLine,
+  };
+}
+/** A note wrapped as Stata wraps it, the lines after the first indented. */
+function wrapNote(text, width) {
+  const lines = [];
+  let current = "";
+  for (const word of text.split(/(?<=\S) (?=\S)|(?<=\.)  (?=\S)/)) {
+    const joint = /\.$/.test(current) ? "  " : " ";
+    if (current && current.length + joint.length + word.length > width) {
+      lines.push(current);
+      current = "       " + word;
+    } else current = current ? current + joint + word : word;
+  }
+  lines.push(current);
+  return lines;
+}
 function changedSinceSave(session) {
   if (!session.data.variables.length) return false;
-  const data = session.data,
-    print = JSON.stringify([
-      data.n,
-      data.variables.map((v) => [
-        v.name,
-        v.type,
-        v.format,
-        v.label,
-        Array.from(v.data),
-      ]),
-    ]);
-  return print !== session.cleanFingerprint;
+  return fingerprint(session.data) !== session.cleanFingerprint;
 }
 
 function importDelimited(session, text, ctx) {
@@ -108,9 +156,26 @@ function importDelimited(session, text, ctx) {
     ),
     name = fileName(parsed.using ?? parsed.anything ?? ""),
     files = (session.files ??= new Map()),
-    stored = files.get(name) ?? files.get(name + ".csv");
+    stored =
+      files.get(findFile(files, name)) ??
+      files.get(findFile(files, name + ".csv"));
   if (!stored) throw new StataError(`file ${name} not found`, 601);
-  if (typeof stored.text !== "string")
+  // A file kept as its bytes (a workbook, a picture graph export wrote) is
+  // read as text, as Stata reads any file it is given.
+  const read =
+    typeof stored.text === "string"
+      ? { text: stored.text }
+      : stored.bytes instanceof Uint8Array
+        ? textOfBytes(stored.bytes)
+        : null;
+  // A PNG or PDF graph export wrote in this run is drawn by the page when
+  // the run ends; until then there are no bytes to read.
+  if (!read && stored.picture)
+    throw new StataError(
+      `${name} is a ${stored.picture.format.toUpperCase()} picture graph export is still drawing; it can be read once this run has ended`,
+      610,
+    );
+  if (!read)
     throw new StataError(
       `${name} is a Stata dataset; use the use command`,
       610,
@@ -132,8 +197,10 @@ function importDelimited(session, text, ctx) {
           : delimiter;
     if (delimiter.length !== 1)
       throw new StataError("delimiters() must name one character", 198);
-  } else delimiter = detect(stored.text);
-  const rows = parseDelimitedText(stored.text, delimiter);
+  } else delimiter = detect(read.text);
+  if (read.encoding)
+    ctx.out(`(encoding automatically selected: ${read.encoding})`);
+  const rows = parseDelimitedText(read.text, delimiter);
   if (!rows.length) throw new StataError("no observations", 2000);
   const width = greatest(rows.map((r) => r.length)),
     numeric = (cell) =>
@@ -200,6 +267,11 @@ function importDelimited(session, text, ctx) {
   }
   session.data = data;
   session.cleanFingerprint = null;
+  if (read.zeros)
+    wrapNote(
+      `Note:  ${count(read.zeros)} binary ${read.zeros === 1 ? "zero was" : "zeros were"} ignored in the source file.  The first instance occurred on line ${count(read.zeroLine)}.  Binary zeros are not valid in text data.  Inspect your data carefully.`,
+      (session.settings?.linesize ?? 80) - 3,
+    ).forEach((line) => ctx.out(line));
   ctx.out(`(${count(width)} vars, ${count(body.length)} obs)`);
 }
 function invalidOption(option) {

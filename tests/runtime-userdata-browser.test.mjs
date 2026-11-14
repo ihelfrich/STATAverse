@@ -5,11 +5,7 @@
 // data.
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  createConsoleSession,
-  foldLoops,
-  missingFile,
-} from "../src/console-session.js";
+import { createConsoleSession, missingFile } from "../src/console-session.js";
 import {
   fileKind,
   giveFile,
@@ -19,6 +15,7 @@ import {
 } from "../src/console-files.js";
 import { mentions, projectZip } from "../src/console-project.js";
 import { deflate, pdfOf } from "../src/console-picture.js";
+import { writeDta } from "../src/console-dta.js";
 
 /** Records as Stata's log shows them. */
 const transcript = (output) =>
@@ -136,13 +133,17 @@ test("comment lines in a loop echo as Stata 19 echoes them", () => {
     ].join("\n"),
   );
   // A quiet loop shows only its first line, as in Stata.
-  assert.deepEqual(foldLoops("quietly foreach v in a {\nx\n}", [])[0], {
-    command: "quietly foreach v in a {",
-    echo: [],
-    lines: [],
-    rc: 0,
-    line: 1,
-  });
+  assert.deepEqual(
+    createConsoleSession().run('quietly foreach v in a {\ndisplay "x"\n}')
+      .output[0],
+    {
+      command: "quietly foreach v in a {",
+      echo: [],
+      lines: [],
+      rc: 0,
+      line: 1,
+    },
+  );
   // A program's body is not run where it is written; its loop is not echoed.
   const program = createConsoleSession().run(
     "program define twice\n  forvalues i = 1/2 {\n    display `i'\n  }\nend\ntwice",
@@ -251,9 +252,10 @@ test("graph export writes .svg, .png and .pdf with Stata 19's messages", () => {
   );
   const svg = result.made[0].svg;
   assert.match(svg, /^<\?xml version="1.0"/);
-  assert.match(svg, /<svg width="640px" height="460px" /);
+  // Stata 19 draws a graph 7.5 by 4.5 inches.
+  assert.match(svg, /<svg width="7\.500in" height="4\.500in" /);
   // height() alone keeps the graph's shape, as Stata 19 does.
-  assert.match(result.made[4].svg, /<svg width="557px" height="400px" /);
+  assert.match(result.made[4].svg, /<svg width="667px" height="400px" /);
   // width(4) of a PDF is in inches.
   assert.equal(result.made[2].width, 4 * 96);
   // The next run starts with none to tell.
@@ -491,4 +493,581 @@ test("the project zip carries data named without its extension", () => {
     assert.ok(text.includes(`stata-project/${name}`), name);
   assert.ok(!text.includes("stata-project/unused.csv"));
   assert.ok(text.includes("fig1.png    a graph the do-file exported"));
+});
+
+test("a dataset of 30 million cells is used, saved and checked for changes", () => {
+  // 3,000,000 observations of 10 floats, the size Stata 19 loaded at once
+  // for the tester; a text fingerprint of the cells broke past 28 million.
+  const n = 3_000_000,
+    column = new Float64Array(n);
+  for (let i = 0; i < n; i++)
+    column[i] = Math.fround(((i * 7919) % 10007) / 10007);
+  const variables = Array.from({ length: 10 }, (_, k) => ({
+      name: `x${k + 1}`,
+      type: "float",
+      format: "%9.0g",
+      label: "",
+      valueLabel: "",
+      data: column,
+    })),
+    bytes = writeDta({
+      n,
+      label: "",
+      variables,
+      valueLabels: new Map(),
+      sortedBy: [],
+    }),
+    session = createConsoleSession();
+  assert.equal(session.addData("big3m.dta", bytes).rows, n);
+  const result = session.run(
+    "use big3m.dta, clear\ncount\nreplace x1 = 2 in 1\ncapture noisily use big3m.dta\nsave b2, replace\nuse big3m.dta",
+  );
+  assert.equal(result.rc, 0);
+  assert.deepEqual(
+    result.output.map((record) => [record.command, record.lines]),
+    [
+      ["use big3m.dta, clear", []],
+      ["count", ["  3,000,000"]],
+      ["replace x1 = 2 in 1", ["(1 real change made)"]],
+      [
+        "capture noisily use big3m.dta",
+        ["no; dataset in memory has changed since last saved"],
+      ],
+      ["save b2, replace", ["(file b2.dta not found)", "file b2.dta saved"]],
+      ["use big3m.dta", []],
+    ],
+  );
+});
+
+/** Records as Stata's log shows them, without blanks at the ends of lines. */
+const log = (output) =>
+  transcript(output)
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n");
+
+test("exit leaves a loop run from the do-file, and ends the do-file elsewhere", () => {
+  const session = createConsoleSession();
+  let result = session.run(
+    'clear\nset obs 2\ngenerate x = _n\ndisplay "before exit"\nexit\ndisplay "not run"\nforvalues i = 1/2 {\n    display "loop `i\'"\n}\nforeach v of varlist nosuch {\n    display "`v\'"\n}',
+  );
+  // Nothing after exit is run or echoed.
+  assert.equal(result.rc, 0);
+  assert.deepEqual(
+    result.output.map((record) => record.command),
+    ["clear", "set obs 2", "generate x = _n", 'display "before exit"', "exit"],
+  );
+  result = session.run(
+    [
+      "clear",
+      "set obs 2",
+      "generate x = _n",
+      "foreach v in a b {",
+      '    display "in `v\'"',
+      "    exit",
+      "}",
+      'display "after exit"',
+      "forvalues i = 1/2 {",
+      "    if `i' == 1 {",
+      '        display "one"',
+      "    }",
+      "    else {",
+      '        display "other"',
+      "    }",
+      "}",
+      "foreach v of varlist nosuch {",
+      '    display "`v\'"',
+      "}",
+      'display "not run"',
+    ].join("\n"),
+  );
+  assert.equal(result.rc, 111);
+  assert.equal(
+    log(result.output),
+    `. clear
+
+. set obs 2
+Number of observations (_N) was 0, now 2.
+
+. generate x = _n
+
+. foreach v in a b {
+  2.     display "in \`v'"
+  3.     exit
+  4. }
+in a
+
+. display "after exit"
+after exit
+
+. forvalues i = 1/2 {
+  2.     if \`i' == 1 {
+  3.         display "one"
+  4.     }
+  5.     else {
+  6.         display "other"
+  7.     }
+  8. }
+one
+other
+
+. foreach v of varlist nosuch {
+  2.     display "\`v'"
+  3. }
+variable nosuch not found
+r(111);`,
+  );
+  // exit with a code stops the do-file; in a program, exit leaves the
+  // program even from inside a loop.
+  result = session.run(
+    'program define p1\n    foreach v in a b {\n        display "p1 `v\'"\n        exit\n    }\n    display "p1 after loop"\nend\np1\nforeach v in a {\n    exit 198\n}\ndisplay "not reached"',
+  );
+  assert.equal(result.rc, 198);
+  assert.equal(
+    log(result.output.slice(-2)),
+    `. p1
+p1 a
+
+. foreach v in a {
+  2.     exit 198
+  3. }
+r(198);`,
+  );
+});
+
+test("loops with quietly, capture and noisily show what Stata 19 shows", () => {
+  const result = createConsoleSession().run(
+    [
+      "clear",
+      "set obs 3",
+      "generate x = _n",
+      "quietly foreach v in c d {",
+      '    display "`v\'"',
+      '    noisily display "n`v\'"',
+      "}",
+      "capture foreach v in c d {",
+      '    display "`v\'"',
+      "}",
+      "capture noisily forvalues i = 1/2 {",
+      '    display "cn`i\'"',
+      "}",
+      "qui forvalues i = 1/2 {",
+      '    display "q`i\'"',
+      "}",
+      "noisily foreach v in g {",
+      '    display "`v\'"',
+      "}",
+      "quietly {",
+      '    display "inside quiet"',
+      '    noisily display "noisy inside"',
+      "    forvalues i = 1/2 {",
+      '        noisily display "qn`i\'"',
+      "    }",
+      "}",
+      "capture noisily foreach v in c d {",
+      '    display "`v\'"',
+      "    confirm variable nosuch",
+      "}",
+      "display _rc",
+      "capture foreach v in c d {",
+      '    display "`v\'"',
+      "    exit 111",
+      "}",
+      "display _rc",
+      "capture {",
+      '    display "in capture block"',
+      '    noisily display "noisy in capture"',
+      "}",
+    ].join("\n"),
+  );
+  assert.equal(result.rc, 0);
+  assert.equal(
+    log(result.output.slice(3)),
+    `. quietly foreach v in c d {
+nc
+nd
+
+. capture foreach v in c d {
+
+. capture noisily forvalues i = 1/2 {
+  2.     display "cn\`i'"
+  3. }
+cn1
+cn2
+
+. qui forvalues i = 1/2 {
+
+. noisily foreach v in g {
+  2.     display "\`v'"
+  3. }
+g
+
+. quietly {
+noisy inside
+qn1
+qn2
+
+. capture noisily foreach v in c d {
+  2.     display "\`v'"
+  3.     confirm variable nosuch
+  4. }
+c
+variable nosuch not found
+
+. display _rc
+0
+
+. capture foreach v in c d {
+
+. display _rc
+0
+
+. capture {
+noisy in capture`,
+  );
+});
+
+test("do and include show the file's commands and fold its loops, as Stata 19 does", () => {
+  const session = createConsoleSession();
+  session.addFile(
+    "sub.do",
+    'display "sub line 1"\ndisplay "sub line 2"\nforvalues k = 1/2 {\n    display "subloop `k\'"\n}\n',
+  );
+  session.addFile(
+    "sub2.do",
+    'display "sub2 one"\nexit\ndisplay "sub2 not run"\n',
+  );
+  session.addFile(
+    "sub3.do",
+    'display "sub3 one"\nnosuchcommand\ndisplay "sub3 not run"\n',
+  );
+  let result = session.run(
+    'clear\nforvalues i=1/2 {\n    display "main `i\'"\n}\ndo sub.do\nforvalues i = 1/2 {\n    run sub.do\n}\ninclude sub.do\ndisplay "end"',
+  );
+  assert.equal(result.rc, 0);
+  assert.equal(
+    log(result.output),
+    `. clear
+
+. forvalues i=1/2 {
+  2.     display "main \`i'"
+  3. }
+main 1
+main 2
+
+. do sub.do
+
+. display "sub line 1"
+sub line 1
+
+. display "sub line 2"
+sub line 2
+
+. forvalues k = 1/2 {
+  2.     display "subloop \`k'"
+  3. }
+subloop 1
+subloop 2
+
+.
+end of do-file
+
+. forvalues i = 1/2 {
+  2.     run sub.do
+  3. }
+
+. include sub.do
+
+. display "sub line 1"
+sub line 1
+
+. display "sub line 2"
+sub line 2
+
+. forvalues k = 1/2 {
+  2.     display "subloop \`k'"
+  3. }
+subloop 1
+subloop 2
+
+. display "end"
+end`,
+  );
+  // The records of a file carry the line of the do command, for the gutter.
+  assert.ok(result.output.slice(2, 7).every((record) => record.line === 5));
+  result = session.run(
+    'do sub2.do\ndisplay "after sub2"\ndo sub3.do\ndisplay "not reached"',
+  );
+  assert.equal(result.rc, 199);
+  assert.equal(
+    log(result.output),
+    `. do sub2.do
+
+. display "sub2 one"
+sub2 one
+
+. exit
+
+end of do-file
+
+. display "after sub2"
+after sub2
+
+. do sub3.do
+
+. display "sub3 one"
+sub3 one
+
+. nosuchcommand
+command nosuchcommand is unrecognized
+r(199);
+
+end of do-file
+r(199);`,
+  );
+});
+
+test("the project zip carries data a loop names through a macro", () => {
+  assert.ok(
+    mentions("import delimited using sales`y'.csv, clear", "sales2018.csv"),
+  );
+  assert.ok(mentions("    append using wave`w'", "wave2.dta"));
+  assert.ok(mentions('use "data/wave`w\'.dta", clear', "wave2.dta"));
+  assert.ok(mentions("use ${stem}_clean", "panel_clean.dta"));
+  assert.ok(!mentions("import delimited using sales`y'.csv", "sales2018.dta"));
+  // A macro alone, as in display "`v'", names no file.
+  assert.ok(!mentions('display "`v\': mean"', "left.dta"));
+  const zipped = (text, names) =>
+    Buffer.from(
+      projectZip(
+        [{ name: "main.do", text }],
+        names.map((name) => ({ name, data: "a\n1\n" })),
+        new Date(2026, 10, 13),
+      ),
+    ).toString("latin1");
+  let text = zipped(
+    "forvalues y = 2018/2019 {\n    import delimited using sales`y'.csv, clear\n    save s`y', replace\n}\n",
+    ["sales2018.csv", "sales2019.csv", "other.csv"],
+  );
+  assert.ok(text.includes("stata-project/sales2018.csv"));
+  assert.ok(text.includes("stata-project/sales2019.csv"));
+  assert.ok(!text.includes("stata-project/other.csv"));
+  text = zipped(
+    "use wave1, clear\nforvalues w = 2/2 {\n    append using wave`w'\n}",
+    ["wave1.dta", "wave2.dta"],
+  );
+  assert.ok(text.includes("stata-project/wave2.dta"));
+});
+
+test("files are found whatever the case of their names, as Stata 19 finds them on macOS", () => {
+  const session = createConsoleSession();
+  session.addFile("Sales.CSV", "id,amount\n1,10\n2,20\n3,30\n");
+  session.addFile("Sub.do", 'display "in sub"\n');
+  const result = session.run(
+    [
+      "clear",
+      "set obs 3",
+      "generate id = _n",
+      "generate v = id * 2",
+      "save Left, replace",
+      "use left.dta, clear",
+      "use left, clear",
+      "merge 1:1 id using LEFT",
+      "import delimited using sales.csv, clear",
+      "run sub",
+    ].join("\n"),
+  );
+  assert.equal(result.rc, 0);
+  const printed = Object.fromEntries(
+    result.output.map((record) => [record.command, record.lines]),
+  );
+  assert.equal(
+    printed["import delimited using sales.csv, clear"].at(-1),
+    "(2 vars, 3 obs)",
+  );
+  assert.match(printed["merge 1:1 id using LEFT"].join("\n"), /Matched\s+3/);
+  // A path into a folder is not found: the Console's files have no folders.
+  assert.equal(
+    missingFile(session.run('use "data/left.dta", clear').output),
+    "data/left.dta",
+  );
+});
+
+test("graph export refuses where Stata 19 refuses and sizes files as Stata does", () => {
+  const session = createConsoleSession(),
+    result = session.run(
+      [
+        "clear",
+        "set obs 5",
+        "generate x = _n",
+        "generate y = x^2",
+        "scatter y x",
+        "graph export d1.png",
+        "graph export d2.png, width(1000)",
+        "graph export d3.png, height(300)",
+        "graph export d4.svg",
+        "graph export d5.svg, width(1000)",
+        "graph export d6.pdf",
+        "graph export d7.pdf, width(4)",
+        "graph export d8.png, width(1000) height(300)",
+        "graph export e1.svg, height(400)",
+        "graph export e2.svg, width(2.5)",
+        "graph export e4.png, height(400)",
+        "capture noisily graph export figT.svg, height(abc)",
+        "capture noisily graph export figT.svg, width(0)",
+        "capture noisily graph export figU.png, width(abc)",
+        "capture noisily graph export figU.pdf, width(0)",
+        "capture noisily graph export sub/figH.png",
+        'capture noisily graph export "nosuchdir/figH.svg"',
+        "scatter x y, nodraw name(nd)",
+        "capture noisily graph export figL.svg, name(nd)",
+        "graph export figL2.svg",
+        "clear all",
+        "capture noisily graph export figP.png",
+        "display _rc",
+        "capture noisily graph export figP.png, name(Graph)",
+        "display _rc",
+      ].join("\n"),
+    ),
+    printed = Object.fromEntries(
+      result.output.map((record) => [record.command, record.lines]),
+    ),
+    made = Object.fromEntries(result.made.map((file) => [file.name, file]));
+  assert.equal(result.rc, 0);
+  // Stata 19's sizes: PNG pixels, the SVG's width and height, the PDF page
+  // (the page draws a PDF at 3/4 point to the pixel).
+  const size = (name) => [made[name].width, made[name].height];
+  assert.deepEqual(size("d1.png"), [720, 432]);
+  assert.deepEqual(size("d2.png"), [1000, 600]);
+  assert.deepEqual(size("d3.png"), [500, 300]);
+  assert.deepEqual(size("d8.png"), [1000, 300]);
+  assert.deepEqual(size("e4.png"), [666, 400]);
+  assert.match(made["d4.svg"].svg, /<svg width="7\.500in" height="4\.500in" /);
+  assert.match(made["d5.svg"].svg, /<svg width="1000px" height="600px" /);
+  assert.match(made["e1.svg"].svg, /<svg width="667px" height="400px" /);
+  assert.match(made["e2.svg"].svg, /<svg width="3px" height="2px" /);
+  assert.match(made["figT.svg"].svg, /<svg width="0px" height="0px" /);
+  assert.deepEqual(
+    size("d6.pdf").map((n) => n * 0.75),
+    [540, 324],
+  );
+  assert.deepEqual(
+    size("d7.pdf").map((n) => +(n * 0.75).toFixed(2)),
+    [288, 172.8],
+  );
+  assert.deepEqual(
+    printed["capture noisily graph export figT.svg, height(abc)"],
+    ["'abc' is an invalid height"],
+  );
+  assert.deepEqual(printed["capture noisily graph export figT.svg, width(0)"], [
+    "file figT.svg saved as SVG format",
+  ]);
+  assert.deepEqual(
+    printed["capture noisily graph export figU.png, width(abc)"],
+    ["width() must be an integer between 8 and 16,000"],
+  );
+  assert.deepEqual(printed["capture noisily graph export figU.pdf, width(0)"], [
+    "width() must be a number between 0.5 and 20",
+  ]);
+  assert.deepEqual(printed["capture noisily graph export sub/figH.png"], [
+    "file sub/figH.png could not be opened",
+  ]);
+  assert.deepEqual(
+    printed['capture noisily graph export "nosuchdir/figH.svg"'],
+    ["file nosuchdir/figH.svg could not be opened"],
+  );
+  assert.deepEqual(printed["capture noisily graph export figL.svg, name(nd)"], [
+    "could not find Graph window",
+  ]);
+  assert.deepEqual(printed["graph export figL2.svg"], [
+    "file figL2.svg saved as SVG format",
+  ]);
+  assert.deepEqual(printed["capture noisily graph export figP.png"], [
+    "could not read from Graph window",
+  ]);
+  assert.deepEqual(
+    printed["capture noisily graph export figP.png, name(Graph)"],
+    ["could not read from Graph window"],
+  );
+  assert.deepEqual(
+    result.output
+      .filter((r) => r.command === "display _rc")
+      .map((r) => r.lines),
+    [["692"], ["692"]],
+  );
+  // Nothing is written where Stata writes nothing.
+  for (const name of [
+    "sub/figH.png",
+    "nosuchdir/figH.svg",
+    "figL.svg",
+    "figP.png",
+  ])
+    assert.ok(!result.memory.files.includes(name), name);
+});
+
+test("import delimited reads a file kept as bytes as text, as Stata 19 does", () => {
+  // Small files built here: text with binary zeros, and a byte only
+  // windows-1252 and ISO-8859-1 print.
+  const bytesOf = (...parts) =>
+      Uint8Array.from(
+        parts.flatMap((part) =>
+          typeof part === "string"
+            ? [...part].map((c) => c.charCodeAt(0))
+            : Array.isArray(part)
+              ? part
+              : [part],
+        ),
+      ),
+    session = createConsoleSession();
+  session.addBinary(
+    "z1.xlsx",
+    bytesOf("id,name,score\n", 0, 0, "1,Ana,3\n2,Bo", 0, "b,4\n3,Cy,5\n"),
+  );
+  session.addBinary(
+    "z2.xlsx",
+    bytesOf(
+      "id,city\n1,M",
+      0xfc,
+      "nchen\n2,Paris\n",
+      new Array(1200).fill(0),
+      "3,Rome\n",
+    ),
+  );
+  session.addBinary("z3.png", bytesOf("x;y\n", 0, "1;2\n3;4\n"));
+  const result = session.run(
+      [
+        "capture noisily import delimited using z1.xlsx, clear",
+        "list",
+        "capture noisily import delimited using z2.xlsx, clear",
+        "list",
+        "capture noisily import delimited using z3.png, clear",
+        "capture noisily use z1.xlsx, clear",
+      ].join("\n"),
+    ),
+    lines = result.output.map((record) => record.lines);
+  assert.equal(result.rc, 0);
+  assert.deepEqual(lines[0], [
+    "(encoding automatically selected: ISO-8859-1)",
+    "Note:  3 binary zeros were ignored in the source file.  The first instance",
+    "       occurred on line 1.  Binary zeros are not valid in text data.  Inspect",
+    "       your data carefully.",
+    "(3 vars, 3 obs)",
+  ]);
+  assert.ok(lines[1].some((line) => /\|\s+2\s+Bob\s+4 \|/.test(line)));
+  assert.deepEqual(lines[2], [
+    "(encoding automatically selected: ISO-8859-1)",
+    "Note:  1,200 binary zeros were ignored in the source file.  The first",
+    "       instance occurred on line 3.  Binary zeros are not valid in text data.",
+    "       Inspect your data carefully.",
+    "(2 vars, 3 obs)",
+  ]);
+  assert.ok(lines[3].some((line) => /\|\s+1\s+München \|/.test(line)));
+  assert.deepEqual(lines[4], [
+    "(encoding automatically selected: ISO-8859-1)",
+    "Note:  1 binary zero was ignored in the source file.  The first instance",
+    "       occurred on line 1.  Binary zeros are not valid in text data.  Inspect",
+    "       your data carefully.",
+    "(2 vars, 2 obs)",
+  ]);
+  assert.deepEqual(lines[5], ["file z1.xlsx not Stata format"]);
 });

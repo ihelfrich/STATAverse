@@ -1638,19 +1638,38 @@ const memoryGraphs = {
       throw new StataError(`graph ${to} already exists`, 110);
     kept(session).delete(from);
     kept(session).set(to, picture);
+    if (session.windows?.has(from)) {
+      session.windows.set(to, session.windows.get(from));
+      session.windows.delete(from);
+    }
   },
   drop(session, text, ctx) {
     const names = text.trim().split(/\s+/).filter(Boolean);
-    if (names.length === 1 && names[0] === "_all") return kept(session).clear();
+    // A graph dropped closes its window.
+    const close = (name) => {
+      const picture = session.windows?.get(name);
+      session.windows?.delete(name);
+      if (picture && session.currentGraph === picture)
+        session.currentGraph = [...(session.windows?.values() ?? [])].at(-1);
+    };
+    if (names.length === 1 && names[0] === "_all") {
+      for (const name of kept(session).keys()) close(name);
+      return kept(session).clear();
+    }
     for (const name of names)
       if (!kept(session).has(name)) {
         ctx.out(`graph ${name} not found`);
         throw new StataError("no graphs dropped", 111);
       }
-    for (const name of names) kept(session).delete(name);
+    for (const name of names) {
+      close(name);
+      kept(session).delete(name);
+    }
   },
 };
 // ----- graph export: the picture as a file in the session's folder -----
+// The size Stata 19 draws a graph, in inches.
+const STATA_GRAPH = { width: 7.5, height: 4.5 };
 const EXPORTS = {
     svg: "saved as SVG format",
     png: "written in PNG format",
@@ -1698,63 +1717,81 @@ function exportGraph(session, text, ctx) {
       198,
       "Export as .png for a picture, .pdf for a document or .svg to edit the graph.",
     );
-  const picture =
-    options.name !== undefined
-      ? kept(session).get(options.name.trim())
-      : session.currentGraph;
+  // The graph in the window named, or in the window shown last. A graph
+  // drawn with nodraw has no window; after clear all the windows are empty.
+  const windows = session.windows ?? new Map(),
+    wanted = options.name?.trim(),
+    picture = wanted !== undefined ? windows.get(wanted) : session.currentGraph;
   if (!picture)
-    throw options.name !== undefined
+    throw wanted !== undefined && !windows.has(wanted)
       ? new StataError("could not find Graph window", 693)
-      : new StataError("no Graph window open", 601);
-  // The graph's own size in pixels, from its viewBox.
-  const box = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(picture.svg),
-    native = {
-      width: Number(box?.[1] ?? 640),
-      height: Number(box?.[2] ?? 460),
-    },
-    pdf = format === "pdf",
+      : windows.size
+        ? new StataError("could not read from Graph window", 692)
+        : new StataError("no Graph window open", 601);
+  // The Console's files have no folders, so a path into one cannot be
+  // written, as Stata cannot write into a folder that does not exist.
+  if (/[\\/]/.test(name))
+    throw new StataError(`file ${name} could not be opened`, 603);
+  // Stata draws a graph 7.5 by 4.5 inches; a PNG is 96 pixels an inch, a
+  // PDF's page is in inches and an SVG's size in pixels. Given one side,
+  // the other keeps that shape. The picture is drawn centred in that frame.
+  const pdf = format === "pdf",
+    aspect = STATA_GRAPH.height / STATA_GRAPH.width,
     size = (option, value) => {
       if (value === undefined) return null;
-      const number = Number(value.trim());
+      const typed = value.trim(),
+        number = typed === "" ? NaN : Number(typed);
       if (pdf) {
-        if (!(number >= 0.5 && number <= 20) || !value.trim())
+        if (!(number >= 0.5 && number <= 20))
           throw new StataError(
             `${option}() must be a number between 0.5 and 20`,
             198,
           );
         return number * 96;
       }
-      if (
-        format === "png" &&
-        !(Number.isInteger(number) && number >= 8 && number <= 16000)
-      )
-        throw new StataError(
-          `${option}() must be an integer between 8 and 16,000`,
-          198,
-        );
-      if (!(number > 0))
-        throw new StataError(`option ${option}() invalid`, 198);
-      return number;
+      if (format === "png") {
+        if (!(Number.isInteger(number) && number >= 8 && number <= 16000))
+          throw new StataError(
+            `${option}() must be an integer between 8 and 16,000`,
+            198,
+          );
+        return number;
+      }
+      // An SVG takes any number, in whole pixels; width(0) is 0 by 0.
+      if (!Number.isFinite(number))
+        throw new StataError(`'${typed}' is an invalid ${option}`, 198);
+      return Math.max(0, number);
     },
     asked = {
       width: size("width", options.width),
       height: size("height", options.height),
     },
+    // The side not given follows the graph's shape: a PNG's is cut to whole
+    // pixels (height(400) is 666 wide), an SVG's rounded (667), a PDF's kept.
+    whole =
+      format === "png" ? Math.floor : format === "svg" ? Math.round : (n) => n,
     width =
       asked.width ??
-      (asked.height
-        ? (asked.height * native.width) / native.height
-        : native.width),
-    height = asked.height ?? (width * native.height) / native.width;
+      (asked.height !== null
+        ? whole(asked.height / aspect)
+        : STATA_GRAPH.width * 96),
+    height =
+      asked.height ??
+      (asked.width !== null ? whole(width * aspect) : STATA_GRAPH.height * 96);
   const files = (session.files ??= new Map());
   if (files.has(name) && !options.replace)
     throw new StataError(`file ${name} already exists`, 602);
   // Stata 19 notes a missing file it replaces for SVG and PNG, not for PDF.
   if (options.replace && !files.has(name) && !pdf)
     ctx.out(`(file ${name} not found)`);
-  const svg = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n${picture.svg.replace(
+  const shown = (n) => `${format === "svg" ? Math.round(n) : +n.toFixed(3)}px`,
+    attributes =
+      format === "svg" && asked.width === null && asked.height === null
+        ? `width="${STATA_GRAPH.width.toFixed(3)}in" height="${STATA_GRAPH.height.toFixed(3)}in"`
+        : `width="${shown(width)}" height="${shown(height)}"`,
+    svg = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n${picture.svg.replace(
       /^<svg /,
-      `<svg width="${Math.round(width)}px" height="${Math.round(height)}px" `,
+      `<svg ${attributes} preserveAspectRatio="xMidYMid meet" `,
     )}\n`,
     file = { format, svg, width, height };
   files.set(

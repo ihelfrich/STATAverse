@@ -97,7 +97,7 @@ test("added files are kept between visits until removed", async ({ page }) => {
   );
 
   // Removed, it is gone after a reload too, and a do-file that uses it says
-  // it must be added again.
+  // it must be added.
   await drawer(page, "data");
   await page.getByRole("button", { name: "Remove kept.csv" }).click();
   await expect(status).toHaveText("kept.csv was removed from this browser.");
@@ -112,7 +112,7 @@ test("added files are kept between visits until removed", async ({ page }) => {
     "file kept.csv not found",
   );
   await expect(status).toContainText(
-    "kept.csv is not among your files, so it must be added again",
+    "kept.csv is not among your files: open Data and add it",
   );
 });
 
@@ -263,4 +263,87 @@ test("graph export writes files to download and to carry in the project", async 
   ).toString("latin1");
   for (const name of Object.keys(signatures))
     expect(text).toContain(`stata-project/${name}`);
+});
+
+test("a kept file that cannot be read back is reported once and taken off the shelf", async ({
+  page,
+}) => {
+  await ready(page);
+  // Stands in for any kept file that later fails to load.
+  await page.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        const open = indexedDB.open("stataverse-console-files", 1);
+        open.onsuccess = () => {
+          const put = open.result
+            .transaction("files", "readwrite")
+            .objectStore("files")
+            .put({
+              name: "broken.dta",
+              blob: new Blob(["<stata_dta><h"]),
+              made: false,
+              at: Date.now(),
+            });
+          put.onsuccess = resolve;
+          put.onerror = reject;
+        };
+        open.onerror = reject;
+      }),
+  );
+  const status = page.locator("#console-status");
+  await page.reload();
+  await expect(status).toHaveText(
+    "Ready. broken.dta could not be read back and was removed from this browser; add it again.",
+  );
+  await page.reload();
+  await expect(status).toHaveText("Ready.");
+});
+
+test("the missing-file note is right about files of another case or in a folder", async ({
+  page,
+}) => {
+  await ready(page);
+  const status = page.locator("#console-status");
+  await page.locator("#console-file").setInputFiles({
+    name: "Left.csv",
+    mimeType: "text/csv",
+    buffer: csv(3),
+  });
+  await expect(status).toContainText("Added Left.csv.");
+  const run = async (command) => {
+    await page.locator("#console-command").fill(command);
+    await page.locator("#console-command").press("Enter");
+  };
+  // Found whatever the case, as Stata finds it on macOS and Windows.
+  await run("import delimited using left.csv, clear");
+  await expect(status).toHaveText(/^Ran 1 command/);
+  await run('import delimited using "data/left.csv", clear');
+  await expect(status).toContainText(
+    "Left.csv is among your files, but files here are not in folders: name it without the folder, as Left.csv.",
+  );
+  await run("import delimited using gone.csv, clear");
+  await expect(status).toContainText(
+    "gone.csv is not among your files: open Data and add it.",
+  );
+});
+
+test("a PNG graph export wrote is read by a later run as Stata reads it", async ({
+  page,
+}) => {
+  await ready(page);
+  await page
+    .locator("#console-source")
+    .fill("sysuse wages, clear\nscatter wage educ\ngraph export pic.png");
+  await page.locator("#console-run").click();
+  await expect(page.locator("#console-status")).toHaveText(/Ran 3 commands/);
+  await page
+    .locator("#console-command")
+    .fill("capture noisily import delimited using pic.png, clear");
+  await page.locator("#console-command").press("Enter");
+  await expect(page.locator("#console-output")).toContainText(
+    "(encoding automatically selected:",
+  );
+  await expect(page.locator("#console-output")).not.toContainText(
+    "is a Stata dataset",
+  );
 });

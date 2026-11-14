@@ -81,7 +81,37 @@ export function mentions(text, name) {
     edge = "(^|[^\\w.])",
     whole = new RegExp(`${edge}${escape(name)}(?![\\w])`, "i"),
     bare = new RegExp(`${edge}${escape(stem)}(?![\\w.])`, "i");
-  return whole.test(text) || (!!stem && bare.test(text));
+  return (
+    whole.test(text) ||
+    (!!stem && bare.test(text)) ||
+    patterns(text).some(
+      ({ pattern, suffix }) =>
+        pattern.test(name) || (!suffix && pattern.test(stem)),
+    )
+  );
+}
+// A macro in a name: `y', `"..."', $name or ${name}.
+const MACRO = /`[^`']*'|\$\{\w+\}|\$\w+/g;
+/**
+ * Names built from macros, as `use wave`w'` or `import delimited using
+ * sales`y'.csv` in a loop, as patterns in which each macro stands for any
+ * text. A name must keep some letters or digits of its own, so that a
+ * display of `v' alone does not match every file.
+ */
+function patterns(text) {
+  const found = [];
+  for (const raw of text.match(/[^\s,"]*(?:`[^`'\s]*'|\$\{?\w+\}?)[^\s,"]*/g) ??
+    []) {
+    // The file's own name, after any folder.
+    const token = raw.replace(/^.*[\\/]/, "");
+    if (!/[A-Za-z0-9]/.test(token.replace(MACRO, ""))) continue;
+    const source = token.split(MACRO).map(escape).join(".*");
+    found.push({
+      pattern: new RegExp(`^${source}$`, "i"),
+      suffix: /\.[A-Za-z0-9]+$/.test(token),
+    });
+  }
+  return found;
 }
 /**
  * The project as the bytes of a .zip file. files: [{ name, text }]; added:
