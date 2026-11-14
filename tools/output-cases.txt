@@ -13379,3 +13379,167 @@ summarize x [iw=w]
 summarize x [fw=w], detail
 drop x w
 summarize
+=== fix6-summaries-correlate-rounding-at-minus-one
+clear
+set obs 6
+generate y = _n
+generate yy = -y
+pwcorr y yy, sig
+correlate y yy
+display %21.0g r(rho)
+correlate y yy, covariance
+display %21.0g r(Var_1)
+set obs 10
+replace y = _n
+replace yy = -y
+pwcorr y yy, sig
+correlate y yy
+display %21.0g r(rho)
+pwcorr y yy in 1/8, sig
+clear
+set seed 11
+set obs 50
+generate q1 = 1 + floor(5*runiform())
+generate q1r = 6 - q1
+pwcorr q1 q1r in 1/30, sig star(.05)
+pwcorr q1 q1r, sig obs
+=== fix6-summaries-unique-abbreviations
+clear
+set seed 3
+set obs 20
+generate household_income_2019 = runiform()
+generate household_size_2019 = runiform()
+generate household_income_2020 = runiform()
+generate respondent_age_years = runiform()
+generate respondent_edu_years = runiform()
+correlate respondent_age_years respondent_edu_years
+correlate respondent_age_years respondent_edu_years, means
+pwcorr household_income_2019 household_size_2019 household_income_2020
+summarize
+ci means household_income_2019 household_size_2019
+codebook, compact
+tabstat household_income_2019 household_size_2019 household_income_2020 respondent_age_years
+tabstat household_income_2019 household_size_2019, columns(statistics)
+generate aaaa_pppp_zzzz_end = 1
+generate aaaa_qqqq_zzzz_end = 2
+generate aaaa_pppp_zzzz_x = 3
+summarize aaaa*
+=== fix6-summaries-chinese-names
+clear
+set obs 6
+generate y = _n
+generate 变量名称很长的名字 = _n^2
+generate 收入 = _n^3
+pwcorr y 变量名称很长的名字 收入
+correlate y 变量名称很长的名字 收入
+summarize
+=== fix6-summaries-correlate-weight-signs
+clear
+set seed 2468
+set obs 40
+generate income = 20000 + 60000*runiform()
+generate score = 100*runiform()
+generate age = 18 + 50*runiform()
+generate w = 1 + floor(4*runiform())
+generate aw = runiform()*3
+replace income = . in 3
+replace score = . in 5
+generate double wneg = aw - 1
+generate wfneg = w - 2
+correlate income score [aw=wneg]
+pwcorr income score [aw=wneg]
+correlate income score [fw=wfneg]
+pwcorr income score age [fw=wfneg], obs sig
+correlate income score [fw=w], covariance
+pwcorr income score [fw=aw]
+pwcorr income score age [fw=aw], sig obs
+capture noisily correlate income score [fw=aw]
+generate zw = aw
+replace zw = 0 in 1/10
+correlate income score [aw=zw]
+pwcorr income score [aw=zw], obs
+generate allneg = -1
+capture noisily correlate income score [aw=allneg]
+pwcorr income score [aw=allneg]
+=== fix6-summaries-by-correlate-pwcorr
+clear
+set seed 8
+set obs 30
+generate g = _n > 15
+generate a = runiform()
+generate b = a + runiform()
+generate aw = runiform()
+by g, sort: correlate a b [aw=aw]
+by g: pwcorr a b, sig obs
+by g: correlate a b, covariance
+=== fix6-summaries-tabulate-key-and-tab2-firstonly
+clear
+set obs 4
+generate grp = mod(_n,2)
+generate k = _n > 2
+tabulate grp k, key
+tabulate grp k, key nofreq cell
+tabulate grp k, key row
+capture noisily tabulate grp, key
+capture noisily tabulate grp k, key nokey
+generate income = _n
+generate score = _n^2
+capture noisily tabulate grp, summarize(income score)
+capture noisily tabulate grp, su(inc*)
+tabulate grp, su(inco)
+capture noisily tabulate grp, su(income-score)
+capture noisily tabulate grp, su(inc~)
+clear
+set obs 6
+generate g = _n > 3
+generate a = mod(_n,2)
+generate b = _n
+tab2 g a, firstonly
+tab2 g a, chi2 first
+tab2 g a b, first
+tab2 g a b, firs
+display _rc
+=== fix6-summaries-codebook-single-values-and-narrow-lines
+clear
+set obs 4
+generate float f = 78.1 in 1
+generate x = 2.5 in 1
+generate double d = 0.123456789 in 1
+generate c = 3 in 1/2
+generate float cf = 78.1 in 1/3
+codebook f x d c cf
+clear
+set obs 2
+generate a_thirty_two_character_name_xyz = _n
+label variable a_thirty_two_character_name_xyz "label that is exactly long enough to reach the line"
+set linesize 50
+codebook a_thirty_two_character_name_xyz
+set linesize 58
+codebook a_thirty_two_character_name_xyz
+set linesize 59
+codebook a_thirty_two_character_name_xyz
+clear
+set obs 8
+generate v = _n
+label define L 1 "abcdefghij abcdefghij abcdefghi" 7 "x"
+label values v L
+set linesize 60
+codebook v
+set linesize 50
+codebook v
+set linesize 200
+clear
+set obs 4
+generate lab = _n
+label define yn 1 "1" 2 "Two" 4 "4"
+label values lab yn
+codebook lab
+=== fix6-summaries-summarize-meanonly-detail
+clear
+set obs 6
+generate y = _n
+capture noisily summarize y, meanonly detail
+display _rc
+clear
+capture noisily summarize, meanonly detail
+display _rc

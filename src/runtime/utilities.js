@@ -2,12 +2,14 @@
 import { StataError } from "./errors.js";
 import { greatest } from "./extremes.js";
 import {
+  abbreviateAmong,
   abbreviateName,
   applyFormat,
   displayWidth,
   truncateColumns,
 } from "./format.js";
 import { splitAtComma } from "./syntax.js";
+import { fold } from "./data-commands.js";
 import { invttail, ttail } from "./distributions.js";
 import { FUNCTIONS } from "./functions.js";
 import { count, moments, percentile, perGroup } from "./reports.js";
@@ -980,11 +982,14 @@ function ttesti(session, text, ctx) {
 
 // codebook.ado's Units: the largest power of ten to which rounding leaves
 // every value unchanged at float precision, so that a datetime in
-// milliseconds has units of 100,000. A constant variable has units of 1.
+// milliseconds has units of 100,000. A constant variable has units of 1;
+// one value is not constant, since summarize gives it no variance.
+const constant = (values) => {
+  const mean = values.reduce((t, v) => t + v, 0) / values.length;
+  return values.length > 1 && values.every((v) => v === mean);
+};
 function units(values) {
-  const n = values.length,
-    mean = values.reduce((t, v) => t + v, 0) / n;
-  if (values.every((v) => v === mean)) return 1;
+  if (constant(values)) return 1;
   const round = (x, p) => Math.floor(x / p + 0.5) * p,
     holds = (p) =>
       values.every((v) => Math.fround(v) === Math.fround(round(v, p)));
@@ -1035,7 +1040,7 @@ function pieces(text, len) {
  * when the two leave more than two columns of the line free. Otherwise
  * they make an SMCL {p 0 39} paragraph: the name, blanks to column 40 and
  * the label's words, wrapped at the line size with the later lines
- * indented 39 columns. A word too long for its line is cut there and
+ * indented 39 columns (fewer on a line narrower than 59). A word too long for its line is cut there and
  * continued on the next line after "> ", as SMCL does. Recorded from
  * Stata 19.
  */
@@ -1046,9 +1051,12 @@ function varHeader(name, label, linesize) {
     return [
       name + " ".repeat(Math.max(0, linesize - named - labelled)) + label,
     ];
+  // SMCL's {p 0 39} indents the later lines 39 columns, or linesize - 20
+  // when the line is narrower than 59. Recorded from Stata 19.
   const words = label.split(" ").filter(Boolean),
     lines = [],
-    indent = " ".repeat(39);
+    hang = Math.min(39, linesize - 20),
+    indent = " ".repeat(hang);
   words[0] = name + " ".repeat(Math.max(39 - named, 2)) + (words[0] ?? "");
   let line = "",
     used = 0,
@@ -1056,7 +1064,7 @@ function varHeader(name, label, linesize) {
   const newLine = (lead) => {
     lines.push(line);
     line = indent + lead;
-    used = 39 + lead.length;
+    used = hang + lead.length;
   };
   for (const word of words) {
     const width = displayWidth(word);
@@ -1135,7 +1143,9 @@ function codebook(session, text, ctx) {
     rows = session.rows(parsed, null),
     linesize = session.settings.linesize ?? 80,
     rule = "-".repeat(linesize),
-    field = (label) => `${label.padStart(22)}: `;
+    field = (label) => `${label.padStart(22)}: `,
+    // A line wider than the linesize goes on after "> ".
+    out = (line) => fold(line, linesize).forEach((part) => ctx.out(part));
   // Codebook_vars and SummCompact both stop when no observation is left.
   if (!rows.length) throw new StataError("no observations", 2000);
   if (parsed.options.compact) {
@@ -1147,8 +1157,7 @@ function codebook(session, text, ctx) {
             .filter((x) => (string ? x !== "" : !isMissing(x))),
           m = string ? null : moments(values);
         return {
-          // abbrev(name, 12)
-          name: name.length > 12 ? `${name.slice(0, 10)}~${name.at(-1)}` : name,
+          name: abbreviateAmong(name, 12, data.names),
           obs: g(values.length),
           unique: g(new Set(values).size),
           mean: m && m.n ? g(m.mean) : ".",
@@ -1203,11 +1212,11 @@ function codebook(session, text, ctx) {
       string = isStringType(v.type),
       all = rows.map((i) => v.data[i]),
       label = v.label || "(unlabeled)";
-    ctx.out("");
-    ctx.out(rule);
-    varHeader(v.name, label, linesize).forEach((line) => ctx.out(line));
-    ctx.out(rule);
-    ctx.out("");
+    out("");
+    out(rule);
+    varHeader(v.name, label, linesize).forEach((line) => out(line));
+    out(rule);
+    out("");
     if (string) {
       const present = all.filter((x) => x !== ""),
         // greatest() loops; spreading one length per observation into
@@ -1220,22 +1229,22 @@ function codebook(session, text, ctx) {
         unique = [...new Set(present)].sort((a, b) =>
           a < b ? -1 : a > b ? 1 : 0,
         );
-      ctx.out(
+      out(
         `${field("Type")}String (${v.type})${declared > longest ? `, but longest is str${longest}` : ""}`,
       );
-      ctx.out("");
-      ctx.out(
+      out("");
+      out(
         `${field("Unique values")}${count(unique.length).padEnd(26)}Missing "": ${count(all.length - present.length)}/${count(all.length)}`,
       );
-      ctx.out("");
+      out("");
       if (unique.length <= parsed.options.tabulate) {
-        ctx.out(`${field("Tabulation")}Freq.  Value`);
+        out(`${field("Tabulation")}Freq.  Value`);
         const levels = all.length - present.length ? ["", ...unique] : unique;
         // Each value is shown as codebook.ado's Piece shows it: in quotes,
         // without its leading blanks, in pieces of 39 from column 32.
         for (const level of levels)
           pieces(`"${level.replace(/^ +/, "")}"`, 39).forEach((piece, j) =>
-            ctx.out(
+            out(
               `${j ? " ".repeat(29) : count(all.filter((x) => x === level).length).padStart(29)}  ${piece}`,
             ),
           );
@@ -1252,7 +1261,7 @@ function codebook(session, text, ctx) {
             `"${(sorted[position - 1] ?? "").replace(/^ +/, "")}"`,
             52,
           ).forEach((piece, j) =>
-            ctx.out(
+            out(
               `${j || k ? " ".repeat(24) : field("Examples")}${piece}`.trimEnd(),
             ),
           );
@@ -1266,8 +1275,8 @@ function codebook(session, text, ctx) {
         all.some((x) => x.endsWith(" ")) && "trailing",
       ].filter(Boolean);
       if (blanks.length) {
-        ctx.out("");
-        ctx.out(
+        out("");
+        out(
           `${field("Warning")}Variable has ${blanks.length === 3 ? "leading, embedded, and trailing" : blanks.join(" and ")} blanks.`,
         );
       }
@@ -1280,15 +1289,24 @@ function codebook(session, text, ctx) {
       map = data.valueLabels.get(v.valueLabel),
       unit = dateUnit(v.format),
       dateFormat = unit && `%t${unit}`,
-      asDate = (x) => applyFormat(x, dateFormat).trim();
-    ctx.out(
+      asDate = (x) => applyFormat(x, dateFormat).trim(),
+      // codebook.ado takes a value's label to be missing when its text is
+      // the value itself, as label 1 "1" is: `: label` gives the number
+      // for a value with no label, and the two cannot be told apart.
+      labelOf = (x) => {
+        const text = map?.get(x);
+        return text === undefined || text === String(x) ? undefined : text;
+      };
+    out(
       `${field("Type")}Numeric ${unit ? `${DATE_UNITS[unit][0]} date ` : ""}(${v.type})`,
     );
     // The label line notes a missing label, or how many distinct
     // nonmissing values have no text in it.
     if (v.valueLabel) {
-      const bare = map ? unique.filter((x) => !map.has(x)).length : 0;
-      ctx.out(
+      const bare = map
+        ? unique.filter((x) => labelOf(x) === undefined).length
+        : 0;
+      out(
         `${field("Label")}${v.valueLabel}${
           !map
             ? ", but label does not exist"
@@ -1298,31 +1316,31 @@ function codebook(session, text, ctx) {
         }`,
       );
     }
-    ctx.out("");
+    out("");
     // Units also rounds the ends of the range to the units, unless the
     // variable is constant: a float's 78.099998 is shown as 78.1 when the
-    // units are .1.
+    // units are .1, even when it is the only value.
     const unitSize = present.length ? units(present) : MISSING,
       end = (x) =>
-        unique.length > 1 ? Math.floor(x / unitSize + 0.5) * unitSize : x;
-    ctx.out(
+        constant(present) ? x : Math.floor(x / unitSize + 0.5) * unitSize;
+    out(
       present.length
         ? `${field("Range")}${`[${ten(end(unique[0]))},${ten(end(unique.at(-1)))}]`.padEnd(30)}Units: ${ten(unitSize)}`
         : `${field("Range")}${"[.,.]".padEnd(30)}Units: .`,
     );
     if (unit)
-      ctx.out(
+      out(
         `${field("Or equivalently")}${`[${present.length ? asDate(unique[0]) : "."},${present.length ? asDate(unique.at(-1)) : "."}]`.padEnd(30)}Units: ${DATE_UNITS[unit][1]}`,
       );
-    ctx.out(
+    out(
       `${field("Unique values")}${count(unique.length).padEnd(26)}Missing .: ${count(system)}/${count(all.length)}`,
     );
     // codebook.ado prints these counts with %10.0fc.
     if (extended.length)
-      ctx.out(
+      out(
         `${field("Unique mv codes")}${count(new Set(extended).size + (system ? 1 : 0)).padEnd(25)}Missing .*: ${count(extended.length)}/${count(all.length)}`,
       );
-    ctx.out("");
+    out("");
     if (unique.length <= parsed.options.tabulate) {
       const levels = [
           ...unique,
@@ -1331,30 +1349,28 @@ function codebook(session, text, ctx) {
         show = (x) => (isMissing(x) ? missingName(x) : ten(x));
       if (unit) {
         // FullTab's date form: the value, then the date from column 39.
-        ctx.out(`${field("Tabulation")}Freq.  Value`);
+        out(`${field("Tabulation")}Freq.  Value`);
         for (const level of levels)
-          ctx.out(
+          out(
             `${count(all.filter((x) => x === level).length).padStart(29)}  ${show(level)}`.padEnd(
               38,
             ) + applyFormat(level, dateFormat),
           );
         continue;
       }
-      ctx.out(
-        `${field("Tabulation")}Freq.  ${map ? " Numeric  Label" : "Value"}`,
-      );
+      out(`${field("Tabulation")}Freq.  ${map ? " Numeric  Label" : "Value"}`);
       for (const level of levels) {
         const n = count(all.filter((x) => x === level).length).padStart(29);
         if (!map) {
-          ctx.out(`${n}  ${show(level)}`);
+          out(`${n}  ${show(level)}`);
           continue;
         }
         // FullTabValueLabeled shows a label in pieces of 31 columns from
         // column 42, as its Piece does.
-        const label = map.get(level) ?? "",
+        const label = labelOf(level) ?? "",
           parts = label ? pieces(label, 31) : [""];
         parts.forEach((part, j) =>
-          ctx.out(
+          out(
             (j
               ? " ".repeat(41) + part
               : `${n}${show(level).padStart(10)}  ${part}`
@@ -1383,28 +1399,28 @@ function codebook(session, text, ctx) {
         p10date = asDate(percentile(sorted, 10)),
         first = Math.max(p10.length, displayWidth(p10date)),
         place = (text, k) => text.padStart(k ? 11 : first);
-      ctx.out(
+      out(
         `${field("Mean")}${mean.padStart(most)} = ${asDate(m.mean)}${pastDate(m.mean, unit)}`,
       );
-      ctx.out(`${field("Std. dev.")}${sd.padStart(most)}`);
-      ctx.out(
+      out(`${field("Std. dev.")}${sd.padStart(most)}`);
+      out(
         `${field("Percentiles")}${quantiles.map((q, k) => place(q + "%", k)).join("")}`,
       );
-      ctx.out(
+      out(
         `${" ".repeat(24)}${quantiles.map((q, k) => place(k ? applyFormat(percentile(sorted, q), "%8.0g") : p10, k)).join("")}`,
       );
-      ctx.out(
+      out(
         `${" ".repeat(24)}${quantiles.map((q, k) => place(asDate(percentile(sorted, q)), k)).join("")}`,
       );
       continue;
     }
-    ctx.out(`${field("Mean")}${mean.padStart(width)}`);
-    ctx.out(`${field("Std. dev.")}${sd.padStart(width)}`);
-    ctx.out("");
-    ctx.out(
+    out(`${field("Mean")}${mean.padStart(width)}`);
+    out(`${field("Std. dev.")}${sd.padStart(width)}`);
+    out("");
+    out(
       `${field("Percentiles")}${quantiles.map((q, k) => cell(q + "%", k)).join("")}`,
     );
-    ctx.out(
+    out(
       `${" ".repeat(24)}${quantiles.map((q, k) => cell(six(percentile(sorted, q)), k)).join("")}`,
     );
   }

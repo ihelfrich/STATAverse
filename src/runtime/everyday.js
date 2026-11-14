@@ -2,12 +2,12 @@
 // clonevar, and the ones that have no meaning in a browser (help, browse,
 // ssc install) but should say so plainly rather than stop a do-file.
 import { StataError } from "./errors.js";
-import { applyFormat } from "./format.js";
+import { abbreviateAmong, applyFormat } from "./format.js";
 import { invttail, ttail } from "./distributions.js";
 import {
-  abbreviate,
   columnName,
   correlationOf,
+  correlationRows,
   covarianceMatrix,
   rowName,
 } from "./estimation.js";
@@ -21,7 +21,13 @@ import {
   weightedRows,
 } from "./reports.js";
 import { mean } from "./tables.js";
-import { MISSING, displayWidth, isMissing, isStringType } from "./values.js";
+import {
+  MISSING,
+  displayWidth,
+  isMissing,
+  isStringType,
+  padDisplay,
+} from "./values.js";
 import { characteristicsOf, defineCharacteristic } from "./store.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
@@ -103,7 +109,7 @@ function ci(session, text, ctx) {
       // Each number starts at its column, as display's _col() places it,
       // after anything wider that ran past it.
       columns = (cells) => {
-        let line = `${abbreviate(name, 12).padStart(12)} |`;
+        let line = `${padDisplay(abbreviateAmong(name, 12, session.data.names), 12)} |`;
         for (const [column, text] of cells)
           line = line.padEnd(column - 1) + text;
         return line;
@@ -112,7 +118,7 @@ function ci(session, text, ctx) {
     // With no observations Stata shows dots and still posts the row.
     if (!stats.n) {
       ctx.out(
-        `${abbreviate(name, 12).padStart(12)} |${"0".padStart(11)}${".".padStart(12)}${".".padStart(12)}${".".padStart(16)}${".".padStart(12)}`,
+        `${padDisplay(abbreviateAmong(name, 12, session.data.names), 12)} |${"0".padStart(11)}${".".padStart(12)}${".".padStart(12)}${".".padStart(16)}${".".padStart(12)}`,
       );
       last = {
         N: 0,
@@ -210,7 +216,7 @@ function pwcorr(session, text, ctx) {
   const named = parsed.varlist.map((name) => session.data.get(name)),
     blank = (v, i) =>
       isStringType(v.type) ? v.data[i] === "" : isMissing(v.data[i]);
-  let rows = session.rows(parsed, null);
+  let rows = session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null);
   if (options.listwise || options.casewise)
     rows = rows.filter((i) => named.every((v) => !blank(v, i)));
   for (const v of named)
@@ -225,15 +231,26 @@ function pwcorr(session, text, ctx) {
     throw new StataError("no observations", 2000);
   const pairs = (k * (k - 1)) / 2,
     adjust = options.bonferroni ? pairs : 1,
-    // correlate over the pair's observations: with fewer than two it
-    // fails, leaving no correlation and no observations.
+    // correlate over the pair's observations, as pwcorr.ado runs it under
+    // capture: when it fails, with fewer than two observations or with
+    // frequency weights that are not whole numbers, the pair has no
+    // correlation and no observations.
     pair = (a, b) => {
-      const weighted = weightedRows(session, parsed, complete(a, b)),
-        n = weighted.rows.length;
+      let used;
+      try {
+        used = correlationRows(session, parsed, complete(a, b));
+      } catch (error) {
+        if (error instanceof StataError && error.code === 401)
+          return { n: 0, rho: MISSING, p: MISSING };
+        throw error;
+      }
+      const { rows: kept, weights, frequency } = used,
+        n = frequency ? weights.reduce((t, w) => t + w, 0) : kept.length;
       if (n < 2) return { n: 0, rho: MISSING, p: MISSING };
       const { C } = covarianceMatrix(
-          [a, b].map((v) => weighted.rows.map((i) => v.data[i])),
-          weighted.weights && weighted.rows.map((i) => weighted.weights[i]),
+          [a, b].map((v) => kept.map((i) => v.data[i])),
+          weights,
+          frequency,
         ),
         rho = correlationOf(C, 0, 1);
       let p;
@@ -260,7 +277,7 @@ function pwcorr(session, text, ctx) {
     out(
       `             |${variables
         .slice(start, end)
-        .map((v) => columnName(v.name))
+        .map((v) => columnName(v.name, session.data.names))
         .join("")}`,
     );
     out(`-------------+${"-".repeat(9 * (end - start))}`);
@@ -276,7 +293,7 @@ function pwcorr(session, text, ctx) {
         if (j < i && shownP(result.p)) S[i][j] = S[j][i] = result.p;
       }
       out(
-        `${rowName(variables[i].name)} | ${results
+        `${rowName(variables[i].name, session.data.names)} | ${results
           .map(({ rho, p }, j) =>
             shownP(p) || start + j === i
               ? " " +
@@ -308,14 +325,17 @@ function pwcorr(session, text, ctx) {
       if (options.sig || options.obs) out("             |");
     }
   }
+  // Under by, Stata's by adds a blank line before the next group's rule.
+  if (ctx.group) ctx.out("");
   const names = variables.map((v) => v.name),
     matrix = (values) => ({ rowNames: names, colNames: names, values });
   session.results.r = {
     N: N[0][1],
     rho: C[0][1],
-    ...(options.sig ? { "matrix:sig": matrix(S) } : {}),
-    "matrix:C": matrix(C),
+    // The matrices in the order return list shows them.
     "matrix:Nobs": matrix(N),
+    "matrix:C": matrix(C),
+    ...(options.sig ? { "matrix:sig": matrix(S) } : {}),
   };
 }
 
@@ -850,7 +870,7 @@ export const EVERYDAY_COMMANDS = [
   { name: "mean", minimum: 4, run: mean },
   // ci is byable(recall) in Stata: under by it runs once per group.
   { name: "ci", minimum: 2, run: perGroup(ci), byable: true },
-  { name: "pwcorr", minimum: 6, run: pwcorr },
+  { name: "pwcorr", minimum: 6, run: perGroup(pwcorr), byable: true },
   { name: "spearman", minimum: 8, run: spearman },
   { name: "clonevar", minimum: 8, run: clonevar },
   {

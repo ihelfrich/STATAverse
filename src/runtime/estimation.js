@@ -8,7 +8,7 @@ import { greatest, least } from "./extremes.js";
 import { fold } from "./data-commands.js";
 import { StataError } from "./errors.js";
 import { compileExpression } from "./expression.js";
-import { applyFormat, parseFormat } from "./format.js";
+import { abbreviateAmong, applyFormat, parseFormat } from "./format.js";
 import { FUNCTIONS } from "./functions.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
@@ -17,11 +17,18 @@ import {
   count,
   labelled,
   percentile,
+  perGroup,
   weightedRows,
 } from "./reports.js";
 import { optionItems, splitAtComma } from "./syntax.js";
 import { resolveVariable } from "./varlist.js";
-import { MISSING, isMissing, isName, isStringType } from "./values.js";
+import {
+  MISSING,
+  byteLength,
+  isMissing,
+  isName,
+  isStringType,
+} from "./values.js";
 import { noCluster, refuseVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
@@ -2879,14 +2886,17 @@ export function lincom(session, text, ctx) {
 }
 
 /**
- * The covariances correlate computes from columns of complete observations.
- * Analytic weights give the weighted moments rescaled by n/(n - 1), since
- * Stata takes them to add up to the number of observations; frequency
- * weights arrive as repeated observations.
+ * The covariances correlate computes from columns of complete observations:
+ * the mean cross-product of deviations rescaled by n/(n - 1), in that order,
+ * which is how Stata rounds them (1, ..., 6 has variance 3.5 - 2^-51 and
+ * 1, ..., 10 one ulp above 82.5/9; recorded from Stata 19). Analytic
+ * weights are taken to add up to the number of observations, frequency
+ * weights (frequency true) to their own sum.
  */
-export function covarianceMatrix(columns, weights = null) {
-  const n = columns[0]?.length ?? 0,
-    total = weights ? weights.reduce((t, w) => t + w, 0) : n,
+export function covarianceMatrix(columns, weights = null, frequency = false) {
+  const rows = columns[0]?.length ?? 0,
+    total = weights ? weights.reduce((t, w) => t + w, 0) : rows,
+    n = frequency ? total : rows,
     means = columns.map(
       (c) =>
         (weights
@@ -2897,12 +2907,12 @@ export function covarianceMatrix(columns, weights = null) {
   for (let a = 0; a < columns.length; a++)
     for (let b = 0; b <= a; b++) {
       let t = 0;
-      for (let i = 0; i < n; i++)
+      for (let i = 0; i < rows; i++)
         t +=
           (weights ? weights[i] : 1) *
           (columns[a][i] - means[a]) *
           (columns[b][i] - means[b]);
-      C[a][b] = C[b][a] = weights ? (t / total) * (n / (n - 1)) : t / (n - 1);
+      C[a][b] = C[b][a] = (t / total) * (n / (n - 1));
     }
   return { C, means };
 }
@@ -2917,11 +2927,17 @@ export const correlationOf = (C, a, b) =>
     : MISSING;
 /**
  * A name in a column of nine, as abbrev(name, 8) shortens it: trailing
- * digits are kept, so measurement_2019 is mea~2019.
+ * digits are kept, so measurement_2019 is mea~2019, and the abbreviation
+ * is one that no other variable in names would match. Widths are screen
+ * columns, so a Chinese name takes two to a character.
  */
-export const columnName = (name) => abbreviate(name, 8).padStart(9);
+export const columnName = (name, names = [], measure = displayWidth) =>
+  padColumns(abbreviateAmong(name, 8, names), 9, measure);
 /** A name in the first column, as abbrev(name, 12) shortens it. */
-export const rowName = (name) => abbreviate(name, 12).padStart(12);
+export const rowName = (name, names = [], measure = displayWidth) =>
+  padColumns(abbreviateAmong(name, 12, names), 12, measure);
+const padColumns = (text, width, measure = displayWidth) =>
+  " ".repeat(Math.max(0, width - measure(text))) + text;
 
 /**
  * The format correlate, means shows a variable's statistics in: its own
@@ -2936,6 +2952,23 @@ function meansFormat(variable, plain) {
   return `%9.${Math.min(spec.digits, 9)}${spec.style}${spec.commas ? "c" : ""}`;
 }
 
+/**
+ * The observations correlate uses and their weights. Stata leaves out an
+ * observation whose weight is missing, zero or negative, so a survey
+ * weight that codes missing as -1 drops those observations rather than
+ * stopping, and refuses frequency weights that are not whole numbers.
+ * frequency says the weights count observations.
+ */
+export function correlationRows(session, parsed, rows) {
+  if (!parsed.weight) return { rows, weights: null, frequency: false };
+  const all = evaluateAll(session.compile(parsed.weight.exp), session.data.n),
+    used = rows.filter((i) => !isMissing(all[i]) && all[i] > 0),
+    frequency = parsed.weight.type === "fweight";
+  if (frequency && used.some((i) => !Number.isInteger(all[i])))
+    throw new StataError("may not use noninteger frequency weights", 401);
+  return { rows: used, weights: used.map((i) => all[i]), frequency };
+}
+
 function correlate(session, text, ctx) {
   const parsed = session.parse(
       "[varlist] [if] [in] [aweight fweight] [, Covariance Means noFormat Wrap]",
@@ -2948,29 +2981,25 @@ function correlate(session, text, ctx) {
     if (isStringType(v.type))
       ctx.out(`(${v.name} ignored because string variable)`);
   const complete = session
-      .rows(parsed, null)
+      .rows(parsed, ctx.group ? { groups: [ctx.group] } : null)
       .filter((i) => variables.every((v) => !isMissing(v.data[i]))),
-    // Frequency weights repeat observations; analytic ones come back as
-    // weights.
-    weighted = weightedRows(session, parsed, complete),
-    rows = weighted.rows,
-    weights = weighted.weights && rows.map((i) => weighted.weights[i]),
-    n = rows.length;
+    { rows, weights, frequency } = correlationRows(session, parsed, complete),
+    n = frequency ? weights.reduce((t, w) => t + w, 0) : rows.length;
   if (!n) throw new StataError("no observations", 2000);
   if (n < 2) throw new StataError("insufficient observations", 2001);
   const columns = variables.map((v) => rows.map((i) => v.data[i])),
-    { C, means } = covarianceMatrix(columns, weights),
+    { C, means } = covarianceMatrix(columns, weights, frequency),
     shown = (a, b) =>
       options.covariance
         ? " " + applyFormat(C[a][b], "%8.0g")
         : applyFormat(correlationOf(C, a, b), "%9.4f");
-  if (weights)
-    ctx.out(
-      `(sum of wgt is ${applyFormat(
-        weights.reduce((t, w) => t + w, 0),
-        "%18.0gc",
-      ).trim()})`,
-    );
+  const sumW = weights && !frequency && weights.reduce((t, w) => t + w, 0),
+    names = session.data.names,
+    // correlate pads its names by bytes, so that a Chinese name sits further
+    // left than its column, as Stata 19 shows it; pwcorr pads by columns.
+    row = (name) => rowName(name, names, byteLength),
+    column = (name) => columnName(name, names, byteLength);
+  if (sumW) ctx.out(`(sum of wgt is ${applyFormat(sumW, "%18.0gc").trim()})`);
   ctx.out(`(obs=${count(n)})`);
   if (options.means) {
     ctx.out("");
@@ -2982,7 +3011,7 @@ function correlate(session, text, ctx) {
       const format = meansFormat(v, options.format === false),
         cell = (value) => applyFormat(value, format).padStart(13);
       ctx.out(
-        `${rowName(v.name)} |${[
+        `${row(v.name)} |${[
           means[a],
           Math.sqrt(C[a][a]),
           least(columns[a]),
@@ -3004,18 +3033,21 @@ function correlate(session, text, ctx) {
   for (let start = 0; start < variables.length; start += across) {
     const block = variables.slice(start, start + across);
     ctx.out("");
-    out(`             |${block.map((v) => columnName(v.name)).join("")}`);
+    out(`             |${block.map((v) => column(v.name)).join("")}`);
     out(`-------------+${"-".repeat(9 * block.length)}`);
     for (let a = start; a < variables.length; a++)
       out(
-        `${rowName(variables[a].name)} |${block
+        `${row(variables[a].name)} |${block
           .slice(0, a - start + 1)
           .map((_, k) => shown(a, start + k))
           .join("")}`,
       );
   }
   ctx.out("");
+  // Under by, Stata's by adds a blank line before the next group's rule.
+  if (ctx.group) ctx.out("");
   session.results.r = {
+    ...(sumW ? { sum_w: sumW } : {}),
     N: n,
     // rho is returned without the covariance option, the moments with it.
     ...(variables.length > 1 && !options.covariance
@@ -3023,8 +3055,9 @@ function correlate(session, text, ctx) {
       : {}),
     ...(options.covariance && variables.length
       ? {
-          Var_1: C[0][0],
+          // In the order return list shows them.
           ...(variables.length > 1 ? { cov_12: C[0][1], Var_2: C[1][1] } : {}),
+          Var_1: C[0][0],
         }
       : {}),
     "matrix:C": {
@@ -3366,7 +3399,7 @@ function tabstat(session, text, ctx) {
     const width = to - from;
     if (incol === "statistics")
       ctx.out(
-        `${by ? `${align(abbreviate(by.name, byw), byw)} ` : ""}${descr ? `${"Variable".padStart(varwidth)} ` : ""}|${names
+        `${by ? `${align(abbreviateAmong(by.name, byw, session.data.names), byw)} ` : ""}${descr ? `${"Variable".padStart(varwidth)} ` : ""}|${names
           .slice(from, to)
           .map((name) => name.padStart(colwidth))
           .join("")}`,
@@ -3375,7 +3408,12 @@ function tabstat(session, text, ctx) {
       ctx.out(
         `${by ? `${align(by.name, byw)} ` : ""}${descr ? "   Stats " : ""}|${variables
           .slice(from, to)
-          .map((v) => abbreviate(v.name, 8).padStart(colwidth))
+          .map((v) =>
+            padColumns(
+              abbreviateAmong(v.name, 8, session.data.names),
+              colwidth,
+            ),
+          )
           .join("")}`,
       );
     ctx.out(rule(width));
@@ -3383,7 +3421,7 @@ function tabstat(session, text, ctx) {
       if (incol === "statistics")
         variables.forEach((v, i) =>
           ctx.out(
-            `${groupLabel(g, i === 0)}${descr ? `${abbreviate(v.name, varwidth).padStart(varwidth)} ` : ""}|${names
+            `${groupLabel(g, i === 0)}${descr ? `${padColumns(abbreviateAmong(v.name, varwidth, session.data.names), varwidth)} ` : ""}|${names
               .slice(from, to)
               .map((name) => cell(tabstatValue(g.stats[i], name), formats[i]))
               .join("")}`,
@@ -3414,6 +3452,6 @@ export const ESTIMATION_COMMANDS = [
   { name: "predict", minimum: 7, run: predict },
   { name: "test", minimum: 4, run: test },
   { name: "lincom", minimum: 6, run: lincom },
-  { name: "correlate", minimum: 3, run: correlate },
+  { name: "correlate", minimum: 3, run: perGroup(correlate), byable: true },
   { name: "tabstat", minimum: 7, run: tabstat },
 ];

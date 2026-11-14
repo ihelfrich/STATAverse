@@ -4,7 +4,7 @@
 // installed Stata.
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
-import { applyFormat, parseFormat } from "./format.js";
+import { abbreviateAmong, applyFormat, parseFormat } from "./format.js";
 import { evaluateAll } from "./expression.js";
 import { chi2tail } from "./distributions.js";
 import { clauses, optionItems, splitAtComma } from "./syntax.js";
@@ -206,6 +206,11 @@ export function summarize(session, text, ctx) {
     "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) Format]",
     text,
   );
+  if (parsed.options.meanonly && parsed.options.detail)
+    throw new StataError(
+      "only one of meanonly or detail may be specified",
+      198,
+    );
   // Stata refuses importance weights with detail.
   if (parsed.weight?.type === "iweight" && parsed.options.detail)
     throw new StataError("iweights not allowed", 101);
@@ -260,10 +265,7 @@ export function summarize(session, text, ctx) {
       );
     if (k && parsed.options.separator && k % parsed.options.separator === 0)
       ctx.out(analytic ? SUMMARY_RULE + "--------" : SUMMARY_RULE);
-    const label = padDisplay(
-      name.length > 12 ? name.slice(0, 10) + "~" + name.at(-1) : name,
-      12,
-    );
+    const label = padDisplay(abbreviateAmong(name, 12, session.data.names), 12);
     ctx.out(
       analytic
         ? m.n
@@ -727,6 +729,20 @@ function twoWaySummaries(ctx, table) {
   }
 }
 
+/**
+ * The variable of tabulate's summarize(): one name, which may be an
+ * abbreviation. Two names are an incorrectly specified option, and a
+ * wildcard or a range is an invalid name. Recorded from Stata 19.
+ */
+function summaryVariable(session, text) {
+  const words = text.trim().split(/\s+/);
+  if (words.length > 1)
+    throw new StataError("option summarize() incorrectly specified", 198);
+  if (/[*?~-]/.test(words[0]))
+    throw new StataError(`${words[0]} invalid name`, 198);
+  return session.varlist(words[0])[0];
+}
+
 export function tabulate(session, text, ctx) {
   // Stata's V option (Cramér's V) is case-sensitive: a lower-case v is not
   // an option of tabulate. The option parser ignores case, so V is taken
@@ -774,6 +790,11 @@ export function tabulate(session, text, ctx) {
       "option exact(#) is not available in the browser yet",
       198,
     );
+  // key and nokey together: Stata names nokey.
+  const keyTyped = (name) =>
+    typed.some((item) => item.name === name && item.argument === undefined);
+  if (twoWay && !summarizing && keyTyped("key") && keyTyped("nokey"))
+    throw new StataError("option nokey not allowed", 198);
   let parsed;
   try {
     parsed = session.parse(
@@ -795,6 +816,9 @@ export function tabulate(session, text, ctx) {
     throw error;
   }
   const options = parsed.options;
+  // key asks for the key box, which Stata draws over frequencies alone as
+  // well.
+  if (twoWay && !summarizing && keyTyped("key")) options.key = true;
   // With summarize(), an iweight is taken as a frequency weight. Analytic
   // weights rule out the tests; importance weights rule them out as
   // options. Recorded from Stata 19.
@@ -829,7 +853,7 @@ export function tabulate(session, text, ctx) {
     // With summarize(), Stata leaves out the observations in which the
     // summarized variable is missing; a string variable leaves none.
     target = parsed.options.summarize
-      ? session.data.get(session.varlist(parsed.options.summarize)[0])
+      ? session.data.get(summaryVariable(session, parsed.options.summarize))
       : null,
     keep = rows.filter(
       (i) =>
@@ -1296,7 +1320,11 @@ export function tabulate(session, text, ctx) {
     ...(options.nofreq ? [] : [["frequency", "frequency"]]),
     ...kinds,
   ];
-  if (entries.length > 1 && options.key !== false) {
+  // key asks for the box even over frequencies alone.
+  if (
+    entries.length &&
+    (options.key === true || (entries.length > 1 && options.key !== false))
+  ) {
     const names = entries.map(([, text]) => text),
       inner = greatest(names.map((item) => item.length)) + 2,
       centre = (item) => {
@@ -1795,14 +1823,46 @@ export function tab1(session, text, ctx) {
 }
 /** tab2: a two-way table for each pair of variables. */
 export function tab2(session, text, ctx) {
-  const q = tableQualifiers(text),
+  // firstonly, at least first, is tab2's own option: only the tables of
+  // the first variable with each of the others. The rest go to tabulate.
+  const [head, optionText] = splitAtComma(text),
+    items = optionItems(optionText ?? ""),
+    firstonly = items.some(
+      (item) =>
+        item.argument === undefined &&
+        item.name.length >= 5 &&
+        "firstonly".startsWith(item.name),
+    ),
+    kept = items.filter(
+      (item) =>
+        !(
+          item.argument === undefined &&
+          item.name.length >= 5 &&
+          "firstonly".startsWith(item.name)
+        ),
+    ),
+    q = tableQualifiers(
+      kept.length
+        ? `${head}, ${kept.map((item) => item.word).join(" ")}`
+        : head,
+    ),
     names = session.varlist(q.varlist);
   if (names.length < 2)
     throw new StataError("too few variables specified", 102);
   ctx.out("");
-  for (let a = 0; a < names.length; a++)
+  for (let a = 0; a < (firstonly ? 1 : names.length); a++)
     for (let b = a + 1; b < names.length; b++) {
       ctx.out(`-> tabulation of ${names[a]} by ${names[b]}  `);
-      tabulate(session, `${names[a]} ${names[b]} ${q.rest}`, ctx);
+      // As in tab1, a table that fails prints its message and ends the run,
+      // and tab2 itself succeeds: tab2.ado leaves its capture block before
+      // it records the code.
+      try {
+        tabulate(session, `${names[a]} ${names[b]} ${q.rest}`, ctx);
+      } catch (error) {
+        if (!(error instanceof StataError) || refusal(error)) throw error;
+        ctx.out(error.message);
+        session.rc = error.code;
+        return;
+      }
     }
 }
