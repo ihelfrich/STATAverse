@@ -9,9 +9,11 @@ import { invnormal, normal } from "./functions-normal.js";
 import { Generator } from "./random.js";
 import {
   RULE,
+  abbreviate,
   hooks,
   invertSymmetric,
   quadratic,
+  tableWidth,
   termRows,
 } from "./estimation.js";
 import { count } from "./reports.js";
@@ -254,7 +256,32 @@ function modelHeader(ctx, model, reps, test) {
       `${(k ? "" : (model.title ?? "Linear regression")).padEnd(56)}${line}`,
     ),
   );
+  // The models fitted by likelihood report it, and their pseudo R2.
+  if (model.r2_p !== undefined && model.ll !== undefined)
+    ctx.out(
+      `${`Log likelihood = ${g(model.ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", four(model.r2_p))}`,
+    );
   ctx.out("");
+}
+
+/**
+ * The first column of a resampled coefficient table, as wide as the fitted
+ * command makes it (see tableWidth): the models fitted by likelihood count
+ * their dependent variable, regress and xtreg do not.
+ */
+const LIKELIHOOD = ["logit", "probit", "poisson", "logistic"];
+function columns(session, model) {
+  const w = tableWidth(
+    session,
+    model,
+    LIKELIHOOD.includes(model.command) ? [model.depvar] : [],
+  );
+  return {
+    w,
+    rule: "-".repeat(66 + w),
+    split: `${"-".repeat(w + 1)}+${"-".repeat(64)}`,
+    depvar: abbreviate(model.depvar, w).padStart(w),
+  };
 }
 function resultsHeader(ctx, title, n, reps, parts, extra = []) {
   ctx.out(`${title.padEnd(60)}Number of obs = ${count(n)}`);
@@ -406,15 +433,19 @@ function bootstrap(session, text, ctx) {
       pLabel: "Prob > chi2",
       p,
     });
-    ctx.out(RULE);
+    const table = columns(session, model);
+    ctx.out(table.rule);
     ctx.out(
-      "             |   Observed   Bootstrap                         Normal-based",
+      `${" ".repeat(table.w + 1)}|   Observed   Bootstrap                         Normal-based`,
     );
     ctx.out(
-      `${model.depvar.padStart(12)} | coefficient  std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
+      `${table.depvar} | coefficient  std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
     );
-    ctx.out(SPLIT);
-    termRows(session, model, (k) => row("", k).slice(1)).forEach(ctx.out);
+    ctx.out(table.split);
+    termRows(session, model, (k) => row("", k).slice(1), table.w).forEach(
+      ctx.out,
+    );
+    ctx.out(table.rule);
   } else {
     resultsHeader(ctx, "Bootstrap results", n, replicates.length, parts);
     ctx.out(RULE);
@@ -428,8 +459,8 @@ function bootstrap(session, text, ctx) {
     parts.items.forEach((item, k) =>
       ctx.out(row(`${item.name.padStart(12)} `, k)),
     );
+    ctx.out(RULE);
   }
-  ctx.out(RULE);
   ctx.out("");
 }
 
@@ -533,13 +564,17 @@ function jackknife(session, text, ctx) {
       pLabel: "Prob > F",
       p,
     });
-    ctx.out(RULE);
-    ctx.out("             |              Jackknife");
+    const table = columns(session, model);
+    ctx.out(table.rule);
+    ctx.out(`${" ".repeat(table.w + 1)}|              Jackknife`);
     ctx.out(
-      `${model.depvar.padStart(12)} | Coefficient  std. err.      t    P>|t|     [${g(level)}% conf. interval]`,
+      `${table.depvar} | Coefficient  std. err.      t    P>|t|     [${g(level)}% conf. interval]`,
     );
-    ctx.out(SPLIT);
-    termRows(session, model, (k) => row("", k).slice(1)).forEach(ctx.out);
+    ctx.out(table.split);
+    termRows(session, model, (k) => row("", k).slice(1), table.w).forEach(
+      ctx.out,
+    );
+    ctx.out(table.rule);
   } else {
     resultsHeader(ctx, "Jackknife results", n, used, parts, [
       { name: "n()", expression: "r(N)" },
@@ -553,8 +588,8 @@ function jackknife(session, text, ctx) {
     parts.items.forEach((item, k) =>
       ctx.out(row(`${item.name.padStart(12)} `, k)),
     );
+    ctx.out(RULE);
   }
-  ctx.out(RULE);
   ctx.out("");
 }
 

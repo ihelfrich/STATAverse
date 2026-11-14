@@ -10,14 +10,34 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { chi2tail, invttail, ttail } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
-import { RULE, design, invertSymmetric, termRows } from "./estimation.js";
+import {
+  abbreviate,
+  design,
+  invertSymmetric,
+  tableWidth,
+  termRows,
+} from "./estimation.js";
 import { count, labelled } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
-const SPLIT =
-  "-------------+----------------------------------------------------------------";
+// The rules of a coefficient table whose first column is w wide.
+const rule = (w) => "-".repeat(66 + w),
+  split = (w) => `${"-".repeat(w + 1)}+${"-".repeat(64)}`;
+
+/** Wraps a note to the line size, later lines indented under the first. */
+function wrapped(session, ctx, text, indent = 6) {
+  const width = session.settings?.linesize ?? 80;
+  let line = "";
+  for (const word of text.split(" ")) {
+    if (line && line.length + 1 + word.length > width - 1) {
+      ctx.out(line);
+      line = " ".repeat(indent) + word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  ctx.out(line);
+}
 
 /**
  * Maximises objective(theta) -> { value, gradient } by Newton's method.
@@ -93,22 +113,29 @@ export function maximize(objective, start, scales) {
   return { theta, ll: current.value, V, log };
 }
 
+/** A fit's coefficients as termRows and tableWidth take a model's. */
+function tableModel(f) {
+  const constant = f.names.includes("_cons");
+  return {
+    names: [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
+    columns: [...f.columns, ...(constant ? [undefined] : [])],
+    estimable: f.at.map((j) => j >= 0),
+  };
+}
+
 /**
  * A fit's coefficient rows laid out by term, as Stata lays them out: factor
  * variables as headed groups of levels, base levels hidden, long names
- * abbreviated. cell(j) gives the text after the bar for f.names[j].
+ * abbreviated to the first column's width w. cell(j) gives the text after
+ * the bar for f.names[j]; an omitted coefficient shows omittedValue.
  */
-function layoutRows(session, f, cell) {
-  const constant = f.names.includes("_cons"),
-    names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])];
+function layoutRows(session, f, cell, w, omittedValue = 0) {
   return termRows(
     session,
-    {
-      names,
-      columns: [...f.columns, ...(constant ? [undefined] : [])],
-      estimable: f.at.map((j) => j >= 0),
-    },
+    tableModel(f),
     (k) => cell(f.at[k]),
+    w,
+    omittedValue,
   );
 }
 
@@ -221,8 +248,8 @@ function row(label, b, se, level, df, transform) {
 /** A row with no test: an ancillary parameter and its interval. */
 const plainRow = (label, value, se, low, high) =>
   `${label}|${g(value).padStart(11)}${g(se).padStart(11)}${" ".repeat(17)}${g(low).padStart(13)}${g(high).padStart(12)}`;
-const heading = (depvar, level, first, t) =>
-  `${depvar.padStart(12)} | ${first.padStart(10).padEnd(11)}  Std. err.      ${t ? "t    P>|t|" : "z    P>|z|"}     [${g(level)}% conf. interval]`;
+const heading = (depvar, level, first, t, w) =>
+  `${abbreviate(depvar, w).padStart(w)} | ${first.padStart(10).padEnd(11)}  Std. err.      ${t ? "t    P>|t|" : "z    P>|z|"}     [${g(level)}% conf. interval]`;
 
 // ----- tobit -----
 function tobit(session, text, ctx) {
@@ -397,23 +424,35 @@ function tobit(session, text, ctx) {
     `${`Log likelihood = ${g(full.ll, "%10.0g")}`.padEnd(52)}${side("Pseudo R2", applyFormat(session.results.e.r2_p, "%6.4f").trim(), 18)}`,
   );
   ctx.out("");
-  ctx.out(RULE);
-  ctx.out(heading(model.depvar, options.level, "Coefficient", true));
-  ctx.out(SPLIT);
-  layoutRows(session, f, (j) =>
-    row("", full.theta[j], Math.sqrt(full.V[j][j]), options.level, df).slice(1),
+  // The first column counts the dependent variable, which names the first
+  // equation, and the variance's row.
+  const w = tableWidth(session, tableModel(f), [
+    model.depvar,
+    `var(e.${model.depvar})`,
+  ]);
+  ctx.out(rule(w));
+  ctx.out(heading(model.depvar, options.level, "Coefficient", true, w));
+  ctx.out(split(w));
+  layoutRows(
+    session,
+    f,
+    (j) =>
+      row("", full.theta[j], Math.sqrt(full.V[j][j]), options.level, df).slice(
+        1,
+      ),
+    w,
   ).forEach(ctx.out);
-  ctx.out(SPLIT);
+  ctx.out(split(w));
   ctx.out(
     plainRow(
-      `${`var(e.${model.depvar})`.padStart(13)}`,
+      `var(e.${abbreviate(model.depvar, w - 6)})`.padStart(w + 1),
       variance,
       seVariance,
       variance * Math.exp((-critical * seVariance) / variance),
       variance * Math.exp((critical * seVariance) / variance),
     ),
   );
-  ctx.out(RULE);
+  ctx.out(rule(w));
   ctx.out("");
 }
 
@@ -566,32 +605,40 @@ function ordered(kind) {
       `${`Log likelihood = ${g(full.ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", applyFormat(1 - full.ll / ll0, "%6.4f").trim())}`,
     );
     ctx.out("");
-    ctx.out(RULE);
+    // The dependent variable names the first equation and counts too.
+    const w = tableWidth(session, tableModel(f), [model.depvar]);
+    ctx.out(rule(w));
     ctx.out(
       heading(
         model.depvar,
         options.level,
         transform ? "Odds ratio" : "Coefficient",
+        false,
+        w,
       ),
     );
-    ctx.out(SPLIT);
-    layoutRows(session, f, (j) =>
-      row(
-        "",
-        full.theta[j],
-        Math.sqrt(full.V[j][j]),
-        options.level,
-        0,
-        transform,
-      ).slice(1),
+    ctx.out(split(w));
+    layoutRows(
+      session,
+      f,
+      (j) =>
+        row(
+          "",
+          full.theta[j],
+          Math.sqrt(full.V[j][j]),
+          options.level,
+          0,
+          transform,
+        ).slice(1),
+      w,
     ).forEach(ctx.out);
-    ctx.out(SPLIT);
+    ctx.out(split(w));
     for (let c = 0; c < cuts; c++) {
       const value = full.theta[k + c],
         se = Math.sqrt(full.V[k + c][k + c]);
       ctx.out(
         plainRow(
-          `${`/cut${c + 1}`.padStart(12)} `,
+          `${`/cut${c + 1}`.padStart(w)} `,
           value,
           se,
           value - critical * se,
@@ -599,9 +646,11 @@ function ordered(kind) {
         ),
       );
     }
-    ctx.out(RULE);
+    ctx.out(rule(w));
     if (transform)
-      ctx.out(
+      wrapped(
+        session,
+        ctx,
         "Note: Estimates are transformed only in the first equation to odds ratios.",
       );
     ctx.out("");
@@ -741,46 +790,55 @@ function mlogit(session, text, ctx) {
     `${`Log likelihood = ${g(full.ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", applyFormat(session.results.e.r2_p, "%6.4f").trim())}`,
   );
   ctx.out("");
-  ctx.out(RULE);
+  // The equations are named by outcome, so their names count in the first
+  // column's width and the dependent variable does not; it, and a name too
+  // long, are abbreviated. Stata names an equation by its outcome's label
+  // with spaces made underscores, cut to 32 characters.
+  const equation = (j) => String(label(j)).replace(/ /g, "_").slice(0, 32),
+    w = tableWidth(
+      session,
+      tableModel(f),
+      outcomes.map((_, j) => equation(j)),
+    );
+  ctx.out(rule(w));
   ctx.out(
-    heading(model.depvar, options.level, options.rrr ? "RRR" : "Coefficient"),
+    heading(
+      model.depvar,
+      options.level,
+      options.rrr ? "RRR" : "Coefficient",
+      false,
+      w,
+    ),
   );
-  ctx.out(SPLIT);
+  ctx.out(split(w));
   outcomes.forEach((_, j) => {
-    if (j) ctx.out(SPLIT);
-    if (j === base) return ctx.out(`${label(j).padEnd(13)}|  (base outcome)`);
-    const e = others.indexOf(j);
-    ctx.out(`${label(j).padEnd(13)}|`);
-    // An omitted variable keeps its row, as (omitted).
-    f.columns.forEach((c, at) => {
-      if (c.base) return;
-      const a = f.at[at];
-      ctx.out(
-        a < 0
-          ? `${c.name.padStart(12)} |          0  (omitted)`
-          : row(
-              `${c.name.padStart(12)} `,
-              full.theta[e * k + a],
-              Math.sqrt(full.V[e * k + a][e * k + a]),
-              options.level,
-              0,
-              !!options.rrr,
-            ),
+    if (j) ctx.out(split(w));
+    if (j === base)
+      return ctx.out(
+        `${abbreviate(equation(j), w).padEnd(w + 1)}|  (base outcome)`,
       );
-    });
-    if (constant)
-      ctx.out(
+    const e = others.indexOf(j);
+    ctx.out(`${abbreviate(equation(j), w).padEnd(w + 1)}|`);
+    // Each equation's rows are laid out by term, as regress lays them out;
+    // an omitted variable keeps its row, as (omitted).
+    layoutRows(
+      session,
+      f,
+      (a) =>
         row(
-          `${"_cons".padStart(12)} `,
-          full.theta[e * k + k - 1],
-          Math.sqrt(full.V[e * k + k - 1][e * k + k - 1]),
+          "",
+          full.theta[e * k + a],
+          Math.sqrt(full.V[e * k + a][e * k + a]),
           options.level,
           0,
           !!options.rrr,
-        ),
-      );
+        ).slice(1),
+      w,
+      // An omitted relative-risk ratio is one.
+      options.rrr ? 1 : 0,
+    ).forEach(ctx.out);
   });
-  ctx.out(RULE);
+  ctx.out(rule(w));
   if (options.rrr && constant)
     ctx.out("Note: _cons estimates baseline relative risk for each outcome.");
   ctx.out("");
@@ -1276,44 +1334,58 @@ function nbreg(session, text, ctx) {
     `${`Log likelihood = ${g(full.ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", applyFormat(session.results.e.r2_p, "%6.4f").trim())}`,
   );
   ctx.out("");
-  ctx.out(RULE);
+  // The dependent variable names the first equation and counts too.
+  const w = tableWidth(session, tableModel(f), [model.depvar]);
+  ctx.out(rule(w));
   ctx.out(
-    heading(model.depvar, options.level, options.irr ? "IRR" : "Coefficient"),
-  );
-  ctx.out(SPLIT);
-  layoutRows(session, f, (j) =>
-    row(
-      "",
-      full.theta[j],
-      Math.sqrt(cov[j][j]),
+    heading(
+      model.depvar,
       options.level,
-      0,
-      !!options.irr,
-    ).slice(1),
+      options.irr ? "IRR" : "Coefficient",
+      false,
+      w,
+    ),
+  );
+  ctx.out(split(w));
+  layoutRows(
+    session,
+    f,
+    (j) =>
+      row(
+        "",
+        full.theta[j],
+        Math.sqrt(cov[j][j]),
+        options.level,
+        0,
+        !!options.irr,
+      ).slice(1),
+    w,
   ).forEach(ctx.out);
-  ctx.out(SPLIT);
+  ctx.out(split(w));
   ctx.out(
     plainRow(
-      "    /lnalpha ",
+      `${"/lnalpha".padStart(w)} `,
       lnalpha,
       seLn,
       noSe ? MISSING : lnalpha - critical * seLn,
       noSe ? MISSING : lnalpha + critical * seLn,
     ),
   );
-  ctx.out(SPLIT);
+  ctx.out(split(w));
   ctx.out(
     plainRow(
-      "       alpha ",
+      `${"alpha".padStart(w)} `,
       alpha,
       noSe ? MISSING : alpha * seLn,
       noSe ? MISSING : Math.exp(lnalpha - critical * seLn),
       noSe ? MISSING : Math.exp(lnalpha + critical * seLn),
     ),
   );
-  ctx.out(RULE);
+  ctx.out(rule(w));
   if (options.irr) {
-    ctx.out(
+    wrapped(
+      session,
+      ctx,
       "Note: Estimates are transformed only in the first equation to incidence-rate ratios.",
     );
     if (constant) ctx.out("Note: _cons estimates baseline incidence rate.");

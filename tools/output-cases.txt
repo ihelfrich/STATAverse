@@ -6214,3 +6214,506 @@ quietly nbreg hours education
 capture noisily lincom _b[lnalpha:_cons]
 capture noisily lincom _b[foo:education]
 lincom _b[hours:educ]
+=== table-width-factor-labels
+clear
+set seed 7301
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+label define rl 1 "East" 2 "North" 3 "South" 4 "West"
+label values reg rl
+generate byte female = runiform() < .5
+generate byte union = runiform() < .35
+generate byte near_college = runiform() < .4
+generate double education = 8 + floor(runiform()*10)
+generate double exper = floor(runiform()*30)
+generate double wage = 2 + .5*education + .1*exper + .02*education*exper + .8*(reg==2) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate double years_of_schooling_completed_x = education
+generate byte geographic_region_of_residence = reg
+label values geographic_region_of_residence rl
+generate byte near_college_flag_long_name_xx = near_college
+set linesize 80
+regress wage i.female#i.reg
+regress wage i.reg#i.female
+regress wage i.reg##i.female##c.education
+logit union i.female#i.reg
+regress wage i.near_college
+regress wage i.near_college, vce(robust)
+regress wage i.near_college, beta
+logit union i.female##i.near_college
+regress wage c.years_of_schooling_completed_x#c.exper
+regress wage i.reg#c.years_of_schooling_completed_x
+regress wage c.exper#c.years_of_schooling_completed_x#c.education
+regress wage i.female#c.years_of_schooling_completed_x#c.exper
+regress wage i.geographic_region_of_residence#c.exper
+logit union c.years_of_schooling_completed_x#c.exper
+regress wage i.female#i.union#i.reg
+set linesize 100
+regress wage i.near_college_flag_long_name_xx
+logit union i.near_college_flag_long_name_xx
+regress wage c.years_of_schooling_completed_x#c.exper
+regress wage i.geographic_region_of_residence#c.exper
+logit union c.years_of_schooling_completed_x#c.exper
+label define reglab 1 "Eastern seaboard and New England states" 2 "Northern plains" 3 "South" 4 "West coast and mountain region"
+label values reg reglab
+set linesize 80
+regress wage i.female#i.reg
+regress wage i.reg#i.female
+regress wage i.female#i.union#i.reg
+regress wage i.female##i.reg
+label define fl 1 "woman"
+label values female fl
+regress wage i.female#i.union
+set linesize 200
+regress wage i.female#i.reg
+regress wage i.union#i.female#i.reg
+=== table-width-likelihood-models
+clear
+set seed 7302
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+label define rl 1 "East" 2 "North" 3 "South" 4 "West"
+label values reg rl
+generate byte female = runiform() < .5
+generate double education = 8 + floor(runiform()*10)
+generate double exper = floor(runiform()*30)
+generate double wage = 2 + .5*education + .1*exper + .8*(reg==2) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate byte union = runiform() < invlogit(-1 + .1*education - .3*(reg==2))
+generate double hours = floor(-ln(runiform())*exp(1.5 + .05*education))
+generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))
+replace satisfaction = 5 if satisfaction > 5
+generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))
+generate double years_of_schooling_completed_x = education
+generate byte geographic_region_of_residence = reg
+label values geographic_region_of_residence rl
+generate byte in_a_labor_union_at_survey_time = union
+generate double weekly_hours_worked_last_week_x = hours
+generate byte job_satisfaction_rating_overall = satisfaction
+generate double hourly_wage_in_dollars_reported = wage
+generate byte satisfaction_three_categories_x = sat3
+generate byte sat3l = sat3
+label define s3 1 "Dissatisfied with the job overall" 2 "Neutral" 3 "Satisfied"
+label values sat3l s3
+generate double ed2 = education
+set linesize 80
+logit in_a_labor_union_at_survey_time education
+lincom education
+probit in_a_labor_union_at_survey_time education
+lincom education
+poisson weekly_hours_worked_last_week_x education
+lincom education
+ologit job_satisfaction_rating_overall years_of_schooling_completed_x
+lincom years_of_schooling_completed_x
+oprobit satisfaction i.geographic_region_of_residence
+nbreg weekly_hours_worked_last_week_x years_of_schooling_completed_x
+lincom years_of_schooling_completed_x
+nbreg hours i.geographic_region_of_residence
+nbreg hours education, irr
+tobit hourly_wage_in_dollars_reported education, ll(5)
+lincom education
+tobit wage years_of_schooling_completed_x i.geographic_region_of_residence, ll(5)
+mlogit satisfaction_three_categories_x years_of_schooling_completed_x
+lincom [2]years_of_schooling_completed_x
+mlogit sat3 i.geographic_region_of_residence
+mlogit sat3l education
+mlogit sat3 education ed2, rrr
+ologit satisfaction education, or
+regress hourly_wage_in_dollars_reported years_of_schooling_completed_x i.geographic_region_of_residence
+lincom years_of_schooling_completed_x
+margins geographic_region_of_residence
+set linesize 200
+logit in_a_labor_union_at_survey_time years_of_schooling_completed_x, vce(robust)
+lincom years_of_schooling_completed_x
+poisson weekly_hours_worked_last_week_x education, irr
+ologit job_satisfaction_rating_overall years_of_schooling_completed_x
+lincom years_of_schooling_completed_x
+oprobit satisfaction i.geographic_region_of_residence
+nbreg weekly_hours_worked_last_week_x years_of_schooling_completed_x
+nbreg hours i.geographic_region_of_residence
+nbreg hours education, irr
+tobit hourly_wage_in_dollars_reported education, ll(5)
+lincom education
+tobit wage years_of_schooling_completed_x i.geographic_region_of_residence, ll(5)
+mlogit satisfaction_three_categories_x years_of_schooling_completed_x
+lincom [2]years_of_schooling_completed_x
+mlogit sat3 i.geographic_region_of_residence
+mlogit sat3l education
+regress hourly_wage_in_dollars_reported years_of_schooling_completed_x i.geographic_region_of_residence
+lincom years_of_schooling_completed_x
+margins geographic_region_of_residence
+=== mlogit-factor-layout
+clear
+set seed 7303
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+label define rl 1 "East" 2 "North" 3 "South" 4 "West"
+label values reg rl
+generate byte female = runiform() < .5
+generate double education = 8 + floor(runiform()*10)
+generate byte satisfaction = 1 + floor(5*runiform()*(.6 + .04*education))
+replace satisfaction = 5 if satisfaction > 5
+generate byte sat3 = cond(satisfaction<=2,1,cond(satisfaction==3,2,3))
+generate double years_of_schooling_completed_x = education
+set linesize 80
+mlogit sat3 i.reg i.female#c.education
+mlogit sat3 i.female##c.years_of_schooling_completed_x
+mlogit sat3 i.reg##i.female, rrr
+set linesize 200
+mlogit sat3 i.female##c.years_of_schooling_completed_x
+=== test-lincom-tobit-prefix-and-minus
+clear
+set seed 7304
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+generate byte female = runiform() < .5
+generate double education = 8 + floor(runiform()*10)
+generate double experience = floor(runiform()*30)
+generate double wage = 2 + .5*education + .8*(reg==2) - .3*(reg==3) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+tobit wage education i.reg i.female, ll(5)
+test 2.reg
+lincom 2.reg - 3.reg
+test education
+regress wage education i.reg i.female#c.experience
+test 3.reg = 2.reg
+lincom -education
+=== table-width-continuous-pieces
+clear
+set seed 7311
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+label define rl 1 "East" 2 "North" 3 "South" 4 "West"
+label values reg rl
+generate byte female = runiform() < .5
+generate byte union = runiform() < .35
+generate byte near_college = runiform() < .4
+generate double education = 8 + floor(runiform()*10)
+generate double exper = floor(runiform()*30)
+generate double wage = 2 + .5*education + .1*exper + .02*education*exper + .8*(reg==2) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate double hours = floor(-ln(runiform())*exp(1.5 + .05*education))
+generate double abcdefghijk = education
+generate double abcdefghij = education
+generate double abcdefghijkl = education
+generate double abcdefghijklmn = education
+set linesize 80
+regress wage c.abcdefghijk#c.exper
+logit union c.abcdefghijk#c.exper
+regress wage c.exper#c.abcdefghijk#c.education
+regress wage c.abcdefghijk#c.abcdefghijk
+regress wage c.abcdefghij#c.exper
+regress wage c.abcdefghijkl#c.exper
+regress wage c.abcdefghijklmn#c.exper
+regress wage i.female#c.abcdefghijk
+regress wage c.abcdefghijk#i.female
+regress wage c.exper#c.abcdefghijk
+set linesize 100
+generate double a234567890b234567890c234567890d = education
+regress wage c.a234567890b234567890c234567890d#c.exper
+regress wage c.a234567890b234567890c234567890d#c.a234567890b234567890c234567890d
+set linesize 80
+generate double abcdefghijklm = education
+generate byte fbcdefghijkl = female
+generate byte fbcdefghijklm = female
+generate byte fbcdefghijklmn = female
+generate byte fbcdefghijklmnopq = female
+set linesize 80
+regress wage c.abcdefghijklm#c.exper
+regress wage i.fbcdefghijkl#c.exper
+regress wage i.fbcdefghijklm#c.exper
+regress wage i.fbcdefghijklmn#c.exper
+regress wage i.fbcdefghijklmnopq#c.exper
+regress wage c.exper#i.fbcdefghijklm
+regress wage i.fbcdefghijklm#i.union
+regress wage i.union#i.fbcdefghijklm
+regress wage i.union#i.fbcdefghijklmn#i.reg
+set linesize 200
+=== table-level-labels-abbreviated
+clear
+set seed 7311
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+label define rl 1 "East" 2 "North" 3 "South" 4 "West"
+label values reg rl
+generate byte female = runiform() < .5
+generate byte union = runiform() < .35
+generate byte near_college = runiform() < .4
+generate double education = 8 + floor(runiform()*10)
+generate double exper = floor(runiform()*30)
+generate double wage = 2 + .5*education + .1*exper + .02*education*exper + .8*(reg==2) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate double hours = floor(-ln(runiform())*exp(1.5 + .05*education))
+set linesize 80
+label define r2 1 "abcdefghijklm" 2 "abcdefghijk m" 3 "abcdefghijkl" 4 "_abcdefghijklmn"
+label values reg r2
+regress wage i.union#i.reg
+regress wage i.female#i.reg
+regress wage i.reg
+label define r1 1 "abcdefghijklmnopqrstuvwxyz" 2 "Northern_plains_region" 3 "North-plains-region" 4 "12345678901234"
+label values reg r1
+regress wage i.reg
+regress wage i.union#i.reg
+regress wage i.reg#i.union
+logit union i.reg
+label define r3 1 "Manufacturing" 2 "Transportation" 3 "a.b.c.d.e.f.g.h" 4 "tab	inside_label"
+label values reg r3
+regress wage i.reg
+regress wage i.reg#c.exper
+set linesize 100
+label define r4 1 "abcdefghijklmnopqrstuvwxyz0123456789" 2 "Northern plains region of the United States" 3 "x" 4 "y"
+label values reg r4
+regress wage i.reg
+regress wage i.union#i.reg
+set linesize 80
+label values reg rl
+set linesize 80
+label define r5 1 "abcdefghijklmnopqrstuvwxyz012345" 2 "abcdefghijklmnopqrstuvwxyz0123456" 3 "abcdefghijklmnopqrstuvwxyz0123456789" 4 "abcdefghijklmnopqrstuvwxyz01234"
+label values reg r5
+regress wage i.reg
+regress wage i.union#i.reg
+set linesize 100
+regress wage i.reg
+set linesize 80
+label values reg rl
+set linesize 80
+generate byte union_member12 = union
+logit union_member12 education
+probit union_member12 education
+logistic union_member12 education
+logit union_member12 education, or
+lincom education, or
+lincom education
+generate double education_years_2020 = education
+regress wage education_years_2020
+generate byte abcdefghijklmnopqrstuvwxyz123456 = near_college
+regress wage i.abcdefghijklmnopqrstuvwxyz123456
+set linesize 100
+regress wage i.abcdefghijklmnopqrstuvwxyz123456
+set linesize 80
+label define x0 0 "No"
+label values union x0
+regress wage i.union
+label values union
+set linesize 200
+=== table-unlabelled-levels-and-one-level-factors
+clear
+set seed 7311
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+label define rl 1 "East" 2 "North" 3 "South" 4 "West"
+label values reg rl
+generate byte female = runiform() < .5
+generate byte union = runiform() < .35
+generate byte near_college = runiform() < .4
+generate double education = 8 + floor(runiform()*10)
+generate double exper = floor(runiform()*30)
+generate double wage = 2 + .5*education + .1*exper + .02*education*exper + .8*(reg==2) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate double hours = floor(-ln(runiform())*exp(1.5 + .05*education))
+generate long big = 1000000 + 7*reg
+generate long big2 = 20000 + union
+generate long big3 = 100000 + union
+set linesize 80
+regress wage i.big#i.big2
+regress wage i.big#i.big3
+regress wage i.big#i.big2#i.female
+regress wage i.big2#i.big
+set linesize 100
+regress wage i.big#i.big2
+set linesize 200
+regress wage i.big#i.big2
+set linesize 80
+set linesize 80
+regress wage i.big#i.female#i.big2
+regress wage i.big2#i.female#i.big
+regress wage i.big#i.female#i.union
+label define fl5 0 "Malee" 1 "Femal"
+label values female fl5
+regress wage i.big#i.female
+label define fl4 0 "Male" 1 "Fema"
+label values female fl4
+regress wage i.big#i.female
+label values female
+generate long big4 = 10000000 + 7*reg
+regress wage i.big4#i.union
+regress wage i.big4#i.female#i.union
+generate byte sat3 = 1 + floor(3*runiform())
+set linesize 80
+label define yn 0 "No" 1 "Yes"
+label values union yn
+regress wage i.union
+logit female i.union
+regress wage i.union education
+regress wage education i.union
+regress wage education i.union exper
+label define flab 0 "Male respondent" 1 "Female respondent with a long label"
+label values female flab
+regress wage i.female education
+set linesize 100
+regress wage i.female
+set linesize 80
+regress wage i.reg if reg<=2
+mlogit sat3 i.union
+label define fem 0 "Male" 1 "Female"
+label values female fem
+regress wage i.female##i.reg
+logit union i.female##c.education
+regress wage i.female#c.education
+regress wage c.education#i.female
+regress wage i.female, vce(robust)
+regress wage i.female, beta
+label define yn2 1 "Yes"
+label values near_college yn2
+regress wage i.near_college
+label values union
+label values female
+label values near_college
+set linesize 80
+label define x0 0 "No"
+label values union x0
+regress wage i.union
+regress wage i.union#i.female
+regress wage i.female#i.union
+label values union nosuchlabel
+regress wage i.union
+regress wage i.union#i.female
+label values union
+set linesize 200
+=== constraint-lines-wrapped
+clear
+set seed 7311
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+label define rl 1 "East" 2 "North" 3 "South" 4 "West"
+label values reg rl
+generate byte female = runiform() < .5
+generate byte union = runiform() < .35
+generate byte near_college = runiform() < .4
+generate double education = 8 + floor(runiform()*10)
+generate double exper = floor(runiform()*30)
+generate double wage = 2 + .5*education + .1*exper + .02*education*exper + .8*(reg==2) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate double hours = floor(-ln(runiform())*exp(1.5 + .05*education))
+generate double hourly_wage_in_dollars_reported = wage
+generate double weekly_hours_worked_last_week_x = hours
+set linesize 80
+tobit wage education i.reg i.female, ll(5)
+lincom 2.reg - 3.reg + 4.reg - education + 1.female
+test 2.reg - 3.reg + 4.reg - education + 1.female = 0
+tobit hourly_wage_in_dollars_reported education exper i.reg, ll(5)
+lincom education + exper
+lincom education + 2*exper - 3.reg
+test education = exper
+test (education = exper) (2.reg = 3.reg + 4.reg + education)
+poisson weekly_hours_worked_last_week_x education exper
+lincom education + 2*exper
+test education + 2*exper = 1.5
+regress wage education exper i.reg
+lincom education + 2*exper - 3.reg + 4.reg - 2.reg + 0.5*education + 1.25*exper + 3*4.reg
+set linesize 100
+tobit hourly_wage_in_dollars_reported education exper i.reg, ll(5)
+lincom education + 2*exper - 3.reg + 4.reg
+test education + 2*exper - 3.reg + 4.reg = 0
+set linesize 80
+generate double aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa = education + runiform()
+generate double bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb = education + runiform()
+generate double dddddddddddddddddddddddddddddd = education + runiform()
+generate double c = education + runiform()
+generate double cc = education + runiform()
+generate double ccc = education + runiform()
+generate double cccc = education + runiform()
+generate double ccccc = education + runiform()
+generate double cccccc = education + runiform()
+generate double ccccccc = education + runiform()
+set linesize 80
+regress wage aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb dddddddddddddddddddddddddddddd c cc ccc cccc ccccc cccccc ccccccc
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+c+dddddddddddddddddddddddddddddd
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+c
+test aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+c=1.5
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+cc+dddddddddddddddddddddddddddddd
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+cc
+test aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+cc=1.5
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+ccc+dddddddddddddddddddddddddddddd
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+ccc
+test aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+ccc=1.5
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+cccc+dddddddddddddddddddddddddddddd
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+cccc
+test aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+cccc=1.5
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+ccccc+dddddddddddddddddddddddddddddd
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+ccccc
+test aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+ccccc=1.5
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+cccccc+dddddddddddddddddddddddddddddd
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+cccccc
+test aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+cccccc=1.5
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+ccccccc+dddddddddddddddddddddddddddddd
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+ccccccc
+test aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+ccccccc=1.5
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb-ccc-2*dddddddddddddddddddddddddddddd
+set linesize 100
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+dddddddddddddddddddddddddddddd+c+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+dddddddddddddddddddddddddddddd+c
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+dddddddddddddddddddddddddddddd+cc+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+dddddddddddddddddddddddddddddd+cc
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+dddddddddddddddddddddddddddddd+ccc+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+dddddddddddddddddddddddddddddd+ccc
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+dddddddddddddddddddddddddddddd+cccc+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+dddddddddddddddddddddddddddddd+cccc
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+dddddddddddddddddddddddddddddd+ccccc+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+dddddddddddddddddddddddddddddd+ccccc
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+dddddddddddddddddddddddddddddd+cccccc+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+dddddddddddddddddddddddddddddd+cccccc
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+dddddddddddddddddddddddddddddd+ccccccc+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+lincom aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb+dddddddddddddddddddddddddddddd+ccccccc
+set linesize 200
+=== table-width-xtreg-and-resampling
+clear
+set seed 7311
+set obs 600
+generate byte reg = 1 + floor(runiform()*4)
+label define rl 1 "East" 2 "North" 3 "South" 4 "West"
+label values reg rl
+generate byte female = runiform() < .5
+generate byte union = runiform() < .35
+generate byte near_college = runiform() < .4
+generate double education = 8 + floor(runiform()*10)
+generate double exper = floor(runiform()*30)
+generate double wage = 2 + .5*education + .1*exper + .02*education*exper + .8*(reg==2) + 1.5*female + 6*(runiform()+runiform()+runiform()-1.5)
+generate double hours = floor(-ln(runiform())*exp(1.5 + .05*education))
+generate double years_of_schooling_completed_x = education
+generate byte near_college_flag_long_name_xx = near_college
+generate byte in_a_labor_union_at_survey_time = union
+generate double hourly_wage_in_dollars_reported = wage
+generate int id = ceil(_n/6)
+set linesize 80
+xtset id
+xtreg wage c.years_of_schooling_completed_x#c.exper, fe
+xtreg wage i.near_college_flag_long_name_xx education, re
+xtreg hourly_wage_in_dollars_reported education i.reg, fe
+xtreg hourly_wage_in_dollars_reported education i.reg, re
+xtreg hourly_wage_in_dollars_reported education i.reg, be
+xtreg hourly_wage_in_dollars_reported education i.reg, fe vce(cluster id)
+xtreg wage i.near_college_flag_long_name_xx education, re vce(robust)
+xtreg wage i.female#i.reg, fe
+set seed 12
+bootstrap, reps(20) nodots: regress wage c.years_of_schooling_completed_x#c.exper
+set seed 12
+bootstrap, reps(20) nodots: logit in_a_labor_union_at_survey_time education
+set seed 12
+bootstrap, reps(20) nodots: regress hourly_wage_in_dollars_reported i.reg education
+set seed 12
+bootstrap, reps(20) nodots: regress wage i.near_college_flag_long_name_xx i.female#i.reg
+jackknife, nodots: regress hourly_wage_in_dollars_reported c.years_of_schooling_completed_x#c.exper
+jackknife, nodots: logit in_a_labor_union_at_survey_time i.near_college_flag_long_name_xx
+set linesize 100
+xtreg hourly_wage_in_dollars_reported c.years_of_schooling_completed_x#c.exper i.near_college_flag_long_name_xx, fe
+set seed 12
+bootstrap, reps(20) nodots: regress hourly_wage_in_dollars_reported c.years_of_schooling_completed_x#c.exper i.near_college_flag_long_name_xx
+set seed 12
+bootstrap, reps(20) nodots: logit in_a_labor_union_at_survey_time education
+set linesize 80
+set linesize 80
+set seed 5
+bootstrap, reps(10) nodots: probit in_a_labor_union_at_survey_time education
+set seed 5
+bootstrap, reps(10) nodots: logit union education
+label define yn 0 "No" 1 "Yes"
+label values union yn
+xtreg wage i.union education, fe
+set seed 5
+bootstrap, reps(10) nodots: regress wage i.union education
+label values union
+set linesize 200

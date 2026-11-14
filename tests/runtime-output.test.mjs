@@ -115,6 +115,15 @@ for (const c of fixture.cases)
             "test-lincom-equation-references",
             "test-references-stata-forms",
             "test-lincom-references-round3",
+            "table-width-factor-labels",
+            "table-width-likelihood-models",
+            "mlogit-factor-layout",
+            "test-lincom-tobit-prefix-and-minus",
+            "table-width-continuous-pieces",
+            "table-level-labels-abbreviated",
+            "table-unlabelled-levels-and-one-level-factors",
+            "constraint-lines-wrapped",
+            "table-width-xtreg-and-resampling",
           ].includes(c.id),
         )
       )

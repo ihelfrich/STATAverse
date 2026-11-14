@@ -6,10 +6,11 @@ import { applyFormat } from "./format.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { invnormal, normal } from "./functions.js";
 import {
-  RULE,
+  abbreviate,
   design,
   invertSymmetric,
   quadratic,
+  tableWidth,
   termRows,
 } from "./estimation.js";
 import { count } from "./reports.js";
@@ -607,38 +608,44 @@ function xtreg(session, text, ctx) {
     `${corrLine.padEnd(48)}${side(dist === "t" ? "Prob > F" : "Prob > chi2", r4(p))}`,
   );
   ctx.out("");
+  // The first column is as wide as Stata makes it; see tableWidth. The
+  // dependent variable does not count.
+  const model = session.estimates,
+    w = tableWidth(session, model),
+    rule = "-".repeat(66 + w),
+    split = `${"-".repeat(w + 1)}+${"-".repeat(64)}`;
   if (clustered)
     ctx.out(
       `(Std. err. adjusted for ${count(G)} clusters in ${panel.id})`.padStart(
-        78,
+        66 + w,
       ),
     );
-  ctx.out(RULE);
-  if (clustered) ctx.out("             |               Robust");
+  ctx.out(rule);
+  if (clustered) ctx.out(`${" ".repeat(w + 1)}|               Robust`);
   ctx.out(
-    `${dep.padStart(12)} | Coefficient  ${clustered ? "std" : "Std"}. err.      ${dist}    P>|${dist}|     [${g(level)}% conf. interval]`,
+    `${abbreviate(dep, w).padStart(w)} | Coefficient  ${clustered ? "std" : "Std"}. err.      ${dist}    P>|${dist}|     [${g(level)}% conf. interval]`,
   );
-  ctx.out(
-    "-------------+----------------------------------------------------------------",
-  );
-  const model = session.estimates;
-  termRows(session, model, (k) => {
-    const se = Math.sqrt(model.V[k][k]),
-      t = model.b[k] / se;
-    return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(tail(t), "%8.3f")}${g(model.b[k] - critical * se).padStart(13)}${g(model.b[k] + critical * se).padStart(12)}`;
-  }).forEach(ctx.out);
-  ctx.out(
-    useBe
-      ? RULE
-      : "-------------+----------------------------------------------------------------",
-  );
+  ctx.out(split);
+  termRows(
+    session,
+    model,
+    (k) => {
+      const se = Math.sqrt(model.V[k][k]),
+        t = model.b[k] / se;
+      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(tail(t), "%8.3f")}${g(model.b[k] - critical * se).padStart(13)}${g(model.b[k] + critical * se).padStart(12)}`;
+    },
+    w,
+  ).forEach(ctx.out);
+  ctx.out(useBe ? rule : split);
   if (!useBe) {
-    ctx.out(`     sigma_u |  ${g(sigmaU, "%10.0g").padStart(9)}`);
-    ctx.out(`     sigma_e |  ${g(Math.sqrt(sigmaE2), "%10.0g").padStart(9)}`);
+    ctx.out(`${"sigma_u".padStart(w)} |  ${g(sigmaU, "%10.0g").padStart(9)}`);
     ctx.out(
-      `         rho |  ${g(rho, "%10.0g").padStart(9)}   (fraction of variance due to u_i)`,
+      `${"sigma_e".padStart(w)} |  ${g(Math.sqrt(sigmaE2), "%10.0g").padStart(9)}`,
     );
-    ctx.out(RULE);
+    ctx.out(
+      `${"rho".padStart(w)} |  ${g(rho, "%10.0g").padStart(9)}   (fraction of variance due to u_i)`,
+    );
+    ctx.out(rule);
   }
   if (footer) ctx.out(footer);
   ctx.out("");
