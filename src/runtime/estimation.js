@@ -1023,7 +1023,11 @@ export function termRows(
       return row(`${short(model.names[shown[0]]).padStart(w)} `, shown[0]);
     // A product of continuous variables is one row; a name too long for the
     // column is broken after a #, the last piece labelling the row.
-    if (shown.length === 1 && block.term.components.every((c) => !c.factor)) {
+    if (
+      shown.length === 1 &&
+      !block.term.ts &&
+      block.term.components.every((c) => !c.factor)
+    ) {
       const name = model.names[shown[0]];
       if (name.length <= w || !name.includes("#"))
         return row(`${short(name).padStart(w)} `, shown[0]);
@@ -1047,6 +1051,11 @@ export function termRows(
           ? `${text.slice(0, w - 3)}..`
           : abbreviate(text, w - 1);
     for (const k of shown) {
+      // A time-series operator labels its row as L1. or LD.
+      if (model.columns[k].tsLabel) {
+        row(`${model.columns[k].tsLabel} `.padStart(w + 1), k);
+        continue;
+      }
       const { pieces, named, text } = levelLabel(session, model.columns[k]);
       if (width && text.length > w - 1 && pieces.length > 1 && !named) {
         const lines = [];
@@ -2992,7 +3001,7 @@ export function lincom(session, text, ctx) {
   ctx.out("");
   ctx.out(RULE);
   ctx.out(
-    `${abbreviate(model.depvar, 12).padStart(12)} |${eform.length ? `${eform[0][1].padStart(11)} ` : " Coefficient"}  Std. err.      ${letter}    P>|${letter}|${interval}`,
+    `${abbreviate(/\s/.test(model.depvar) ? "" : model.depvar, 12).padStart(12)} |${eform.length ? `${eform[0][1].padStart(11)} ` : " Coefficient"}  Std. err.      ${letter}    P>|${letter}|${interval}`,
   );
   ctx.out(`${"-".repeat(13)}+${"-".repeat(64)}`);
   if (fixed && estimate === 0)

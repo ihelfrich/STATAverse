@@ -150,6 +150,9 @@ for (const c of fixture.cases)
             "pass7-ts-arima-predict",
             "pass7-ts-arima-names-and-errors",
             "pass7-ts-edge-delta-and-white-noise",
+            "pass7-ts-arima-singular-and-small",
+            "pass7-ts-arima-collinear",
+            "pass7-ts-arima-display-predict",
           ].includes(c.id),
         )
       )

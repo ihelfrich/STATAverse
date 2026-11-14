@@ -109,7 +109,8 @@ function columnParts(name) {
     equation = colon >= 0 ? `${abbreviated(name.slice(0, colon))}:` : "",
     rest = colon >= 0 ? name.slice(colon + 1) : name,
     hash = rest.lastIndexOf("#"),
-    operator = /^[0-9]*[A-Za-z]*\./.exec(rest),
+    // Everything up to the dot: 0b., o., L., L2. or L2D.
+    operator = /^[0-9A-Za-z]*\./.exec(rest),
     cut = hash >= 0 ? hash + 1 : operator ? operator[0].length : 0;
   return {
     equation,

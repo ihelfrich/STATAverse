@@ -1,10 +1,10 @@
 // Time-series descriptions: corrgram, ac, pac and tssmooth. They need a
 // time variable set by tsset and use observations in its order.
 import { StataError } from "./errors.js";
-import { applyFormat } from "./format.js";
+import { applyFormat, parseFormat } from "./format.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
-import { row } from "./likelihood.js";
+import { row, statistic } from "./likelihood.js";
 import { count } from "./reports.js";
 import { project } from "./diagnostics.js";
 import { draw, titleOf, unquote } from "./graphics.js";
@@ -324,7 +324,17 @@ function words(text) {
 
 /** A variable under operators, with the name e(b) gives it and its row label. */
 export function tsTerm(variable, ops) {
-  const kept = ops.filter(([, k]) => k > 0),
+  // Operators combine as Stata writes them: lags and leads net out, the
+  // differences add, and they are written L, F, D, S in that order, so
+  // that L.LD.x is L2D.x.
+  const total = (letter) =>
+      ops.filter(([l]) => l === letter).reduce((t, [, k]) => t + k, 0),
+    shift = total("L") - total("F"),
+    kept = [
+      ...(shift > 0 ? [["L", shift]] : shift < 0 ? [["F", -shift]] : []),
+      ...(total("D") > 0 ? [["D", total("D")]] : []),
+      ...ops.filter(([l, k]) => l === "S" && k > 0),
+    ],
     prefix = kept.map(([l, k]) => (k === 1 ? l : `${l}${k}`)).join("");
   return {
     variable,
@@ -392,6 +402,161 @@ export function tsTerms(session, text, { strings = false } = {}) {
   return terms;
 }
 
+/**
+ * A generalized inverse of a symmetric nonnegative matrix as Mata's
+ * invsym() makes one: the columns listed in first are swept first, in
+ * order, then whichever remaining column has the largest remaining
+ * diagonal, and a column whose remaining diagonal has fallen to 1e-9 of
+ * its own is dropped, its row and column of the inverse zero. This choice
+ * of order and tolerance reproduced invsym()'s dropped columns on 303
+ * nearly singular matrices in Stata 19. Returns the inverse and which
+ * columns were dropped.
+ */
+export function invsym(A, first = []) {
+  const n = A.length,
+    a = A.map((r) => Array.from(r)),
+    done = new Array(n).fill(false),
+    dropped = new Array(n).fill(false);
+  const sweep = (j) => {
+    done[j] = true;
+    const d = a[j][j];
+    if (!(A[j][j] > 0) || !(d > 1e-9 * A[j][j]) || !Number.isFinite(d)) {
+      dropped[j] = true;
+      for (let i = 0; i < n; i++) a[i][j] = a[j][i] = 0;
+      return;
+    }
+    // Goodnight's sweep: the swept block becomes its inverse.
+    for (let c = 0; c < n; c++) a[j][c] /= d;
+    for (let i = 0; i < n; i++) {
+      if (i === j) continue;
+      const b = a[i][j];
+      if (!b) continue;
+      for (let c = 0; c < n; c++) a[i][c] -= b * a[j][c];
+      a[i][j] = -b / d;
+    }
+    a[j][j] = 1 / d;
+  };
+  for (const j of first) if (!done[j]) sweep(j);
+  for (;;) {
+    let best = -1;
+    for (let j = 0; j < n; j++)
+      if (!done[j] && (best < 0 || a[j][j] > a[best][best])) best = j;
+    if (best < 0) break;
+    sweep(best);
+  }
+  // Symmetrize what roundoff left uneven.
+  const inverse = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < n; j++)
+      if (!dropped[i] && !dropped[j]) inverse[i][j] = (a[i][j] + a[j][i]) / 2;
+  return { inverse, dropped };
+}
+
+/**
+ * Which of the columns _rmcoll, as arima and var call it under version 7
+ * and 8, drops as collinear: the cross-products with the constant swept
+ * first, then invsym()'s order. Returns a flag for each column.
+ */
+export function collinearColumns(columns, constant = true) {
+  const n = columns[0]?.length ?? 0,
+    all = constant ? [...columns, new Array(n).fill(1)] : columns,
+    A = all.map((a) => all.map((b) => dotProduct(a, b)));
+  return invsym(A, constant ? [all.length - 1] : []).dropped.slice(
+    0,
+    columns.length,
+  );
+}
+
+/**
+ * Least squares as regress fits it: a column collinear with those before
+ * it (the constant, given by its index, first) is omitted, its
+ * coefficient zero. Returns null with fewer than two observations, where
+ * regress stops with insufficient observations.
+ */
+export function regressFit(columns, y, constantIndex = -1) {
+  const n = y.length,
+    k = columns.length;
+  if (n < 2) return null;
+  const A = columns.map((a) => columns.map((b) => dotProduct(a, b))),
+    order = [
+      ...(constantIndex >= 0 ? [constantIndex] : []),
+      ...columns.map((_, j) => j).filter((j) => j !== constantIndex),
+    ],
+    keep = [],
+    a = A.map((r) => r.slice());
+  // Columns are swept in order; one whose remaining diagonal has all but
+  // vanished is left out, and so is one of roundoff beside the others, as
+  // residuals of an exact fit are (regress omits them as collinear).
+  const biggest = Math.max(0, ...columns.map((_, j) => A[j][j]));
+  for (const j of order) {
+    const d = a[j][j];
+    if (!(A[j][j] > 1e-20 * biggest) || !(d > 1e-13 * A[j][j])) continue;
+    keep.push(j);
+    for (let i = 0; i < k; i++)
+      if (i !== j)
+        for (let c = 0; c < k; c++)
+          if (c !== j) a[i][c] -= (a[i][j] * a[j][c]) / d;
+    for (let i = 0; i < k; i++) if (i !== j) a[i][j] = a[j][i] = 0;
+  }
+  keep.sort((p, q) => p - q);
+  const b = new Array(k).fill(0),
+    inverse = Array.from({ length: k }, () => new Array(k).fill(0)),
+    omitted = columns.map((_, j) => !keep.includes(j));
+  if (constantIndex < 0 || !keep.includes(constantIndex)) {
+    const fit = ols(
+      keep.map((j) => columns[j]),
+      y,
+    );
+    if (!fit) return null;
+    keep.forEach((j, p) => {
+      b[j] = fit.b[p];
+      keep.forEach((c, q) => (inverse[j][c] = fit.inverse[p][q]));
+    });
+    return {
+      b,
+      inverse,
+      residuals: fit.residuals,
+      rss: fit.rss,
+      omitted,
+      rank: keep.length,
+    };
+  }
+  // With a constant, as regress does, in deviations from the means, so
+  // that a series that does not vary leaves residuals of exactly zero.
+  const mean = (v) => v.reduce((t, x) => t + x, 0) / n,
+    slopes = keep.filter((j) => j !== constantIndex),
+    means = slopes.map((j) => mean(columns[j])),
+    centred = slopes.map((j, p) => columns[j].map((x) => x - means[p])),
+    ybar = mean(y),
+    fit = ols(
+      centred,
+      y.map((v) => v - ybar),
+    );
+  if (!fit) return null;
+  slopes.forEach((j, p) => {
+    b[j] = fit.b[p];
+    slopes.forEach((c, q) => (inverse[j][c] = fit.inverse[p][q]));
+  });
+  b[constantIndex] = ybar - slopes.reduce((t, j, p) => t + b[j] * means[p], 0);
+  // The constant's row of (X'X)^-1: 1/n + m'Am, and -Am beside the slopes.
+  const Am = slopes.map((_, p) =>
+    slopes.reduce((t, __, q) => t + fit.inverse[p][q] * means[q], 0),
+  );
+  inverse[constantIndex][constantIndex] =
+    1 / n + Am.reduce((t, v, p) => t + v * means[p], 0);
+  slopes.forEach((j, p) => {
+    inverse[constantIndex][j] = inverse[j][constantIndex] = -Am[p];
+  });
+  return {
+    b,
+    inverse,
+    residuals: fit.residuals,
+    rss: fit.rss,
+    omitted,
+    rank: keep.length,
+  };
+}
+
 /** Least squares of y on the columns given, or null when they are collinear. */
 export function ols(columns, y) {
   const k = columns.length,
@@ -434,10 +599,10 @@ export function gapCount(frame, rows) {
  * items are { label, k } for a plain row and { header, rows } for a group;
  * cell(k) gives the text after the bar.
  */
-export function equationLines(equations, cell, w = 12) {
+export function equationLines(equations, cell, w = 12, right = 64) {
   const out = [],
     gap = `${" ".repeat(w + 1)}|`,
-    split = `${"-".repeat(w + 1)}+${"-".repeat(64)}`;
+    split = `${"-".repeat(w + 1)}+${"-".repeat(right)}`;
   equations.forEach((equation, e) => {
     if (e) out.push(split);
     if (equation.name !== null)
@@ -485,17 +650,28 @@ export function termItems(terms, indices) {
 export function tableHeading(
   label,
   level,
-  { vcetype, t = false, w = 12 } = {},
+  { vcetype, t = false, w = 12, columns = "full" } = {},
 ) {
-  const out = ["-".repeat(66 + w)];
-  if (vcetype)
+  // An operated name too long for the column puts its operators on the
+  // line above, at the left, as D. above longvariab~e.
+  const operated = /^([^.]+\.)(.+)$/.exec(label),
+    split = operated && label.length > w,
+    corner = split ? operated[2] : label,
+    right = { full: 64, noci: 39, legend: 64 }[columns],
+    out = ["-".repeat(w + 2 + right)];
+  if (vcetype && columns !== "legend")
     out.push(
-      `${" ".repeat(w + 1)}|${" ".repeat(18 - Math.floor(vcetype.length / 2))}${vcetype}`,
+      `${split ? operated[1].padEnd(w) : " ".repeat(w)} |${" ".repeat(18 - Math.floor(vcetype.length / 2))}${vcetype}`,
     );
+  else if (split) out.push(`${operated[1].padEnd(w)} |`);
   out.push(
-    `${abbreviate(label, w).padStart(w)} | Coefficient  ${vcetype ? "std" : "Std"}. err.      ${t ? "t    P>|t|" : "z    P>|z|"}     [${applyFormat(level, "%9.0g").trim()}% conf. interval]`,
+    `${abbreviate(corner, w).padStart(w)} | ${
+      columns === "legend"
+        ? "Coefficient  Legend"
+        : `Coefficient  ${vcetype ? "std" : "Std"}. err.      ${t ? "t    P>|t|" : "z    P>|z|"}${columns === "noci" ? "" : `     [${applyFormat(level, "%9.0g").trim()}% conf. interval]`}`
+    }`,
   );
-  out.push(`${"-".repeat(w + 1)}+${"-".repeat(64)}`);
+  out.push(`${"-".repeat(w + 1)}+${"-".repeat(right)}`);
   return out;
 }
 
@@ -504,7 +680,7 @@ export function tableHeading(
  * longest label shown there while the line allows (up to linesize - 67),
  * as Stata sets it; a longer label is abbreviated.
  */
-export function stubWidth(session, equations, extra = []) {
+export function stubWidth(session, equations, extra = [], right = 64) {
   const labels = [...extra];
   for (const equation of equations) {
     if (equation.name) labels.push(equation.name);
@@ -513,7 +689,9 @@ export function stubWidth(session, equations, extra = []) {
         labels.push(item.header, ...item.rows.map((r) => r.label));
       else labels.push(item.label);
   }
-  const cap = (session.settings?.linesize ?? 79) - 67,
+  // The table, rule and bar included, must fit inside the line: a table
+  // without its intervals leaves the column more room.
+  const cap = (session.settings?.linesize ?? 79) - right - 3,
     widest = Math.max(0, ...labels.map((l) => l.length));
   return Math.max(12, Math.min(cap, widest));
 }
@@ -560,6 +738,78 @@ export function resultTable(names, b, se, level, df = 0) {
       b.map(() => 0),
     ],
   };
+}
+
+/**
+ * The display options of a coefficient table: coeflegend, noci, nocoef,
+ * nolstretch and the formats, a format wider than its column being set
+ * aside with Stata's note.
+ */
+export const DISPLAY_OPTIONS =
+  "COEFLegend noCI noCOEF noLSTRETCH CFORmat(string) PFORmat(string) SFORmat(string)";
+export function displayOptions(options, ctx) {
+  const format = (name, widest) => {
+    const value = options[name];
+    if (value === undefined) return null;
+    const parsed = parseFormat(value.trim());
+    if (!parsed || parsed.kind !== "number")
+      throw new StataError(
+        `'${value.trim()}' found where numeric format expected`,
+        7,
+      );
+    if (parsed.width > widest) {
+      ctx.out(`note: invalid ${name}(), using default`);
+      return null;
+    }
+    return value.trim();
+  };
+  return {
+    legend: !!options.coeflegend,
+    ci: options.ci !== false,
+    coef: options.coef !== false,
+    c: format("cformat", 9),
+    p: format("pformat", 5),
+    s: format("sformat", 8),
+  };
+}
+/** The columns a table under these options has: legend, noci or full. */
+export const columnsShown = (show) =>
+  show.legend ? "legend" : show.ci ? "full" : "noci";
+
+/**
+ * The cells of a coefficient row after the bar, as _coef_table shows them
+ * under the display options: the legend in place of the tests, the
+ * interval left out under noci, the formats, and a coefficient with no
+ * variance shown with dots. oneSided tests against zero on one side and
+ * truncates the interval at zero, as arima's /sigma row does.
+ */
+export function displayCells(
+  b,
+  se,
+  level,
+  show,
+  { legend, oneSided, df = 0 } = {},
+) {
+  const number = (value, width) =>
+    (isMissing(value) || !Number.isFinite(value)
+      ? "."
+      : show.c
+        ? applyFormat(value, show.c).trim()
+        : g(value)
+    ).padStart(width);
+  if (show.legend) return `${number(b, 11)}  ${legend}`;
+  if (!(se > 0))
+    return `${number(b, 11)}${".".padStart(11)}${".".padStart(9)}${".".padStart(8)}${show.ci ? `${".".padStart(13)}${".".padStart(12)}` : ""}`;
+  const z = b / se,
+    tail = df ? ttail(df, Math.abs(z)) : normal(-Math.abs(z)),
+    p = oneSided ? tail : 2 * tail,
+    critical = df
+      ? invttail(df, (1 - level / 100) / 2)
+      : invnormal(1 - (1 - level / 100) / 2),
+    low = oneSided ? Math.max(0, b - critical * se) : b - critical * se,
+    pText = show.p ? applyFormat(p, show.p).trim() : applyFormat(p, "%5.3f"),
+    zText = show.s ? applyFormat(z, show.s).trim().padStart(9) : statistic(z);
+  return `${number(b, 11)}${number(se, 11)}${zText}${pText.length > 5 ? `   ${pText}` : pText.padStart(8)}${show.ci ? `${number(low, 13)}${number(b + critical * se, 12)}` : ""}`;
 }
 
 // ----- pperron -----
@@ -631,10 +881,33 @@ function mackinnonP(trend, tau) {
   return normal(g0 + g1 * tau + g2 * tau ** 2 + g3 * tau ** 3);
 }
 
+/**
+ * The one series a unit-root test takes, operators and all (D.y, LD.y):
+ * a string variable cannot be lagged, which is how Stata refuses it, and
+ * factor-variable operators are refused.
+ */
+function oneSeries(session, text) {
+  if (/(^|\s)(i|c|ib\w*|o)\.|#/i.test(text))
+    throw new StataError("factor-variable operators not allowed", 101);
+  const terms = tsTerms(session, text, { strings: true });
+  if (terms.length > 1)
+    throw new StataError("too many variables specified", 103);
+  if (!terms.length) throw new StataError("varlist required", 100);
+  const [term] = terms;
+  if (isStringType(session.data.get(term.variable).type))
+    throw new StataError(
+      `${term.variable}:  may not use time-series operators on string variables`,
+      109,
+    );
+  return term;
+}
+
 /** The Phillips-Perron test for a unit root, as pperron.ado computes it. */
 function pperron(session, text, ctx) {
+  // pperron is r-class: a failure leaves r() empty.
+  session.results.r = {};
   const parsed = session.parse(
-      "varname [if] [in] [, TRend noCONStant Lags(integer -1) REGress]",
+      "anything [if] [in] [, TRend noCONStant Lags(integer -1) REGress]",
       text,
     ),
     options = parsed.options;
@@ -642,10 +915,10 @@ function pperron(session, text, ctx) {
     throw new StataError("cannot choose trend if constant is excluded", 198);
   const kind = options.constant === false ? 1 : options.trend ? 4 : 2,
     frame = timeFrame(session, "pperron"),
-    name = parsed.varlist[0],
-    values = session.data.get(name).data;
-  if (isStringType(session.data.get(name).type))
-    throw new StataError("type mismatch", 109);
+    term = oneSeries(session, parsed.anything),
+    name = term.name,
+    values = operate(frame, term.ops, session.data.get(term.variable).data),
+    laggedTerm = tsTerm(term.variable, [["L", 1], ...term.ops]);
   const marked = session
       .rows(parsed, null)
       .filter((i) => !isMissing(values[i]) && !isMissing(frame.time[i])),
@@ -662,12 +935,15 @@ function pperron(session, text, ctx) {
   const T = rows.length,
     k = columns.length;
   if (T <= k) throw new StataError("insufficient observations", 2001);
-  const fit = ols(columns, y);
-  if (!fit) throw new StataError("the regressors are collinear", 198);
-  const s2 = fit.rss / (T - k),
+  // regress leaves out a lag that is constant, as the lag of a constant
+  // series is, and what follows is then missing.
+  const fit = regressFit(columns, y, kind === 1 ? -1 : k - 1);
+  if (!fit) throw new StataError("insufficient observations", 2001);
+  const dfR = T - fit.rank,
+    s2 = fit.rss / dfR,
     s = Math.sqrt(s2),
     rho = fit.b[0],
-    sig = Math.sqrt(s2 * fit.inverse[0][0]),
+    sig = fit.omitted[0] ? 0 : Math.sqrt(s2 * fit.inverse[0][0]),
     lags =
       options.lags < 0 ? Math.trunc(4 * (T / 100) ** (2 / 9)) : options.lags;
   // The residuals' autocovariances, pairing each period with the one lags
@@ -686,11 +962,21 @@ function pperron(session, text, ctx) {
     gam0 = gamma(0);
   let lam = gam0;
   for (let j = 1; j <= lags; j++) lam += 2 * (1 - j / (lags + 1)) * gamma(j);
-  const factor = (T * sig) / s,
-    Zp = T * (rho - 1) - factor ** 2 * ((lam - gam0) / 2),
+  // Stata's arithmetic: a division by zero is missing, and so is anything
+  // computed from a missing value.
+  const ok = (v) => Number.isFinite(v) && !isMissing(v),
+    divide = (a, b) => (ok(a) && ok(b) && b !== 0 ? a / b : MISSING),
+    root = (v) => (ok(v) && v >= 0 ? Math.sqrt(v) : MISSING),
+    factor = divide(T * sig, s),
+    Zp = ok(factor)
+      ? T * (rho - 1) - factor ** 2 * ((lam - gam0) / 2)
+      : MISSING,
+    Zt0 = divide(rho - 1, sig),
+    ratio = root(divide(gam0, lam)),
     Zt =
-      ((rho - 1) / sig) * Math.sqrt(gam0 / lam) -
-      (0.5 * (lam - gam0) * factor) / Math.sqrt(lam),
+      ok(Zt0) && ok(ratio) && ok(factor) && ok(root(lam)) && lam > 0
+        ? Zt0 * ratio - (0.5 * (lam - gam0) * factor) / Math.sqrt(lam)
+        : MISSING,
     criticalRho = interpolated(PP_CRITICAL[kind].rho, T),
     criticalT = interpolated(PP_CRITICAL[kind].t, T),
     shownN = applyFormat(T, "%11.0gc").trim(),
@@ -726,7 +1012,8 @@ function pperron(session, text, ctx) {
   ctx.out("-".repeat(62));
   const results = {};
   if (kind !== 1) {
-    const p = mackinnonP(kind === 4, Zt);
+    // A missing Z(t) is above every bound: the p-value is 1.
+    const p = isMissing(Zt) ? 1 : mackinnonP(kind === 4, Zt);
     ctx.out(
       `MacKinnon approximate p-value for Z(t) = ${applyFormat(p, "%6.4f")}.`,
     );
@@ -735,27 +1022,33 @@ function pperron(session, text, ctx) {
   if (options.regress) {
     const level = session.settings?.level ?? 95,
       names = [
-        `L.${name}`,
+        laggedTerm.name,
         ...(kind === 4 ? ["_trend"] : []),
         ...(kind !== 1 ? ["_cons"] : []),
       ],
-      se = fit.inverse.map((r, j) => Math.sqrt(s2 * r[j])),
+      se = fit.inverse.map((r, j) =>
+        fit.omitted[j] ? 0 : Math.sqrt(s2 * r[j]),
+      ),
       items = [
-        { header: name, rows: [{ label: "L1.", k: 0 }] },
+        { header: term.variable, rows: [{ label: laggedTerm.label, k: 0 }] },
         ...names.slice(1).map((label, j) => ({ label, k: j + 1 })),
       ],
       equations = [{ name: null, items }],
-      w = stubWidth(session, equations, [name]);
+      // An operated name counts by its variable; its operators go above.
+      w = stubWidth(session, equations, [term.variable]);
     ctx.out("");
     ctx.out("Regression table");
     tableHeading(name, level, { t: true, w }).forEach((l) => ctx.out(l));
     equationLines(
       equations,
-      (j) => coefficientCells(fit.b[j], se[j], level, T - k),
+      (j) =>
+        fit.omitted[j]
+          ? `${"0".padStart(11)}  (omitted)`
+          : coefficientCells(fit.b[j], se[j], level, dfR),
       w,
     ).forEach((l) => ctx.out(l));
     ctx.out("-".repeat(66 + w));
-    results.table = resultTable(names, fit.b, se, level, T - k);
+    results.table = resultTable(names, fit.b, se, level, dfR);
   }
   ctx.out("");
   session.results.r = {
@@ -895,6 +1188,7 @@ function fitVar(session, frame, spec, selected) {
     T,
     k,
     K,
+    columns,
     regressorTerms,
     names,
     equations,
@@ -952,26 +1246,152 @@ function lagNumbers(list) {
       "lags() invalid -- invalid numlist has elements outside of allowed range",
       125,
     );
-  return [...new Set(list)].sort((a, b) => a - b);
+  // var's numlist is sorted, and a lag named twice is refused.
+  const sorted = list.slice().sort((a, b) => a - b);
+  if (sorted.some((k, j) => j && k === sorted[j - 1]))
+    throw new StataError(
+      "lags() invalid -- invalid numlist has elements out of order",
+      124,
+    );
+  return sorted;
 }
+
+/**
+ * The variables of var, varsoc and their kin: time-series operators are
+ * allowed, factor-variable operators are not, and a string variable cannot
+ * be lagged, which is how Stata refuses it.
+ */
+function laggableTerms(session, text) {
+  if (/(^|[\s(])(i|c|ib\w*|ibn|o)\.|#/i.test(text))
+    throw new StataError("factor-variable operators not allowed", 101);
+  const terms = tsTerms(session, text, { strings: true });
+  for (const term of terms)
+    if (isStringType(session.data.get(term.variable).type))
+      throw new StataError(
+        `${term.variable}:  may not use time-series operators on string variables`,
+        109,
+      );
+  return terms;
+}
+
+/** A paragraph of an error message, broken to the line as {p 0 4} breaks it. */
+function paragraph(session, text) {
+  const linesize = session.settings?.linesize ?? 79,
+    lines = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    const indent = lines.length ? "    " : "";
+    if (line && `${indent}${line} ${word}`.length > linesize) {
+      lines.push(`${indent}${line}`);
+      line = word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  lines.push(`${lines.length ? "    " : ""}${line}`);
+  return lines.join("\n");
+}
+
+/**
+ * var.ado's checks for collinearity, made with _rmcoll over the sample of
+ * the full list of variables: a collinear endogenous variable is dropped,
+ * then a collinear exogenous one, with a note for each; exogenous
+ * variables collinear with the endogenous ones or their lags are refused.
+ * out, when given, receives the notes. Returns the specification with
+ * what is kept.
+ */
+function settleCollinear(session, frame, spec, selected, out) {
+  const data = session.data,
+    value = (term) => operate(frame, term.ops, data.get(term.variable).data),
+    lagged = (terms) =>
+      terms.flatMap((t) =>
+        [0, ...spec.lags].map((l) =>
+          l ? tsTerm(t.variable, [["L", l], ...t.ops]) : t,
+        ),
+      ),
+    full = [...lagged(spec.endog), ...spec.exog].map(value),
+    touse = selected.filter(
+      (i) => !isMissing(frame.time[i]) && full.every((c) => !isMissing(c[i])),
+    );
+  if (!touse.length) throw new StataError("no observations", 2000);
+  const over = (terms) =>
+      terms.map((t) => {
+        const c = value(t);
+        return touse.map((i) => c[i]);
+      }),
+    note = (t) => out?.(`note: ${t.name} omitted because of collinearity.`),
+    keep = (terms) => {
+      const dropped = collinearColumns(over(terms), spec.constant);
+      terms.forEach((t, j) => dropped[j] && note(t));
+      return terms.filter((_, j) => !dropped[j]);
+    },
+    endog = keep(spec.endog);
+  let exog = spec.exog;
+  if (exog.length) {
+    exog = keep(exog);
+    if (!exog.length) throw new StataError("varlist required", 100);
+    const flist = [...lagged(endog), ...exog],
+      dropped = collinearColumns(over(flist), spec.constant);
+    if (dropped.some(Boolean)) {
+      flist.forEach((t, j) => dropped[j] && note(t));
+      throw new StataError(
+        paragraph(
+          session,
+          "the exogenous variables may not be collinear with the dependent variables, or their lags",
+        ),
+        198,
+      );
+    }
+  }
+  if (touse.length <= 2)
+    throw new StataError(
+      `cannot fit a model with ${spec.lags.at(-1) ?? 0} lags on the current sample`,
+      498,
+    );
+  return { ...spec, endog, exog };
+}
+
+// var's display options: those of arima but nocoef, which var refuses.
+const VAR_DISPLAY = DISPLAY_OPTIONS.replace("noCOEF ", "");
 
 /** What var was asked to fit. */
 function varSpecification(session, text) {
   const parsed = session.parse(
-      "anything [if] [in] [, Lags(numlist) EXog(string) noCONStant DFK SMall Level(cilevel) | LUTstats CONSTraints(string) noBIGf noISure ISure ITerate(integer 0) TOLerance(real 0) noLOg VCE(string) noMODEL noHEADer noTABle]",
+      `anything [if] [in] [, Lags(numlist) EXog(string) noCONStant DFK SMall Level(cilevel) noBIGf NOCNSReport noISure noLOg ITerate(string) TOLerance(string) ${VAR_DISPLAY} | LUTstats CONSTraints(string) VCE(string) noMODEL noHEADer noTABle]`,
       text,
     ),
     options = parsed.options;
   if (!parsed.anything.trim()) throw new StataError("varlist required", 100);
+  // Without constraints() these options have nothing to do, and var
+  // refuses them as Stata does.
+  if (options.isure !== undefined)
+    throw new StataError(
+      "noisure cannot be specified without constraints()",
+      198,
+    );
+  if (options.log !== undefined)
+    throw new StataError(
+      "log and nolog cannot be specified without constraints()",
+      198,
+    );
+  if (options.tolerance !== undefined)
+    throw new StataError(
+      "tolerance() cannot be specified without constraints()",
+      198,
+    );
+  if (options.iterate !== undefined)
+    throw new StataError(
+      "iterate() cannot be specified without constraints()",
+      198,
+    );
   return {
     parsed,
-    endog: tsTerms(session, parsed.anything),
-    exog: options.exog ? tsTerms(session, options.exog) : [],
+    endog: laggableTerms(session, parsed.anything),
+    exog: options.exog ? laggableTerms(session, options.exog) : [],
     lags: lagNumbers(options.lags ?? [1, 2]),
     constant: options.constant !== false,
     dfk: !!options.dfk,
     small: !!options.small,
     level: options.level,
+    display: options,
   };
 }
 
@@ -981,12 +1401,25 @@ function varCommand(session, text, ctx) {
     const model = session.estimates;
     if (model?.command !== "var")
       throw new StataError("results for var not found", 301);
-    const parsed = session.parse("[, Level(cilevel)]", text);
-    return model.replay(ctx, parsed.options.level);
+    const parsed = session.parse(
+      `[, Level(cilevel) NOCNSReport ${VAR_DISPLAY}]`,
+      text,
+    );
+    return model.replay(
+      ctx,
+      parsed.options.level,
+      displayOptions(parsed.options, ctx),
+    );
   }
-  const spec = varSpecification(session, text),
+  const asked = varSpecification(session, text),
     frame = timeFrame(session, "var"),
-    fit = fitVar(session, frame, spec, session.rows(spec.parsed, null)),
+    selected = session.rows(asked.parsed, null),
+    spec = settleCollinear(session, frame, asked, selected, (line) =>
+      ctx.out(line),
+    ),
+    shown = displayOptions(asked.display, ctx);
+  spec.display = undefined;
+  const fit = fitVar(session, frame, spec, selected),
     { T, k, K, equations } = fit,
     eqNames = spec.endog.map(equationName),
     dfR = T - k,
@@ -996,7 +1429,7 @@ function varCommand(session, text, ctx) {
     e.p = spec.small ? Ftail(e.q, dfR, e.F) : chi2tail(e.q, e.F);
   });
   // The header and tables, which var typed alone shows again.
-  const show = (ctx, level) => {
+  const show = (ctx, level, opts = shown) => {
     ctx.out("");
     ctx.out("Vector autoregression");
     ctx.out("");
@@ -1029,6 +1462,7 @@ function varCommand(session, text, ctx) {
       ),
     );
     ctx.out("-".repeat(64));
+    if (!opts.coef) return;
     ctx.out("");
     const tableEquations = eqNames.map((name, i) => ({
         name,
@@ -1043,15 +1477,29 @@ function varCommand(session, text, ctx) {
       // A var of one variable heads its table with that variable, as a
       // single equation is headed.
       label = K === 1 ? spec.endog[0].name : "",
-      w = stubWidth(session, tableEquations, [label]),
+      columns = columnsShown(opts),
+      right = columns === "noci" ? 39 : 64,
+      w = stubWidth(
+        session,
+        tableEquations,
+        [K === 1 ? spec.endog[0].variable : ""],
+        right,
+      ),
       se = (j) => Math.sqrt(fit.V[j][j]);
-    tableHeading(label, level, { t: spec.small, w }).forEach((l) => ctx.out(l));
+    tableHeading(label, level, { t: spec.small, w, columns }).forEach((l) =>
+      ctx.out(l),
+    );
     equationLines(
       tableEquations,
-      (j) => coefficientCells(fit.b[j], se(j), level, spec.small ? dfR : 0),
+      (j) =>
+        displayCells(fit.b[j], se(j), level, opts, {
+          legend: `_b[${stripe[j].equation}:${stripe[j].name}]`,
+          df: spec.small ? dfR : 0,
+        }),
       w,
+      right,
     ).forEach((l) => ctx.out(l));
-    ctx.out("-".repeat(66 + w));
+    ctx.out("-".repeat(w + 2 + right));
     if (spec.dfk) {
       ctx.out(
         "Note: Small-sample degrees-of-freedom adjustment applied when estimating",
@@ -1059,13 +1507,13 @@ function varCommand(session, text, ctx) {
       ctx.out("      covariance matrix of residuals.");
     }
   };
+  const stripe = eqNames.flatMap((eq) =>
+    fit.names.map((name) => ({ equation: eq, name })),
+  );
   show(ctx, spec.level);
 
   // Results.
-  const stripe = eqNames.flatMap((eq) =>
-      fit.names.map((name) => ({ equation: eq, name })),
-    ),
-    tmin = frame.time[fit.rows[0]],
+  const tmin = frame.time[fit.rows[0]],
     tmax = frame.time[fit.rows.at(-1)];
   session.estimates = {
     command: "var",
@@ -1099,6 +1547,7 @@ function varCommand(session, text, ctx) {
     ownPredict: varPredict,
     replay: show,
   };
+  // e() in the order var.ado stores it, which ereturn list follows.
   const e = {
     N: T,
     df_eq: k,
@@ -1116,14 +1565,34 @@ function varCommand(session, text, ctx) {
       ...(spec.small ? { [`df_r${j}`]: dfR } : {}),
     });
   });
-  equations.forEach((eq, i) =>
-    Object.assign(
-      e,
-      spec.small
-        ? { [`F_${i + 1}`]: eq.F, [`p_${i + 1}`]: eq.p }
-        : { [`chi2_${i + 1}`]: eq.chi2, [`p_${i + 1}`]: eq.p },
-    ),
-  );
+  // Without small, each equation's chi2 and p follow, the last p at the
+  // very end; with small, F and p come last, the last equation first.
+  if (!spec.small)
+    equations.forEach((eq, i) =>
+      Object.assign(e, {
+        [`chi2_${i + 1}`]: eq.chi2,
+        ...(i < K - 1 ? { [`p_${i + 1}`]: eq.p } : {}),
+      }),
+    );
+  const names = fit.names,
+    stripeNames = stripe.map((s) => `${s.equation}:${s.name}`),
+    // G, the cross-products over T of the constant and the lags, lag by
+    // lag; the exogenous variables are not in it.
+    gOrder = [
+      ...(spec.constant ? [k - 1] : []),
+      ...spec.lags.flatMap((_, l) =>
+        spec.endog.map((__, v) => v * spec.lags.length + l),
+      ),
+    ],
+    G = gOrder.map((a) =>
+      gOrder.map((c) => {
+        const xa = fit.columns[a],
+          xc = fit.columns[c];
+        let t = 0;
+        for (let i = 0; i < T; i++) t += xa[i] * xc[i];
+        return t / T;
+      }),
+    );
   Object.assign(e, {
     ...(spec.small ? { df_r: dfR } : {}),
     rank: K * k,
@@ -1139,23 +1608,60 @@ function varCommand(session, text, ctx) {
     k_eq: K,
     detsig: fit.detSigma,
     detsig_ml: fit.detMl,
+    ...(spec.dfk
+      ? {
+          ll_dfk:
+            -0.5 * T * (K * Math.log(2 * Math.PI) + Math.log(fit.detSigma) + K),
+        }
+      : {}),
     ll: fit.ll,
+  });
+  if (spec.small) {
+    e.df_m = k;
+    for (let i = K - 1; i >= 0; i--)
+      Object.assign(e, {
+        [`p_${i + 1}`]: equations[i].p,
+        [`F_${i + 1}`]: equations[i].F,
+      });
+  } else e[`p_${K}`] = equations[K - 1].p;
+  Object.assign(e, {
     vce: "unadjusted",
     cmd: "var",
     cmdline: `var ${text.trim()}`,
     predict: "var_p",
+    marginsdefault: eqNames
+      .map((name) => `predict(xb equation(${name}))`)
+      .join(" "),
+    marginsnotok: "stdp Residuals",
+    marginsok: "xb default",
+    small: spec.small ? "small" : "",
     lags: spec.lags.join(" "),
     endog: spec.endog.map((t) => t.name).join(" "),
     exog: spec.exog.map((t) => t.name).join(" "),
     timevar: frame.name,
     tsfmt: frame.format,
-    title: "Vector autoregression",
-    eqnames: eqNames.join(" "),
-    depvar: spec.endog.map((t) => t.name).join(" "),
-    small: spec.small ? "small" : "",
     dfk: spec.dfk ? "dfk" : "",
     nocons: spec.constant ? "" : "nocons",
+    title: "Vector autoregression",
+    // var.ado leaves a blank after the last name.
+    eqnames: `${eqNames.join(" ")} `,
+    depvar: spec.endog.map((t) => t.name).join(" "),
     properties: "b V",
+    "matrix:bf": {
+      rowNames: ["r1"],
+      colNames: stripeNames,
+      values: [fit.b.slice()],
+    },
+    "matrix:G": {
+      rowNames: gOrder.map((a) => names[a]),
+      colNames: gOrder.map((a) => names[a]),
+      values: G,
+    },
+    "matrix:Sigma": {
+      rowNames: eqNames,
+      colNames: eqNames,
+      values: fit.sigma.map((r) => r.slice()),
+    },
   });
   session.results.e = e;
 }
@@ -1249,11 +1755,15 @@ function pieces(text) {
 
 /** Lag-order selection statistics for VARs of 0 to maxlag lags. */
 function varsoc(session, text, ctx) {
-  const parsed = session.parse(
-      "[anything] [if] [in] [, Maxlag(integer -1) EXog(string) noCONStant Level(cilevel) | ESTimates(string) rmexog CONSTraints(string) RMCONSTraints ADDCONStant LUTstats RMLUTstats SEParator(integer 0)]",
+  // varsoc is r-class: a failure leaves r() empty.
+  session.results.r = {};
+  const UNSET = -999999,
+    parsed = session.parse(
+      `[anything] [if] [in] [, Maxlag(integer ${UNSET}) EXog(string) noCONStant Level(cilevel) | ESTimates(string) rmexog CONSTraints(string) RMCONSTraints ADDCONStant LUTstats RMLUTstats SEParator(integer 0)]`,
       text,
     ),
     options = parsed.options,
+    given = options.maxlag !== UNSET,
     frame = timeFrame(session, "varsoc"),
     previous =
       session.estimates?.command === "var" ? session.estimates.varModel : null;
@@ -1265,26 +1775,28 @@ function varsoc(session, text, ctx) {
         198,
       );
     endog = previous.spec.endog;
-    exog = options.exog ? tsTerms(session, options.exog) : previous.spec.exog;
+    exog = options.exog
+      ? laggableTerms(session, options.exog)
+      : previous.spec.exog;
     if (options.constant === false && !previous.spec.constant)
       throw new StataError(
         "noconstant cannot be specified when noconstant was specified in estimates(.)",
         498,
       );
     constant = previous.spec.constant && options.constant !== false;
-    maxlag = options.maxlag >= 0 ? options.maxlag : previous.spec.lags.at(-1);
+    maxlag = given ? options.maxlag : previous.spec.lags.at(-1);
     selected =
       parsed.if || parsed.in ? session.rows(parsed, null) : previous.rows;
-    if (options.maxlag >= 0 && maxlag > previous.T - 1)
+    if (given && maxlag > previous.T - 1)
       throw new StataError(
         `maxlag(${maxlag}) not feasible with ${previous.T} observations`,
         198,
       );
   } else {
-    endog = tsTerms(session, parsed.anything);
-    exog = options.exog ? tsTerms(session, options.exog) : [];
+    endog = laggableTerms(session, parsed.anything);
+    exog = options.exog ? laggableTerms(session, options.exog) : [];
     constant = options.constant !== false;
-    maxlag = options.maxlag >= 0 ? options.maxlag : 4;
+    maxlag = given ? options.maxlag : 4;
     selected = session.rows(parsed, null);
     const values = endog.map((t) =>
         operate(frame, t.ops, session.data.get(t.variable).data),
@@ -1299,6 +1811,19 @@ function varsoc(session, text, ctx) {
       );
   }
   if (maxlag < 2) throw new StataError("maxlag() must be at least 2", 198);
+  // var's checks for collinearity, made quietly.
+  ({ endog, exog } = settleCollinear(
+    session,
+    frame,
+    {
+      endog,
+      exog,
+      constant,
+      lags: Array.from({ length: maxlag }, (_, j) => j + 1),
+    },
+    selected,
+    null,
+  ));
   const base = { endog, exog, constant, dfk: false },
     full = fitVar(
       session,
@@ -1326,10 +1851,12 @@ function varsoc(session, text, ctx) {
   // rejects at the level, and the smallest value of each criterion.
   const size = (100 - options.level) / 100,
     rowsCount = stats.length;
-  let lrs = stats[rowsCount - 1].p <= size ? rowsCount - 1 : -1,
+  // Lag 0 has no LR test.
+  const rejects = (s) => s.p !== null && !isMissing(s.p) && s.p <= size;
+  let lrs = rejects(stats[rowsCount - 1]) ? rowsCount - 1 : -1,
     best = [6, 7, 8, 9].map(() => rowsCount - 1);
   for (let i = rowsCount - 2; i >= 0; i--) {
-    if (lrs < 0 && stats[i].p <= size) lrs = i;
+    if (lrs < 0 && rejects(stats[i])) lrs = i;
     best = ["fpe", "aic", "hqic", "sbic"].map((key, c) =>
       stats[i][key] < stats[best[c]][key] ? i : best[c],
     );
@@ -1438,6 +1965,8 @@ function statRow(lag, fit, previousLl, K) {
 
 /** Granger causality Wald tests after var. */
 function vargranger(session, text, ctx) {
+  // vargranger is r-class: a failure leaves r() empty.
+  session.results.r = {};
   const parsed = session.parse(
       "[, | ESTimates(string) SEParator(integer 0)]",
       text,
@@ -1527,7 +2056,78 @@ function vargranger(session, text, ctx) {
   };
 }
 
+/**
+ * tsappend: periods added after the last, for forecasts, as tsappend.ado
+ * adds them: add(#) more, or as many as reach last(), a date read with
+ * the function tsfmt() names (tq for 2013q1). The new observations are
+ * missing but for the time. As in Stata, add() counts from the last time
+ * as though the delta were one, and a last() already in the data adds
+ * none.
+ */
+function tsappend(session, text, ctx) {
+  session.results.r = {};
+  const parsed = session.parse(
+      "[, ADD(string) LAST(string) TSFMT(string) PANEL(string)]",
+      text,
+    ),
+    { add, last, tsfmt, panel } = parsed.options;
+  if (add !== undefined && tsfmt !== undefined)
+    throw new StataError("specify add() or tsfmt(), not both", 198);
+  if (add === undefined && last === undefined)
+    throw new StataError("you must specify either add() or last() ", 198);
+  if (add !== undefined && last !== undefined)
+    throw new StataError(
+      "you must specify either add() or last() , not both",
+      198,
+    );
+  if (panel !== undefined || session.panel?.id)
+    throw new StataError(
+      "tsappend on panel data is not available yet",
+      198,
+      "tsappend here adds periods to one time series set with tsset.",
+    );
+  const frame = timeFrame(session, "tsappend"),
+    data = session.data;
+  if (frame.time.some((t) => isMissing(t)))
+    throw new StataError("the time variable may not be missing", 198);
+  const tmax = Math.max(...frame.time);
+  let count, lastTime;
+  if (last !== undefined) {
+    if (tsfmt === undefined)
+      throw new StataError("tsfmt() must be specified with last()", 198);
+    const value = session.compile(`${tsfmt.trim()}(${last.trim()})`);
+    lastTime = value.evaluate(0, { start: 0, count: data.n, sums: [] });
+    count = (lastTime - tmax) / frame.delta;
+  } else {
+    const n = Number(add.trim());
+    if (!/^[+-]?\d+$/.test(add.trim()))
+      throw new StataError("add() must specify a positive integer ", 198);
+    if (n <= 0)
+      throw new StataError(
+        "add() must specify a strictly positive integer ",
+        198,
+      );
+    count = n;
+    lastTime = tmax + n;
+  }
+  if (lastTime <= tmax) {
+    ctx.out(`${lastTime} is already in the dataset`);
+    session.results.r = { add: 0 };
+    return;
+  }
+  const before = data.n,
+    order = [...data.sortedBy],
+    added = Math.trunc(count + 1e-9);
+  data.setObservations(before + added);
+  const time = data.get(frame.name).data;
+  for (let k = 1; k <= added; k++)
+    time[before + k - 1] = tmax + k * frame.delta;
+  data.sortedBy = order;
+  session.results.r = { add: count };
+}
+
 export const TIMESERIES_COMMANDS = [
+  { name: "tsappend", minimum: 8, run: tsappend },
   { name: "corrgram", minimum: 8, run: corrgram },
   { name: "ac", minimum: 2, run: correlationPlot("ac") },
   { name: "pac", minimum: 3, run: correlationPlot("pac") },

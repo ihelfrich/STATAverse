@@ -245,7 +245,7 @@ test("options arima and var do not have are refused with r(198)", () => {
     ["arima y, sarima(1,0,0,12)", /sarima is not available/],
     ["arima y, ar(1) condition", /condition is not available/],
     ["arima y, ar(1) diffuse", /diffuse is not available/],
-    ["arima y x, ar(1) vce(cluster t)", /not allowed/],
+    ["arima y x, ar(1) vce(bootstrap)", /vcetype bootstrap not allowed/],
     ["var y x, lutstats", /lutstats is not available/],
     ["var y x, constraints(1)", /constraints is not available/],
   ]) {
@@ -290,4 +290,208 @@ replace y = y + x
     // a slow test machine.
     assert.ok(elapsed < 4000, `${command} took ${elapsed.toFixed(0)} ms`);
   }
+});
+
+// ----- Fixes after the seventh pass's red team. Expected values were
+// recorded from Stata 19 MP (version 17, set processors 1).
+
+const UNIT_CIRCLE = `clear
+set seed 7
+set obs 40
+generate t = td(1jan2020)+_n-1
+format t %td
+tsset t
+generate double e = invnormal(runiform())
+generate double y = 0
+replace y = .4*y[_n-1] + e + .5*e[_n-1] in 2/l
+`;
+
+test("arima drops a parameter its information cannot identify, as invsym() does", () => {
+  // The MA polynomial has a root on the unit circle: Stata's OPG variance
+  // leaves ma L1. with none, and the Wald test and e(rank) without it.
+  const session = run(`${UNIT_CIRCLE}arima y, arima(2,0,2) nolog\n`),
+    model = session.estimates,
+    e = session.results.e;
+  assert.equal(e.rank, 5);
+  assert.equal(e.df_m, 3);
+  assert.equal(e.k, 6);
+  close(e.chi2, 312.1022024964628, 6, "e(chi2)");
+  close(e.ll, -58.92100678759096, 10, "e(ll)");
+  // e(p) is ml's test of the regressors, of which there are none.
+  assert.equal(e.p, missingValue(""));
+  assert.ok(
+    model.V[3].every((v) => v === 0),
+    "ma L1. has no variance",
+  );
+  close(Math.sqrt(model.V[4][4]), 0.2417715, 6, "se(ma L2.)");
+  close(Math.sqrt(model.V[0][0]), 0.2367206, 6, "se(_cons)");
+});
+
+test("arima's estat ic counts the parameters the variance identifies", () => {
+  const session = run(`clear
+set seed 31
+set obs 60
+generate t = _n
+tsset t
+generate double e = invnormal(runiform())
+generate double y = 0
+replace y = .5*y[_n-1] + e in 2/l
+arima y, arima(1,2,1) nolog
+estat ic
+`);
+  const e = session.results.e,
+    S = session.results.r["matrix:S"].values[0];
+  assert.equal(e.rank, 3);
+  assert.equal(e.df_m, 1);
+  close(e.chi2, 3.790865208055166, 6, "e(chi2)");
+  assert.equal(S[3], 3);
+  close(S[4], 164.4950296268554, 8, "AIC");
+});
+
+test("arima and var omit collinear variables as _rmcoll does under version 7 and 8", () => {
+  const session = run(`clear
+set seed 404
+set obs 80
+generate t = _n
+tsset t
+generate double e = invnormal(runiform())
+generate double x = runiform()
+generate double y = 0
+replace y = .5*y[_n-1] + e + .4*e[_n-1] + x in 2/l
+generate double x2 = 2*x
+generate double w = runiform()
+generate double w2 = 2*w
+arima y x x2, ar(1) nolog
+`);
+  const e = session.results.e;
+  // The larger of two proportional variables is kept: x2, not x.
+  assert.equal(e.covariates, " x2");
+  assert.equal(e.rank, 4);
+  close(e.p, 0.0017588104799815, 5, "e(p)");
+  close(e.chi2, 50.15180368873195, 6, "e(chi2)");
+  session.run("var y x, exog(w w2)");
+  assert.equal(session.results.e.exog, "w2");
+  const failed = session.run("var y x, exog(L.y)");
+  assert.equal(failed.rc, 198);
+  assert.match(
+    failed.output.at(-1).lines.join("\n"),
+    /note: L\.y omitted because of collinearity\.[\s\S]*may not be collinear with the dependent variables, or\n {4}their lags/,
+  );
+});
+
+test("var stores e(Sigma), e(G), e(bf) and its margins macros", () => {
+  const session = run(`clear
+set seed 515
+set obs 50
+generate t = th(2000h1)+_n-1
+format t %th
+tsset t
+generate double y = invnormal(runiform())
+generate double x = invnormal(runiform())+.3*y
+var y x
+`);
+  const e = session.results.e,
+    Sigma = e["matrix:Sigma"].values,
+    G = e["matrix:G"];
+  close(Sigma[0][0], 1.0485846, 7, "Sigma[y,y]");
+  close(Sigma[1][0], 0.2709308, 6, "Sigma[x,y]");
+  close(Sigma[1][1], 1.1283751, 7, "Sigma[x,x]");
+  assert.deepEqual(G.rowNames, ["_cons", "L.y", "L.x", "L2.y", "L2.x"]);
+  close(G.values[1][0], -0.11295278, 7, "G[L.y,_cons]");
+  close(G.values[4][3], 0.27928393, 7, "G[L2.x,L2.y]");
+  assert.equal(e["matrix:bf"].values[0].length, 10);
+  assert.equal(e.marginsok, "xb default");
+  assert.equal(
+    e.marginsdefault,
+    "predict(xb equation(y)) predict(xb equation(x))",
+  );
+  assert.equal(e.eqnames, "y x ");
+  session.run("var y x, lags(1) small dfk");
+  const small = session.results.e;
+  close(small.ll_dfk, -145.1982220618575, 10, "e(ll_dfk)");
+  assert.equal(small.df_m, 3);
+  close(small["matrix:Sigma"].values[0][0], 1.1233172, 7, "Sigma dfk");
+});
+
+test("pperron takes operators, and a constant series leaves its statistics missing", () => {
+  const session = run(`clear
+set seed 88
+set obs 30
+generate t = 1980 + _n - 1
+format t %ty
+tsset t
+generate double z = sum(invnormal(runiform()))
+generate double c = 5
+pperron D.z
+`);
+  const r = session.results.r;
+  assert.equal(r.N, 28);
+  close(r.Zrho, -28.66621187561232, 10, "r(Zrho)");
+  close(r.Zt, -5.031026252348009, 10, "r(Zt)");
+  close(r.pval, 0.0000192601958324, 8, "r(pval)");
+  session.run("pperron c");
+  assert.equal(session.results.r.Zrho, missingValue(""));
+  assert.equal(session.results.r.Zt, missingValue(""));
+  assert.equal(session.results.r.pval, 1);
+});
+
+test("a failed varsoc, pperron or vargranger leaves r() empty", () => {
+  const session = run(`${QUARTERS}varsoc y x, maxlag(2)\n`);
+  assert.ok(session.results.r.N > 0);
+  for (const command of [
+    "varsoc y x w, maxlag(2) exog(L.w)",
+    "pperron y, trend noconstant",
+    "regress y x",
+    "vargranger",
+  ]) {
+    session.run("varsoc y x, maxlag(2)");
+    const result = session.run(`capture ${command}`);
+    void result;
+    if (command === "regress y x") continue;
+    assert.deepEqual(session.results.r, {}, command);
+  }
+});
+
+test("tsappend adds periods as tsappend.ado adds them", () => {
+  const session = run(`clear
+set obs 4
+generate t = tq(2000q1) + _n - 1
+format t %tq
+tsset t
+generate double y = _n
+tsappend, add(3)
+`);
+  assert.equal(session.data.n, 7);
+  assert.equal(session.results.r.add, 3);
+  assert.equal(session.data.get("t").data[6], 166);
+  assert.equal(session.data.get("y").data[6], missingValue(""));
+  session.run("tsappend, last(2002q1) tsfmt(tq)");
+  assert.equal(session.data.n, 9);
+  assert.equal(session.results.r.add, 2);
+  const failed = session.run("tsappend, add(0)");
+  assert.equal(failed.rc, 198);
+});
+
+test("predict, mse after arima does not depend on the regressors", () => {
+  const session = run(`clear
+set seed 55
+set obs 50
+generate t = tq(2000q1)+_n-1
+format t %tq
+tsset t
+generate double e = invnormal(runiform())
+generate double y = 0
+replace y = .6*y[_n-1] + e + .3*e[_n-1] in 2/l
+generate double x = runiform()
+replace x = . in 20
+arima y x, ar(1) ma(1) nolog
+predict p4, mse
+tsappend, add(3)
+predict p6, mse
+`);
+  const p4 = session.data.get("p4").data,
+    p6 = session.data.get("p6").data;
+  close(p4[19], 1.129167, 6, "mse where x is missing");
+  close(p6[51], 1.772878, 6, "mse of the second forecast");
+  close(p6[52], 1.952219, 6, "mse of the third forecast");
 });

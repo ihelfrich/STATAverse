@@ -1369,6 +1369,12 @@ function returns(kind) {
           ctx.out(`${label("_N")} :  1 x ${k}`);
           ctx.out(`${label("error")} :  1 x ${k}`);
         }
+        // Further matrices the estimator stored, as var's e(Sigma).
+        for (const [key, value] of entries)
+          if (key.startsWith("matrix:") && value?.values)
+            ctx.out(
+              `${label(key.slice(7))} :  ${value.values.length} x ${value.values[0]?.length ?? 0}`,
+            );
         ctx.out("");
         ctx.out("functions:");
         ctx.out(`${label("sample")}   `);

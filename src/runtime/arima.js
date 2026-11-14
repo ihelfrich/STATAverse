@@ -16,18 +16,23 @@
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { chi2tail } from "./distributions.js";
-import { invnormal, normal } from "./functions-normal.js";
 import { parseNumlist } from "./numlist.js";
 import { MISSING, isMissing } from "./values.js";
 import { splitAtComma } from "./syntax.js";
 import { count } from "./reports.js";
-import { iterationLine, quadSum, row } from "./likelihood.js";
+import { iterationLine, quadSum } from "./likelihood.js";
 import { invertSymmetric, quadratic } from "./estimation.js";
 import {
+  DISPLAY_OPTIONS,
+  collinearColumns,
+  columnsShown,
+  displayCells,
+  displayOptions,
   equationLines,
+  invsym,
+  regressFit,
   stubWidth,
   gapCount,
-  ols,
   operate,
   showTime,
   tableHeading,
@@ -277,10 +282,43 @@ const HINTS = {
     "arima here maximizes as Stata does by default: BHHH for five iterations, then BFGS for ten, in turn.",
   constraints: "Constrained arima models are not available yet.",
 };
+// Options that take an argument: repeating one is refused as option ar()
+// not allowed, as Stata words it.
+const WITH_ARGUMENT = new Set([
+  "ar",
+  "ma",
+  "arima",
+  "level",
+  "vce",
+  "iterate",
+  "cformat",
+  "pformat",
+  "sformat",
+]);
 const parseWithHints = (session, declaration, text) => {
+  // arima takes iweights; the other kinds are refused by name.
+  const weight =
+    /\[\s*(aw|aweights?|fw|fweights?|pw|pweights?|iw|iweights?)\s*=/i.exec(
+      splitAtComma(text)[0],
+    );
+  if (weight) {
+    const kind = weight[1][0].toLowerCase();
+    if (kind === "i")
+      throw new StataError(
+        "iweights are not available in the browser yet",
+        198,
+        "arima here fits unweighted models.",
+      );
+    throw new StataError(`${kind}weights not allowed`, 101);
+  }
   try {
     return session.parse(declaration, text);
   } catch (error) {
+    const repeated =
+      error instanceof StataError &&
+      /^option (\w+) not allowed$/.exec(error.message);
+    if (repeated && WITH_ARGUMENT.has(repeated[1]))
+      throw new StataError(`option ${repeated[1]}() not allowed`, 198);
     const m =
       error instanceof StataError &&
       /^option (\w+) is not available/.exec(error.message);
@@ -290,7 +328,7 @@ const parseWithHints = (session, declaration, text) => {
       error.message,
       error.code,
       HINTS[key] ??
-        "arima here takes ar(), ma(), arima(), noconstant, level(), vce(), iterate() and nolog.",
+        "arima here takes ar(), ma(), arima(), noconstant, level(), vce(), iterate(), nolog and the display options coeflegend, noci, cformat(), pformat(), sformat() and nocoef.",
     );
   }
 };
@@ -299,7 +337,7 @@ const parseWithHints = (session, declaration, text) => {
 function specification(session, text) {
   const parsed = parseWithHints(
       session,
-      "anything [if] [in] [, AR(numlist) MA(numlist) ARIMA(string) noCONStant Level(cilevel) VCE(string) ROBust OPG HESsian noLOg ITERate(integer 300) | SARIMA(string) MAR1(string) MAR2(string) MAR3(string) MAR4(string) MMA1(string) MMA2(string) MMA3(string) MMA4(string) CONDition DIffuse P0(string) STATE0(string) Constraints(string) FROM(string) TECHnique(string) BHHH BFGS DFP NR DETail SAVEspace noCOEF noHEAD TOLerance(real 0) LTOLerance(real 0) NRTOLerance(real 0) GTOLerance(real 0) SCore(string) COLlinear DIFficult]",
+      `anything [if] [in] [, AR(numlist) MA(numlist) ARIMA(string) noCONStant Level(cilevel) VCE(string) ROBust OPG HESsian noLOg ITERate(integer 300) ${DISPLAY_OPTIONS} | SARIMA(string) MAR1(string) MAR2(string) MAR3(string) MAR4(string) MMA1(string) MMA2(string) MMA3(string) MMA4(string) CONDition DIffuse P0(string) STATE0(string) Constraints(string) FROM(string) TECHnique(string) BHHH BFGS DFP NR DETail SAVEspace noHEAD TOLerance(real 0) LTOLerance(real 0) NRTOLerance(real 0) GTOLerance(real 0) SCore(string) COLlinear DIFficult]`,
       text,
     ),
     options = parsed.options;
@@ -329,7 +367,9 @@ function specification(session, text) {
   // A string variable, as in Stata, leaves no observations.
   let terms = tsTerms(session, parsed.anything, { strings: true });
   if (d) terms = terms.map((t) => tsTerm(t.variable, [["D", d], ...t.ops]));
-  const vce = (options.vce ?? "").trim().toLowerCase(),
+  const vceText = (options.vce ?? "").trim(),
+    vce = vceText.toLowerCase(),
+    clusterMatch = /^cl(u(s(t(er?)?)?)?)?\s+(\S+)$/i.exec(vceText),
     asked = [
       options.robust && "robust",
       options.opg && "opg",
@@ -341,17 +381,22 @@ function specification(session, text) {
             ? "opg"
             : /^oim$/.test(vce)
               ? "oim"
-              : null),
+              : clusterMatch
+                ? "cluster"
+                : null),
     ].filter((v) => v !== false && v !== "" && v !== undefined);
   if (asked.includes(null))
     throw new StataError(
-      `vcetype '${vce}' not allowed`,
+      `vcetype ${vce.split(/\s+/)[0]} not allowed`,
       198,
-      "arima here takes vce(opg), the default, vce(oim) and vce(robust).",
+      "arima takes vce(opg), the default, vce(oim), vce(robust) and vce(cluster clustvar).",
     );
   if (new Set(asked).size > 1)
     throw new StataError(`options ${asked.join(" ")} may not be combined`, 198);
+  const cluster = clusterMatch ? session.varlist(clusterMatch[5])[0] : null;
   return {
+    cluster,
+    display: options,
     parsed,
     frame,
     depvar: terms[0],
@@ -359,7 +404,7 @@ function specification(session, text) {
     constant: options.constant !== false,
     arLags: ar,
     maLags: ma,
-    vce: asked[0] ?? "opg",
+    vce: asked[0] === "cluster" ? "robust" : (asked[0] ?? "opg"),
     level: options.level,
     log: options.log !== false,
     iterate: options.iterate,
@@ -391,7 +436,9 @@ function maximize(evaluate, scores, start, iterate, notes) {
       1400,
       "The starting values give a nonstationary or degenerate model.",
     );
-  const log = [current.ll];
+  const log = [current.ll],
+    // Iterations whose step was halved, which Stata marks (backed up).
+    backed = [];
   let S = scores(theta),
     gradient = colSums(S),
     technique = "bhhh",
@@ -406,8 +453,7 @@ function maximize(evaluate, scores, start, iterate, notes) {
       const ridge = H.map((r, i) =>
         r.map((v, j) => (i === j ? v * 1.0001 + 1e-8 : v)),
       );
-      inverse = invertSymmetric(ridge);
-      if (!inverse) break;
+      inverse = invertSymmetric(ridge) ?? invsym(H).inverse;
     }
     const direction = inverse.map((r) =>
       r.reduce((t, v, j) => t + v * gradient[j], 0),
@@ -422,7 +468,20 @@ function maximize(evaluate, scores, start, iterate, notes) {
       next = null;
       step /= 2;
     }
-    if (!next) break;
+    if (!next) {
+      // No step gains: at a maximum the data cannot sharpen (two
+      // observations, a parameter they do not identify), Stata backs up
+      // until its convergence rule holds, which the gradient settles.
+      // A gradient of roundoff counts as zero, whatever the scaling of a
+      // direction the data leave flat.
+      const flat = invsym(H).inverse,
+        gtol = Math.max(...gradient.map((v, j) => Math.abs(v * theta[j])));
+      converged =
+        (quadratic(gradient, flat) < 1e-5 ||
+          gradient.every((v) => Math.abs(v) < 1e-6)) &&
+        gtol <= 0.05;
+      break;
+    }
     // A full step that gains is followed by steps forward, an eighth of
     // the step and then twice as much each time, while they gain, as
     // Stata's optimizer steps.
@@ -435,6 +494,7 @@ function maximize(evaluate, scores, start, iterate, notes) {
         next = tried;
       }
     iteration++;
+    if (step < 1) backed[iteration] = true;
     const nextS = scores(candidate),
       nextGradient = colSums(nextS),
       nextTechnique = techniqueAt(iteration);
@@ -461,8 +521,9 @@ function maximize(evaluate, scores, start, iterate, notes) {
     S = nextS;
     gradient = nextGradient;
     log.push(current.ll);
-    const hinv = invertSymmetric(H),
-      scaled = hinv ? quadratic(gradient, hinv) : Infinity,
+    // A Hessian that is singular is inverted as invsym() inverts it.
+    const hinv = invertSymmetric(H) ?? invsym(H).inverse,
+      scaled = quadratic(gradient, hinv),
       // arima sets gtolerance(.05): every |gradient x coefficient| must be
       // under it as well.
       gtol = Math.max(...gradient.map((v, j) => Math.abs(v * theta[j])));
@@ -477,6 +538,7 @@ function maximize(evaluate, scores, start, iterate, notes) {
     lls: current.lls,
     S,
     log,
+    backed,
     converged,
     iterations: iteration,
   };
@@ -502,35 +564,82 @@ function opg(S) {
 
 // ----- the command -----
 
+/**
+ * A Wald test that the coefficients at indices are zero, as test does it
+ * after arima: a coefficient with no variance is dropped from the test.
+ * Returns the statistic and its degrees of freedom, null with nothing to
+ * test.
+ */
+function waldTest(theta, V, indices) {
+  if (!indices.length) return null;
+  const { inverse, dropped } = invsym(
+      indices.map((a) => indices.map((b) => V[a][b])),
+    ),
+    df = dropped.filter((d) => !d).length,
+    b = indices.map((j) => theta[j]);
+  if (!df) return { chi2: MISSING, df: 0 };
+  let chi2 = 0;
+  b.forEach((u, a) => inverse[a].forEach((w, c) => (chi2 += u * w * b[c])));
+  return { chi2, df };
+}
+
 function arima(session, text, ctx) {
   // arima typed without a varlist shows the last results again.
   if (!splitAtComma(text)[0].trim()) {
     const model = session.estimates;
     if (model?.command !== "arima")
       throw new StataError("results of arima not found", 301);
-    const parsed = session.parse("[, Level(cilevel)]", text);
-    return model.replay(ctx, parsed.options.level);
+    const parsed = session.parse(`[, Level(cilevel) ${DISPLAY_OPTIONS}]`, text);
+    return model.replay(
+      ctx,
+      parsed.options.level,
+      displayOptions(parsed.options, ctx),
+    );
   }
   const spec = specification(session, text),
     { frame, parsed } = spec,
-    depColumn = columnsOf(session, frame, [spec.depvar])[0],
-    xColumns = columnsOf(session, frame, spec.covariates),
-    k1 = xColumns.length + (spec.constant ? 1 : 0),
-    selected = session.rows(parsed, null),
-    rows = selected
+    shown = displayOptions(spec.display, ctx);
+  spec.display = undefined;
+  // The sample: observations where the time, every variable and the
+  // cluster are present. A string variable leaves none, as in Stata.
+  const given = [spec.depvar, ...spec.covariates],
+    givenColumns = columnsOf(session, frame, given),
+    clusterValues = spec.cluster ? session.data.get(spec.cluster).data : null,
+    present = (v) => typeof v === "number" && !isMissing(v),
+    rows = session
+      .rows(parsed, null)
       .filter(
         (i) =>
           !isMissing(frame.time[i]) &&
-          !isMissing(depColumn[i]) &&
-          xColumns.every((c) => !isMissing(c[i])),
+          givenColumns.every((c) => present(c[i])) &&
+          (!clusterValues || !isMissing(clusterValues[i])),
       )
       .sort((a, b) => frame.time[a] - frame.time[b]);
   if (!rows.length) throw new StataError("no observations", 2000);
+  // regress, which gives the starting values, needs two observations.
+  if (rows.length < 2) throw new StataError("insufficient observations", 2001);
+  // _rmcoll over the dependent variable and the regressors together, as
+  // arima.ado calls it: whatever comes first of those it keeps is the
+  // dependent variable.
+  const dropped = collinearColumns(
+    givenColumns.map((c) => rows.map((i) => c[i])),
+    spec.constant,
+  );
+  given.forEach((t, j) => {
+    if (dropped[j]) ctx.out(`note: ${t.name} omitted because of collinearity.`);
+  });
+  const kept = given.filter((_, j) => !dropped[j]),
+    keptColumns = givenColumns.filter((_, j) => !dropped[j]);
+  if (!kept.length) throw new StataError("varlist required", 100);
+  spec.depvar = kept[0];
+  spec.covariates = kept.slice(1);
+  const depColumn = keptColumns[0],
+    xColumns = keptColumns.slice(1),
+    k1 = xColumns.length + (spec.constant ? 1 : 0);
   const nar = spec.arLags.length,
     nma = spec.maLags.length,
     r = Math.max(spec.arLags.at(-1) ?? 0, (spec.maLags.at(-1) ?? 0) + 1),
     k = k1 + nar + nma + 1;
-  if (rows.length <= k) throw new StataError("insufficient observations", 2001);
   const tmin = frame.time[rows[0]],
     tmax = frame.time[rows.at(-1)],
     n = Math.round((tmax - tmin) / frame.delta) + 1,
@@ -580,28 +689,29 @@ function arima(session, text, ctx) {
       return S;
     };
 
-  // Starting values, as arima.ado computes them.
+  // Starting values, as arima.ado computes them: regress for the
+  // regression, which needs two observations.
   const dep = rows.map((i) => depColumn[i]),
     xs = Array.from({ length: k1 }, (_, j) => rows.map((i) => xRow(i)[j]));
   let start = [],
     u,
     sigma;
   if (k1) {
-    const fit = ols(xs, dep);
-    if (!fit) throw new StataError("the regressors are collinear", 198);
+    const fit = regressFit(xs, dep, spec.constant ? k1 - 1 : -1);
+    if (!fit) throw new StataError("insufficient observations", 2001);
     start = fit.b;
     u = fit.residuals;
     sigma = Math.sqrt(fit.rss / rows.length);
   } else {
     // The mean and variance of all of the dependent variable's values.
-    const all = depColumn.filter((v) => !isMissing(v)),
+    const all = depColumn.filter((v) => present(v)),
       mean = all.reduce((a, b) => a + b, 0) / all.length;
     u = dep.slice();
     sigma = Math.sqrt(
       all.reduce((t, v) => t + (v - mean) ** 2, 0) / (all.length - 1),
     );
   }
-  const arma = nar + nma ? armaStart(spec, rows, frame, u) : null;
+  const arma = nar + nma ? armaStart(spec, rows, frame, u, ctx) : null;
   if (arma) {
     start.push(...arma.b);
     sigma = arma.sigma;
@@ -611,45 +721,60 @@ function arima(session, text, ctx) {
   const gaps = gapCount(frame, rows),
     notes = [],
     fit = maximize(evaluate, scores, start, spec.iterate, notes),
-    theta = fit.theta;
-  // The variance.
+    theta = fit.theta,
+    N = rows.length;
+  // The variance, inverted as invsym() inverts it: a parameter the data
+  // cannot tell apart from the others has no variance.
   const hessian = () => numericHessian((t) => evaluate(t)?.ll ?? NaN, theta),
-    opgV = invertSymmetric(opg(fit.S));
-  let V;
-  if (spec.vce === "opg") V = opgV;
+    outer = opg(fit.S);
+  let V,
+    clusters = 0;
+  if (spec.vce === "opg") V = invsym(outer).inverse;
   else {
-    const Hn = hessian().map((r) => r.map((v) => -v)),
-      Hinv = invertSymmetric(Hn);
-    V =
-      spec.vce === "oim" || !Hinv
-        ? Hinv
-        : (() => {
-            const middle = opg(fit.S);
-            const left = Hinv.map((r) =>
-              middle[0].map((_, j) =>
-                dot(
-                  r,
-                  middle.map((m) => m[j]),
-                ),
-              ),
-            );
-            // ml's sandwich carries the factor N/(N - 1).
-            const factor = rows.length / (rows.length - 1);
-            return left.map((r) =>
-              Hinv[0].map(
-                (_, j) =>
-                  factor *
-                  dot(
-                    r,
-                    Hinv.map((h) => h[j]),
-                  ),
-              ),
-            );
-          })();
+    const Hinv = invsym(hessian().map((r) => r.map((v) => -v))).inverse;
+    if (spec.vce === "oim") V = Hinv;
+    else {
+      // ml's sandwich, with the factor N/(N - 1), or M/(M - 1) over M
+      // clusters, the scores summed within each.
+      let middle = outer,
+        factor = N / (N - 1);
+      if (clusterValues) {
+        const sums = new Map();
+        rows.forEach((i, m) => {
+          const key = clusterValues[i],
+            sum = sums.get(key) ?? new Array(k).fill(0);
+          fit.S[m].forEach((v, j) => (sum[j] += v));
+          sums.set(key, sum);
+        });
+        clusters = sums.size;
+        middle = opg([...sums.values()]);
+        factor = clusters / (clusters - 1);
+      }
+      const left = Hinv.map((r) =>
+        middle[0].map((_, j) =>
+          dot(
+            r,
+            middle.map((m) => m[j]),
+          ),
+        ),
+      );
+      V = left.map((r) =>
+        Hinv[0].map(
+          (_, j) =>
+            factor *
+            dot(
+              r,
+              Hinv.map((h) => h[j]),
+            ),
+        ),
+      );
+    }
   }
-  if (!V) V = theta.map(() => theta.map(() => 0));
+  const rank = V.filter((r, j) => r[j] !== 0).length;
 
   // Output.
+  const crit =
+    spec.vce === "robust" ? "Log pseudolikelihood" : "Log likelihood";
   if (spec.log) {
     ctx.out("");
     if (gaps) {
@@ -661,7 +786,9 @@ function arima(session, text, ctx) {
     fit.log.forEach((value, j) => {
       if (notes[j])
         ctx.out(`(switching optimization to ${notes[j].toUpperCase()})`);
-      ctx.out(iterationLine(j, "Log likelihood", value));
+      ctx.out(
+        `${iterationLine(j, crit, value)}${fit.backed[j] ? "  (backed up)" : ""}`,
+      );
     });
     if (!fit.converged) ctx.out("convergence not achieved");
   } else if (gaps) {
@@ -674,49 +801,62 @@ function arima(session, text, ctx) {
       ...(spec.constant ? ["_cons"] : []),
     ],
     depEquation = spec.depvar.variable,
-    tested = [
-      ...spec.covariates.map((_, j) => j),
+    covariateIndices = spec.covariates.map((_, j) => j),
+    // arima tests the regressors and the ARMA terms, the constant aside.
+    test = waldTest(theta, V, [
+      ...covariateIndices,
       ...Array.from({ length: nar + nma }, (_, j) => k1 + j),
-    ],
-    chi2 = tested.length
-      ? (() => {
-          const sub = tested.map((a) => tested.map((b) => V[a][b])),
-            inv = invertSymmetric(sub);
-          return inv
-            ? quadratic(
-                tested.map((j) => theta[j]),
-                inv,
-              )
-            : MISSING;
-        })()
-      : MISSING,
-    df = tested.length,
-    p = isMissing(chi2) ? MISSING : chi2tail(df, chi2),
+    ]),
+    df = test ? test.df : null,
+    chi2 = test ? test.chi2 : MISSING,
+    p = df && !isMissing(chi2) ? chi2tail(df, chi2) : MISSING,
+    // e(p) is ml's test of the regressors alone.
+    regressorTest = waldTest(theta, V, covariateIndices),
+    mlP =
+      regressorTest?.df && !isMissing(regressorTest.chi2)
+        ? chi2tail(regressorTest.df, regressorTest.chi2)
+        : MISSING,
     vcetype = { opg: "OPG", oim: "OIM", robust: "Semirobust" }[spec.vce],
-    crit = spec.vce === "robust" ? "Log pseudolikelihood" : "Log likelihood",
     tLow = showTime(frame, tmin),
     tHigh = showTime(frame, tmax),
-    sample = `Sample: ${tLow} thru ${tHigh}${gaps ? `, but with ${gaps === 1 ? "a gap" : "gaps"}` : ""}`;
+    sample = `Sample: ${tLow} thru ${tHigh}${gaps ? `, but with ${gaps === 1 ? "a gap" : "gaps"}` : ""}`,
+    stripe = [
+      ...names.map((name) => ({ equation: depEquation, name })),
+      ...spec.arLags.map((lag) => ({
+        equation: "ARMA",
+        name: `L${lag === 1 ? "" : lag}.ar`,
+      })),
+      ...spec.maLags.map((lag) => ({
+        equation: "ARMA",
+        name: `L${lag === 1 ? "" : lag}.ma`,
+      })),
+      { equation: "sigma", name: "_cons" },
+    ];
   // The header and table, which arima typed alone shows again.
-  const show = (ctx, level) => {
+  const show = (ctx, level, opts = shown) => {
     ctx.out("");
     ctx.out("ARIMA regression");
     ctx.out("");
-    const obsLine = `Number of obs     = ${applyFormat(rows.length, "%10.0g")}`;
+    const obsLine = `Number of obs     = ${applyFormat(N, "%10.0g")}`;
     if (sample.length < 47) ctx.out(`${sample.padEnd(48)}${obsLine}`);
     else {
       ctx.out(sample);
       ctx.out(`${" ".repeat(48)}${obsLine}`);
     }
     ctx.out(
-      `${" ".repeat(48)}${`Wald chi2(${df || "."})`.padEnd(18)}=  ${applyFormat(chi2, "%9.2f")}`,
+      `${" ".repeat(48)}${`Wald chi2(${df ?? "."})`.padEnd(18)}=  ${applyFormat(chi2, "%9.2f")}`,
     );
     ctx.out(
       `${`${crit} = ${g(fit.ll)}`.padEnd(48)}${"Prob > chi2".padEnd(18)}=     ${applyFormat(p, "%6.4f")}`,
     );
+    if (!opts.coef) return;
     ctx.out("");
-    const se = (j) => Math.sqrt(V[j][j]),
-      cell = (j) => row("", theta[j], se(j), level, 0).slice(1),
+    const columns = columnsShown(opts),
+      right = columns === "noci" ? 39 : 64,
+      se = (j) => Math.sqrt(V[j][j]),
+      legend = (j) => `_b[${stripe[j].equation}:${stripe[j].name}]`,
+      cell = (j) =>
+        displayCells(theta[j], se(j), level, opts, { legend: legend(j) }),
       armaItems = [
         ...(nar
           ? [
@@ -758,24 +898,32 @@ function arima(session, text, ctx) {
           : []),
         ...(nar + nma ? [{ name: "ARMA", items: armaItems }] : []),
       ];
-    const w = stubWidth(session, equations, [spec.depvar.name, "/sigma"]);
-    tableHeading(spec.depvar.name, level, { vcetype, w }).forEach((l) =>
-      ctx.out(l),
+    // An operated dependent variable counts by its name alone: what does
+    // not fit goes on the line above.
+    const w = stubWidth(
+      session,
+      equations,
+      [spec.depvar.variable, "/sigma"],
+      right,
     );
-    equationLines(equations, cell, w).forEach((l) => ctx.out(l));
-    if (equations.length) ctx.out(`${"-".repeat(w + 1)}+${"-".repeat(64)}`);
-    // sigma is tested one-sided, its interval truncated at zero.
-    {
-      const j = k - 1,
-        s = se(j),
-        z = theta[j] / s,
-        critical = invnormal(1 - (1 - level / 100) / 2),
-        low = Math.max(0, theta[j] - critical * s);
+    if (clusterValues)
       ctx.out(
-        `${"/sigma".padStart(w)} |${g(theta[j]).padStart(11)}${g(s).padStart(11)}${applyFormat(z, "%9.2f")}${applyFormat(normal(-Math.abs(z)), "%8.3f")}${g(low).padStart(13)}${g(theta[j] + critical * s).padStart(12)}`,
+        `(Std. err. adjusted for ${applyFormat(clusters, "%11.0fc").trim()} clusters in ${spec.cluster})`.padStart(
+          w + 2 + right,
+        ),
       );
-    }
-    ctx.out("-".repeat(66 + w));
+    tableHeading(spec.depvar.name, level, {
+      vcetype: opts.legend ? null : vcetype,
+      w,
+      columns,
+    }).forEach((l) => ctx.out(l));
+    equationLines(equations, cell, w, right).forEach((l) => ctx.out(l));
+    if (equations.length) ctx.out(`${"-".repeat(w + 1)}+${"-".repeat(right)}`);
+    // sigma is tested one-sided, its interval truncated at zero.
+    ctx.out(
+      `${"/sigma".padStart(w)} |${displayCells(theta[k - 1], se(k - 1), level, opts, { legend: legend(k - 1), oneSided: true })}`,
+    );
+    ctx.out("-".repeat(w + 2 + right));
     if (!fit.converged) ctx.out("Warning: Convergence not achieved.");
     ctx.out(
       "Note: The test of the variance against zero is one sided, and the two-sided",
@@ -785,85 +933,124 @@ function arima(session, text, ctx) {
   show(ctx, spec.level);
 
   // Results.
-  const stripe = [
-      ...names.map((name) => ({ equation: depEquation, name })),
-      ...spec.arLags.map((lag) => ({
-        equation: "ARMA",
-        name: `L${lag === 1 ? "" : lag}.ar`,
-      })),
-      ...spec.maLags.map((lag) => ({
-        equation: "ARMA",
-        name: `L${lag === 1 ? "" : lag}.ma`,
-      })),
-      { equation: "sigma", name: "_cons" },
-    ],
-    estimates = {
-      command: "arima",
-      kind: "arima",
-      title: "ARIMA regression",
-      dist: "z",
-      depvar: spec.depvar.name,
-      names: stripe.map((e) => `${e.equation}:${e.name}`),
-      b: theta.slice(),
-      V,
-      columns: [],
-      estimable: theta.map(() => true),
-      N: rows.length,
-      rank: k,
-      df_m: df || MISSING,
-      ll: fit.ll,
-      vce: spec.vce,
-      vcetype,
-      sample: rows,
-      // test, lincom and estimates read the coefficients from here.
-      stripe,
-      arima: {
-        spec: { ...spec, parsed: undefined },
-        model,
-        theta: theta.slice(),
-        tmin,
-        k1,
-      },
-      ownPredict: arimaPredict,
-      replay: show,
-    };
-  session.estimates = estimates;
-  session.results.e = {
-    N: rows.length,
+  const estimates = {
+    command: "arima",
+    kind: "arima",
+    title: "ARIMA regression",
+    dist: "z",
+    depvar: spec.depvar.name,
+    names: stripe.map((e) => `${e.equation}:${e.name}`),
+    b: theta.slice(),
+    V,
+    columns: [],
+    estimable: theta.map(() => true),
+    N,
+    rank,
+    df_m: df ?? MISSING,
     ll: fit.ll,
-    rank: k,
+    vce: spec.vce,
+    vcetype,
+    sample: rows,
+    // test, lincom and estimates read the coefficients from here.
+    stripe,
+    // estat summarize shows the dependent variable and the regressors
+    // by equation.
+    summary: {
+      equation: depEquation,
+      depvar: {
+        name: spec.depvar.name,
+        variable: spec.depvar.variable,
+        operated: spec.depvar.ops.length ? spec.depvar.label : null,
+        column: depColumn,
+      },
+      columns: spec.covariates.map((t, j) => ({
+        name: t.name,
+        variable: t.variable,
+        operated: t.ops.length ? t.label : null,
+        column: xColumns[j],
+      })),
+    },
+    arima: {
+      spec: { ...spec, parsed: undefined },
+      model,
+      theta: theta.slice(),
+      tmin,
+      k1,
+    },
+    ownPredict: arimaPredict,
+    replay: show,
+  };
+  session.estimates = estimates;
+  // e(eqnames) as ml names its equations: the regression after the
+  // dependent variable (eq1 when it is operated), then one name per term.
+  const xbEquation = spec.depvar.ops.length ? "eq1" : spec.depvar.variable;
+  session.results.e = {
+    rc: 0,
+    ll: fit.ll,
+    converged: fit.converged ? 1 : 0,
+    rank,
     k,
-    k_eq: (k1 ? 1 : 0) + (nar + nma ? 1 : 0) + 1,
     k_dv: 1,
-    k1,
+    ic: fit.iterations,
+    N,
+    k_eq_model: 1,
     sigma: theta[k - 1],
-    p,
-    df_m: df || MISSING,
+    p: mlP,
+    df_m: df ?? MISSING,
     chi2,
+    k1,
     tmin,
     tmax,
+    k_eq: (k1 ? 1 : 0) + (nar + nma ? 1 : 0) + 1,
     N_gaps: gaps,
     ar_max: spec.arLags.at(-1) ?? 0,
     ma_max: spec.maLags.at(-1) ?? 0,
-    converged: fit.converged ? 1 : 0,
-    ic: fit.iterations,
+    ...(clusterValues ? { N_clust: clusters } : {}),
     cmd: "arima",
     cmdline: `arima ${text.trim()}`,
-    depvar: spec.depvar.name,
-    title: "ARIMA regression",
-    vce: spec.vce,
-    vcetype,
-    chi2type: "Wald",
-    ar: spec.arLags.join(" "),
-    ma: spec.maLags.join(" "),
-    tmins: tLow,
-    tmaxs: tHigh,
-    covariates: spec.covariates.length
-      ? spec.covariates.map((t) => t.name).join(" ")
-      : "_NONE",
     predict: "arima_p",
+    estat_cmd: "arima_estat",
+    // arima.ado keeps the blank that gettoken leaves before the list.
+    covariates: spec.covariates.length
+      ? ` ${spec.covariates.map((t) => t.name).join(" ")}`
+      : "_NONE",
+    marginsnotok: "stdp mse Residuals YResiduals",
+    marginsok: "xb y default",
+    ...(nma ? { ma: spec.maLags.join(" ") } : {}),
+    ...(nar ? { ar: spec.arLags.join(" ") } : {}),
+    eqnames: [
+      ...names.map(() => xbEquation),
+      ...spec.arLags.map(() => "AR1_terms"),
+      ...spec.maLags.map(() => "MA1_terms"),
+      "SIGMA",
+    ].join(" "),
+    seasons: "1",
+    tmaxs: tHigh,
+    tmins: tLow,
+    chi2type: "Wald",
+    ...(clusterValues ? { clustvar: spec.cluster } : {}),
+    vcetype,
+    vce: clusterValues ? "cluster" : spec.vce,
     opt: "ml",
+    title: "ARIMA regression",
+    depvar: spec.depvar.name,
+    ml_method: "rdu0",
+    user: "arima_dr",
+    technique: "bhhh bfgs",
+    tech_steps: "5 10",
     properties: "b V",
+    // The gradient at the estimates and the log likelihood of the first
+    // twenty iterations, as ml leaves them.
+    "matrix:gradient": {
+      rowNames: ["r1"],
+      colNames: stripe.map((e) => `${e.equation}:${e.name}`),
+      values: [colSums(fit.S)],
+    },
+    "matrix:ilog": {
+      rowNames: ["r1"],
+      colNames: Array.from({ length: 20 }, (_, j) => `c${j + 1}`),
+      values: [Array.from({ length: 20 }, (_, j) => fit.log[j] ?? MISSING)],
+    },
   };
 }
 
@@ -871,9 +1058,12 @@ function arima(session, text, ctx) {
  * arima.ado's starting values for the ARMA terms (its Monfort program):
  * the residuals of a long autoregression of u stand in for the
  * disturbances, then u is regressed on its own lags and on their lags.
- * Returns null when that cannot be done, and Stata starts from zeros.
+ * The long autoregression is shortened until regress can fit it, with
+ * Stata's note the first time it cannot; if it never can, arima stops.
+ * Returns null when the second regression cannot be fitted, and Stata
+ * starts the ARMA terms from zeros.
  */
-function armaStart(spec, rows, frame, u) {
+function armaStart(spec, rows, frame, u, ctx) {
   const at = new Map(rows.map((i, m) => [frame.time[i], m])),
     lagOf = (values, m, k) => {
       const j = at.get(frame.time[rows[m]] - k * frame.delta);
@@ -881,7 +1071,9 @@ function armaStart(spec, rows, frame, u) {
     },
     all = [...spec.arLags, ...spec.maLags],
     minlag = Math.min(...all),
-    maxlag = (spec.arLags.at(-1) ?? 0) + (spec.maLags.at(-1) ?? 0);
+    // arima.ado's MaxLagS counts its arguments rather than reading them:
+    // 1 for a single lag in ar() and ma() together, 3 for more.
+    maxlag = all.length > 1 ? 3 : 1;
   let usemin = minlag,
     usemax = 0,
     done = false;
@@ -896,8 +1088,10 @@ function armaStart(spec, rows, frame, u) {
     }
     if (available > 2 * kk) done = true;
   }
-  // The long autoregression, shortened until it can be fitted.
-  let e = null;
+  // The long autoregression, shortened until regress can fit it.
+  let e = null,
+    noted = false,
+    last = 0;
   for (; usemax > usemin && !e; usemax--) {
     const use = [];
     for (let m = 0; m < rows.length; m++) {
@@ -905,20 +1099,30 @@ function armaStart(spec, rows, frame, u) {
       for (let l = usemin; l <= usemax && ok; l++) ok = lagOf(u, m, l) !== null;
       if (ok) use.push(m);
     }
-    if (use.length <= usemax - usemin + 2) continue;
+    last = use.length;
     const columns = [];
     for (let l = usemin; l <= usemax; l++)
       columns.push(use.map((m) => lagOf(u, m, l)));
     columns.push(use.map(() => 1));
-    const fit = ols(
+    const fit = regressFit(
       columns,
       use.map((m) => u[m]),
+      columns.length - 1,
     );
-    if (!fit) continue;
-    e = new Array(rows.length).fill(null);
-    use.forEach((m, j) => (e[m] = fit.residuals[j]));
+    if (fit) {
+      e = new Array(rows.length).fill(null);
+      use.forEach((m, j) => (e[m] = fit.residuals[j]));
+      break;
+    }
+    if (!noted) {
+      ctx.out("(note:  insufficient memory or observations to estimate usual");
+      ctx.out("starting values [2])");
+      noted = true;
+    }
   }
-  if (!e) return null;
+  // Monfort says insufficient observations either way, and exits with
+  // regress's return code.
+  if (!e) throw new StataError("insufficient observations", last ? 2001 : 2000);
   const use = [];
   for (let m = 0; m < rows.length; m++)
     if (
@@ -933,13 +1137,10 @@ function armaStart(spec, rows, frame, u) {
       ...spec.arLags.map((l) => use.map((m) => lagOf(u, m, l))),
       ...spec.maLags.map((l) => use.map((m) => lagOf(e, m, l))),
     ],
-    fit =
-      use.length > columns.length
-        ? ols(
-            columns,
-            use.map((m) => u[m]),
-          )
-        : null;
+    fit = regressFit(
+      columns,
+      use.map((m) => u[m]),
+    );
   if (!fit) return null;
   const b = fit.b.slice(),
     nar = spec.arLags.length,
@@ -1040,10 +1241,15 @@ function arimaPredict(session, text, ctx) {
     const value = session.compile(options.dynamic);
     if (value.type !== "numeric") throw new StataError("type mismatch", 109);
     dynamicTime = value.evaluate(0, { start: 0, count: data.n, sums: [] });
-    if (isMissing(dynamicTime))
+    if (isMissing(dynamicTime)) {
       dynamicTime =
         model.arima.tmin +
         frame.delta * ((spec.arLags.at(-1) ?? 0) + (spec.maLags.at(-1) ?? 0));
+      // arima_p says where it chose to begin.
+      ctx.out(
+        `Note: beginning dynamic predictions in period ${showTime(frame, dynamicTime)}.`,
+      );
+    }
   }
   if (rows.length) {
     const t0 = frame.time[rows[0]],
@@ -1111,7 +1317,9 @@ function arimaPredict(session, text, ctx) {
         xb = result.pred[p];
       let value = MISSING;
       if (type === "xb") value = Number.isFinite(xb) ? xb : MISSING;
-      else if (type === "mse") value = X[p] ? result.mse[p] : MISSING;
+      // The MSE does not depend on the regressors: a period whose
+      // regressor is missing has one all the same.
+      else if (type === "mse") value = result.mse[p];
       else if (type === "residuals")
         value = Number.isFinite(xb) && y[p] !== null ? y[p] - xb : MISSING;
       else if (type === "y") value = levels[p] ?? MISSING;

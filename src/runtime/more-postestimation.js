@@ -222,7 +222,7 @@ function nlcom(session, text, ctx) {
   ctx.out("");
   ctx.out(RULE);
   ctx.out(
-    `${model.depvar.padStart(12)} | Coefficient  Std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
+    `${(/\s/.test(model.depvar) ? "" : model.depvar).padStart(12)} | Coefficient  Std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
   );
   ctx.out(SPLIT);
   items.forEach((item, k) => {
