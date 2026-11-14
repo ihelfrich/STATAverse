@@ -429,11 +429,21 @@ test("estat gof, group() is the Hosmer-Lemeshow test, ties and weights included"
     assert.equal(r.N, N, `${what}: r(N)`);
     assert.ok(Math.abs(r.chi2 - chi2) < 5e-6, `${what}: r(chi2) ${r.chi2}`);
   }
-  // The listing and the other samples are refused, not ignored.
-  for (const options of ["group(10) table", "all", "table"]) {
+  // The listing is refused, not ignored (all is implemented).
+  for (const options of ["group(10) table", "table"]) {
     const result = s.run(`estat gof, ${options}`);
     assert.equal(result.rc, 198, options);
-    assert.match(result.output.at(-1).lines.join("\n"), /not available yet/);
+    assert.match(
+      result.output.at(-1).lines.join("\n"),
+      /not available (in the browser )?yet/,
+    );
   }
-  assert.equal(s.run("estat classification, cutoff(.3)").rc, 198);
+  // cutoff() is implemented: the table says which cutoff it used.
+  const classified = s.run("estat classification, cutoff(.3)");
+  assert.equal(classified.rc, 0);
+  assert.ok(
+    classified.output
+      .at(-1)
+      .lines.includes("Classified + if predicted Pr(D) >= .3"),
+  );
 });

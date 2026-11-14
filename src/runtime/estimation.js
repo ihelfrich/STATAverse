@@ -314,8 +314,8 @@ export function design(session, text, rows, constant = true, levelRows) {
     const factors = term.components.filter((c) => c.factor),
       continuous = term.components.filter((c) => !c.factor),
       made = cells.map((cell) => {
-        const bases = cell.filter(
-          (level, k) => level === baseOf.get(factors[k].variable),
+        const bases = cell.filter((level, k) =>
+          isBase(factors[k].variable, level),
         ).length;
         return {
           name: term.components
@@ -402,12 +402,7 @@ export function design(session, text, rows, constant = true, levelRows) {
               if (k < 0)
                 return `${column.base ? "co" : "c"}.${c.variable.name}`;
               const level = column.levels[k],
-                mark =
-                  level === baseOf.get(c.variable)
-                    ? "b"
-                    : column.base
-                      ? "o"
-                      : "";
+                mark = isBase(c.variable, level) ? "b" : column.base ? "o" : "";
               return `${level}${mark}.${c.variable.name}`;
             })
             .join("#");

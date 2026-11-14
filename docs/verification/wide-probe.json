@@ -1,8 +1,8 @@
 {
   "basis": "Each case in tools/wide-probe-cases.txt run in a fresh Console session. Pass means the command finished and every assertion on it held; it does not mean agreement with Stata, which the recorded fixtures establish. The cases are a judgement about what students type, not a sample of student work.",
   "cases": 519,
-  "pass": 402,
-  "refused": 117,
+  "pass": 412,
+  "refused": 107,
   "wrong": 0,
   "crash": 0,
   "groups": {
@@ -13,8 +13,8 @@
       "crash": 0
     },
     "desc": {
-      "pass": 35,
-      "refused": 10,
+      "pass": 37,
+      "refused": 8,
       "wrong": 0,
       "crash": 0
     },
@@ -25,20 +25,20 @@
       "crash": 0
     },
     "est": {
-      "pass": 48,
-      "refused": 20,
+      "pass": 50,
+      "refused": 18,
       "wrong": 0,
       "crash": 0
     },
     "post": {
-      "pass": 61,
-      "refused": 20,
+      "pass": 63,
+      "refused": 18,
       "wrong": 0,
       "crash": 0
     },
     "graph": {
-      "pass": 52,
-      "refused": 16,
+      "pass": 56,
+      "refused": 12,
       "wrong": 0,
       "crash": 0
     },
@@ -464,12 +464,12 @@
     },
     {
       "group": "desc",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||tabstat wage, stat(p25 p50 p75 iqr cv skewness kurtosis) columns(statistics)"
     },
     {
       "group": "desc",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||tabstat wage hours, by(female) nototal format(%9.2f)"
     },
     {
@@ -779,7 +779,7 @@
     },
     {
       "group": "est",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||encode region, generate(regionn);;regress wage education ib2.regionn i.female"
     },
     {
@@ -979,7 +979,7 @@
     },
     {
       "group": "est",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "firms||areg profit sales rd i.year, absorb(firm) vce(cluster firm)"
     },
     {
@@ -1254,7 +1254,7 @@
     },
     {
       "group": "post",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor|quietly logit union c.education##i.female|margins r.female"
     },
     {
@@ -1419,7 +1419,7 @@
     },
     {
       "group": "post",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "firms|xtset firm year;;quietly xtreg profit sales rd employees, re|xttest0"
     },
     {
@@ -1554,7 +1554,7 @@
     },
     {
       "group": "graph",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||graph bar (mean) wage (median) hours, over(female) over(region) blabel(bar)"
     },
     {
@@ -1584,12 +1584,12 @@
     },
     {
       "group": "graph",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||graph pie, over(region)"
     },
     {
       "group": "graph",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||graph matrix wage education experience"
     },
     {
@@ -2569,7 +2569,7 @@
     },
     {
       "group": "graph",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||graph bar (mean) wage, over(region) asyvars"
     },
     {

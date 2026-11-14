@@ -856,15 +856,17 @@ function margins(session, text, ctx) {
     const heading = contrastSpec
       ? `Contrasts of ${title.toLowerCase()}`
       : title;
+    // %10.0fc: a count too long for commas is printed without them.
+    const tally = (v) => applyFormat(v, "%10.0fc").trim();
     if (outside) {
-      const width = Math.max(count(n).length, count(n - outside).length),
+      const width = Math.max(tally(n).length, tally(n - outside).length),
         side = (label, value) => `${label} = ${value.padStart(width)}`,
-        first = side("Number of obs  ", count(n)),
-        second = side("Subpop. no. obs", count(n - outside));
+        first = side("Number of obs  ", tally(n)),
+        second = side("Subpop. no. obs", tally(n - outside));
       ctx.out(`${heading.padEnd(78 - first.length)}${first}`);
       ctx.out(`${`Model VCE: ${vce}`.padEnd(78 - second.length)}${second}`);
     } else {
-      const observations = `Number of obs = ${count(n)}`;
+      const observations = `Number of obs = ${tally(n)}`;
       ctx.out(`${heading.padEnd(78 - observations.length)}${observations}`);
       ctx.out(`Model VCE: ${vce}`);
     }

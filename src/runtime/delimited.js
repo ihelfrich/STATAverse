@@ -616,7 +616,7 @@ function importDelimited(session, text, ctx) {
   if (zeros)
     wrapNote(
       `Note:  ${count(zeros)} binary ${zeros === 1 ? "zero was" : "zeros were"} ignored in the source file.  The first instance occurred on line ${count(zeroLine)}.  Binary zeros are not valid in text data.  Inspect your data carefully.`,
-      (session.settings?.linesize ?? 80) - 3,
+      (session.settings?.linesize ?? 79) - 2,
     ).forEach((text) => ctx.out(text));
 
   const split = delimiters ?? { chars: [detectDelimiter(source)] },
