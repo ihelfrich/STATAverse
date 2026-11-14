@@ -10068,3 +10068,140 @@ capture noisily recode q (0=0 "") (1=1 "b"), gen(emp)
 capture noisily recode q (0=0 "a") (else=9 ""), gen(emp)
 recode q (0=0 " ") (1=1 "b"), gen(emp2)
 label list emp2
+=== char-and-notes
+clear
+set obs 2
+generate x = _n
+generate y = _n
+notes
+notes: first
+notes x: about x
+char x[source] "src"
+char _dta[author] "me"
+notes y: about y
+notes y: more y
+notes
+char list
+char list x[]
+char list _dta[author]
+char define x[unit] "kg"
+char list x[]
+char x[unit]
+char list x[]
+char x[w] `"quoted "text""'
+char list x[w]
+local s : char x[source]
+display "`s'"
+local all : char _dta[]
+display "`all'"
+capture noisily char rename x y
+char _dta[abcdefghijklmnopqrs] "nineteen"
+char _dta[abcdefghijklmnopqrst] "twenty"
+char _dta[abcdefghijklmnopqrstu] "twenty-one"
+char list _dta[]
+char _dta[long] "This is a very long characteristic text that keeps going and going past the right edge of the screen"
+set linesize 80
+char list _dta[long]
+set linesize 200
+generate z = 1
+char rename y z
+char list
+notes
+=== unicode-names
+clear
+set obs 3
+generate größe = _n * 1.5
+generate byte ñ_count = _n
+label variable größe "Körpergröße"
+summarize größe
+generate y = größe * 2
+list
+summarize grö*
+rename ñ_count número
+tabulate número if größe > 2
+count if número >= 2 & größe < 4
+=== notes-numbers-and-subcommands
+clear
+set obs 3
+generate id = _n
+generate income = _n * 1000
+notes: First note
+notes: Second note
+notes: Third note
+notes income: inc A
+notes income: inc B
+notes drop _dta in 2
+char _dta[author] "Instructor"
+notes
+char list
+display "`: char _dta[note0]'"
+display "`: char _dta[]'"
+char _dta[note5] "manual five"
+notes _dta
+char _dta[note5]
+notes drop income in 1
+notes _dta: Added later
+notes list _dta in 2/4
+notes _dta in 4
+notes _dta in 1/l
+capture noisily notes _dta in 3/2
+capture noisily notes _dta in x
+notes replace _dta in 1 : Replaced first
+notes replace _dta in 2 : No such note
+notes search Third
+notes search nothing
+notes renumber _dta
+notes
+char list _dta[]
+notes income _dta
+notes _all
+notes:
+capture noisily notes drop
+notes drop _dta in 1/2
+char list _dta[]
+notes: a   b.  First. Second sentence?  Yes
+set linesize 60
+notes: This is a rather long note that keeps going and going well past the right edge of a sixty column screen to see where it wraps
+notes _dta
+set linesize 200
+char _dta[y1] "a" "b"
+char _dta[y2] `"a "q" b"'
+char _dta[y3]   a   b
+capture noisily char _dta[y4] "a
+char list _dta[y1]
+char list _dta[y2]
+char list _dta[y3]
+char list _dta[nonexist]
+local u : char income[]
+display "[`u']"
+collapse (mean) income, by(id)
+notes
+char list
+drop _all
+notes
+char list
+=== unicode-name-characters
+clear
+set obs 4
+generate co₂ = _n * 400 + mod(_n * 37, 11) * 90
+generate temp°c = 20 + _n
+generate r² = _n / 10
+generate a·b = 1
+generate a😀 = 1
+capture noisily generate ½a = 1
+generate 名前 = _n
+label define kl 1 "klein" 2 "mittel" 3 "groß" 4 "名前名前名前"
+label values 名前 kl
+summarize co₂ temp°c r² 名前
+regress co₂ temp°c
+list co₂ 名前 r²
+tabulate 名前
+notes co₂: Gemessen in ppm
+notes co₂
+generate s = "ünïcödé ✓ übër" in 1
+replace s = "名前名前名前" in 2
+replace s = "a" in 3
+tabulate s
+list s 名前
+collapse (mean) co₂, by(名前)
+list

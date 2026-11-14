@@ -57,7 +57,7 @@ test("destring and tostring keep the variable's place and label", () => {
   assert.match(text(out).join("\n"), /education\s+byte.*Years of schooling/);
 });
 
-test("a dataset holding a strL exports, and reading it back is refused plainly", () => {
+test("a dataset holding a strL exports and reads back", () => {
   const s = labor();
   const out = s.run(
     "keep in 1/5\ngenerate strL note = region if id != 3\nreplace note = note + note in 4",
@@ -69,7 +69,13 @@ test("a dataset holding a strL exports, and reading it back is refused plainly",
   assert.equal(raw.match(/GSO/g).length, 4);
   // GSO, v (4 bytes), o (8), type (1), length (4), then the text and a null.
   assert.match(raw, /GSO[\s\S]{17}([A-Za-z]+)\1\0/);
-  assert.throws(() => readDta(bytes), /strL/);
+  const back = readDta(bytes).variables.find((v) => v.name === "note");
+  assert.equal(back.type, "strL");
+  // The third cell is empty; the fourth is a region written twice.
+  assert.equal(back.data[2], "");
+  assert.equal(back.data.filter(Boolean).length, 4);
+  const half = back.data[3].slice(0, back.data[3].length / 2);
+  assert.equal(back.data[3], half + half);
 });
 
 test("nbreg on underdispersed data reaches the Poisson fit, as Stata does", async () => {

@@ -58,7 +58,7 @@ const cleared = () => ({}),
       .filter(Boolean)
       .some((word) => {
         const name = word.replace(/^.*\./, "").replace(/^\(|\)$/g, "");
-        if (!/^[A-Za-z_]\w*\*?$/.test(name)) return false;
+        if (!/^[\p{L}_][\w\u0080-\u{10FFFF}]*\*?$/u.test(name)) return false;
         try {
           session.varlist(name);
           return false;
@@ -371,11 +371,12 @@ export class Session {
   // ----- running -----
   /**
    * Runs do-file text. Returns { output, rc }, where output has one entry
-   * per executed command: { command, lines, rc }.
+   * per executed command: { command, lines, rc }. Its locals are its own,
+   * unless it is given the frame of an earlier run, as commands typed one
+   * after another in Stata's Command window share theirs.
    */
-  run(source) {
-    const output = [],
-      frame = this.frame();
+  run(source, frame = this.frame()) {
+    const output = [];
     this.steps = 0;
     this.line = 0;
     this.inProgram = 0;

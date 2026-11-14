@@ -102,7 +102,7 @@ function ask(message) {
     try {
       return Promise.resolve(
         message.kind === "run"
-          ? local.run(message.source)
+          ? local.run(message.source, { doFile: message.doFile })
           : message.kind === "file"
             ? local.addFile(message.name, message.text)
             : message.kind === "data"
@@ -645,7 +645,9 @@ function busy(running) {
 async function perform(text, origin) {
   let result;
   try {
-    result = await ask({ kind: "run", source: text });
+    // What the command line runs keeps its locals for the next command;
+    // the do-file, a selection of it and the map's steps run as do-files.
+    result = await ask({ kind: "run", source: text, doFile: origin != null });
   } catch (error) {
     if (error.stopped) return null;
     // Anything that is not a Stata error is a fault in the interpreter.

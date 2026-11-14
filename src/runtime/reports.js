@@ -4,21 +4,20 @@
 // installed Stata.
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
-import {
-  applyFormat,
-  displayWidth,
-  parseFormat,
-  truncateColumns,
-} from "./format.js";
+import { applyFormat, parseFormat } from "./format.js";
 import { evaluateAll } from "./expression.js";
 import { chi2tail } from "./distributions.js";
 import { clauses, optionItems, splitAtComma } from "./syntax.js";
 import {
   MISSING,
   byteLength,
+  displayWidth,
   isMissing,
   isStringType,
   missingName,
+  padDisplay,
+  shownText,
+  truncateColumns,
 } from "./values.js";
 
 const g9 = (value, width) => applyFormat(value, "%9.0g").trim().padStart(width);
@@ -80,7 +79,7 @@ export const present = (column, rows) => {
  * formats show a missing value's bits as well.
  */
 export function labelled(session, variable, value, useLabels = true) {
-  if (typeof value === "string") return value;
+  if (typeof value === "string") return shownText(value);
   const map = useLabels
     ? session.data.valueLabels.get(variable.valueLabel)
     : null;
@@ -239,9 +238,10 @@ export function summarize(session, text, ctx) {
       );
     if (k && parsed.options.separator && k % parsed.options.separator === 0)
       ctx.out(analytic ? SUMMARY_RULE + "--------" : SUMMARY_RULE);
-    const label = (
-      name.length > 12 ? name.slice(0, 10) + "~" + name.at(-1) : name
-    ).padStart(12);
+    const label = padDisplay(
+      name.length > 12 ? name.slice(0, 10) + "~" + name.at(-1) : name,
+      12,
+    );
     ctx.out(
       analytic
         ? m.n
@@ -329,9 +329,8 @@ function detail(ctx, variable, values, m, formats, observed = values) {
 }
 
 // Screen columns, as Stata's udstrlen() counts them, come from format.js.
-// Text right-aligned in `width` screen columns.
-export const padDisplay = (text, width) =>
-  " ".repeat(Math.max(0, width - displayWidth(text))) + text;
+// padDisplay comes from values.js.
+export { padDisplay };
 // Text left-aligned in `width` screen columns.
 export const padDisplayEnd = (text, width) =>
   text + " ".repeat(Math.max(0, width - displayWidth(text)));
@@ -786,7 +785,7 @@ export function tabulate(session, text, ctx) {
         : session.data.valueLabels.get(variables[k].valueLabel)?.get(value),
     show = (k, value) =>
       typeof value === "string"
-        ? value
+        ? shownText(value)
         : (label(k, value) ?? tableNumber(value, variables[k].format)),
     // A string or label widens its column; a number shown wider than nine
     // characters overflows its column without widening it, as in Stata.

@@ -32,7 +32,7 @@ function looksLikeText(bytes, stored) {
 }
 
 export function createConsoleSession() {
-  let session;
+  let session, interactive;
   // Files the student added stay available when the session is cleared.
   const added = new Map();
   // A text file is kept as text, or as its bytes with the text decoded from
@@ -55,6 +55,7 @@ export function createConsoleSession() {
   });
   const reset = (dataset = "") => {
     session = new Session();
+    interactive = session.frame();
     session.library = library;
     // Each site dataset is also there as a CSV file, as lessons expect.
     for (const [id, data] of Object.entries(library))
@@ -133,8 +134,22 @@ export function createConsoleSession() {
     exportData() {
       return { bytes: writeDta(session.data.snapshot()), memory: memory() };
     },
-    run(source) {
-      const { output, rc } = session.run(source);
+    /**
+     * Runs commands as Stata's Command window does: locals set by one are
+     * there for the next. A do-file ({ doFile: true }) has locals of its own,
+     * as it has in Stata.
+     */
+    run(source, { doFile = false } = {}) {
+      const { output, rc } = session.run(
+        source,
+        doFile ? undefined : interactive,
+      );
+      // A byte that is not UTF-8 (text from an old file, or cut out of a
+      // character) is shown as U+FFFD, where Stata prints the raw byte.
+      for (const block of output)
+        block.lines = block.lines.map((line) =>
+          line.replace(/(?<![\uD800-\uDBFF])[\uDC80-\uDCFF]/g, "\uFFFD"),
+        );
       return { output, rc, memory: memory() };
     },
   };

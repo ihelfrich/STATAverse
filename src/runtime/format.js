@@ -592,29 +592,4 @@ export function abbreviateName(text, width) {
 }
 
 // ----- display columns -----
-// Stata's udstrlen() gives every character from U+2E80 on two columns of
-// the Results window (CJK, halfwidth forms, U+FEFF and emoji alike) but
-// U+FFFD, and every earlier one a column, combining marks and Hangul jamo
-// included. Read off udstrlen(uchar(n)) for every code point in Stata 19.
-function columnsOf(character) {
-  const code = character.codePointAt(0);
-  return code < 0x2e80 || code === 0xfffd ? 1 : 2;
-}
-/** How many columns of the Results window a string takes. */
-export function displayWidth(text) {
-  if (/^[\x00-⹿]*$/.test(text)) return text.length;
-  let width = 0;
-  for (const character of text) width += columnsOf(character);
-  return width;
-}
-/** The longest start of a string that fits in a number of columns. */
-export function truncateColumns(text, columns) {
-  let out = "",
-    used = 0;
-  for (const character of text) {
-    used += columnsOf(character);
-    if (used > columns) break;
-    out += character;
-  }
-  return out;
-}
+export { displayWidth, truncateColumns } from "./values.js";

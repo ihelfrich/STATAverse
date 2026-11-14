@@ -77,12 +77,12 @@ function tokenize(source) {
       );
       i += m[0].length;
     } else if ((m = /^(?:\d+\.?\d*|\.\d+)(?:[eEdD][+-]?\d+)?/.exec(rest))) {
-      if (/^[A-Za-z_]/.test(source[i + m[0].length] ?? ""))
+      if (/^[\p{L}_]/u.test(source.slice(i + m[0].length, i + m[0].length + 2)))
         throw invalid(`${m[0]}${source[i + m[0].length]} invalid number`);
       const value = Number(m[0].replace(/[dD]/, "e"));
       push("number", value > DOUBLE_MAX ? MISSING : value, i);
       i += m[0].length;
-    } else if ((m = /^\.([a-z])?(?![A-Za-z_0-9.])/.exec(rest))) {
+    } else if ((m = /^\.([a-z])?(?![\p{L}\p{Nd}_.])/u.exec(rest))) {
       push("number", missingValue(m[1] ?? ""), i);
       i += m[0].length;
     } else if (
@@ -95,7 +95,9 @@ function tokenize(source) {
       // _b[x] and _se[x]: a coefficient of the last model and its error.
       push("coefficient", { kind: m[1], name: m[2] }, i);
       i += m[0].length;
-    } else if ((m = /^([LFD])(\d*)\.([A-Za-z_][A-Za-z_0-9]*)/.exec(rest))) {
+    } else if (
+      (m = /^([LFD])(\d*)\.([\p{L}_][\w\u0080-\u{10FFFF}]*)/u.exec(rest))
+    ) {
       // L.x, F2.x and D.x: lag, lead and difference under xtset or tsset.
       push(
         "series",
@@ -103,7 +105,7 @@ function tokenize(source) {
         i,
       );
       i += m[0].length;
-    } else if ((m = /^[A-Za-z_][A-Za-z_0-9]*/.exec(rest))) {
+    } else if ((m = /^[\p{L}_][\w\u0080-\u{10FFFF}]*/u.exec(rest))) {
       push("name", m[0], i);
       i += m[0].length;
     } else if (

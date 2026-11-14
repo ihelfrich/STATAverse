@@ -237,7 +237,8 @@ export function clauses(head, expAllowed = true) {
     }
   }
   // A file may be called using.dta: using followed by a period is a name.
-  const word = /(?<![A-Za-z_0-9.])(if|in|using(?!\.))(?![A-Za-z_0-9])/g;
+  const word =
+    /(?<![\w\u0080-\u{10FFFF}.])(if|in|using(?!\.))(?![\w\u0080-\u{10FFFF}])/gu;
   for (let m; (m = word.exec(head));)
     if (flags[m.index])
       found.push({ kind: m[1], at: m.index, after: m.index + m[1].length });

@@ -48,6 +48,10 @@ const DISTRIBUTION = /^(t|F|chi2|inv|lngamma|ibeta|gammap)/;
 
 const show = (v) => (typeof v === "number" ? (missingName(v) ?? v) : v);
 function same(actual, expected, expression) {
+  // A byte cut out of a character is kept as it is, as Stata keeps it; the
+  // fixture holds it as U+FFFD, as Stata's log read back as UTF-8 gives it.
+  if (typeof actual === "string")
+    actual = actual.replace(/[\uDC80-\uDCFF]/g, "\uFFFD");
   if (actual === expected) return true;
   if (typeof actual !== "number" || typeof expected !== "number") return false;
   if (DISTRIBUTION.test(expression))
@@ -139,8 +143,8 @@ test("expressions over data match native Stata, with and without by", () => {
         : "str" +
           Math.max(
             1,
-            // A byte cut out of a character reads back as U+FFFD.
-            ...result.values.map((v) => byteLength(v.replace(/\uFFFD/g, "?"))),
+            // A byte cut out of a character counts as one byte.
+            ...result.values.map((v) => byteLength(v)),
           );
     if (type !== c.type) failures.push(`${label}: type ${type} vs ${c.type}`);
     result.values.forEach((value, i) => {

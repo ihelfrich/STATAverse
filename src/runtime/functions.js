@@ -9,6 +9,8 @@ import { abbreviateName } from "./format.js";
 import {
   MISSING,
   byteLength,
+  decodeBytes,
+  encodeText,
   coerce,
   isMissing,
   parseNumber,
@@ -29,8 +31,6 @@ import {
 const N = "numeric",
   S = "string",
   ANY = "any";
-const encoder = new TextEncoder(),
-  decoder = new TextDecoder();
 const isAscii = (s) => /^[\x00-\x7f]*$/.test(s);
 const whole = (x) => Math.trunc(x);
 
@@ -84,7 +84,7 @@ const period = (per, year, part) =>
     : (whole(year) - 1960) * per + whole(part) - 1;
 
 // ----- strings -----
-const bytesOf = (s) => encoder.encode(s);
+const bytesOf = (s) => encodeText(s);
 function substr(s, n1, n2) {
   if (isMissing(n1)) return "";
   const bytes = isAscii(s) ? null : bytesOf(s),
@@ -95,7 +95,7 @@ function substr(s, n1, n2) {
   const count = isMissing(n2) ? length : whole(n2);
   if (count < 1) return "";
   return bytes
-    ? decoder.decode(bytes.slice(start - 1, start - 1 + count))
+    ? decodeBytes(bytes.slice(start - 1, start - 1 + count))
     : s.slice(start - 1, start - 1 + count);
 }
 function usubstr(s, n1, n2) {
@@ -464,9 +464,7 @@ export const FUNCTIONS = {
   // Stata reverses bytes, so a character outside ASCII does not survive;
   // ustrreverse() reverses characters.
   strreverse: text((s) =>
-    isAscii(s)
-      ? [...s].reverse().join("")
-      : decoder.decode(bytesOf(s).reverse()),
+    isAscii(s) ? [...s].reverse().join("") : decodeBytes(bytesOf(s).reverse()),
   ),
   ustrreverse: text((s) => [...s].reverse().join("")),
   substr: { args: [S, N, N], returns: S, lenient: true, fn: substr },

@@ -69839,6 +69839,597 @@
       ]
     },
     {
+      "id": "char-and-notes",
+      "source": "clear\nset obs 2\ngenerate x = _n\ngenerate y = _n\nnotes\nnotes: first\nnotes x: about x\nchar x[source] \"src\"\nchar _dta[author] \"me\"\nnotes y: about y\nnotes y: more y\nnotes\nchar list\nchar list x[]\nchar list _dta[author]\nchar define x[unit] \"kg\"\nchar list x[]\nchar x[unit]\nchar list x[]\nchar x[w] `\"quoted \"text\"\"'\nchar list x[w]\nlocal s : char x[source]\ndisplay \"`s'\"\nlocal all : char _dta[]\ndisplay \"`all'\"\ncapture noisily char rename x y\nchar _dta[abcdefghijklmnopqrs] \"nineteen\"\nchar _dta[abcdefghijklmnopqrst] \"twenty\"\nchar _dta[abcdefghijklmnopqrstu] \"twenty-one\"\nchar list _dta[]\nchar _dta[long] \"This is a very long characteristic text that keeps going and going past the right edge of the screen\"\nset linesize 80\nchar list _dta[long]\nset linesize 200\ngenerate z = 1\nchar rename y z\nchar list\nnotes\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate y = _n", "lines": [] },
+        { "command": "notes", "lines": [] },
+        { "command": "notes: first", "lines": [] },
+        { "command": "notes x: about x", "lines": [] },
+        { "command": "char x[source] \"src\"", "lines": [] },
+        { "command": "char _dta[author] \"me\"", "lines": [] },
+        { "command": "notes y: about y", "lines": [] },
+        { "command": "notes y: more y", "lines": [] },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  first",
+            "",
+            "x:",
+            "  1.  about x",
+            "",
+            "y:",
+            "  1.  about y",
+            "  2.  more y"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[author]:               me",
+            "  _dta[note1]:                first",
+            "  _dta[note0]:                1",
+            "  x[source]:                  src",
+            "  x[note1]:                   about x",
+            "  x[note0]:                   1",
+            "  y[note2]:                   more y",
+            "  y[note0]:                   2",
+            "  y[note1]:                   about y"
+          ]
+        },
+        {
+          "command": "char list x[]",
+          "lines": [
+            "  x[source]:                  src",
+            "  x[note1]:                   about x",
+            "  x[note0]:                   1"
+          ]
+        },
+        {
+          "command": "char list _dta[author]",
+          "lines": ["  _dta[author]:               me"]
+        },
+        { "command": "char define x[unit] \"kg\"", "lines": [] },
+        {
+          "command": "char list x[]",
+          "lines": [
+            "  x[unit]:                    kg",
+            "  x[source]:                  src",
+            "  x[note1]:                   about x",
+            "  x[note0]:                   1"
+          ]
+        },
+        { "command": "char x[unit]", "lines": [] },
+        {
+          "command": "char list x[]",
+          "lines": [
+            "  x[source]:                  src",
+            "  x[note1]:                   about x",
+            "  x[note0]:                   1"
+          ]
+        },
+        { "command": "char x[w] `\"quoted \"text\"\"'", "lines": [] },
+        {
+          "command": "char list x[w]",
+          "lines": ["  x[w]:                       quoted \"text\""]
+        },
+        { "command": "local s : char x[source]", "lines": [] },
+        { "command": "display \"`s'\"", "lines": ["src"] },
+        { "command": "local all : char _dta[]", "lines": [] },
+        { "command": "display \"`all'\"", "lines": ["author note1 note0"] },
+        {
+          "command": "capture noisily char rename x y",
+          "lines": ["characteristic y[note1] already exists"]
+        },
+        {
+          "command": "char _dta[abcdefghijklmnopqrs] \"nineteen\"",
+          "lines": []
+        },
+        {
+          "command": "char _dta[abcdefghijklmnopqrst] \"twenty\"",
+          "lines": []
+        },
+        {
+          "command": "char _dta[abcdefghijklmnopqrstu] \"twenty-one\"",
+          "lines": []
+        },
+        {
+          "command": "char list _dta[]",
+          "lines": [
+            "  _dta[abcdefghijklmnopqrstu]:",
+            "                              twenty-one",
+            "  _dta[abcdefghijklmnopqrst]: twenty",
+            "  _dta[abcdefghijklmnopqrs]:  nineteen",
+            "  _dta[author]:               me",
+            "  _dta[note1]:                first",
+            "  _dta[note0]:                1"
+          ]
+        },
+        {
+          "command": "char _dta[long] \"This is a very long characteristic text that keeps going and going past the right edge of the screen\"",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "char list _dta[long]",
+          "lines": [
+            "  _dta[long]:                 This is a very long characteristic text that ke.."
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        { "command": "generate z = 1", "lines": [] },
+        { "command": "char rename y z", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[long]:                 This is a very long characteristic text that keeps going and going past the right edge of the screen",
+            "  _dta[abcdefghijklmnopqrstu]:",
+            "                              twenty-one",
+            "  _dta[abcdefghijklmnopqrst]: twenty",
+            "  _dta[abcdefghijklmnopqrs]:  nineteen",
+            "  _dta[author]:               me",
+            "  _dta[note1]:                first",
+            "  _dta[note0]:                1",
+            "  x[w]:                       quoted \"text\"",
+            "  x[source]:                  src",
+            "  x[note1]:                   about x",
+            "  x[note0]:                   1",
+            "  z[note1]:                   about y",
+            "  z[note0]:                   2",
+            "  z[note2]:                   more y"
+          ]
+        },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  first",
+            "",
+            "x:",
+            "  1.  about x",
+            "",
+            "z:",
+            "  1.  about y",
+            "  2.  more y"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "unicode-names",
+      "source": "clear\nset obs 3\ngenerate größe = _n * 1.5\ngenerate byte ñ_count = _n\nlabel variable größe \"Körpergröße\"\nsummarize größe\ngenerate y = größe * 2\nlist\nsummarize grö*\nrename ñ_count número\ntabulate número if größe > 2\ncount if número >= 2 & größe < 4\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate größe = _n * 1.5", "lines": [] },
+        { "command": "generate byte ñ_count = _n", "lines": [] },
+        { "command": "label variable größe \"Körpergröße\"", "lines": [] },
+        {
+          "command": "summarize größe",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "       größe |          3           3         1.5        1.5        4.5"
+          ]
+        },
+        { "command": "generate y = größe * 2", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------------+",
+            "     | größe   ñ_count   y |",
+            "     |---------------------|",
+            "  1. |   1.5         1   3 |",
+            "  2. |     3         2   6 |",
+            "  3. |   4.5         3   9 |",
+            "     +---------------------+"
+          ]
+        },
+        {
+          "command": "summarize grö*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "       größe |          3           3         1.5        1.5        4.5"
+          ]
+        },
+        { "command": "rename ñ_count número", "lines": [] },
+        {
+          "command": "tabulate número if größe > 2",
+          "lines": [
+            "     número |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          2 |          1       50.00       50.00",
+            "          3 |          1       50.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          2      100.00"
+          ]
+        },
+        { "command": "count if número >= 2 & größe < 4", "lines": ["  1"] }
+      ]
+    },
+    {
+      "id": "notes-numbers-and-subcommands",
+      "source": "clear\nset obs 3\ngenerate id = _n\ngenerate income = _n * 1000\nnotes: First note\nnotes: Second note\nnotes: Third note\nnotes income: inc A\nnotes income: inc B\nnotes drop _dta in 2\nchar _dta[author] \"Instructor\"\nnotes\nchar list\ndisplay \"`: char _dta[note0]'\"\ndisplay \"`: char _dta[]'\"\nchar _dta[note5] \"manual five\"\nnotes _dta\nchar _dta[note5]\nnotes drop income in 1\nnotes _dta: Added later\nnotes list _dta in 2/4\nnotes _dta in 4\nnotes _dta in 1/l\ncapture noisily notes _dta in 3/2\ncapture noisily notes _dta in x\nnotes replace _dta in 1 : Replaced first\nnotes replace _dta in 2 : No such note\nnotes search Third\nnotes search nothing\nnotes renumber _dta\nnotes\nchar list _dta[]\nnotes income _dta\nnotes _all\nnotes:\ncapture noisily notes drop\nnotes drop _dta in 1/2\nchar list _dta[]\nnotes: a   b.  First. Second sentence?  Yes\nset linesize 60\nnotes: This is a rather long note that keeps going and going well past the right edge of a sixty column screen to see where it wraps\nnotes _dta\nset linesize 200\nchar _dta[y1] \"a\" \"b\"\nchar _dta[y2] `\"a \"q\" b\"'\nchar _dta[y3]   a   b\ncapture noisily char _dta[y4] \"a\nchar list _dta[y1]\nchar list _dta[y2]\nchar list _dta[y3]\nchar list _dta[nonexist]\nlocal u : char income[]\ndisplay \"[`u']\"\ncollapse (mean) income, by(id)\nnotes\nchar list\ndrop _all\nnotes\nchar list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate income = _n * 1000", "lines": [] },
+        { "command": "notes: First note", "lines": [] },
+        { "command": "notes: Second note", "lines": [] },
+        { "command": "notes: Third note", "lines": [] },
+        { "command": "notes income: inc A", "lines": [] },
+        { "command": "notes income: inc B", "lines": [] },
+        { "command": "notes drop _dta in 2", "lines": ["  (1 note dropped)"] },
+        { "command": "char _dta[author] \"Instructor\"", "lines": [] },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  First note",
+            "  3.  Third note",
+            "",
+            "income:",
+            "  1.  inc A",
+            "  2.  inc B"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[author]:               Instructor",
+            "  _dta[note3]:                Third note",
+            "  _dta[note0]:                3",
+            "  _dta[note1]:                First note",
+            "  income[note2]:              inc B",
+            "  income[note0]:              2",
+            "  income[note1]:              inc A"
+          ]
+        },
+        { "command": "display \"`: char _dta[note0]'\"", "lines": ["3"] },
+        {
+          "command": "display \"`: char _dta[]'\"",
+          "lines": ["author note3 note0 note1"]
+        },
+        { "command": "char _dta[note5] \"manual five\"", "lines": [] },
+        {
+          "command": "notes _dta",
+          "lines": ["_dta:", "  1.  First note", "  3.  Third note"]
+        },
+        { "command": "char _dta[note5]", "lines": [] },
+        {
+          "command": "notes drop income in 1",
+          "lines": ["  (1 note dropped)"]
+        },
+        { "command": "notes _dta: Added later", "lines": [] },
+        {
+          "command": "notes list _dta in 2/4",
+          "lines": ["_dta:", "  3.  Third note", "  4.  Added later"]
+        },
+        {
+          "command": "notes _dta in 4",
+          "lines": ["_dta:", "  4.  Added later"]
+        },
+        {
+          "command": "notes _dta in 1/l",
+          "lines": [
+            "_dta:",
+            "  1.  First note",
+            "  3.  Third note",
+            "  4.  Added later"
+          ]
+        },
+        {
+          "command": "capture noisily notes _dta in 3/2",
+          "lines": ["in 3/2:  invalid"]
+        },
+        {
+          "command": "capture noisily notes _dta in x",
+          "lines": ["x:  invalid range element"]
+        },
+        {
+          "command": "notes replace _dta in 1 : Replaced first",
+          "lines": ["  (note 1 for _dta replaced)"]
+        },
+        {
+          "command": "notes replace _dta in 2 : No such note",
+          "lines": ["  (no note replaced)"]
+        },
+        {
+          "command": "notes search Third",
+          "lines": ["_dta:", "  3.  Third note"]
+        },
+        { "command": "notes search nothing", "lines": ["nothing: not found"] },
+        { "command": "notes renumber _dta", "lines": [] },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  Replaced first",
+            "  2.  Third note",
+            "  3.  Added later",
+            "",
+            "income:",
+            "  2.  inc B"
+          ]
+        },
+        {
+          "command": "char list _dta[]",
+          "lines": [
+            "  _dta[note3]:                Added later",
+            "  _dta[note2]:                Third note",
+            "  _dta[note1]:                Replaced first",
+            "  _dta[note0]:                3",
+            "  _dta[author]:               Instructor"
+          ]
+        },
+        {
+          "command": "notes income _dta",
+          "lines": [
+            "income:",
+            "  2.  inc B",
+            "",
+            "_dta:",
+            "  1.  Replaced first",
+            "  2.  Third note",
+            "  3.  Added later"
+          ]
+        },
+        {
+          "command": "notes _all",
+          "lines": [
+            "income:",
+            "  2.  inc B",
+            "",
+            "_dta:",
+            "  1.  Replaced first",
+            "  2.  Third note",
+            "  3.  Added later"
+          ]
+        },
+        { "command": "notes:", "lines": ["  (no note added)"] },
+        {
+          "command": "capture noisily notes drop",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "notes drop _dta in 1/2",
+          "lines": ["  (2 notes dropped)"]
+        },
+        {
+          "command": "char list _dta[]",
+          "lines": [
+            "  _dta[note3]:                Added later",
+            "  _dta[note0]:                3",
+            "  _dta[author]:               Instructor"
+          ]
+        },
+        {
+          "command": "notes: a   b.  First. Second sentence?  Yes",
+          "lines": []
+        },
+        { "command": "set linesize 60", "lines": [] },
+        {
+          "command": "notes: This is a rather long note that keeps going and going well past the right edge of a sixty column screen to see where it wraps",
+          "lines": []
+        },
+        {
+          "command": "notes _dta",
+          "lines": [
+            "_dta:",
+            "  3.  Added later",
+            "  4.  a b.  First. Second sentence?  Yes",
+            "  5.  This is a rather long note that keeps going and going",
+            "      well past the right edge of a sixty column screen to",
+            "      see where it wraps"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        { "command": "char _dta[y1] \"a\" \"b\"", "lines": [] },
+        { "command": "char _dta[y2] `\"a \"q\" b\"'", "lines": [] },
+        { "command": "char _dta[y3]   a   b", "lines": [] },
+        {
+          "command": "capture noisily char _dta[y4] \"a",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "char list _dta[y1]",
+          "lines": ["  _dta[y1]:                   a\" \"b"]
+        },
+        {
+          "command": "char list _dta[y2]",
+          "lines": ["  _dta[y2]:                   a \"q\" b"]
+        },
+        {
+          "command": "char list _dta[y3]",
+          "lines": ["  _dta[y3]:                   a   b"]
+        },
+        {
+          "command": "char list _dta[nonexist]",
+          "lines": ["  _dta[nonexist]:"]
+        },
+        { "command": "local u : char income[]", "lines": [] },
+        { "command": "display \"[`u']\"", "lines": ["[note2 note0]"] },
+        { "command": "collapse (mean) income, by(id)", "lines": [] },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  3.  Added later",
+            "  4.  a b.  First. Second sentence?  Yes",
+            "  5.  This is a rather long note that keeps going and going well past the right edge of a sixty column screen to see where it wraps"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[y3]:                   a   b",
+            "  _dta[y2]:                   a \"q\" b",
+            "  _dta[y1]:                   a\" \"b",
+            "  _dta[note5]:                This is a rather long note that keeps going and going well past the right edge of a sixty column screen to see where it wraps",
+            "  _dta[note0]:                5",
+            "  _dta[note4]:                a   b.  First. Second sentence?  Yes",
+            "  _dta[note3]:                Added later",
+            "  _dta[author]:               Instructor"
+          ]
+        },
+        { "command": "drop _all", "lines": [] },
+        { "command": "notes", "lines": [] },
+        { "command": "char list", "lines": [] }
+      ]
+    },
+    {
+      "id": "unicode-name-characters",
+      "source": "clear\nset obs 4\ngenerate co₂ = _n * 400 + mod(_n * 37, 11) * 90\ngenerate temp°c = 20 + _n\ngenerate r² = _n / 10\ngenerate a·b = 1\ngenerate a😀 = 1\ncapture noisily generate ½a = 1\ngenerate 名前 = _n\nlabel define kl 1 \"klein\" 2 \"mittel\" 3 \"groß\" 4 \"名前名前名前\"\nlabel values 名前 kl\nsummarize co₂ temp°c r² 名前\nregress co₂ temp°c\nlist co₂ 名前 r²\ntabulate 名前\nnotes co₂: Gemessen in ppm\nnotes co₂\ngenerate s = \"ünïcödé ✓ übër\" in 1\nreplace s = \"名前名前名前\" in 2\nreplace s = \"a\" in 3\ntabulate s\nlist s 名前\ncollapse (mean) co₂, by(名前)\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        {
+          "command": "generate co₂ = _n * 400 + mod(_n * 37, 11) * 90",
+          "lines": []
+        },
+        { "command": "generate temp°c = 20 + _n", "lines": [] },
+        { "command": "generate r² = _n / 10", "lines": [] },
+        { "command": "generate a·b = 1", "lines": [] },
+        { "command": "generate a😀 = 1", "lines": [] },
+        {
+          "command": "capture noisily generate ½a = 1",
+          "lines": ["½a invalid name"]
+        },
+        { "command": "generate 名前 = _n", "lines": [] },
+        {
+          "command": "label define kl 1 \"klein\" 2 \"mittel\" 3 \"groß\" 4 \"名前名前名前\"",
+          "lines": []
+        },
+        { "command": "label values 名前 kl", "lines": [] },
+        {
+          "command": "summarize co₂ temp°c r² 名前",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "         co₂ |          4        1405    534.9455        760       2050",
+            "      temp°c |          4        22.5    1.290994         21         24",
+            "          r² |          4         .25    .1290994         .1         .4",
+            "        名前 |          4         2.5    1.290994          1          4"
+          ]
+        },
+        {
+          "command": "regress co₂ temp°c",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =         4",
+            "-------------+----------------------------------   F(1, 2)         =      6.76",
+            "       Model |      662480         1      662480   Prob > F        =    0.1216",
+            "    Residual |      196020         2       98010   R-squared       =    0.7717",
+            "-------------+----------------------------------   Adj R-squared   =    0.6575",
+            "       Total |      858500         3  286166.667   Root MSE        =    313.07",
+            "",
+            "------------------------------------------------------------------------------",
+            "         co₂ | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      temp°c |        364   140.0071     2.60   0.122    -238.4021    966.4021",
+            "       _cons |      -6785   3154.047    -2.15   0.164    -20355.77    6785.771",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list co₂ 名前 r²",
+          "lines": [
+            "     +--------------------------+",
+            "     |  co₂           名前   r² |",
+            "     |--------------------------|",
+            "  1. |  760          klein   .1 |",
+            "  2. | 1520         mittel   .2 |",
+            "  3. | 1290           groß   .3 |",
+            "  4. | 2050   名前名前名前   .4 |",
+            "     +--------------------------+"
+          ]
+        },
+        {
+          "command": "tabulate 名前",
+          "lines": [
+            "        名前 |      Freq.     Percent        Cum.",
+            "-------------+-----------------------------------",
+            "       klein |          1       25.00       25.00",
+            "      mittel |          1       25.00       50.00",
+            "        groß |          1       25.00       75.00",
+            "名前名前名前 |          1       25.00      100.00",
+            "-------------+-----------------------------------",
+            "       Total |          4      100.00"
+          ]
+        },
+        { "command": "notes co₂: Gemessen in ppm", "lines": [] },
+        { "command": "notes co₂", "lines": ["co₂:", "  1.  Gemessen in ppm"] },
+        {
+          "command": "generate s = \"ünïcödé ✓ übër\" in 1",
+          "lines": ["(3 missing values generated)"]
+        },
+        {
+          "command": "replace s = \"名前名前名前\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"a\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "tabulate s",
+          "lines": [
+            "                     s |      Freq.     Percent        Cum.",
+            "-----------------------+-----------------------------------",
+            "                     a |          1       33.33       33.33",
+            "        ünïcödé ✓ übër |          1       33.33       66.67",
+            "          名前名前名前 |          1       33.33      100.00",
+            "-----------------------+-----------------------------------",
+            "                 Total |          3      100.00"
+          ]
+        },
+        {
+          "command": "list s 名前",
+          "lines": [
+            "     +-------------------------------+",
+            "     |              s           名前 |",
+            "     |-------------------------------|",
+            "  1. | ünïcödé ✓ übër          klein |",
+            "  2. |   名前名前名前         mittel |",
+            "  3. |              a           groß |",
+            "  4. |                  名前名前名前 |",
+            "     +-------------------------------+"
+          ]
+        },
+        { "command": "collapse (mean) co₂, by(名前)", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------------+",
+            "     |         名前    co₂ |",
+            "     |---------------------|",
+            "  1. |        klein    760 |",
+            "  2. |       mittel   1520 |",
+            "  3. |         groß   1290 |",
+            "  4. | 名前名前名前   2050 |",
+            "     +---------------------+"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
