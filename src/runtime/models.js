@@ -28,6 +28,7 @@ import {
   termRows,
   tableWidth,
   abbreviate,
+  baseLevelsAsked,
   test as testT,
   unitConstraint,
 } from "./estimation.js";
@@ -282,13 +283,15 @@ function maximumLikelihood(kind) {
   const family = FAMILIES[kind];
   return (session, text, ctx) => {
     const parsed = session.parse(
-        `anything [if] [in] [, noCONStant Robust VCE(string) CLuster(string) Level(cilevel) noLOg OR IRr${family.binary ? " | ASIS" : ""}]`,
+        `anything [if] [in] [, noCONStant Robust VCE(string) CLuster(string) Level(cilevel) noLOg OR IRr BASElevels ALLBASElevels${family.binary ? " | ASIS" : ""}]`,
         text,
       ),
       options = parsed.options,
       rows = session.rows(parsed, null),
       constant = options.constant !== false,
-      { robust, cluster } = readVce(session, options, /^oim$/),
+      { robust, cluster } = readVce(session, options, /^oim$/, {
+        multiway: false,
+      }),
       {
         dependent,
         columns,
@@ -496,6 +499,7 @@ function maximumLikelihood(kind) {
       // The perfect-prediction rules; predict leaves the observations they
       // set aside missing.
       rules: perfect.rules,
+      baseLevels: baseLevelsAsked(options),
     };
     // A model without a constant has no constant-only model to compare
     // with, so its test is a Wald test, as with a robust variance.

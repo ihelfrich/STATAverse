@@ -14,7 +14,7 @@ import { count, labelled, moments, percentile, present } from "./reports.js";
 import { optionItems, splitAtComma } from "./syntax.js";
 import { resolveVariable } from "./varlist.js";
 import { MISSING, isMissing, isName, isStringType } from "./values.js";
-import { noCluster } from "./vce.js";
+import { noCluster, refuseVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 export const RULE = "-".repeat(78);
@@ -340,7 +340,11 @@ export function fit(session, parsed, by) {
       parsed.weight?.type === "pweight" ||
       /^(r(o(b(u(st?)?)?)?)?|hc1)$/.test(vceText.trim());
   if (vceText && !robust && !/^(ols|conventional)$/.test(vceText.trim()))
-    throw new StataError(`vce(${vceText}) is not available yet`, 198);
+    refuseVce(
+      vceText.trim(),
+      /^(ols|conventional|r(o(b(u(st?)?)?)?)?|hc[123])$/,
+      true,
+    );
   let obs = cluster ? sample.filter((i) => !noCluster(cluster, i)) : sample,
     w = null,
     sumW;
@@ -585,7 +589,9 @@ function tableBlocks(session, model) {
     else blocks.push({ term, items: [k] });
   });
   for (const block of blocks) {
-    block.shown = block.items.filter((k) => !hiddenBase(model.columns[k]));
+    block.shown = block.items.filter(
+      (k) => !hiddenBase(model.columns[k], model),
+    );
     const one =
       block.term !== "_cons" &&
       !block.term.variable &&
@@ -629,8 +635,9 @@ function levelLabel(session, column) {
  * count: the z-tables of the likelihood models count their dependent
  * variable, which names their first equation, and tobit its var(e.y) row.
  */
-export function tableWidth(session, model, extra = []) {
-  const cap = (session.settings?.linesize ?? 80) - 67,
+export function tableWidth(session, table, extra = []) {
+  const model = withBaseSetting(session, table),
+    cap = (session.settings?.linesize ?? 80) - 67,
     // A name counts whole when the line allows it; an interaction that does
     // not fit is broken after a # as it would be in a column that wide,
     // and then its longest line counts, with the # that ends it.
@@ -668,9 +675,42 @@ export function tableWidth(session, model, extra = []) {
 /**
  * A base level is not shown in a coefficient table, unless no observation
  * of the estimation sample has it (after logit sets aside the observations
- * a perfect predictor explains): then it is shown as (empty).
+ * a perfect predictor explains): then it is shown as (empty). baselevels
+ * shows the base level of each factor, and the base cells of an
+ * interaction whose bases cannot be inferred from the terms it contains,
+ * that is one with no lower-order term of its own in the model;
+ * allbaselevels shows every base cell.
  */
-const hiddenBase = (column) => !!column?.base && !column.empty;
+const hiddenBase = (column, model) => {
+  if (!column?.base || column.empty) return false;
+  if (model?.baseLevels === "all") return false;
+  if (model?.baseLevels !== "base") return true;
+  const term = column.term;
+  if (term.factor) return false;
+  const same = (a, b) => a.variable === b.variable && a.factor === b.factor;
+  return model.columns.some(
+    (other) =>
+      other &&
+      other.term !== term &&
+      other.term.components.length < term.components.length &&
+      other.term.components.every((c) =>
+        term.components.some((d) => same(c, d)),
+      ),
+  );
+};
+
+/**
+ * A model as its table shows it: without baselevels or allbaselevels, set
+ * showbaselevels on or all decides.
+ */
+const withBaseSetting = (session, model) =>
+  model.baseLevels || !session.settings?.showbaselevels
+    ? model
+    : { ...model, baseLevels: session.settings.showbaselevels };
+
+/** Which base levels the options of an estimation command ask to show. */
+export const baseLevelsAsked = (options) =>
+  options.allbaselevels ? "all" : options.baselevels ? "base" : undefined;
 
 /**
  * Stata's abbrev(name, width): the start, a ~, and the end, which is the
@@ -743,7 +783,15 @@ export function brokenName(name, w, abbreviated = true) {
  * rows between groups. cells(k) gives the text after the bar for
  * coefficient k.
  */
-export function termRows(session, model, cells, width, omittedValue = 0) {
+export function termRows(
+  session,
+  table,
+  cells,
+  width,
+  omittedValue = 0,
+  baseTail = "",
+) {
+  const model = withBaseSetting(session, table);
   // Without a width the column is twelve and names are not shortened.
   const w = width ?? 12,
     short = (name) => (width ? abbreviate(name, w) : name),
@@ -764,7 +812,9 @@ export function termRows(session, model, cells, width, omittedValue = 0) {
       out.push(
         model.estimable[k]
           ? `${label}|${cells(k)}`
-          : `${label}|${String(omittedValue).padStart(11)}  (${model.columns[k]?.empty ? "empty" : "omitted"})`,
+          : model.columns[k]?.base && !model.columns[k].empty
+            ? `${label}|${String(omittedValue).padStart(11)}  (base)${baseTail}`
+            : `${label}|${String(omittedValue).padStart(11)}  (${model.columns[k]?.empty ? "empty" : "omitted"})`,
       );
     if (block.term === "_cons" || block.term.variable)
       return row(
@@ -863,7 +913,7 @@ function regress(session, text, ctx) {
   )
     return;
   const parsed = session.parse(
-      "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta CLuster(string) | noHEader EForm(string) ABSorb(varname)]",
+      "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta CLuster(string) BASElevels ALLBASElevels | noHEader EForm(string) ABSorb(varname)]",
       text,
     ),
     model = fit(session, parsed, null),
@@ -891,6 +941,7 @@ function regress(session, text, ctx) {
         wide,
       ),
     ];
+  model.baseLevels = baseLevelsAsked(parsed.options);
   session.estimates = model;
   session.results.e = {
     N: model.N,
@@ -978,6 +1029,9 @@ function regress(session, text, ctx) {
         return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(beta).padStart(25)}`;
       },
       width,
+      0,
+      // A base level's beta, zero, sits at the end of the line.
+      "0".padStart(45),
     ).forEach(ctx.out);
   } else {
     const width = tableWidth(session, model);
@@ -2473,7 +2527,9 @@ export function lincom(session, text, ctx) {
   // Stata cannot post a combination with a missing weight or constant.
   if (isMissing(constant) || weights.some((w) => isMissing(w))) {
     ctx.out("");
-    ctx.out(constraintLine(0, constraint.text));
+    constraintLines(session, 0, constraint.text).forEach((line) =>
+      ctx.out(line),
+    );
     throw new StataError("estimates post: matrix has missing values", 504);
   }
   // lincom tests its expression quietly, which makes it the test that test

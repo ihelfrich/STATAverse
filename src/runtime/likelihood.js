@@ -1,25 +1,29 @@
 // Maximum-likelihood estimators with more than one index or with ancillary
 // parameters: tobit, ologit, oprobit, mlogit and nbreg. Each supplies its log
-// likelihood and gradient; the fitter takes Newton steps using a Hessian
-// obtained by differencing the gradient. Estimates are compared with
-// installed Stata; iteration logs follow a different path and are not.
-// nbreg, whose likelihood can be nearly flat in lnalpha, is fitted instead
-// by maximizeNR, which takes Stata's own steps from the analytic Hessian.
+// likelihood, gradient and analytic Hessian to maximizeNR, which takes
+// Stata's own Newton steps from Stata's starting values, so that the fit
+// stops where Stata's stops. (maximize, which differences the gradient for
+// its Hessian, serves glm.)
+// vce(robust), vce(cluster) and sampling weights give the sandwich variance
+// from each model's scores.
 import { greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
-import { chi2tail, invttail, ttail } from "./distributions.js";
+import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
 import {
   abbreviate,
+  baseLevelsAsked,
   design,
   invertSymmetric,
   tableWidth,
   termRows,
 } from "./estimation.js";
 import { count, labelled } from "./reports.js";
-import { splitAtComma } from "./syntax.js";
+import { optionItems, splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
+import { evaluateAll } from "./expression.js";
+import { clusterNote, noCluster, readVce, sandwich } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 // The rules of a coefficient table whose first column is w wide.
@@ -125,14 +129,16 @@ function tableModel(f) {
 
 /**
  * A fit's coefficient rows laid out by term, as Stata lays them out: factor
- * variables as headed groups of levels, base levels hidden, long names
+ * variables as headed groups of levels, base levels hidden unless
+ * baselevels ("base") or allbaselevels ("all") asks for them, long names
  * abbreviated to the first column's width w. cell(j) gives the text after
- * the bar for f.names[j]; an omitted coefficient shows omittedValue.
+ * the bar for f.names[j]; an omitted or base coefficient shows
+ * omittedValue, which is one in a table of odds or rate ratios.
  */
-function layoutRows(session, f, cell, w, omittedValue = 0) {
+function layoutRows(session, f, baseLevels, cell, w, omittedValue = 0) {
   return termRows(
     session,
-    tableModel(f),
+    { ...tableModel(f), baseLevels },
     (k) => cell(f.at[k]),
     w,
     omittedValue,
@@ -151,12 +157,18 @@ function frame(
   constant,
   intercept = constant,
   dropRepeats = false,
+  asked = { keep: () => true, weight: null },
 ) {
   const {
       dependent,
       columns: all,
       sample,
-    } = design(session, parsed.anything, session.rows(parsed, null), intercept),
+    } = design(
+      session,
+      parsed.anything,
+      session.rows(parsed, null).filter(asked.keep),
+      intercept,
+    ),
     // tobit leaves out a variable named a second time; the others keep it
     // and omit it for collinearity.
     columns = dropRepeats ? all.filter((c) => !c.term.repeat) : all;
@@ -171,25 +183,16 @@ function frame(
       ...(constant ? [active.length] : []),
     ];
   if (!sample.length) throw new StataError("no observations", 2000);
+  if (asked.weight && sample.some((i) => asked.weight[i] < 0))
+    throw new StataError("negative weights encountered", 402);
   return {
+    // Each observation's sampling weight, or null.
+    w: asked.weight ? sample.map((i) => asked.weight[i]) : null,
     dependent,
     columns,
     active,
     sample,
     at,
-    // The root mean square of each fitted column, at least 1, for the
-    // difference steps of maximize; the constant's is 1.
-    scales: [
-      ...active.map((c) =>
-        Math.max(
-          1,
-          Math.sqrt(
-            sample.reduce((t, i) => t + c.value(i) ** 2, 0) / sample.length,
-          ),
-        ),
-      ),
-      ...(constant ? [1] : []),
-    ],
     /** The full b, V and estimable flags from the fitted ones. */
     place: (theta, V) => ({
       b: at.map((j) => (j >= 0 ? theta[j] : 0)),
@@ -213,30 +216,124 @@ function frame(
 }
 const dot = (row, theta, offset = 0) =>
   row.reduce((t, v, k) => t + v * theta[offset + k], 0);
+/** Splits a double into halves whose products are exact (Veltkamp). */
+const veltkamp = (a) => {
+  const c = 134217729 * a,
+    high = c - (c - a);
+  return [high, a - high];
+};
+/**
+ * A running sum carried to about twice double precision. Stata's ml sums
+ * each observation's log likelihood in quad precision (quadcolsum, or
+ * quadcross with the weights), so that near the maximum a step too small
+ * to matter leaves the sum unchanged instead of moving it by rounding; the
+ * line search, and its "(backed up)" notes, follow from that. add(x, w)
+ * adds w*x, the product's own rounding error included.
+ */
+function quadSum() {
+  const vector = quadVector(1);
+  return {
+    add: (x, w = 1) => vector.add(0, x, w),
+    get value() {
+      return vector.values()[0];
+    },
+  };
+}
+/** The same for each element of a vector of n sums. */
+function quadVector(n) {
+  const sum = new Array(n).fill(0),
+    carry = new Array(n).fill(0);
+  return {
+    add(a, x, w = 1) {
+      let product = x,
+        error = 0;
+      if (w !== 1) {
+        product = w * x;
+        const [xh, xl] = veltkamp(x),
+          [wh, wl] = veltkamp(w);
+        error = xh * wh - product + xh * wl + xl * wh + xl * wl;
+        if (!Number.isFinite(error)) error = 0;
+      }
+      const s = sum[a],
+        total = s + product;
+      carry[a] +=
+        (Math.abs(s) >= Math.abs(product)
+          ? s - total + product
+          : product - total + s) + error;
+      sum[a] = total;
+    },
+    values: () => sum.map((s, a) => (Number.isFinite(s) ? s + carry[a] : s)),
+  };
+}
 const side = (label, value, width = 14, pad = 7) =>
   `${label.padEnd(width)}=${value.padStart(pad)}`;
-function iterations(ctx, text, log) {
-  if (/\bnolog\b/.test(splitAtComma(text)[1] ?? "")) return;
-  log.forEach((value, k) =>
-    ctx.out(
-      `Iteration ${k}:  Log likelihood = ${g(value, "%10.0g").padStart(10)}`,
-    ),
-  );
+/**
+ * The header of ologit, oprobit, mlogit and nbreg, from [left text, label,
+ * value] rows: the values sit in a column of seven ending at column 78, and
+ * one that needs more widens the column and moves the block left.
+ */
+function header(ctx, rows) {
+  const pad = Math.max(7, ...rows.map((r) => r[2].length + 1)),
+    left = 56 - (pad - 7);
+  for (const [text, label, value] of rows)
+    ctx.out(`${text.padEnd(left)}${side(label, value, 14, pad)}`);
+}
+const noLog = (text) => /\bnolog\b/.test(splitAtComma(text)[1] ?? "");
+/**
+ * An iteration log and the blank line after it; a fit that ran out of
+ * iterations ends with Stata's warning that convergence was not achieved.
+ */
+function iterations(
+  ctx,
+  text,
+  log,
+  word = "Log likelihood",
+  notes = [],
+  converged = true,
+) {
+  if (noLog(text)) return;
+  log.forEach((value, k) => ctx.out(iterationLine(k, word, value, notes[k])));
+  if (!converged) ctx.out("convergence not achieved");
   ctx.out("");
 }
 /**
+ * One line of an iteration log, with Stata's note beside it, if any. The
+ * number and its colon take three columns before the space.
+ */
+const iterationLine = (k, word, value, note) =>
+  `Iteration ${`${k}:`.padEnd(3)} ${word} = ${g(value, "%10.0g").padStart(10)}${note ? `  (${note})` : ""}`;
+/**
  * What ologit, oprobit and mlogit, which are built into Stata, print before
  * their header: a blank line, any notes of omitted variables, then the
- * iteration log, or without a log a blank line after the notes.
+ * iteration log, or without a log a blank line after the notes. Without a
+ * log, a fit that did not converge says so first.
  */
-function opening(ctx, text, f, log) {
+function opening(ctx, text, f, fit, word) {
+  if (noLog(text) && !fit.converged) ctx.out("convergence not achieved");
   ctx.out("");
-  if (f.notes(ctx) && /\bnolog\b/.test(splitAtComma(text)[1] ?? ""))
-    ctx.out("");
-  iterations(ctx, text, log);
+  if (f.notes(ctx) && noLog(text)) ctx.out("");
+  iterations(ctx, text, fit.log, word, fit.notes, fit.converged);
+}
+/**
+ * Stata's note on observations whose outcome the fit predicts with
+ * certainty: those for which the other outcomes together have probability
+ * under 1e-6.
+ */
+function determinedNote(ctx, determined) {
+  if (determined)
+    ctx.out(
+      `Note: ${count(determined)} observation${determined === 1 ? "" : "s"} completely determined. Standard errors questionable.`,
+    );
+}
+/** Stops a fit that did not converge, after its table, as Stata does. */
+function unconverged(fit) {
+  if (!fit.converged) throw new StataError("convergence not achieved", 430);
 }
 /** One row of a coefficient table tested against the normal or t. */
 function row(label, b, se, level, df, transform) {
+  // A coefficient with no variance shows only its value.
+  if (!(se > 0))
+    return `${label}|${g(transform ? Math.exp(b) : b).padStart(11)}${".".padStart(11)}${".".padStart(9)}${".".padStart(8)}${".".padStart(13)}${".".padStart(12)}`;
   const z = b / se,
     p = df ? 2 * ttail(df, Math.abs(z)) : 2 * normal(-Math.abs(z)),
     critical = df
@@ -248,91 +345,350 @@ function row(label, b, se, level, df, transform) {
 /** A row with no test: an ancillary parameter and its interval. */
 const plainRow = (label, value, se, low, high) =>
   `${label}|${g(value).padStart(11)}${g(se).padStart(11)}${" ".repeat(17)}${g(low).padStart(13)}${g(high).padStart(12)}`;
-const heading = (depvar, level, first, t, w) =>
-  `${abbreviate(depvar, w).padStart(w)} | ${first.padStart(10).padEnd(11)}  Std. err.      ${t ? "t    P>|t|" : "z    P>|z|"}     [${g(level)}% conf. interval]`;
+const heading = (depvar, level, first, t, w, robust = false) =>
+  `${abbreviate(depvar, w).padStart(w)} | ${first.padStart(10).padEnd(11)}  ${robust ? "std" : "Std"}. err.      ${t ? "t    P>|t|" : "z    P>|z|"}     [${g(level)}% conf. interval]`;
+/** The rule and column heads of a table, with Robust above a robust one. */
+const tableHead = (ctx, depvar, level, first, t, robust, w) => {
+  ctx.out(rule(w));
+  if (robust) ctx.out(`${" ".repeat(w + 1)}|${" ".repeat(15)}Robust`);
+  ctx.out(heading(depvar, level, first, t, w, robust));
+  ctx.out(split(w));
+};
+
+/**
+ * What vce(), robust and a sampling weight ask for: whether the variance is
+ * the sandwich, the cluster variable, each observation's weight (or null),
+ * and which observations remain, those with no cluster or a missing or
+ * zero weight being left out. Sampling weights imply the sandwich.
+ */
+function requested(session, parsed) {
+  const { robust, cluster } = readVce(session, parsed.options, /^oim$/, {
+    multiway: false,
+  });
+  let weight = null;
+  if (parsed.weight) {
+    if (parsed.weight.type !== "pweight")
+      throw new StataError(
+        `${parsed.weight.type}s are not available in the browser yet; pweights are`,
+        198,
+      );
+    weight = evaluateAll(session.compile(parsed.weight.exp), session.data.n);
+  }
+  return {
+    robust: robust || !!weight,
+    cluster,
+    weight,
+    keep: (i) =>
+      (!cluster || !noCluster(cluster, i)) &&
+      (!weight || (!isMissing(weight[i]) && weight[i] !== 0)),
+    // The same without regard to the cluster variable.
+    keepWeighted: (i) => !weight || (!isMissing(weight[i]) && weight[i] !== 0),
+  };
+}
+
+/** The sandwich variance of a fit from its observations' scores. */
+const robustVariance = (f, asked, V, scores) =>
+  sandwich(V, scores, f.w, asked.cluster, f.sample);
+
+/**
+ * The rank of a robust variance V, which is e(rank). A cluster variance has
+ * at most one dimension fewer than there are clusters, so with few clusters
+ * it is less than the number of parameters. Stata then counts as tested
+ * only what the rank leaves after the parameters outside the test (the cut
+ * points; nbreg's constant and lnalpha), and reports the test as missing
+ * when that is fewer than the coefficients. The rank is found by sweeping
+ * the largest remaining diagonal until what remains is nil.
+ */
+function robustRank(V, clusters) {
+  const n = V.length,
+    a = V.map((row) => row.slice()),
+    kept = [],
+    limit = clusters ? Math.min(n, clusters - 1) : n;
+  while (kept.length < limit) {
+    let best = -1;
+    for (let j = 0; j < n; j++)
+      if (
+        !kept.includes(j) &&
+        a[j][j] > 1e-13 * V[j][j] &&
+        (best < 0 || a[j][j] > a[best][best])
+      )
+        best = j;
+    if (best < 0) break;
+    kept.push(best);
+    const pivot = a[best][best],
+      column = a.map((row) => row[best]);
+    for (let r = 0; r < n; r++)
+      for (let c = 0; c < n; c++) a[r][c] -= (column[r] * column[c]) / pivot;
+  }
+  return kept.length;
+}
+
+/** The Wald statistic that the coefficients at `at` are all zero. */
+function waldStatistic(theta, V, at) {
+  if (!at.length) return MISSING;
+  const inverse = invertSymmetric(at.map((r) => at.map((c) => V[r][c])));
+  if (!inverse) return MISSING;
+  return at.reduce(
+    (t, r, a) =>
+      t + theta[r] * at.reduce((u, c, b) => u + inverse[a][b] * theta[c], 0),
+    0,
+  );
+}
+
+/** What e() says of a robust variance. */
+const robustResults = (asked, clusters) =>
+  asked.robust
+    ? {
+        vcetype: "Robust",
+        vce: asked.cluster ? "cluster" : "robust",
+        ...(asked.cluster
+          ? { N_clust: clusters, clustvar: asked.cluster.name }
+          : {}),
+      }
+    : {};
 
 // ----- tobit -----
+/**
+ * One observation's tobit log likelihood in (xb, var) and its derivatives:
+ * [value, d/dxb, d/dvar, d2/dxb2, d2/dxb dvar, d2/dvar2]. state is 0 for an
+ * observed outcome, -1 for one censored below limit and 1 above. A
+ * censored observation contributes ln Phi(c), with c = s(xb - limit)/sigma
+ * and s its state.
+ */
+function tobitTerm(y, xb, variance, state, limit) {
+  if (!(variance > 0)) return [NaN, 0, 0, 0, 0, 0];
+  if (state === 0) {
+    const e = y - xb,
+      v2 = variance * variance;
+    return [
+      -0.5 * Math.log(2 * Math.PI) -
+        0.5 * Math.log(variance) -
+        (e * e) / (2 * variance),
+      e / variance,
+      (e * e) / (2 * v2) - 1 / (2 * variance),
+      -1 / variance,
+      -e / v2,
+      1 / (2 * v2) - (e * e) / (v2 * variance),
+    ];
+  }
+  const sigma = Math.sqrt(variance),
+    c = (state * (xb - limit)) / sigma,
+    tail = normal(c),
+    lambda = density(c) / tail,
+    bend = c * (c + lambda);
+  return [
+    Math.log(tail),
+    (state * lambda) / sigma,
+    (-lambda * c) / (2 * variance),
+    (-lambda * (c + lambda)) / variance,
+    (state * lambda * (bend - 1)) / (2 * variance * sigma),
+    (c * lambda * (3 - bend)) / (4 * variance * variance),
+  ];
+}
+
 function tobit(session, text, ctx) {
-  const parsed = session.parse(
-      "anything [if] [in] [, LL(string) UL(string) Level(cilevel) noLOg noCONStant | Robust VCE(string) OFFset(varname)]",
-      text,
+  // tobit has vce(cluster), but not the older cluster() spelling.
+  if (
+    optionItems(splitAtComma(text)[1] ?? "").some((o) =>
+      /^cl(u(s(t(er?)?)?)?)?$/.test(o.name),
+    )
+  )
+    throw new StataError("option cluster() not allowed", 198);
+  // ll and ul may stand alone, as ll() does, for the outcome's own limit.
+  const [head, tail] = splitAtComma(text),
+    parsed = session.parse(
+      "anything [if] [in] [fweight pweight iweight aweight] [, LL(string) UL(string) Level(cilevel) noLOg noCONStant VCE(string) BASElevels ALLBASElevels | OFFset(varname)]",
+      tail === null
+        ? text
+        : `${head},${tail.replace(/\b(ll|ul)\b(?!\s*\()/g, "$1()")}`,
     ),
     options = parsed.options,
+    asked = requested(session, parsed),
     given = (name) =>
       new RegExp(`\\b${name}\\b`).test(splitAtComma(text)[1] ?? ""),
-    f = frame(session, parsed, options.constant !== false, undefined, true),
-    limit = (option, pick) =>
-      !given(option)
-        ? null
-        : options[option]?.trim()
-          ? session.scalar(options[option])
-          : pick(...f.y),
+    f = frame(
+      session,
+      parsed,
+      options.constant !== false,
+      undefined,
+      true,
+      asked,
+    ),
+    // A limit is a number, or an expression that gives one, as tobit's
+    // _chk_limit takes it; . is no limit.
+    limit = (option, pick) => {
+      if (!given(option)) return null;
+      const raw = options[option]?.trim() ?? "";
+      if (!raw) return pick(...f.y);
+      if (raw === ".") return null;
+      let variable = null;
+      try {
+        if (/^[A-Za-z_]\w*$/.test(raw))
+          variable = session.data.get(session.varlist(raw)[0]);
+      } catch {
+        variable = null;
+      }
+      if (variable && !/^str/.test(variable.type))
+        throw new StataError(
+          `a limit that varies by observation, ${option}(${raw}), is not available in the browser yet; give a number`,
+          198,
+        );
+      let value = null;
+      try {
+        value = session.scalar(raw);
+      } catch {
+        value = null;
+      }
+      if (typeof value !== "number" || isMissing(value))
+        throw new StataError(`invalid option ${option}()`, 198);
+      return value;
+    },
     lower = limit("ll", Math.min),
     upper = limit("ul", Math.max);
   if (lower === null && upper === null)
     throw new StataError("you must specify ll() or ul()", 198);
-  const n = f.y.length,
-    // -1 left-censored, 1 right-censored, 0 observed.
-    state = f.y.map((v) =>
-      lower !== null && v <= lower ? -1 : upper !== null && v >= upper ? 1 : 0,
-    ),
-    fit = (x) => {
-      const k = x[0].length,
-        objective = (theta) => {
-          const sigma = Math.exp(theta[k]),
-            gradient = new Array(k + 1).fill(0);
-          let value = 0;
+  if (lower !== null && upper !== null && lower > upper)
+    throw new StataError("observations with ll() > ul() not allowed", 198);
+  // Each observation's state: -1 left-censored, 1 right-censored, 0
+  // observed.
+  const censor = (y) =>
+      y.map((v) =>
+        lower !== null && v <= lower
+          ? -1
+          : upper !== null && v >= upper
+            ? 1
+            : 0,
+      ),
+    n = f.y.length,
+    state = censor(f.y),
+    // The likelihood of outcomes y with rows x and weights w (or null), in
+    // the coefficients and the variance itself, which is how Stata's tobit
+    // takes its Newton steps; and each observation's score, unweighted.
+    likelihoodOf = (x, y, w) => {
+      const states = censor(y),
+        k = x[0].length,
+        term = (i, theta) =>
+          tobitTerm(
+            y[i],
+            dot(x[i], theta),
+            theta[k],
+            states[i],
+            states[i] < 0 ? lower : upper,
+          );
+      return {
+        evaluate: (theta, todo) => {
+          const gradient = new Array(k + 1).fill(0),
+            information = Array.from({ length: k + 1 }, () =>
+              new Array(k + 1).fill(0),
+            );
+          const total = quadSum();
           x.forEach((r, i) => {
-            const xb = dot(r, theta);
-            let dxb, ds;
-            if (state[i] === 0) {
-              const z = (f.y[i] - xb) / sigma;
-              value += -theta[k] - 0.5 * Math.log(2 * Math.PI) - 0.5 * z * z;
-              dxb = z / sigma;
-              ds = z * z - 1;
-            } else {
-              const a = ((state[i] < 0 ? lower : upper) - xb) / sigma,
-                tail = state[i] < 0 ? normal(a) : normal(-a),
-                lambda = density(a) / tail;
-              value += Math.log(tail);
-              dxb = (state[i] < 0 ? -lambda : lambda) / sigma;
-              ds = state[i] < 0 ? -lambda * a : lambda * a;
-            }
-            r.forEach((v, j) => (gradient[j] += dxb * v));
-            gradient[k] += ds;
+            const wi = w ? w[i] : 1,
+              [l, dxb, dv, dxx, dxv, dvv] = term(i, theta);
+            total.add(l, wi);
+            if (!todo) return;
+            r.forEach((v, a) => {
+              gradient[a] += wi * dxb * v;
+              r.forEach((u, c) => (information[a][c] -= wi * dxx * v * u));
+              information[a][k] -= wi * dxv * v;
+              information[k][a] -= wi * dxv * v;
+            });
+            gradient[k] += wi * dv;
+            information[k][k] -= wi * dvv;
           });
-          return { value, gradient };
+          return { value: total.value, gradient, information };
         },
-        // Start from least squares on the outcome as observed.
-        xtx = x[0].map((_, a) =>
-          x[0].map((_, c) => x.reduce((t, r) => t + r[a] * r[c], 0)),
-        ),
-        inverse = invertSymmetric(xtx),
-        xty = x[0].map((_, a) => x.reduce((t, r, i) => t + r[a] * f.y[i], 0)),
-        beta = inverse
-          ? inverse.map((r) => r.reduce((t, v, c) => t + v * xty[c], 0))
-          : new Array(k).fill(0),
-        rss = x.reduce((t, r, i) => t + (f.y[i] - dot(r, beta)) ** 2, 0),
-        start = [...beta, 0.5 * Math.log(rss / n || 1)];
-      return maximize(
-        objective,
-        start,
-        x === f.x ? [...f.scales, 1] : undefined,
+        scores: (theta) =>
+          x.map((r, i) => {
+            const [, dxb, dv] = term(i, theta);
+            return [...r.map((v) => dxb * v), dv];
+          }),
+        // Stata starts from least squares on the outcome held within its
+        // limits, with the variance of those residuals about their mean
+        // (which is not zero without a constant).
+        start: () => {
+          const clamped = y.map((v, i) =>
+              states[i] < 0 ? lower : states[i] > 0 ? upper : v,
+            ),
+            beta = k
+              ? (leastSquares(x, clamped, w) ?? new Array(k).fill(0))
+              : [],
+            weight = (i) => (w ? w[i] : 1),
+            total = x.reduce((t, _, i) => t + weight(i), 0),
+            residual = x.map((r, i) => clamped[i] - dot(r, beta)),
+            mean = residual.reduce((t, v, i) => t + weight(i) * v, 0) / total,
+            variance =
+              residual.reduce((t, v, i) => t + weight(i) * (v - mean) ** 2, 0) /
+              total;
+          return [...beta, variance || 1];
+        },
+      };
+    },
+    fit = (x, y, w) => {
+      const m = likelihoodOf(x, y, w);
+      return maximizeNR(m.evaluate, m.start());
+    },
+    // The model with no regressors: the constant alone, or without a
+    // constant only the variance. Stata's tobit fits it to the
+    // observations before those with no cluster are set aside.
+    constant = f.names.at(-1) === "_cons",
+    nullFit = () => {
+      const wide = asked.cluster
+        ? frame(session, parsed, constant, undefined, true, {
+            ...asked,
+            keep: asked.keepWeighted,
+          })
+        : f;
+      return fit(
+        wide.x.map(() => (constant ? [1] : [])),
+        wide.y,
+        wide.w,
       );
     },
-    full = fit(f.x),
+    full = fit(f.x, f.y, f.w),
     k = f.x[0].length,
-    constant = f.names.at(-1) === "_cons",
-    ll0 = constant ? fit(f.x.map(() => [1])).ll : MISSING,
-    dfModel = f.active.length,
-    df = n - dfModel,
-    chi2 = isMissing(ll0) ? MISSING : 2 * (full.ll - ll0),
-    variance = Math.exp(2 * full.theta[k]),
-    // The variance and its standard error by the delta method.
-    seVariance = 2 * variance * Math.sqrt(full.V[k][k]),
+    ll0 = nullFit().ll,
+    regressors = f.active.length,
+    robust = asked.robust,
+    { V, clusters } = robust
+      ? robustVariance(
+          f,
+          asked,
+          full.V,
+          likelihoodOf(f.x, f.y, f.w).scores(full.theta),
+        )
+      : { V: full.V, clusters: null },
+    word = robust ? "Log pseudolikelihood" : "Log likelihood",
+    // As tobit.ado reckons them: the rank of the variance (less than full
+    // with few clusters), df_r = N - (rank - 1 - constant), and a
+    // likelihood-ratio test only with a constant, regressors and no robust
+    // variance; otherwise the Wald test of the regressors, as F(df_m, df_r),
+    // missing without regressors.
+    rank = robust ? robustRank(V, clusters) : k + 1,
+    df = n - (rank - 1 - Number(constant)),
+    lr = constant && regressors > 0 && !robust,
+    dfModel = regressors,
+    chi2 = lr ? 2 * (full.ll - ll0) : MISSING,
+    wald =
+      !lr && regressors
+        ? waldStatistic(
+            full.theta,
+            V,
+            f.active.map((_, j) => j),
+          )
+        : MISSING,
+    F = isMissing(wald) ? MISSING : wald / dfModel,
+    variance = full.theta[k],
+    seVariance = Math.sqrt(V[k][k]),
     critical = invttail(df, (1 - options.level / 100) / 2),
     counts = [0, -1, 1].map((s) => state.filter((v) => v === s).length),
-    text2 = (v, infinity) => (v === null ? infinity : g(v)),
+    // A limit that is not a whole number is shown to two decimals.
+    text2 = (v, infinity) =>
+      v === null
+        ? infinity
+        : Number.isInteger(v)
+          ? g(v, "%12.0g")
+          : applyFormat(v, "%12.2f").trim(),
     width = Math.max(text2(lower, "-inf").length, text2(upper, "+inf").length),
     names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
     model = {
@@ -340,32 +696,27 @@ function tobit(session, text, ctx) {
       title: "Tobit regression",
       depvar: f.dependent.name,
       names,
-      ...f.place(full.theta, full.V),
+      ...f.place(full.theta, V),
       columns: f.columns,
       constant,
       N: n,
       df_m: dfModel,
       df_r: df,
-      rank: k + 1,
+      rank,
       ll: full.ll,
       ll_0: ll0,
-      vce: "oim",
+      vce: robust ? (asked.cluster ? "cluster" : "robust") : "oim",
       kind: "tobit",
       sample: f.sample,
       sigma: Math.sqrt(variance),
-      // var(e.depvar) as test and lincom reach it, [/]var(e.wage): fitted
-      // as ln(sigma), so its covariances are by the delta method, the
-      // derivative of the variance in ln(sigma) being twice the variance.
+      baseLevels: baseLevelsAsked(options),
+      // var(e.depvar) as test and lincom reach it, [/]var(e.wage).
       auxiliary: {
         equation: "/",
         names: [`var(e.${f.dependent.name})`],
         b: [variance],
-        cross: [
-          names.map((_, j) =>
-            f.at[j] >= 0 ? 2 * variance * full.V[k][f.at[j]] : 0,
-          ),
-        ],
-        V: [[seVariance ** 2]],
+        cross: [names.map((_, j) => (f.at[j] >= 0 ? V[k][f.at[j]] : 0))],
+        V: [[V[k][k]]],
       },
     };
   session.estimates = model;
@@ -375,17 +726,22 @@ function tobit(session, text, ctx) {
     df_r: df,
     ll: full.ll,
     ll_0: ll0,
-    chi2,
-    p: isMissing(chi2) ? MISSING : chi2tail(dfModel, chi2),
-    r2_p: isMissing(ll0) ? MISSING : 1 - full.ll / ll0,
+    ...(lr
+      ? { chi2, p: chi2tail(dfModel, chi2) }
+      : regressors
+        ? { F, p: isMissing(F) ? MISSING : Ftail(dfModel, df, F) }
+        : {}),
+    r2_p: 1 - full.ll / ll0,
     N_unc: counts[0],
     N_lc: counts[1],
     N_rc: counts[2],
-    rank: k + 1,
-    k: names.length + 1,
+    rank,
+    // e(b) holds an omitted _cons under noconstant.
+    k: names.length + (constant ? 1 : 2),
     cmd: "tobit",
     depvar: model.depvar,
-    vce: "oim",
+    vce: model.vce,
+    ...robustResults(asked, clusters),
   };
   f.notes(ctx);
   ctx.out("");
@@ -401,27 +757,41 @@ function tobit(session, text, ctx) {
     ctx.out("Fitting full model:");
     ctx.out("");
   }
-  iterations(ctx, text, full.log);
-  const right = (label, value) => `${label.padStart(69)} =${value.padStart(7)}`;
+  iterations(ctx, text, full.log, word, full.notes, full.converged);
+  const e = session.results.e,
+    shown = [
+      count(n),
+      ...counts.map(count),
+      applyFormat(lr ? chi2 : F, "%7.2f").trim(),
+      applyFormat(e.p ?? MISSING, "%6.4f").trim(),
+      applyFormat(e.r2_p, "%6.4f").trim(),
+    ],
+    // The values sit in a column of seven ending at column 78; one that
+    // needs more widens the column and moves the block left.
+    pad = Math.max(7, greatest(shown.map((v) => v.length + 1))),
+    left = 52 - (pad - 7),
+    right = (label, value) =>
+      `${label.padStart(69 - (pad - 7))} =${value.padStart(pad)}`,
+    stat = (label, value) => side(label, value, 18, pad);
   ctx.out(
-    `${"Tobit regression".padEnd(52)}${side("Number of obs", count(n), 18)}`,
+    `${"Tobit regression".padEnd(left)}${stat("Number of obs", shown[0])}`,
   );
-  ctx.out(right("Uncensored", count(counts[0])));
+  ctx.out(right("Uncensored", shown[1]));
   ctx.out(
-    `${`Limits: Lower = ${text2(lower, "-inf").padStart(width)}`.padEnd(56)}Left-censored =${count(counts[1]).padStart(7)}`,
+    `${`Limits: Lower = ${text2(lower, "-inf").padStart(width)}`.padEnd(left + 4)}Left-censored =${shown[2].padStart(pad)}`,
   );
   ctx.out(
-    `${`        Upper = ${text2(upper, "+inf").padStart(width)}`.padEnd(55)}Right-censored =${count(counts[2]).padStart(7)}`,
+    `${`        Upper = ${text2(upper, "+inf").padStart(width)}`.padEnd(left + 3)}Right-censored =${shown[3].padStart(pad)}`,
   );
   ctx.out("");
   ctx.out(
-    `${" ".repeat(52)}${side(`LR chi2(${dfModel})`, applyFormat(chi2, "%7.2f").trim(), 18)}`,
+    `${" ".repeat(left)}${stat(lr ? `LR chi2(${dfModel})` : `F(${dfModel}, ${df})`, shown[4])}`,
   );
   ctx.out(
-    `${" ".repeat(52)}${side("Prob > chi2", applyFormat(session.results.e.p, "%6.4f").trim(), 18)}`,
+    `${" ".repeat(left)}${stat(lr ? "Prob > chi2" : "Prob > F", shown[5])}`,
   );
   ctx.out(
-    `${`Log likelihood = ${g(full.ll, "%10.0g")}`.padEnd(52)}${side("Pseudo R2", applyFormat(session.results.e.r2_p, "%6.4f").trim(), 18)}`,
+    `${`${word} = ${g(full.ll, "%10.0g")}`.padEnd(left)}${stat("Pseudo R2", shown[6])}`,
   );
   ctx.out("");
   // The first column counts the dependent variable, which names the first
@@ -430,18 +800,19 @@ function tobit(session, text, ctx) {
     model.depvar,
     `var(e.${model.depvar})`,
   ]);
-  ctx.out(rule(w));
-  ctx.out(heading(model.depvar, options.level, "Coefficient", true, w));
-  ctx.out(split(w));
+  // tobit fits noconstant as gsem does, by constraining _cons to zero.
+  if (!constant) ctx.out(` ( 1)  [${model.depvar}]_cons = 0`);
+  if (asked.cluster) ctx.out(clusterNote(clusters, asked.cluster.name, count));
+  tableHead(ctx, model.depvar, options.level, "Coefficient", true, robust, w);
   layoutRows(
     session,
     f,
+    model.baseLevels,
     (j) =>
-      row("", full.theta[j], Math.sqrt(full.V[j][j]), options.level, df).slice(
-        1,
-      ),
+      row("", full.theta[j], Math.sqrt(V[j][j]), options.level, df).slice(1),
     w,
   ).forEach(ctx.out);
+  if (!constant) ctx.out(`${"_cons".padStart(w)} |          0  (omitted)`);
   ctx.out(split(w));
   ctx.out(
     plainRow(
@@ -453,6 +824,7 @@ function tobit(session, text, ctx) {
     ),
   );
   ctx.out(rule(w));
+  unconverged(full);
   ctx.out("");
 }
 
@@ -465,12 +837,18 @@ const LINKS = {
       const p = 1 / (1 + Math.exp(-v));
       return p * (1 - p);
     },
+    // The derivative of the density.
+    slope: (v) => {
+      const p = 1 / (1 + Math.exp(-v));
+      return p * (1 - p) * (1 - 2 * p);
+    },
     inverse: (p) => Math.log(p / (1 - p)),
   },
   oprobit: {
     title: "Ordered probit regression",
     cdf: normal,
     pdf: density,
+    slope: (v) => -v * density(v),
     inverse: invnormal,
   },
 };
@@ -478,54 +856,150 @@ function ordered(kind) {
   const link = LINKS[kind];
   return (session, text, ctx) => {
     const parsed = session.parse(
-        "anything [if] [in] [, Level(cilevel) noLOg OR | Robust VCE(string) OFFset(varname)]",
+        "anything [if] [in] [fweight pweight iweight] [, Level(cilevel) noLOg OR Robust VCE(string) CLuster(string) BASElevels ALLBASElevels | OFFset(varname)]",
         text,
       ),
       options = parsed.options,
-      f = frame(session, parsed, false, true),
+      asked = requested(session, parsed),
+      f = frame(session, parsed, false, true, false, asked),
       n = f.y.length,
+      weight = (i) => (f.w ? f.w[i] : 1),
       levels = [...new Set(f.y)].sort((a, b) => a - b),
       cuts = levels.length - 1,
       k = f.active.length;
     if (cuts < 1) throw new StataError("outcome does not vary", 2000);
     const category = f.y.map((v) => levels.indexOf(v)),
+      // One observation's log likelihood and score.
+      term = (r, i, theta) => {
+        const gradient = new Array(k + cuts).fill(0),
+          xb = dot(r, theta),
+          j = category[i],
+          high = j < cuts ? theta[k + j] - xb : Infinity,
+          low = j > 0 ? theta[k + j - 1] - xb : -Infinity,
+          p =
+            (high === Infinity ? 1 : link.cdf(high)) -
+            (low === -Infinity ? 0 : link.cdf(low)),
+          fHigh = high === Infinity ? 0 : link.pdf(high),
+          fLow = low === -Infinity ? 0 : link.pdf(low),
+          dxb = -(fHigh - fLow) / p;
+        r.forEach((v, a) => (gradient[a] = dxb * v));
+        if (j < cuts) gradient[k + j] += fHigh / p;
+        if (j > 0) gradient[k + j - 1] -= fLow / p;
+        return { value: Math.log(p), gradient };
+      },
       objective = (theta) => {
         const gradient = new Array(k + cuts).fill(0);
-        let value = 0;
+        const total = quadSum();
         for (let c = 1; c < cuts; c++)
           if (!(theta[k + c] > theta[k + c - 1]))
             return { value: -Infinity, gradient };
         f.x.forEach((r, i) => {
-          const xb = dot(r, theta),
-            j = category[i],
-            high = j < cuts ? theta[k + j] - xb : Infinity,
-            low = j > 0 ? theta[k + j - 1] - xb : -Infinity,
-            p =
-              (high === Infinity ? 1 : link.cdf(high)) -
-              (low === -Infinity ? 0 : link.cdf(low)),
-            fHigh = high === Infinity ? 0 : link.pdf(high),
-            fLow = low === -Infinity ? 0 : link.pdf(low);
-          value += Math.log(p);
-          const dxb = -(fHigh - fLow) / p;
-          r.forEach((v, a) => (gradient[a] += dxb * v));
-          if (j < cuts) gradient[k + j] += fHigh / p;
-          if (j > 0) gradient[k + j - 1] -= fLow / p;
+          const w = weight(i),
+            one = term(r, i, theta);
+          total.add(one.value, w);
+          one.gradient.forEach((v, a) => (gradient[a] += w * v));
         });
-        return { value, gradient };
+        return { value: total.value, gradient };
       },
       // The constant-only model: cut points at the cumulative shares.
-      start = new Array(k + cuts).fill(0);
+      start = new Array(k + cuts).fill(0),
+      total = f.y.reduce((t, _, i) => t + weight(i), 0);
     let running = 0;
     for (let c = 0; c < cuts; c++) {
-      running += category.filter((v) => v === c).length;
-      start[k + c] = link.inverse(running / n);
+      running += category.reduce((t, v, i) => t + (v === c ? weight(i) : 0), 0);
+      start[k + c] = link.inverse(running / total);
     }
-    const ll0 = objective(start).value,
-      full = maximize(objective, start, [
-        ...f.scales,
-        ...new Array(cuts).fill(1),
-      ]),
-      chi2 = 2 * (full.ll - ll0),
+    // The likelihood with its gradient and information, for Newton steps
+    // as Stata takes them. In the upper and lower limits of an outcome's
+    // interval, h and l, ln p has derivatives Lh, Ll and Lhh, Lhl, Lll; the
+    // index enters both with a minus sign, each limit's cut point once.
+    const evaluate = (theta, todo) => {
+        const size = k + cuts,
+          gradient = new Array(size).fill(0),
+          information = Array.from({ length: size }, () =>
+            new Array(size).fill(0),
+          );
+        for (let c = 1; c < cuts; c++)
+          if (!(theta[k + c] > theta[k + c - 1]))
+            return { value: -Infinity, gradient, information };
+        const total = quadSum();
+        f.x.forEach((r, i) => {
+          const w = weight(i),
+            xb = dot(r, theta),
+            j = category[i],
+            top = j < cuts,
+            bottom = j > 0,
+            h = top ? theta[k + j] - xb : 0,
+            l = bottom ? theta[k + j - 1] - xb : 0,
+            p = (top ? link.cdf(h) : 1) - (bottom ? link.cdf(l) : 0),
+            fh = top ? link.pdf(h) : 0,
+            fl = bottom ? link.pdf(l) : 0,
+            Lh = fh / p,
+            Ll = -fl / p,
+            Lhh = (top ? link.slope(h) / p : 0) - Lh * Lh,
+            Lll = (bottom ? -link.slope(l) / p : 0) - Ll * Ll,
+            Lhl = -Lh * Ll;
+          total.add(Math.log(p), w);
+          if (!todo) return;
+          const bb = Lhh + 2 * Lhl + Lll,
+            bh = -(Lhh + Lhl),
+            bl = -(Lhl + Lll);
+          r.forEach((v, a) => {
+            gradient[a] -= w * (Lh + Ll) * v;
+            r.forEach((u, c) => (information[a][c] -= w * bb * v * u));
+            if (top) {
+              information[a][k + j] -= w * bh * v;
+              information[k + j][a] -= w * bh * v;
+            }
+            if (bottom) {
+              information[a][k + j - 1] -= w * bl * v;
+              information[k + j - 1][a] -= w * bl * v;
+            }
+          });
+          if (top) {
+            gradient[k + j] += w * Lh;
+            information[k + j][k + j] -= w * Lhh;
+          }
+          if (bottom) {
+            gradient[k + j - 1] += w * Ll;
+            information[k + j - 1][k + j - 1] -= w * Lll;
+          }
+          if (top && bottom) {
+            information[k + j][k + j - 1] -= w * Lhl;
+            information[k + j - 1][k + j] -= w * Lhl;
+          }
+        });
+        return { value: total.value, gradient, information };
+      },
+      ll0 = objective(start).value,
+      full = maximizeNR(evaluate, start),
+      robust = asked.robust,
+      { V, clusters } = robust
+        ? robustVariance(
+            f,
+            asked,
+            full.V,
+            f.x.map((r, i) => term(r, i, full.theta).gradient),
+          )
+        : { V: full.V, clusters: null },
+      word = robust ? "Log pseudolikelihood" : "Log likelihood",
+      // With few clusters the robust variance has less than full rank;
+      // the test then counts the coefficients it keeps, and is missing.
+      rank = robust
+        ? robustRank(V, clusters)
+        : V.filter((row, j) => row[j] !== 0).length,
+      // The rank less the cut points: k, unless the fit failed and some
+      // parameters have no variance, when it can be negative.
+      dfModel = robust ? Math.max(0, Math.min(k, rank - cuts)) : rank - cuts,
+      chi2 = robust
+        ? dfModel < k
+          ? MISSING
+          : waldStatistic(
+              full.theta,
+              V,
+              f.active.map((_, j) => j),
+            )
+        : 2 * (full.ll - ll0),
       names = f.columns.map((c) => c.name),
       transform = options.or && kind === "ologit",
       model = {
@@ -534,15 +1008,15 @@ function ordered(kind) {
         dist: "z",
         depvar: f.dependent.name,
         names,
-        ...f.place(full.theta, full.V),
+        ...f.place(full.theta, V),
         columns: f.columns,
         constant: false,
         N: n,
-        df_m: k,
-        rank: k + cuts,
+        df_m: dfModel,
+        rank,
         ll: full.ll,
         ll_0: ll0,
-        vce: "oim",
+        vce: robust ? (asked.cluster ? "cluster" : "robust") : "oim",
         kind,
         sample: f.sample,
         cuts: full.theta.slice(k),
@@ -556,19 +1030,17 @@ function ordered(kind) {
           cross: full.theta.slice(k).map((_, c) =>
             // By column through f.at, since a repeated variable gives
             // two columns of one name and only the first is fitted.
-            names.map((_, j) => (f.at[j] >= 0 ? full.V[k + c][f.at[j]] : 0)),
+            names.map((_, j) => (f.at[j] >= 0 ? V[k + c][f.at[j]] : 0)),
           ),
           V: full.theta
             .slice(k)
-            .map((_, c) =>
-              full.theta.slice(k).map((_, d) => full.V[k + c][k + d]),
-            ),
+            .map((_, c) => full.theta.slice(k).map((_, d) => V[k + c][k + d])),
         },
         // What margins needs: every parameter and the covariates' values.
         outcomeModel: f.active.every((c) => c.term.variable)
           ? {
               theta: full.theta,
-              V: full.V,
+              V,
               k,
               cuts,
               outcomes: levels,
@@ -579,70 +1051,98 @@ function ordered(kind) {
     session.estimates = model;
     session.results.e = {
       N: n,
-      df_m: k,
+      df_m: dfModel,
       ll: full.ll,
       ll_0: ll0,
       chi2,
-      p: chi2tail(k, chi2),
+      p: isMissing(chi2) || dfModel <= 0 ? MISSING : chi2tail(dfModel, chi2),
       r2_p: 1 - full.ll / ll0,
       k_cat: levels.length,
-      rank: k + cuts,
+      rank,
       k: names.length + cuts,
       cmd: kind,
       depvar: model.depvar,
-      vce: "oim",
+      vce: model.vce,
+      ...(robust ? { chi2type: "Wald" } : {}),
+      ...robustResults(asked, clusters),
     };
+    // Observations the fit determines: the probability below the
+    // outcome's interval and above it are both under 1e-6.
+    const determined = f.x.filter((r, i) => {
+      const xb = dot(r, full.theta),
+        j = category[i],
+        below = j > 0 ? link.cdf(full.theta[k + j - 1] - xb) : 0,
+        above = j < cuts ? link.cdf(xb - full.theta[k + j]) : 0;
+      return below < 1e-6 && above < 1e-6;
+    }).length;
+    if (determined) session.results.e.N_cd = determined;
     const critical = invnormal(1 - (1 - options.level / 100) / 2);
-    opening(ctx, text, f, full.log);
-    ctx.out(`${link.title.padEnd(56)}${side("Number of obs", count(n))}`);
-    ctx.out(
-      `${" ".repeat(56)}${side(`LR chi2(${k})`, applyFormat(chi2, "%7.2f").trim())}`,
-    );
-    ctx.out(
-      `${" ".repeat(56)}${side("Prob > chi2", applyFormat(chi2tail(k, chi2), "%6.4f").trim())}`,
-    );
-    ctx.out(
-      `${`Log likelihood = ${g(full.ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", applyFormat(1 - full.ll / ll0, "%6.4f").trim())}`,
-    );
+    opening(ctx, text, f, full, word);
+    // Without regressors there is no test to report, and no coefficients
+    // above the cut points.
+    header(ctx, [
+      [link.title, "Number of obs", count(n)],
+      ...(f.columns.length
+        ? [
+            [
+              "",
+              `${robust ? "Wald" : "LR"} chi2(${dfModel})`,
+              applyFormat(chi2, "%7.2f").trim(),
+            ],
+            [
+              "",
+              "Prob > chi2",
+              applyFormat(session.results.e.p, "%6.4f").trim(),
+            ],
+          ]
+        : []),
+      [
+        `${word} = ${g(full.ll, "%10.0g")}`,
+        "Pseudo R2",
+        applyFormat(1 - full.ll / ll0, "%6.4f").trim(),
+      ],
+    ]);
     ctx.out("");
+    if (asked.cluster)
+      ctx.out(clusterNote(clusters, asked.cluster.name, count));
     // The dependent variable names the first equation and counts too.
     const w = tableWidth(session, tableModel(f), [model.depvar]);
-    ctx.out(rule(w));
-    ctx.out(
-      heading(
-        model.depvar,
-        options.level,
-        transform ? "Odds ratio" : "Coefficient",
-        false,
-        w,
-      ),
+    tableHead(
+      ctx,
+      model.depvar,
+      options.level,
+      transform ? "Odds ratio" : "Coefficient",
+      false,
+      robust,
+      w,
     );
-    ctx.out(split(w));
     layoutRows(
       session,
       f,
+      baseLevelsAsked(options),
       (j) =>
         row(
           "",
           full.theta[j],
-          Math.sqrt(full.V[j][j]),
+          Math.sqrt(V[j][j]),
           options.level,
           0,
           transform,
         ).slice(1),
       w,
+      transform ? 1 : 0,
     ).forEach(ctx.out);
-    ctx.out(split(w));
+    if (f.columns.length) ctx.out(split(w));
     for (let c = 0; c < cuts; c++) {
       const value = full.theta[k + c],
-        se = Math.sqrt(full.V[k + c][k + c]);
+        se = V[k + c][k + c] > 0 ? Math.sqrt(V[k + c][k + c]) : MISSING;
       ctx.out(
         plainRow(
           `${`/cut${c + 1}`.padStart(w)} `,
           value,
           se,
-          value - critical * se,
-          value + critical * se,
+          isMissing(se) ? MISSING : value - critical * se,
+          isMissing(se) ? MISSING : value + critical * se,
         ),
       );
     }
@@ -653,6 +1153,8 @@ function ordered(kind) {
         ctx,
         "Note: Estimates are transformed only in the first equation to odds ratios.",
       );
+    determinedNote(ctx, determined);
+    unconverged(full);
     ctx.out("");
   };
 }
@@ -660,13 +1162,24 @@ function ordered(kind) {
 // ----- multinomial logit -----
 function mlogit(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, Baseoutcome(real 0) Level(cilevel) noLOg RRr noCONStant | Robust VCE(string)]",
+      "anything [if] [in] [, Baseoutcome(real 0) Level(cilevel) noLOg RRr noCONStant BASElevels ALLBASElevels | Robust VCE(string)]",
       text,
     ),
     options = parsed.options,
     constant = options.constant !== false,
-    f = frame(session, parsed, constant),
-    n = f.y.length,
+    f = frame(session, parsed, constant);
+  // Without factor variables there are no base levels to show; the table
+  // with them is not laid out by term here, so their base levels are not
+  // offered either.
+  if (
+    (options.baselevels || options.allbaselevels) &&
+    f.columns.some((c) => c.base)
+  )
+    throw new StataError(
+      `option ${options.allbaselevels ? "allbaselevels" : "baselevels"} is not available in the browser yet for mlogit with factor variables`,
+      198,
+    );
+  const n = f.y.length,
     outcomes = [...new Set(f.y)].sort((a, b) => a - b),
     frequency = outcomes.map((o) => f.y.filter((v) => v === o).length),
     given = /\bb(a(s(e(o(u(t(c(o(me?)?)?)?)?)?)?)?)?)?\s*\(/.test(
@@ -688,20 +1201,20 @@ function mlogit(session, text, ctx) {
     size = others.length * k,
     objective = (theta) => {
       const gradient = new Array(size).fill(0);
-      let value = 0;
+      const total = quadSum();
       f.x.forEach((r, i) => {
         const xb = others.map((_, e) => dot(r, theta, e * k)),
           top = Math.max(0, greatest(xb)),
           denominator =
             Math.exp(-top) + xb.reduce((t, v) => t + Math.exp(v - top), 0),
           logSum = top + Math.log(denominator);
-        value += (which[i] >= 0 ? xb[which[i]] : 0) - logSum;
+        total.add((which[i] >= 0 ? xb[which[i]] : 0) - logSum);
         others.forEach((_, e) => {
           const d = Number(which[i] === e) - Math.exp(xb[e] - logSum);
           r.forEach((v, a) => (gradient[e * k + a] += d * v));
         });
       });
-      return { value, gradient };
+      return { value: total.value, gradient };
     },
     start = new Array(size).fill(0);
   if (constant)
@@ -709,13 +1222,43 @@ function mlogit(session, text, ctx) {
       (j, e) =>
         (start[e * k + k - 1] = Math.log(frequency[j] / frequency[base])),
     );
-  const ll0 = constant ? objective(start).value : MISSING,
-    full = maximize(
-      objective,
-      start,
-      others.flatMap(() => f.scales),
-    ),
-    dfModel = others.length * f.active.length,
+  // The likelihood with its information, for Newton steps as Stata takes
+  // them: the block of equations e and g adds x x' (p_e [e = g] - p_e p_g).
+  const evaluate = (theta, todo) => {
+      const { value, gradient } = objective(theta),
+        information = Array.from({ length: size }, () =>
+          new Array(size).fill(0),
+        );
+      if (todo)
+        f.x.forEach((r) => {
+          const xb = others.map((_, e) => dot(r, theta, e * k)),
+            top = Math.max(0, greatest(xb)),
+            logSum =
+              top +
+              Math.log(
+                Math.exp(-top) + xb.reduce((t, v) => t + Math.exp(v - top), 0),
+              ),
+            p = xb.map((v) => Math.exp(v - logSum));
+          others.forEach((_, e) =>
+            others.forEach((_, h) => {
+              const weight = (e === h ? p[e] : 0) - p[e] * p[h];
+              r.forEach((v, a) =>
+                r.forEach(
+                  (u, c) =>
+                    (information[e * k + a][h * k + c] += weight * v * u),
+                ),
+              );
+            }),
+          );
+        });
+      return { value, gradient, information };
+    },
+    ll0 = constant ? objective(start).value : MISSING,
+    full = maximizeNR(evaluate, start),
+    // The rank of the variance less the constants: the number of
+    // coefficients, unless the fit failed and some have no variance.
+    rank = full.V.filter((row, j) => row[j] !== 0).length,
+    dfModel = rank - (constant ? others.length : 0),
     chi2 = isMissing(ll0) ? MISSING : 2 * (full.ll - ll0),
     label = (j) => labelled(session, f.dependent, outcomes[j]),
     names = others.flatMap((j) => f.names.map((name) => `${label(j)}:${name}`)),
@@ -732,7 +1275,7 @@ function mlogit(session, text, ctx) {
       estimable: names.map(() => true),
       N: n,
       df_m: dfModel,
-      rank: size,
+      rank,
       ll: full.ll,
       ll_0: ll0,
       vce: "oim",
@@ -767,28 +1310,34 @@ function mlogit(session, text, ctx) {
     ll: full.ll,
     ll_0: ll0,
     chi2,
-    p: isMissing(chi2) ? MISSING : chi2tail(dfModel, chi2),
+    p: isMissing(chi2) || dfModel <= 0 ? MISSING : chi2tail(dfModel, chi2),
     r2_p: isMissing(ll0) ? MISSING : 1 - full.ll / ll0,
     k_out: outcomes.length,
     baseout: outcomes[base],
     ibaseout: base + 1,
-    rank: size,
+    rank,
     k: size,
     cmd: "mlogit",
     depvar: model.depvar,
     vce: "oim",
   };
-  opening(ctx, text, f, full.log);
-  ctx.out(`${model.title.padEnd(56)}${side("Number of obs", count(n))}`);
-  ctx.out(
-    `${" ".repeat(56)}${side(`LR chi2(${dfModel})`, applyFormat(chi2, "%7.2f").trim())}`,
-  );
-  ctx.out(
-    `${" ".repeat(56)}${side("Prob > chi2", applyFormat(session.results.e.p, "%6.4f").trim())}`,
-  );
-  ctx.out(
-    `${`Log likelihood = ${g(full.ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", applyFormat(session.results.e.r2_p, "%6.4f").trim())}`,
-  );
+  // Where the fit predicts every outcome with certainty, Stata notes that
+  // all observations are completely determined. (Where it predicts only
+  // some, Stata's count follows a rule not reproduced here, and no note
+  // is printed.)
+  const determined = full.ll === 0 ? n : 0;
+  if (determined) session.results.e.N_cd = determined;
+  opening(ctx, text, f, full, "Log likelihood");
+  header(ctx, [
+    [model.title, "Number of obs", count(n)],
+    ["", `LR chi2(${dfModel})`, applyFormat(chi2, "%7.2f").trim()],
+    ["", "Prob > chi2", applyFormat(session.results.e.p, "%6.4f").trim()],
+    [
+      `Log likelihood = ${g(full.ll, "%10.0g")}`,
+      "Pseudo R2",
+      applyFormat(session.results.e.r2_p, "%6.4f").trim(),
+    ],
+  ]);
   ctx.out("");
   // The equations are named by outcome, so their names count in the first
   // column's width and the dependent variable does not; it, and a name too
@@ -824,6 +1373,7 @@ function mlogit(session, text, ctx) {
     layoutRows(
       session,
       f,
+      baseLevelsAsked(options),
       (a) =>
         row(
           "",
@@ -839,8 +1389,10 @@ function mlogit(session, text, ctx) {
     ).forEach(ctx.out);
   });
   ctx.out(rule(w));
+  determinedNote(ctx, determined);
   if (options.rrr && constant)
     ctx.out("Note: _cons estimates baseline relative risk for each outcome.");
+  unconverged(full);
   ctx.out("");
 }
 
@@ -906,45 +1458,56 @@ export function gammaSums(m, y) {
     tri: tri + diRest - m * trigammaDifference,
   };
 }
-/** ln(n!), the sum of ln k for k up to n. */
-const lnFactorial = (n) => gammaSums(1, n).ln;
+/**
+ * ln(n!) to the last bit, as Stata's lngamma(n+1) gives it: the logarithm
+ * of n! itself while n! is finite, and the sum of ln k beyond. (A sum of
+ * logarithms can be a bit off, which near alpha = 0 is enough to change
+ * where nbreg stops.)
+ */
+const lnFactorial = (n) => {
+  if (n > 170) return gammaSums(1, n).ln;
+  let product = 1;
+  for (let j = 2; j <= n; j++) product *= j;
+  return Math.log(product);
+};
 
 /** Weighted least squares of y on the rows of x, or null if singular. */
 function leastSquares(x, y, w) {
+  // The cross products in quad precision, as Stata forms them.
   const k = x[0].length,
-    xtx = Array.from({ length: k }, () => new Array(k).fill(0)),
-    xty = new Array(k).fill(0);
+    xtx = quadVector(k * k),
+    xty = quadVector(k);
   x.forEach((r, i) => {
     const wi = w ? w[i] : 1;
     for (let a = 0; a < k; a++) {
-      xty[a] += wi * r[a] * y[i];
-      for (let c = 0; c < k; c++) xtx[a][c] += wi * r[a] * r[c];
+      xty.add(a, r[a] * y[i], wi);
+      for (let c = 0; c < k; c++) xtx.add(a * k + c, r[a] * r[c], wi);
     }
   });
-  const inverse = invertSymmetric(xtx);
+  const sums = xtx.values(),
+    xy = xty.values(),
+    inverse = invertSymmetric(
+      Array.from({ length: k }, (_, a) => sums.slice(a * k, a * k + k)),
+    );
   return inverse
-    ? inverse.map((row) => row.reduce((t, v, c) => t + v * xty[c], 0))
+    ? inverse.map((row) => row.reduce((t, v, c) => t + v * xy[c], 0))
     : null;
 }
-
-/**
- * The Poisson model nbreg fits first, as Stata's poisson fits it: starting
- * values from Ipois in poisson.ado (least squares scaled by the mean, the
- * constant solved for, and one reweighted least-squares step, whichever of
- * the three fits best), then Newton steps as ml takes them.
- */
-function poissonFit(x, y, lnFact, constant) {
-  const n = y.length,
-    k = x[0].length,
-    mean = y.reduce((a, b) => a + b, 0) / n,
+function poissonFit(x, y, lnFact, constant, w = null) {
+  const k = x[0].length,
+    weight = (i) => (w ? w[i] : 1),
+    n = y.reduce((t, _, i) => t + weight(i), 0),
+    mean = y.reduce((t, v, i) => t + weight(i) * v, 0) / n,
     lnf = (xb) => {
       let total = 0;
-      xb.forEach((v, i) => (total += y[i] * v - Math.exp(v) - lnFact[i]));
+      xb.forEach(
+        (v, i) => (total += weight(i) * (y[i] * v - Math.exp(v) - lnFact[i])),
+      );
       return Number.isFinite(total) ? total : NaN;
     },
     better = (a, b) => Number.isNaN(b) || a > b,
     candidates = [];
-  const b0 = leastSquares(x, y);
+  const b0 = leastSquares(x, y, w);
   if (b0) {
     const b1 = b0.map((v) => v / mean),
       xb1 = x.map((r) => dot(r, b1)),
@@ -958,7 +1521,8 @@ function poissonFit(x, y, lnFact, constant) {
         bottom = Math.min(...xb1);
       if (top - bottom <= 2 * 709) {
         const shift = top > 709 ? 709 - top : bottom < -709 ? -709 - bottom : 0,
-          meanExp = xb1.reduce((t, v) => t + Math.exp(v + shift), 0) / n;
+          meanExp =
+            xb1.reduce((t, v, i) => t + weight(i) * Math.exp(v + shift), 0) / n;
         c = Math.log(mean) - Math.log(meanExp) + shift;
         lnf1c = lnf(xb1.map((v) => v + c));
       }
@@ -969,7 +1533,7 @@ function poissonFit(x, y, lnFact, constant) {
       b2 = leastSquares(
         x,
         z,
-        eta.map((v) => Math.exp(v)),
+        eta.map((v, i) => weight(i) * Math.exp(v)),
       ),
       lnf2 = b2 ? lnf(x.map((r) => dot(r, b2))) : NaN;
     if (!Number.isNaN(lnf2) && better(lnf2, lnf1) && better(lnf2, lnf1c))
@@ -982,21 +1546,35 @@ function poissonFit(x, y, lnFact, constant) {
   const start =
     candidates[0] ??
     x[0].map((_, j) => (constant && j === k - 1 ? Math.log(mean || 1) : 0));
+  // The log likelihood is b'X'y - sum exp(xb) - sum ln y!, with X'y and
+  // the last sum formed once, so that a step too small to matter changes
+  // it only through the exponentials.
+  const xty = quadVector(k),
+    constant0 = quadSum();
+  x.forEach((r, i) => {
+    r.forEach((v, a) => xty.add(a, v * y[i], weight(i)));
+    constant0.add(lnFact[i], weight(i));
+  });
+  const cross = xty.values(),
+    fixed = constant0.value;
   return maximizeNR((theta, todo) => {
     const gradient = new Array(k).fill(0),
       information = Array.from({ length: k }, () => new Array(k).fill(0));
-    let value = 0;
+    const total = quadSum();
+    theta.forEach((b, a) => total.add(cross[a], b));
+    total.add(-fixed);
     x.forEach((r, i) => {
       const xb = dot(r, theta),
-        mu = Math.exp(xb);
-      value += y[i] * xb - mu - lnFact[i];
+        mu = Math.exp(xb),
+        wi = weight(i);
+      total.add(-mu, wi);
       if (todo)
         r.forEach((v, a) => {
-          gradient[a] += (y[i] - mu) * v;
-          r.forEach((w, c) => (information[a][c] += mu * v * w));
+          gradient[a] += wi * (y[i] - mu) * v;
+          r.forEach((u, c) => (information[a][c] += wi * mu * v * u));
         });
     });
-    return { value, gradient, information };
+    return { value: total.value, gradient, information };
   }, start);
 }
 
@@ -1053,9 +1631,21 @@ export function maximizeNR(evaluate, start) {
     current = evaluate(theta, 2);
   if (!feasible(current.value))
     throw new StataError("initial values not feasible", 1400);
-  const log = [current.value];
+  const log = [current.value],
+    // What Stata notes beside each iteration's value: "not concave" where
+    // the surface there is not, "backed up" where the step that reached it
+    // had to be halved six times or more.
+    notes = [""];
   for (let iteration = 1; ; iteration++) {
-    if (iteration > 300) throw new StataError("convergence not achieved", 430);
+    // After 300 steps Stata stops, notes whether the surface is concave
+    // there, and reports what it has; the caller says convergence was not
+    // achieved.
+    if (iteration > 300) {
+      const V = generalizedInverse(current.information);
+      if (!concave(current.information, V))
+        notes[iteration - 1] = "not concave";
+      return { theta, ll: current.value, V, log, notes, converged: false };
+    }
     const before = theta,
       v0 = current.value,
       information = current.information;
@@ -1064,6 +1654,7 @@ export function maximizeNR(evaluate, start) {
       forward = 1 / 8;
     if (concave(information, inverse)) delta = times(inverse, current.gradient);
     else {
+      notes[iteration - 1] = "not concave";
       // Marquardt: weight the diagonal until the information is positive
       // definite, keep the original scale, and take a step that should
       // raise the log likelihood by a small share of its value.
@@ -1082,17 +1673,15 @@ export function maximizeNR(evaluate, start) {
       const ratio = trace0 / inverse.reduce((t, row, j) => t + row[j], 0);
       if (ratio > 0) inverse = inverse.map((row) => row.map((v) => v * ratio));
       delta = times(inverse, current.gradient);
-      const eps =
-          iteration <= 2
+      // A ratio that is not a number is Mata's missing, which is larger
+      // than any number: eps is then its upper bound.
+      const change =
+          (0.1 * (log[iteration - 1] - log[iteration - 2])) /
+          Math.abs(log[iteration - 2]),
+        eps =
+          iteration <= 2 || !Number.isFinite(change)
             ? 1e-2
-            : Math.min(
-                1e-2,
-                Math.max(
-                  1e-8,
-                  (0.1 * (log[iteration - 1] - log[iteration - 2])) /
-                    Math.abs(log[iteration - 2]),
-                ),
-              ),
+            : Math.min(1e-2, Math.max(1e-8, change)),
         c =
           (eps * Math.abs(v0)) /
           current.gradient.reduce((t, g, k) => t + g * delta[k], 0);
@@ -1100,7 +1689,8 @@ export function maximizeNR(evaluate, start) {
       forward = 1;
     }
     let next = theta.map((v, k) => v + delta[k]),
-      value = evaluate(next, 0).value;
+      value = evaluate(next, 0).value,
+      shortened = false;
     if (!feasible(value) || value < v0) {
       let back = 1;
       for (; back <= 60 && (!feasible(value) || value < v0); back++) {
@@ -1108,6 +1698,8 @@ export function maximizeNR(evaluate, start) {
         value = evaluate(next, 0).value;
       }
       if (back > 60) next = theta;
+      // Stata notes a step it had to halve six times or more.
+      shortened = back - 1 >= 6;
     } else {
       // Step on along the direction, doubling, while the value rises.
       let step = delta.map((v) => v * forward),
@@ -1127,6 +1719,7 @@ export function maximizeNR(evaluate, start) {
     if (!feasible(current.value))
       throw new StataError("discontinuous region encountered", 430);
     log.push(current.value);
+    notes.push(shortened ? "backed up" : "");
     if (
       before.every((v, k) => reldif(theta[k], v) <= 1e-6) ||
       reldif(current.value, v0) <= 1e-7
@@ -1138,20 +1731,22 @@ export function maximizeNR(evaluate, start) {
         Math.abs(current.gradient.reduce((t, g, k) => t + g * step[k], 0)) <
           1e-5
       )
-        return { theta, ll: current.value, V, log };
+        return { theta, ll: current.value, V, log, notes, converged: true };
     }
   }
 }
 
 function nbreg(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, Level(cilevel) noLOg IRr noCONStant | Dispersion(string) Robust VCE(string) EXPosure(varname) OFFset(varname)]",
+      "anything [if] [in] [fweight pweight iweight] [, Level(cilevel) noLOg IRr noCONStant Robust VCE(string) CLuster(string) BASElevels ALLBASElevels | Dispersion(string) EXPosure(varname) OFFset(varname)]",
       text,
     ),
     options = parsed.options,
+    asked = requested(session, parsed),
     constant = options.constant !== false,
-    f = frame(session, parsed, constant),
-    n = f.y.length;
+    f = frame(session, parsed, constant, constant, false, asked),
+    n = f.y.length,
+    weight = (i) => (f.w ? f.w[i] : 1);
   if (f.y.some((v) => v < 0 || !Number.isInteger(v)))
     throw new StataError(
       `${f.dependent.name} must be a nonnegative count`,
@@ -1162,56 +1757,76 @@ function nbreg(session, text, ctx) {
     // Hessian in (xb, lnalpha). Below lnalpha = -20 it is the Poisson
     // likelihood, flat in lnalpha. The gamma functions of 1/alpha + y are
     // taken from gammaSums, exact where 1/alpha is large.
+    // One observation's log likelihood, its scores in xb and lnalpha, and
+    // the negative second derivatives d11, d12 and d22.
+    term = (xb, ln, i, todo) => {
+      const y = f.y[i],
+        mu = Math.exp(xb);
+      if (ln < -20)
+        return {
+          value: -lnFact[i] - mu + y * xb,
+          s1: y - mu,
+          s2: 0,
+          d11: mu,
+          d12: 0,
+          d22: 0,
+        };
+      const m = Math.exp(-ln),
+        alpha = Math.exp(ln),
+        { ln: lnGamma, di: digamma, tri: trigamma } = gammaSums(m, y),
+        lnp = -Math.log1p(Math.exp(xb + ln)),
+        // p as nbreg_lf computes it; at the maximum the scores are all
+        // rounding, and the step follows them.
+        p = 1 / (1 + Math.exp(xb + ln)),
+        value =
+          lnGamma - lnFact[i] + m * lnp - y * Math.log1p(Math.exp(-xb - ln));
+      if (!todo) return { value };
+      const s1 = p * (y - mu);
+      return {
+        value,
+        s1,
+        s2: m * (-digamma - lnp) + s1,
+        d11: mu * p * (alpha * p * (y - mu) + 1),
+        d12: alpha * mu * (p * p) * (y - mu),
+        // trigamma here is the sum of j/(m+j)^2, which is
+        // (digamma(y+m) - digamma(m)) - m(trigamma(m) - trigamma(y+m)).
+        d22: m * (-lnp - trigamma) + mu * p * (alpha * p * (y - mu) - 1),
+      };
+    },
     negative = (x) => (theta, todo) => {
       const k = x[0].length,
-        ln = theta[k],
-        m = Math.exp(-ln),
-        alpha = Math.exp(ln),
         gradient = new Array(k + 1).fill(0),
         information = Array.from({ length: k + 1 }, () =>
           new Array(k + 1).fill(0),
         );
-      let value = 0;
+      const sum = quadSum();
       x.forEach((r, i) => {
-        const xb = dot(r, theta),
-          y = f.y[i],
-          mu = Math.exp(xb);
-        if (ln < -20) {
-          value += -lnFact[i] - mu + y * xb;
-          if (todo)
-            r.forEach((v, a) => {
-              gradient[a] += (y - mu) * v;
-              r.forEach((w, c) => (information[a][c] += mu * v * w));
-            });
-          return;
-        }
-        const { ln: lnGamma, di: digamma, tri: trigamma } = gammaSums(m, y),
-          lnp = -Math.log1p(Math.exp(xb + ln)),
-          p = Math.exp(lnp);
-        value +=
-          lnGamma - lnFact[i] + m * lnp - y * Math.log1p(Math.exp(-xb - ln));
+        const w = weight(i),
+          {
+            value: l,
+            s1,
+            s2,
+            d11,
+            d12,
+            d22,
+          } = term(dot(r, theta), theta[k], i, todo);
+        sum.add(l, w);
         if (!todo) return;
-        const s1 = p * (y - mu),
-          s2 = m * (-digamma - lnp) + s1,
-          d11 = mu * p * (alpha * p * (y - mu) + 1),
-          d12 = alpha * mu * p * p * (y - mu),
-          // trigamma here is the sum of j/(m+j)^2, which is
-          // (digamma(y+m) - digamma(m)) - m(trigamma(m) - trigamma(y+m)).
-          d22 = m * (-lnp - trigamma) + mu * p * (alpha * p * (y - mu) - 1);
         r.forEach((v, a) => {
-          gradient[a] += s1 * v;
-          r.forEach((w, c) => (information[a][c] += d11 * v * w));
-          information[a][k] += d12 * v;
-          information[k][a] += d12 * v;
+          gradient[a] += w * s1 * v;
+          r.forEach((u, c) => (information[a][c] += w * d11 * v * u));
+          information[a][k] += w * d12 * v;
+          information[k][a] += w * d12 * v;
         });
-        gradient[k] += s2;
-        information[k][k] += d22;
+        gradient[k] += w * s2;
+        information[k][k] += w * d22;
       });
-      return { value, gradient, information };
+      return { value: sum.value, gradient, information };
     },
-    base = poissonFit(f.x, f.y, lnFact, constant),
+    base = poissonFit(f.x, f.y, lnFact, constant, f.w),
     k = f.x[0].length,
-    mean = f.y.reduce((a, b) => a + b, 0) / n,
+    total = f.y.reduce((t, _, i) => t + weight(i), 0),
+    mean = f.y.reduce((t, v, i) => t + weight(i) * v, 0) / total,
     // Starting values as nbreg.ado chooses them: the constant-only model
     // from ln(mean) and lnalpha 0; the full model from the Poisson
     // estimates, shifted so the mean index is the constant-only constant,
@@ -1230,7 +1845,9 @@ function nbreg(session, text, ctx) {
       if (!null0) return [...base.theta, 0];
       if (k === 1) return null0.theta;
       const shift =
-          null0.theta[0] - f.x.reduce((t, r) => t + dot(r, base.theta), 0) / n,
+          null0.theta[0] -
+          f.x.reduce((t, r, i) => t + weight(i) * dot(r, base.theta), 0) /
+            total,
         shifted = [
           ...base.theta.map((v, j) => (j === k - 1 ? v + shift : v)),
           null0.theta[1],
@@ -1241,10 +1858,43 @@ function nbreg(session, text, ctx) {
         : [...new Array(k - 1).fill(0), ...null0.theta];
     })(),
     full = maximizeNR(negative(f.x), start),
-    dfModel = f.active.length,
+    regressors = f.active.length,
+    robust = asked.robust,
+    { V: cov, clusters } = robust
+      ? robustVariance(
+          f,
+          asked,
+          full.V,
+          f.x.map((r, i) => {
+            const { s1, s2 } = term(dot(r, full.theta), full.theta[k], i, 2);
+            return [...r.map((v) => s1 * v), s2];
+          }),
+        )
+      : { V: full.V, clusters: null },
+    word = robust ? "Log pseudolikelihood" : "Log likelihood",
     ll0 = null0 ? null0.ll : MISSING,
-    chi2 = null0 ? 2 * (full.ll - ll0) : MISSING,
-    p = null0 ? chi2tail(dfModel, chi2) : MISSING,
+    // The rank of the variance: lnalpha is dropped at the boundary, and
+    // with few clusters a robust variance has less than full rank; the test
+    // then counts what the rank leaves after the constant and lnalpha, and
+    // is missing.
+    rank = robust
+      ? robustRank(cov, clusters)
+      : cov.filter((row, j) => row[j] !== 0).length,
+    dfModel = robust
+      ? Math.max(0, Math.min(regressors, rank - (k + 1 - regressors)))
+      : regressors,
+    chi2 = robust
+      ? dfModel < regressors
+        ? MISSING
+        : waldStatistic(
+            full.theta,
+            cov,
+            f.active.map((_, j) => j),
+          )
+      : null0
+        ? 2 * (full.ll - ll0)
+        : MISSING,
+    p = isMissing(chi2) ? MISSING : chi2tail(dfModel, chi2),
     lnalpha = full.theta[k],
     // When the data are not overdispersed, alpha runs to zero and the
     // likelihood is flat in lnalpha. Past lnalpha = -20 Stata fits the
@@ -1253,11 +1903,8 @@ function nbreg(session, text, ctx) {
     // rounding, in Stata and here.
     boundary = lnalpha < -20,
     chi2c = boundary || full.ll < base.ll ? 0 : 2 * (full.ll - base.ll),
-    cov = full.V,
     seLn = cov[k][k] > 0 ? Math.sqrt(cov[k][k]) : MISSING,
     noSe = isMissing(seLn),
-    // The rank of the variance: lnalpha is dropped at the boundary.
-    rank = cov.filter((row, j) => row[j] !== 0).length,
     alpha = Math.exp(lnalpha),
     critical = invnormal(1 - (1 - options.level / 100) / 2),
     names = [...f.columns.map((c) => c.name), ...(constant ? ["_cons"] : [])],
@@ -1275,7 +1922,7 @@ function nbreg(session, text, ctx) {
       rank,
       ll: full.ll,
       ll_0: ll0,
-      vce: "oim",
+      vce: robust ? (asked.cluster ? "cluster" : "robust") : "oim",
       kind: "nbreg",
       sample: f.sample,
       alpha,
@@ -1294,17 +1941,18 @@ function nbreg(session, text, ctx) {
     df_m: dfModel,
     ll: full.ll,
     ll_0: ll0,
-    ll_c: base.ll,
+    ...(robust ? {} : { ll_c: base.ll }),
     chi2,
     p,
-    chi2_c: chi2c,
+    ...(robust ? { chi2type: "Wald" } : { chi2_c: chi2c }),
     alpha,
     r2_p: null0 ? 1 - full.ll / ll0 : MISSING,
     rank,
     k: names.length + 1,
     cmd: "nbreg",
     depvar: model.depvar,
-    vce: "oim",
+    vce: model.vce,
+    ...robustResults(asked, clusters),
   };
   f.notes(ctx);
   ctx.out("");
@@ -1316,40 +1964,39 @@ function nbreg(session, text, ctx) {
     ]) {
       ctx.out(title);
       ctx.out("");
-      fitted.log.forEach((value, j) =>
-        ctx.out(
-          `Iteration ${j}:  Log likelihood = ${g(value, "%10.0g").padStart(10)}`,
-        ),
-      );
-      ctx.out("");
+      iterations(ctx, text, fitted.log, word, fitted.notes, fitted.converged);
     }
-  ctx.out(`${model.title.padEnd(56)}${side("Number of obs", count(n))}`);
-  ctx.out(
-    `${" ".repeat(56)}${side(`LR chi2(${dfModel})`, applyFormat(chi2, "%7.2f").trim())}`,
-  );
-  ctx.out(
-    `${"Dispersion: mean".padEnd(56)}${side("Prob > chi2", applyFormat(p, "%6.4f").trim())}`,
-  );
-  ctx.out(
-    `${`Log likelihood = ${g(full.ll, "%10.0g")}`.padEnd(56)}${side("Pseudo R2", applyFormat(session.results.e.r2_p, "%6.4f").trim())}`,
-  );
+  header(ctx, [
+    [model.title, "Number of obs", count(n)],
+    [
+      "",
+      `${robust ? "Wald" : "LR"} chi2(${dfModel})`,
+      applyFormat(chi2, "%7.2f").trim(),
+    ],
+    ["Dispersion: mean", "Prob > chi2", applyFormat(p, "%6.4f").trim()],
+    [
+      `${word} = ${g(full.ll, "%10.0g")}`,
+      "Pseudo R2",
+      applyFormat(session.results.e.r2_p, "%6.4f").trim(),
+    ],
+  ]);
   ctx.out("");
+  if (asked.cluster) ctx.out(clusterNote(clusters, asked.cluster.name, count));
   // The dependent variable names the first equation and counts too.
   const w = tableWidth(session, tableModel(f), [model.depvar]);
-  ctx.out(rule(w));
-  ctx.out(
-    heading(
-      model.depvar,
-      options.level,
-      options.irr ? "IRR" : "Coefficient",
-      false,
-      w,
-    ),
+  tableHead(
+    ctx,
+    model.depvar,
+    options.level,
+    options.irr ? "IRR" : "Coefficient",
+    false,
+    robust,
+    w,
   );
-  ctx.out(split(w));
   layoutRows(
     session,
     f,
+    baseLevelsAsked(options),
     (j) =>
       row(
         "",
@@ -1360,6 +2007,7 @@ function nbreg(session, text, ctx) {
         !!options.irr,
       ).slice(1),
     w,
+    options.irr ? 1 : 0,
   ).forEach(ctx.out);
   ctx.out(split(w));
   ctx.out(
@@ -1390,9 +2038,12 @@ function nbreg(session, text, ctx) {
     );
     if (constant) ctx.out("Note: _cons estimates baseline incidence rate.");
   }
-  ctx.out(
-    `${`LR test of alpha=0: chibar2(01) = ${applyFormat(chi2c, (chi2c > 0.005 && chi2c < 1e4) || boundary ? "%8.2f" : "%8.2e").trim()}`.padEnd(55)}Prob >= chibar2 = ${applyFormat(boundary ? 1 : 0.5 * chi2tail(1, chi2c), "%5.3f")}`,
-  );
+  // A robust variance has no likelihood-ratio test of alpha.
+  if (!robust)
+    ctx.out(
+      `${`LR test of alpha=0: chibar2(01) = ${applyFormat(chi2c, (chi2c > 0.005 && chi2c < 1e4) || boundary ? "%8.2f" : "%8.2e").trim()}`.padEnd(55)}Prob >= chibar2 = ${applyFormat(boundary ? 1 : 0.5 * chi2tail(1, chi2c), "%5.3f")}`,
+    );
+  unconverged(full);
   ctx.out("");
 }
 

@@ -5,7 +5,7 @@
 // frame and out(line) for results.
 import { least, greatest } from "./extremes.js";
 import { Signal, StataError } from "./errors.js";
-import { STANDARD_MESSAGES } from "./error-messages.js";
+import { standardMessage } from "./error-messages.js";
 import { evaluateAll } from "./expression.js";
 import { macroWords, isMacroName } from "./macros.js";
 import { applyFormat, displayValue, parseFormat } from "./format.js";
@@ -630,6 +630,17 @@ function setCommand(session, text, ctx) {
         `set rng ${rest[0] ?? ""} is not available; mt64 is`,
         198,
       );
+  } else if (what === "showbaselevels") {
+    // on shows base levels as the baselevels option does, all as
+    // allbaselevels does; off, or nothing, as by default.
+    const value = rest
+      .join(" ")
+      .replace(/,\s*perm(a(n(e(n(t(ly?)?)?)?)?)?)?\s*$/, "")
+      .trim();
+    if (!["", "on", "off", "all"].includes(value))
+      throw new StataError("on, off, or all required", 100);
+    session.settings.showbaselevels =
+      value === "on" ? "base" : value === "all" ? "all" : undefined;
   } else if (what === "seed") {
     const seed = session.scalar(rest.join(" "));
     if (!(seed >= 0 && seed <= 2147483647))
@@ -640,7 +651,7 @@ function setCommand(session, text, ctx) {
   }
   // Settings that only affect how Stata's own windows behave are accepted.
   else if (
-    !/^(mo(re?)?|varabbrev|scheme|trace|matsize|maxvar|rmsg|scrollbufsize|autotabgraphs|cformat|pformat|sformat|showbaselevels|processors|segmentsize|niceness|max_memory|min_memory|dp|logtype)$/.test(
+    !/^(mo(re?)?|varabbrev|scheme|trace|matsize|maxvar|rmsg|scrollbufsize|autotabgraphs|cformat|pformat|sformat|processors|segmentsize|niceness|max_memory|min_memory|dp|logtype)$/.test(
       what,
     )
   )
@@ -1810,12 +1821,39 @@ export const COMMANDS = [
   }),
   // error exp stops with return code exp and Stata's message for it.
   command("error", 5, (session, text) => {
-    if (!text.trim()) throw invalid();
-    const value = session.scalar(text);
-    if (typeof value !== "number" || !(value >= 0)) throw invalid();
+    // An argument that is not a numeric expression stops with 197, as
+    // Stata's error does, and the reason.
+    const malformed = (message) => new StataError(message, 197);
+    if (!text.trim()) throw malformed("invalid syntax");
+    if (splitAtComma(text)[1] !== null) throw malformed("options not allowed");
+    let value;
+    try {
+      value = session.scalar(text);
+    } catch (error) {
+      if (!(error instanceof StataError)) throw error;
+      const extra = /^(.*) found where an operator was expected$/.exec(
+        error.message,
+      );
+      throw malformed(
+        extra
+          ? `invalid '${extra[1]}'`
+          : /ends too soon|invalid syntax/.test(error.message)
+            ? "invalid syntax"
+            : error.message,
+      );
+    }
+    if (typeof value !== "number") throw malformed("type mismatch");
     // Stata rounds a fractional code; one it has no message for prints none.
+    // A negative or missing code, or one past 100,000, stops with 100,000
+    // and no message.
     const code = Math.round(value);
-    if (code) throw new StataError(STANDARD_MESSAGES[code] ?? "", code);
+    if (isMissing(value) || code < 0 || code > 100000)
+      throw new StataError("", 100000);
+    if (code)
+      throw new StataError(
+        standardMessage(code, session.settings.linesize ?? 80),
+        code,
+      );
   }),
   command("exit", 4, (session, text) => {
     const code = text.replace(/,.*$/, "").trim();
