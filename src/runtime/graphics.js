@@ -2060,18 +2060,170 @@ const memoryGraphs = {
       throw new StataError(`graph ${to} already exists`, 110);
     kept(session).delete(from);
     kept(session).set(to, picture);
+    if (session.windows?.has(from)) {
+      session.windows.set(to, session.windows.get(from));
+      session.windows.delete(from);
+    }
   },
   drop(session, text, ctx) {
     const names = text.trim().split(/\s+/).filter(Boolean);
-    if (names.length === 1 && names[0] === "_all") return kept(session).clear();
+    // A graph dropped closes its window.
+    const close = (name) => {
+      const picture = session.windows?.get(name);
+      session.windows?.delete(name);
+      if (picture && session.currentGraph === picture)
+        session.currentGraph = [...(session.windows?.values() ?? [])].at(-1);
+    };
+    if (names.length === 1 && names[0] === "_all") {
+      for (const name of kept(session).keys()) close(name);
+      return kept(session).clear();
+    }
     for (const name of names)
       if (!kept(session).has(name)) {
         ctx.out(`graph ${name} not found`);
         throw new StataError("no graphs dropped", 111);
       }
-    for (const name of names) kept(session).delete(name);
+    for (const name of names) {
+      close(name);
+      kept(session).delete(name);
+    }
   },
 };
+// ----- graph export: the picture as a file in the session's folder -----
+// The size Stata 19 draws a graph, in inches.
+const STATA_GRAPH = { width: 7.5, height: 4.5 };
+const EXPORTS = {
+    svg: "saved as SVG format",
+    png: "written in PNG format",
+    pdf: "saved as PDF format",
+  },
+  // Formats Stata writes that are not made here.
+  ELSEWHERE = {
+    eps: "EPS",
+    ps: "PostScript",
+    jpg: "JPEG",
+    jpeg: "JPEG",
+    tif: "TIFF",
+    tiff: "TIFF",
+    gif: "GIF",
+    emf: "EMF",
+  };
+/**
+ * graph export writes the current graph, or the one named, as .svg, .png or
+ * .pdf. The SVG is the file; a PNG or PDF is drawn from it by the page, so
+ * the file kept here carries the SVG and the size, and the page is told
+ * through session.exported.
+ */
+function exportGraph(session, text, ctx) {
+  const parsed = session.parse(
+      "[anything] [, AS(string) NAME(string) REPLACE WIDth(string) HEIght(string)]",
+      text,
+    ),
+    name = unquote(parsed.anything ?? ""),
+    options = parsed.options;
+  if (!name) throw new StataError("invalid file specification", 198);
+  const suffix = /\.([^.\\/]*)$/.exec(name)?.[1] ?? "";
+  let format = suffix;
+  if (options.as !== undefined) {
+    format = options.as.trim();
+    if (!EXPORTS[format] && !ELSEWHERE[format])
+      throw new StataError(`option as(${options.as}) invalid`, 198);
+  } else if (!EXPORTS[format] && !ELSEWHERE[format])
+    throw new StataError(
+      `output file suffix ${suffix} not recognized\n    Specify correct suffix or specify as() option.`,
+      198,
+    );
+  if (ELSEWHERE[format])
+    throw new StataError(
+      `graph export writes .svg, .png and .pdf files here, not ${ELSEWHERE[format]}`,
+      198,
+      "Export as .png for a picture, .pdf for a document or .svg to edit the graph.",
+    );
+  // The graph in the window named, or in the window shown last. A graph
+  // drawn with nodraw has no window; after clear all the windows are empty.
+  const windows = session.windows ?? new Map(),
+    wanted = options.name?.trim(),
+    picture = wanted !== undefined ? windows.get(wanted) : session.currentGraph;
+  if (!picture)
+    throw wanted !== undefined && !windows.has(wanted)
+      ? new StataError("could not find Graph window", 693)
+      : windows.size
+        ? new StataError("could not read from Graph window", 692)
+        : new StataError("no Graph window open", 601);
+  // The Console's files have no folders, so a path into one cannot be
+  // written, as Stata cannot write into a folder that does not exist.
+  if (/[\\/]/.test(name))
+    throw new StataError(`file ${name} could not be opened`, 603);
+  // Stata draws a graph 7.5 by 4.5 inches; a PNG is 96 pixels an inch, a
+  // PDF's page is in inches and an SVG's size in pixels. Given one side,
+  // the other keeps that shape. The picture is drawn centred in that frame.
+  const pdf = format === "pdf",
+    aspect = STATA_GRAPH.height / STATA_GRAPH.width,
+    size = (option, value) => {
+      if (value === undefined) return null;
+      const typed = value.trim(),
+        number = typed === "" ? NaN : Number(typed);
+      if (pdf) {
+        if (!(number >= 0.5 && number <= 20))
+          throw new StataError(
+            `${option}() must be a number between 0.5 and 20`,
+            198,
+          );
+        return number * 96;
+      }
+      if (format === "png") {
+        if (!(Number.isInteger(number) && number >= 8 && number <= 16000))
+          throw new StataError(
+            `${option}() must be an integer between 8 and 16,000`,
+            198,
+          );
+        return number;
+      }
+      // An SVG takes any number, in whole pixels; width(0) is 0 by 0.
+      if (!Number.isFinite(number))
+        throw new StataError(`'${typed}' is an invalid ${option}`, 198);
+      return Math.max(0, number);
+    },
+    asked = {
+      width: size("width", options.width),
+      height: size("height", options.height),
+    },
+    // The side not given follows the graph's shape: a PNG's is cut to whole
+    // pixels (height(400) is 666 wide), an SVG's rounded (667), a PDF's kept.
+    whole =
+      format === "png" ? Math.floor : format === "svg" ? Math.round : (n) => n,
+    width =
+      asked.width ??
+      (asked.height !== null
+        ? whole(asked.height / aspect)
+        : STATA_GRAPH.width * 96),
+    height =
+      asked.height ??
+      (asked.width !== null ? whole(width * aspect) : STATA_GRAPH.height * 96);
+  const files = (session.files ??= new Map());
+  if (files.has(name) && !options.replace)
+    throw new StataError(`file ${name} already exists`, 602);
+  // Stata 19 notes a missing file it replaces for SVG and PNG, not for PDF.
+  if (options.replace && !files.has(name) && !pdf)
+    ctx.out(`(file ${name} not found)`);
+  const shown = (n) => `${format === "svg" ? Math.round(n) : +n.toFixed(3)}px`,
+    attributes =
+      format === "svg" && asked.width === null && asked.height === null
+        ? `width="${STATA_GRAPH.width.toFixed(3)}in" height="${STATA_GRAPH.height.toFixed(3)}in"`
+        : `width="${shown(width)}" height="${shown(height)}"`,
+    svg = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n${picture.svg.replace(
+      /^<svg /,
+      `<svg ${attributes} preserveAspectRatio="xMidYMid meet" `,
+    )}\n`,
+    file = { format, svg, width, height };
+  files.set(
+    name,
+    format === "svg" ? { text: svg, picture: file } : { picture: file },
+  );
+  (session.exported ??= []).push({ name, ...file });
+  ctx.out(`file ${name} ${EXPORTS[format]}`);
+}
+
 /** Registers graph subcommands defined elsewhere: graph bar, graph box. */
 export function registerGraph(name, run) {
   otherGraphs[name] = run;
@@ -2080,7 +2232,8 @@ function graph(session, text, ctx) {
   const m = /^\s*(\w+)\s*([\s\S]*)$/.exec(text);
   if (!m) throw new StataError("invalid syntax", 198);
   if (/^tw(o(w(ay?)?)?)?$/.test(m[1])) return twoway(session, m[2], ctx);
-  if (/^(export|save)$/.test(m[1])) {
+  if (m[1] === "export") return exportGraph(session, m[2], ctx);
+  if (m[1] === "save") {
     ctx.out("(graphs stay on this page; use the browser to save the picture)");
     return;
   }

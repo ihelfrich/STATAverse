@@ -8,6 +8,7 @@ import { applyFormat } from "./format.js";
 import { count, list } from "./reports.js";
 import { applySyntax, splitAtComma } from "./syntax.js";
 import { Dataset } from "./store.js";
+import { findFile } from "./files.js";
 import {
   MISSING,
   byteLength,
@@ -157,15 +158,16 @@ const copy = (value) =>
   value === undefined ? undefined : structuredClone(value);
 
 export function load(session, name) {
-  const stored = files(session).get(name);
+  const stored = files(session).get(findFile(files(session), name));
   if (!stored) throw new StataError(`file ${name} not found`, 601);
   if (typeof stored.text === "string")
     throw new StataError(
       `${name} is a text file, not a Stata dataset; use import delimited`,
       610,
     );
-  // A workbook, SPSS or SAS file added to the folder is kept as its bytes.
-  if (stored.bytes instanceof Uint8Array)
+  // A workbook, SPSS or SAS file added to the folder is kept as its bytes,
+  // and a picture written by graph export as its own kind of file.
+  if (stored.bytes instanceof Uint8Array || !Array.isArray(stored.variables))
     throw new StataError(`file ${name} not Stata format`, 610);
   const data = new Dataset({ defaultType: session.data.defaultType });
   data.restore(stored);
@@ -1355,10 +1357,13 @@ function reshapeWide(session, ctx) {
       groups.map((group) => work.get(name).data[group.start]),
     );
   result.sortedBy = [...spec.i];
-  session.data = result;
+  remade(session, result);
   // reshape.ado builds wide data in a file it then uses, so without
   // variables constant within i Stata counts them as unchanged since saved.
-  if (!xi.length) session.cleanFingerprint = fingerprint(result);
+  if (!xi.length) {
+    result.clean = fingerprint(result);
+    result.dirty = false;
+  }
   describeResults(session);
   reshapeReport(
     ctx,

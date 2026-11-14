@@ -378,7 +378,6 @@ export function importSasxport(session, text, ctx, version) {
     // Stata clears memory before it reads, so a file it then refuses
     // leaves no data behind.
     session.data = new Dataset({ defaultType: session.data.defaultType });
-    session.cleanFingerprint = null;
   }
   let file;
   try {
@@ -473,7 +472,6 @@ export function importSasxport(session, text, ctx, version) {
     data.label = member.label;
   }
   session.data = data;
-  session.cleanFingerprint = null;
   for (const line of lines) ctx.out(line);
   if (version === 8) ctx.out(varsObs(member.variables.length, member.n));
 }

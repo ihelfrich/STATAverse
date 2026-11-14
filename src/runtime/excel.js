@@ -775,7 +775,6 @@ export function importExcel(session, text, ctx) {
   // outside the data leaves nothing in memory.
   const data = new Dataset({ defaultType: session.data.defaultType });
   session.data = data;
-  session.cleanFingerprint = null;
   let sheet = book.sheets[0];
   if (options.sheet !== undefined) {
     const wanted = unquote(options.sheet);
@@ -836,7 +835,6 @@ export function importExcel(session, text, ctx) {
     data.get(v.name).label = v.label;
   }
   session.data = data;
-  session.cleanFingerprint = null;
   if (tooMany) {
     const message =
       (session.settings?.linesize ?? 80) >= 117

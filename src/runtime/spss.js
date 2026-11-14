@@ -382,7 +382,6 @@ export function importSpss(session, text, ctx) {
   needClear(session, options.clear);
   // Stata clears the data first, so a damaged file leaves memory empty.
   session.data = new Dataset({ defaultType: session.data.defaultType });
-  session.cleanFingerprint = null;
   let file;
   try {
     file = parseSav(
@@ -531,7 +530,6 @@ export function importSpss(session, text, ctx) {
     }
   }
   session.data = selected;
-  session.cleanFingerprint = null;
   for (const line of [...notes, ...formatNotes]) ctx.out(line);
   if (
     letterCase === "lower" &&

@@ -1,10 +1,11 @@
 // The Console page: a do-file editor on the new runtime. The session runs in
 // a worker so that a long do-file can be stopped; if a worker cannot start
-// it runs in the page. Only the do-file text is kept between visits, under a
-// key no other page reads.
+// it runs in the page. The do-file text is kept between visits under a key
+// no other page reads, and the files the student adds in this browser's
+// IndexedDB.
 import { COMMANDS } from "./runtime/commands.js";
 import { LIBRARY } from "./console-datasets.js";
-import { createConsoleSession } from "./console-session.js";
+import { createConsoleSession, missingFile } from "./console-session.js";
 import { EXAMPLES } from "./console-examples.js";
 import { highlight } from "./console-highlight.js";
 import { lineAt, offsetOf, pieces, shift } from "./console-links.js";
@@ -13,6 +14,16 @@ import { createFox } from "./console-fox.js";
 import { SNIPPETS } from "./console-snippets.js";
 import { projectZip } from "./console-project.js";
 import { doName } from "./console-map-model.js";
+import {
+  fileKind,
+  giveFile,
+  loadCommand,
+  megabytes,
+  openShelf,
+  readBlob,
+  refusal,
+} from "./console-files.js";
+import { picture, typeOf } from "./console-picture.js";
 
 const KEY = "stataverse:console:v1",
   SCHEME_KEY = "stataverse:console:scheme",
@@ -34,10 +45,20 @@ const source = $("console-source"),
   still = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 // ----- where the session runs -----
+// Every question to the session has its own id and its own answer; the
+// worker answers them in the order they were asked, so nothing asked while
+// a run is going is lost, and nothing overtakes the run.
 let worker = null,
   local = null,
-  pending = null,
   sequence = 0;
+const waiting = new Map();
+/** Rejects every question still waiting, as when the worker is ended. */
+function abandon(error) {
+  const lost = [...waiting.values()];
+  waiting.clear();
+  for (const each of lost) each.reject(error);
+  return lost.length;
+}
 function startWorker() {
   return new Promise((resolve) => {
     let candidate;
@@ -69,44 +90,50 @@ function startWorker() {
         // The worker answers every fault in the interpreter with a message,
         // so an error event means the worker itself has died, and with it
         // the session. It cannot be asked anything again: replace it.
-        const lost = pending;
-        pending = null;
         candidate.terminate();
         if (worker === candidate) worker = null;
-        if (lost)
-          lost.reject(
-            Object.assign(new Error("the interpreter stopped unexpectedly"), {
-              lost: true,
-            }),
-          );
-        else
+        const lost = abandon(
+          Object.assign(new Error("the interpreter stopped unexpectedly"), {
+            lost: true,
+          }),
+        );
+        if (!lost)
           restart(
             "The interpreter stopped unexpectedly. The session was cleared; the do-file text is unchanged.",
           );
       };
       candidate.onmessage = ({ data: reply }) => {
-        if (!pending || reply.id !== pending.id) return;
-        const { resolve: done, reject } = pending;
-        pending = null;
-        if (reply.ok) done(reply);
-        else reject(new Error(reply.message));
+        const asked = waiting.get(reply.id);
+        if (!asked) return;
+        if (reply.progress) return asked.progress?.(reply.progress);
+        waiting.delete(reply.id);
+        if (reply.ok) asked.resolve(reply);
+        else asked.reject(new Error(reply.message));
       };
       worker = candidate;
       resolve(true);
     };
   });
 }
-function ask(message) {
+/** A file read and given to the session in the page, when there is no worker. */
+async function takeHere(message, progress) {
+  const bytes = await readBlob(message.file, (loaded, total) =>
+    progress?.({ loaded, total }),
+  );
+  return giveFile(local, message.name, message.as, bytes);
+}
+function ask(message, progress) {
   if (!worker) {
     local ??= createConsoleSession();
+    if (message.kind === "take") return takeHere(message, progress);
     try {
       return Promise.resolve(
         message.kind === "run"
           ? local.run(message.source, { doFile: message.doFile })
           : message.kind === "file"
             ? local.addFile(message.name, message.text)
-            : message.kind === "data"
-              ? local.addData(message.name, message.bytes)
+            : message.kind === "binary"
+              ? local.addBinary(message.name, message.bytes)
               : message.kind === "remove"
                 ? local.removeFile(message.name)
                 : message.kind === "export"
@@ -118,8 +145,9 @@ function ask(message) {
     }
   }
   return new Promise((resolve, reject) => {
-    pending = { id: ++sequence, resolve, reject };
-    worker.postMessage({ ...message, id: pending.id });
+    const id = ++sequence;
+    waiting.set(id, { resolve, reject, progress });
+    worker.postMessage({ ...message, id });
   });
 }
 
@@ -445,7 +473,13 @@ function showVariables(memory) {
     row.append(name);
     // A variable this run created is marked for a moment.
     if (before && !before.has(variable.name)) row.className = "is-new";
-    for (const text of [variable.type, variable.format, variable.label]) {
+    // In the order of Stata's Variables window.
+    for (const text of [
+      variable.label,
+      variable.type,
+      variable.format,
+      variable.valueLabel ?? "",
+    ]) {
       const cell = document.createElement("td");
       cell.textContent = text;
       row.append(cell);
@@ -533,7 +567,10 @@ function recordNode(record) {
     command = document.createElement("span");
   block.className = "console-record";
   command.className = "console-command";
-  command.textContent = `. ${record.command}`;
+  // A loop is echoed as Stata echoes it: its lines, numbered, once.
+  command.textContent = [`. ${record.command}`, ...(record.echo ?? [])].join(
+    "\n",
+  );
   block.append(command, "\n");
   if (record.lines.length) {
     const lines = linesOf(record.lines.join("\n") + "\n", !!record.rc);
@@ -542,7 +579,8 @@ function recordNode(record) {
     lines.style.setProperty("--rows", Math.min(record.lines.length, 14));
     block.append(lines);
   }
-  if (record.graph) block.append(graphOf(record.graph), "\n");
+  for (const graph of record.graphs ?? (record.graph ? [record.graph] : []))
+    block.append(graphOf(graph), "\n");
   block.append("\n");
   return block;
 }
@@ -634,12 +672,21 @@ function busy(running) {
   map.setBusy(running);
   $("console-download").disabled = running;
   $("console-download-data").disabled = running;
-  for (const button of document.querySelectorAll("#console-datasets button"))
+  for (const button of document.querySelectorAll(
+    "#console-datasets button, #console-own button",
+  ))
     button.disabled = running;
   offerSelection();
   stop.hidden = !running || !worker;
   status.dataset.state = running ? "running" : "idle";
+  isRunning = running;
+  if (!running) for (const done of idle.splice(0)) done();
 }
+// Whether a run is going, and what waits for it to end.
+let isRunning = false;
+const idle = [];
+const whenIdle = () =>
+  isRunning ? new Promise((resolve) => idle.push(resolve)) : Promise.resolve();
 
 /** Runs text in the session and shows what it printed; null after a fault. */
 async function perform(text, origin) {
@@ -670,13 +717,27 @@ async function perform(text, origin) {
   }
   show(result.output, origin);
   showVariables(result.memory);
+  if (result.made?.length) await keepMade(result.made);
   return result;
 }
-function finish(rc, commands, started) {
-  const seconds = ((performance.now() - started) / 1000).toFixed(2);
+function finish(rc, commands, started, output = []) {
+  const seconds = ((performance.now() - started) / 1000).toFixed(2),
+    missing = rc === 601 ? missingFile(output) : "";
   status.textContent = rc
     ? `Stopped at an error, return code ${rc}. Commands before it took effect.`
     : `Ran ${commands} command${commands === 1 ? "" : "s"} in ${seconds} seconds.`;
+  if (missing) {
+    // Files are found without regard to case, as Stata finds them on macOS
+    // and Windows, but the Console's files are not in folders.
+    const base = missing.replace(/^.*[\\/]/, ""),
+      have = [...uploads.keys()].find(
+        (name) => name.toLowerCase() === base.toLowerCase(),
+      );
+    if (have && base !== missing)
+      status.textContent += ` ${have} is among your files, but files here are not in folders: name it without the folder, as ${have}.`;
+    else if (!have)
+      status.textContent += ` ${missing} is not among your files: open Data and add it. ${shelf ? "Files you add are kept in this browser until you remove them." : "This browser is not keeping added files, so they are gone after a reload."}`;
+  }
   busy(false);
   status.dataset.state = rc ? "error" : "done";
   if (rc) fox.failed(rc);
@@ -694,6 +755,11 @@ function begin() {
 }
 
 async function execute(text = source.value, what = "do-file") {
+  if (isRunning) {
+    status.textContent =
+      "A run is still going. Wait for it to end, or select Stop.";
+    return;
+  }
   if (!text.trim()) {
     status.textContent = `The ${what} is empty.`;
     return;
@@ -717,7 +783,8 @@ async function execute(text = source.value, what = "do-file") {
   // Every do-file of the project is there for do, run and include.
   await shareFiles();
   const result = await perform(text, origin);
-  if (result) finish(result.rc, result.output.length, started);
+  if (result) finish(result.rc, result.output.length, started, result.output);
+  return result;
 }
 
 /**
@@ -738,7 +805,7 @@ async function runSteps(entries, mark) {
     if (!result) return mark(entry.id, "error");
     commands += result.output.length;
     mark(entry.id, result.rc ? "error" : "done", result);
-    if (result.rc) return finish(result.rc, commands, started);
+    if (result.rc) return finish(result.rc, commands, started, result.output);
     const terms = entry.guard ? [] : map.termsOf(entry.id);
     if (terms.length) {
       const estimates = {};
@@ -763,7 +830,8 @@ async function runSteps(entries, mark) {
 /** A new worker with the student's files, and a new session in it. */
 async function restart(message) {
   await startWorker();
-  for (const [name, data] of uploads) await sendUpload(name, data);
+  for (const [name, file] of uploads)
+    await sendUpload(name, file).catch(() => {});
   await newSession(message);
 }
 async function newSession(message) {
@@ -843,7 +911,8 @@ const map = mountMap({
     code: $("mapcode-view"),
     names: $("map-names"),
     library: LIBRARY,
-    uploads: () => [...uploads.keys()],
+    uploads: () =>
+      [...uploads].filter(([, file]) => !file.made).map(([name]) => name),
     run: runSteps,
     render: recordNode,
     colour: (text) => highlight(text, COMMANDS),
@@ -965,11 +1034,17 @@ function hand(bytes, name, type) {
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
-$("console-download").addEventListener("click", () => {
+$("console-download").addEventListener("click", async () => {
   save();
   const files = mapping ? map.files() : project.files,
-    added = [...uploads].map(([name, data]) => ({ name, data })),
-    bytes = projectZip(files, added);
+    added = [];
+  for (const [name, file] of uploads)
+    added.push({
+      name,
+      made: file.made,
+      data: new Uint8Array(await file.blob.arrayBuffer()),
+    });
+  const bytes = projectZip(files, added, new Date(), ranTyped.join("\n"));
   document.body.dataset.downloaded = String(bytes.length);
   hand(bytes, "stata-project.zip", "application/zip");
   status.textContent = `Downloaded stata-project.zip: ${files.map((file) => file.name).join(", ")}, the data they use, and a note on running it in Stata.`;
@@ -1028,11 +1103,9 @@ runSelection.addEventListener("click", () =>
 );
 stop.addEventListener("click", async () => {
   // Ending the worker is the only way to interrupt it; the session goes too.
-  const interrupted = pending;
-  pending = null;
   worker?.terminate();
   worker = null;
-  interrupted?.reject(Object.assign(new Error("stopped"), { stopped: true }));
+  abandon(Object.assign(new Error("stopped"), { stopped: true }));
   append("\n--Break--\n", "console-error");
   fox.idle();
   status.textContent = "Stopped. Starting a new session…";
@@ -1124,13 +1197,17 @@ output.addEventListener("click", (event) => {
 });
 
 // ----- the command line under the results -----
-const history = [];
+const history = [],
+  // Every command run from the command line or a Load button, so that the
+  // project zip carries the files they used.
+  ranTyped = [];
 let recalled = 0;
 $("console-prompt").addEventListener("submit", (event) => {
   event.preventDefault();
   const text = commandLine.value.trim();
   if (!text || commandLine.disabled) return;
   if (history.at(-1) !== text) history.push(text);
+  ranTyped.push(text);
   recalled = history.length;
   commandLine.value = "";
   execute(text, "command").then(() => commandLine.focus());
@@ -1148,99 +1225,182 @@ commandLine.addEventListener("keydown", (event) => {
 });
 // ----- the student's own files -----
 // Kept on the page as well as in the session, so that they can go into a
-// downloaded project and be given to a new session after Stop.
+// downloaded project and be given to a new session after Stop; and kept in
+// this browser's IndexedDB, so that they are there on the next visit. Each
+// is { blob, made }: made is true for a graph that graph export wrote.
 const uploads = new Map();
+let shelf = null;
+async function shelve(name, blob, made = false) {
+  try {
+    await shelf?.put(name, blob, made);
+    return true;
+  } catch {
+    return false;
+  }
+}
 function showUploads() {
   const list = $("console-own");
   list.textContent = "";
-  for (const name of uploads.keys()) {
+  for (const [name, file] of uploads) {
     const item = document.createElement("li"),
       title = document.createElement("code"),
-      dta = /\.dta$/i.test(name),
-      command = dta
-        ? `use "${name}", clear`
-        : `import delimited using "${name}", clear`,
-      load = document.createElement("button"),
-      build = document.createElement("button"),
-      remove = document.createElement("button");
+      size = document.createElement("span"),
+      buttons = [];
     title.textContent = name;
-    load.type = build.type = remove.type = "button";
-    load.className = build.className = remove.className = "quiet-button";
-    load.textContent = `Load ${name}`;
-    load.addEventListener("click", () =>
-      execute(`${command}\ndescribe`, "command"),
-    );
-    build.textContent = "Start a map from it";
-    build.addEventListener("click", () => {
-      setMode(true);
-      map.startFrom(name);
-      $("main").scrollIntoView({ block: "start" });
-    });
+    size.className = "console-own-size";
+    size.textContent = file.made
+      ? `${megabytes(file.blob.size)}, made by graph export`
+      : megabytes(file.blob.size);
+    if (file.made) {
+      const download = document.createElement("button");
+      download.textContent = `Download ${name}`;
+      download.addEventListener("click", async () =>
+        hand(
+          new Uint8Array(await file.blob.arrayBuffer()),
+          name,
+          file.blob.type,
+        ),
+      );
+      buttons.push(download);
+    } else {
+      const load = document.createElement("button"),
+        build = document.createElement("button"),
+        command = loadCommand(name);
+      load.textContent = `Load ${name}`;
+      load.addEventListener("click", () => {
+        ranTyped.push(command);
+        execute(`${command}\ndescribe`, "command");
+      });
+      build.textContent = "Start a map from it";
+      build.addEventListener("click", () => {
+        setMode(true);
+        map.startFrom(name);
+        $("main").scrollIntoView({ block: "start" });
+      });
+      buttons.push(load, build);
+    }
+    const remove = document.createElement("button");
     remove.textContent = "Remove";
     remove.setAttribute("aria-label", `Remove ${name}`);
     remove.addEventListener("click", async () => {
+      if (isRunning) return;
       uploads.delete(name);
+      await shelf?.remove(name).catch(() => {});
       const result = await ask({ kind: "remove", name });
       showVariables(result.memory);
       showUploads();
-      status.textContent = `${name} was removed.`;
+      status.textContent = `${name} was removed from this browser.`;
     });
-    item.append(title, load, build, remove);
+    buttons.push(remove);
+    for (const button of buttons) {
+      button.type = "button";
+      button.className = "quiet-button";
+      button.disabled = isRunning;
+    }
+    item.append(title, size, ...buttons);
     list.append(item);
   }
+  $("console-kept").textContent = !uploads.size
+    ? ""
+    : shelf
+      ? "Your files are kept in this browser's storage for this site, on this device only, until you remove them. They are not uploaded anywhere."
+      : "This browser is not keeping added files (its storage is off, as in some private windows), so add them again after a reload.";
   if (mapping) map.draw();
 }
-async function sendUpload(name, data) {
-  return typeof data === "string"
-    ? ask({ kind: "file", name, text: data })
-    : ask({ kind: "data", name, bytes: data });
+/** Gives the session one of the student's files; progress as it is read. */
+function sendUpload(name, file, progress) {
+  if (file.made)
+    return file.blob
+      .arrayBuffer()
+      .then((buffer) =>
+        ask({ kind: "binary", name, bytes: new Uint8Array(buffer) }),
+      );
+  return ask(
+    { kind: "take", name, file: file.blob, as: fileKind(name) },
+    progress,
+  );
+}
+/** Graphs written by graph export, made into files and kept. */
+async function keepMade(made) {
+  const kept = [];
+  for (const each of made) {
+    try {
+      const blob = new Blob([await picture(each)], {
+        type: typeOf(each.format),
+      });
+      uploads.set(each.name, { blob, made: true });
+      await shelve(each.name, blob, true);
+      // The session gets the file's bytes, so that a later run reads the
+      // PNG or PDF as Stata would; an SVG it already has as text.
+      if (each.format !== "svg")
+        await ask({
+          kind: "binary",
+          name: each.name,
+          bytes: new Uint8Array(await blob.arrayBuffer()),
+        }).catch(() => {});
+      kept.push(each.name);
+    } catch {
+      status.textContent = `${each.name} could not be drawn as ${each.format.toUpperCase()} in this browser.`;
+    }
+  }
+  if (kept.length) showUploads();
 }
 /** Takes files from the picker or a drop. Returns what to tell the student. */
 async function takeFiles(list) {
   const notes = [],
     scripts = [];
   let loaded = "";
+  // A file added during a run is taken when the run ends.
+  if (isRunning) {
+    status.textContent = `${list.map((file) => file.name).join(", ")} will be added when the run ends.`;
+    await whenIdle();
+  }
   for (const file of list) {
     // The name is kept as it is, apart from anything like a folder.
-    const name = file.name.replace(/[\\/]+/g, "_");
-    if (file.size > 5_000_000) {
-      notes.push(
-        `${file.name} is larger than 5 MB, more than this page reads.`,
-      );
+    const name = file.name.replace(/[\\/]+/g, "_"),
+      kind = fileKind(name),
+      refused = refusal(file.name, file.size);
+    if (refused) {
+      notes.push(refused);
       continue;
     }
-    if (/\.(xlsx?|sav|rds|rdata|sas7bdat|parquet|zip)$/i.test(name)) {
-      notes.push(
-        `${file.name} cannot be read here. Save it as CSV or as a Stata .dta file and add that.`,
-      );
+    if (kind === "do") {
+      // The editor keeps do-files of up to 200,000 characters.
+      const text = file.size < 1_000_000 ? await file.text() : null;
+      if (text === null || text.length >= 200000 || text.includes("\0"))
+        notes.push(
+          text?.includes("\0")
+            ? `${file.name} is not a text file, so it was not added.`
+            : `${file.name} is longer than the editor holds (200,000 characters).`,
+        );
+      else scripts.push({ name, text });
       continue;
     }
     try {
-      if (/\.dta$/i.test(name)) {
-        const bytes = new Uint8Array(await file.arrayBuffer()),
-          result = await sendUpload(name, bytes);
-        uploads.set(name, bytes);
-        showVariables(result.memory);
-        notes.push(
-          `Added ${name}: ${result.rows.toLocaleString("en-US")} rows, ${result.variables} variables.`,
+      const big = file.size > 2_000_000,
+        result = await sendUpload(
+          name,
+          { blob: file, made: false },
+          big
+            ? ({ loaded, total }) => {
+                status.textContent = `Reading ${file.name}: ${Math.floor((100 * loaded) / total)}% of ${megabytes(total)}…`;
+              }
+            : null,
         );
-        loaded = `use "${name}", clear`;
-        continue;
-      }
-      const text = await file.text();
-      if (text.includes("\0")) {
-        notes.push(`${file.name} is not a text file, so it was not added.`);
-        continue;
-      }
-      if (/\.do$/i.test(name)) {
-        scripts.push({ name, text });
-        continue;
-      }
-      const result = await sendUpload(name, text);
-      uploads.set(name, text);
+      if (big) status.textContent = `Read ${file.name}.`;
+      uploads.set(name, { blob: file, made: false });
+      const kept = await shelve(name, file);
       showVariables(result.memory);
-      notes.push(`Added ${name}.`);
-      loaded = `import delimited using "${name}", clear`;
+      notes.push(
+        kind === "dta"
+          ? `Added ${name}: ${result.rows.toLocaleString("en-US")} rows, ${result.variables} variables.`
+          : `Added ${name}.`,
+      );
+      if (shelf && !kept)
+        notes.push(
+          `${name} could not be kept in this browser (its storage is full), so it is here for this visit only.`,
+        );
+      loaded = loadCommand(name);
     } catch (error) {
       notes.push(`${file.name}: ${error.message}.`);
     }
@@ -1253,13 +1413,43 @@ async function takeFiles(list) {
   }
   showUploads();
   // One data file is loaded straight away, so there is something to see.
-  if (loaded && !run.disabled) {
-    await execute(`${loaded}\ndescribe`, "command");
+  if (loaded && !isRunning) {
+    ranTyped.push(loaded);
+    const ran = await execute(`${loaded}\ndescribe`, "command");
     notes.push(
-      "It is in memory now; the command that loaded it is in Results.",
+      ran && !ran.rc
+        ? "It is in memory now; the command that loaded it is in Results."
+        : `The command that loads it, ${loaded}, stopped at an error; see Results.`,
     );
   }
   if (notes.length) status.textContent = notes.join(" ");
+}
+/** The files kept from earlier visits, given to the new session. */
+async function restoreFiles() {
+  shelf = await openShelf();
+  let kept = [];
+  try {
+    kept = (await shelf?.list()) ?? [];
+  } catch {
+    kept = [];
+  }
+  const lost = [];
+  for (const file of kept) {
+    try {
+      const result = await sendUpload(file.name, file, ({ loaded, total }) => {
+        status.textContent = `Reading ${file.name} from this browser: ${Math.floor((100 * loaded) / total)}%…`;
+      });
+      uploads.set(file.name, { blob: file.blob, made: file.made });
+      showVariables(result.memory);
+    } catch {
+      // A file that cannot be read back is taken off the shelf, so that it
+      // is reported once, not on every visit.
+      lost.push(file.name);
+      await shelf?.remove(file.name).catch(() => {});
+    }
+  }
+  showUploads();
+  return { count: uploads.size, lost };
 }
 $("console-file").addEventListener("change", async (event) => {
   const list = [...event.target.files];
@@ -1322,6 +1512,21 @@ $("console-download-data").addEventListener("click", async () => {
 
 await startWorker();
 await newSession("Ready.");
+{
+  const { count, lost } = await restoreFiles();
+  if (count || lost.length)
+    status.textContent = [
+      "Ready.",
+      count
+        ? `Your file${count === 1 ? " is" : "s are"} here from this browser: ${[...uploads.keys()].join(", ")}.`
+        : "",
+      lost.length
+        ? `${lost.join(", ")} could not be read back and ${lost.length === 1 ? "was" : "were"} removed from this browser; add ${lost.length === 1 ? "it" : "them"} again.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+}
 try {
   if (localStorage.getItem(MODE_KEY) === "map") setMode(true);
 } catch {

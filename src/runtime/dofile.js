@@ -99,7 +99,9 @@ const OPENS = /\{\s*$/;
  * { kind: "program", name, options, body, line }.
  */
 export function parseBlocks(commands) {
-  let at = 0;
+  let at = 0,
+    // The line of the } that closed the block read last.
+    closed = 0;
   const block = (closing) => {
     const nodes = [];
     while (at < commands.length) {
@@ -107,6 +109,7 @@ export function parseBlocks(commands) {
       if (text === "}") {
         if (closing !== "}")
           throw new StataError("} without a matching {", 198);
+        closed = line;
         at++;
         return nodes;
       }
@@ -143,14 +146,16 @@ export function parseBlocks(commands) {
           throw new StataError("input has no end", 198);
         at++;
         nodes.push({ kind: "input", text, rows, line });
-      } else if (OPENS.test(text))
+      } else if (OPENS.test(text)) {
+        const body = block("}");
         nodes.push({
           kind: "block",
           header: text.replace(OPENS, "").trim(),
-          body: block("}"),
+          body,
           line,
+          end: closed,
         });
-      else nodes.push({ kind: "command", text, line });
+      } else nodes.push({ kind: "command", text, line });
     }
     if (closing === "}") throw new StataError("{ without a matching }", 198);
     return nodes;

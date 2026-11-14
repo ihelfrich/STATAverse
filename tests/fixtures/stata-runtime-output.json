@@ -72232,6 +72232,198 @@
       ]
     },
     {
+      "id": "graph-export-files",
+      "source": "clear\nset obs 5\ngenerate x = _n\ngenerate y = x^2\nscatter y x\ngraph export fig1.svg, replace\ngraph export fig1.png\ncapture noisily graph export fig1.png\ngraph export fig1.pdf, replace width(4)\ngraph export fig2, as(png)\ncapture noisily graph export fig3.bmp\ncapture noisily graph export fig4.png, width(5)\ncapture noisily graph export fig5.pdf, height(30)\ncapture noisily graph export fig6.svg, name(nosuch)\ncapture noisily graph export fig7.png, foo\ncapture noisily graph export fig8.png, as(PNG)\ncapture noisily graph export\nquietly graph export fig9.svg\ngraph export \"my fig.png\", replace\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate y = x^2", "lines": [] },
+        { "command": "scatter y x", "lines": [] },
+        {
+          "command": "graph export fig1.svg, replace",
+          "lines": [
+            "(file fig1.svg not found)",
+            "file fig1.svg saved as SVG format"
+          ]
+        },
+        {
+          "command": "graph export fig1.png",
+          "lines": ["file fig1.png written in PNG format"]
+        },
+        {
+          "command": "capture noisily graph export fig1.png",
+          "lines": ["file fig1.png already exists"]
+        },
+        {
+          "command": "graph export fig1.pdf, replace width(4)",
+          "lines": ["file fig1.pdf saved as PDF format"]
+        },
+        {
+          "command": "graph export fig2, as(png)",
+          "lines": ["file fig2 written in PNG format"]
+        },
+        {
+          "command": "capture noisily graph export fig3.bmp",
+          "lines": [
+            "output file suffix bmp not recognized",
+            "    Specify correct suffix or specify as() option."
+          ]
+        },
+        {
+          "command": "capture noisily graph export fig4.png, width(5)",
+          "lines": ["width() must be an integer between 8 and 16,000"]
+        },
+        {
+          "command": "capture noisily graph export fig5.pdf, height(30)",
+          "lines": ["height() must be a number between 0.5 and 20"]
+        },
+        {
+          "command": "capture noisily graph export fig6.svg, name(nosuch)",
+          "lines": ["could not find Graph window"]
+        },
+        {
+          "command": "capture noisily graph export fig7.png, foo",
+          "lines": ["option foo not allowed"]
+        },
+        {
+          "command": "capture noisily graph export fig8.png, as(PNG)",
+          "lines": ["option as(PNG) invalid"]
+        },
+        {
+          "command": "capture noisily graph export",
+          "lines": ["invalid file specification"]
+        },
+        { "command": "quietly graph export fig9.svg", "lines": [] },
+        {
+          "command": "graph export \"my fig.png\", replace",
+          "lines": [
+            "(file my fig.png not found)",
+            "file my fig.png written in PNG format"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "graph-export-windows",
+      "source": "clear\nset obs 5\ngenerate x = _n\ngenerate y = x^2\nscatter y x\ngraph export win1.png, width(1000) height(300) replace\ncapture noisily graph export sub/figH.png\ncapture noisily graph export \"nosuchdir/figH.svg\"\ncapture noisily graph export figT.svg, height(abc)\ncapture noisily graph export figT.svg, width(0) replace\ncapture noisily graph export figU.png, width(abc)\ncapture noisily graph export figU.pdf, width(0)\nscatter x y, nodraw name(nd)\ncapture noisily graph export figL.svg, name(nd)\ngraph export figL2.svg, replace\nclear all\ncapture noisily graph export figP.png\ndisplay _rc\ncapture noisily graph export figP.png, name(Graph)\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate y = x^2", "lines": [] },
+        { "command": "scatter y x", "lines": [] },
+        {
+          "command": "graph export win1.png, width(1000) height(300) replace",
+          "lines": [
+            "(file win1.png not found)",
+            "file win1.png written in PNG format"
+          ]
+        },
+        {
+          "command": "capture noisily graph export sub/figH.png",
+          "lines": ["file sub/figH.png could not be opened"]
+        },
+        {
+          "command": "capture noisily graph export \"nosuchdir/figH.svg\"",
+          "lines": ["file nosuchdir/figH.svg could not be opened"]
+        },
+        {
+          "command": "capture noisily graph export figT.svg, height(abc)",
+          "lines": ["'abc' is an invalid height"]
+        },
+        {
+          "command": "capture noisily graph export figT.svg, width(0) replace",
+          "lines": [
+            "(file figT.svg not found)",
+            "file figT.svg saved as SVG format"
+          ]
+        },
+        {
+          "command": "capture noisily graph export figU.png, width(abc)",
+          "lines": ["width() must be an integer between 8 and 16,000"]
+        },
+        {
+          "command": "capture noisily graph export figU.pdf, width(0)",
+          "lines": ["width() must be a number between 0.5 and 20"]
+        },
+        { "command": "scatter x y, nodraw name(nd)", "lines": [] },
+        {
+          "command": "capture noisily graph export figL.svg, name(nd)",
+          "lines": ["could not find Graph window"]
+        },
+        {
+          "command": "graph export figL2.svg, replace",
+          "lines": [
+            "(file figL2.svg not found)",
+            "file figL2.svg saved as SVG format"
+          ]
+        },
+        { "command": "clear all", "lines": [] },
+        {
+          "command": "capture noisily graph export figP.png",
+          "lines": ["could not read from Graph window"]
+        },
+        { "command": "display _rc", "lines": ["692"] },
+        {
+          "command": "capture noisily graph export figP.png, name(Graph)",
+          "lines": ["could not read from Graph window"]
+        },
+        { "command": "display _rc", "lines": ["692"] }
+      ]
+    },
+    {
+      "id": "files-any-case",
+      "source": "clear\nset obs 3\ngenerate id = _n\ngenerate v = id * 2\nsave CaseLeft, replace\nuse caseleft.dta, clear\nuse caseleft, clear\nmerge 1:1 id using CASELEFT\nlist\ncapture noisily use \"nosuchdir/caseleft.dta\", clear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate v = id * 2", "lines": [] },
+        {
+          "command": "save CaseLeft, replace",
+          "lines": ["(file CaseLeft.dta not found)", "file CaseLeft.dta saved"]
+        },
+        { "command": "use caseleft.dta, clear", "lines": [] },
+        { "command": "use caseleft, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using CASELEFT",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 3  (_merge==3)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------+",
+            "     | id   v        _merge |",
+            "     |----------------------|",
+            "  1. |  1   2   Matched (3) |",
+            "  2. |  2   4   Matched (3) |",
+            "  3. |  3   6   Matched (3) |",
+            "     +----------------------+"
+          ]
+        },
+        {
+          "command": "capture noisily use \"nosuchdir/caseleft.dta\", clear",
+          "lines": ["file nosuchdir/caseleft.dta not found"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

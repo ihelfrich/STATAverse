@@ -610,11 +610,11 @@ test("a Stata .dta file and a do-file can be added, and a map started from the d
 
   // A file that is not data is refused with a reason.
   await page.locator("#console-file").setInputFiles({
-    name: "book.xlsx",
+    name: "book.rds",
     mimeType: "application/octet-stream",
-    buffer: Buffer.from("PK"),
+    buffer: Buffer.from("X\n"),
   });
-  await expect(status).toContainText("book.xlsx cannot be read here");
+  await expect(status).toContainText("book.rds is an R file");
   await page.locator("#console-file").setInputFiles({
     name: "broken.dta",
     mimeType: "application/octet-stream",

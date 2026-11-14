@@ -309,7 +309,18 @@ function storedFile(session, typed, extension) {
     name = hasExtension(typed) ? typed : typed + extension,
     stored = files.get(name);
   if (!stored) throw new StataError(`file ${name} not found`, 601);
-  if (typeof stored.text !== "string")
+  // A file kept as its bytes (a workbook, a picture graph export wrote) is
+  // read as text, as Stata reads any file it is given.
+  const read =
+    typeof stored.text === "string" || stored.bytes instanceof Uint8Array;
+  // A PNG or PDF graph export wrote in this run is drawn by the page when
+  // the run ends; until then there are no bytes to read.
+  if (!read && stored.picture)
+    throw new StataError(
+      `${name} is a ${stored.picture.format.toUpperCase()} picture graph export is still drawing; it can be read once this run has ended`,
+      610,
+    );
+  if (!read)
     throw new StataError(
       `${name} is a Stata dataset; use the use command`,
       610,
@@ -691,7 +702,6 @@ function importDelimited(session, text, ctx) {
     );
   });
   session.data = dataset;
-  session.cleanFingerprint = null;
   ctx.out(
     `(${count(columns.length)} ${columns.length === 1 ? "var" : "vars"}, ${count(dataset.n)} obs)`,
   );
@@ -934,7 +944,6 @@ function insheet(session, text, ctx) {
     });
   }
   session.data = dataset;
-  session.cleanFingerprint = null;
   ctx.out(
     `(${count(width)} ${width === 1 ? "var" : "vars"}, ${count(dataset.n)} obs)`,
   );

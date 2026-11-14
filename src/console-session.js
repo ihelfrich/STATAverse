@@ -46,17 +46,23 @@ export function createConsoleSession() {
     observations: session.data.n,
     sortedBy: [...session.data.sortedBy],
     files: [...(session.files ?? new Map()).keys()].sort(),
-    variables: session.data.variables.map(({ name, type, format, label }) => ({
-      name,
-      type,
-      format,
-      label,
-    })),
+    variables: session.data.variables.map(
+      ({ name, type, format, label, valueLabel }) => ({
+        name,
+        type,
+        format,
+        label,
+        valueLabel: valueLabel ?? "",
+      }),
+    ),
   });
   const reset = (dataset = "") => {
     session = new Session();
     interactive = session.frame();
     session.library = library;
+    // Results as Stata's log shows them: a loop echoed once with its lines
+    // numbered, do-files run by do shown with their commands.
+    session.foldLoops = true;
     // Each site dataset is also there as a CSV file, as lessons expect.
     for (const [id, data] of Object.entries(library))
       addTextFile(session, LIBRARY[id].file, toCSV(data));
@@ -104,7 +110,17 @@ export function createConsoleSession() {
         put(name, file);
         return { memory: memory(), kind, ...check };
       }
-      const data = readDta(bytes);
+      let data;
+      try {
+        data = readDta(bytes);
+      } catch (error) {
+        // An array too large to make: the dataset does not fit in memory.
+        if (error instanceof RangeError)
+          throw new Error(
+            "this dataset needs more memory than this browser tab has. In Stata, keep the variables and observations you need, save, and add that file",
+          );
+        throw error;
+      }
       added.set(name, data);
       put(name, data);
       return {
@@ -112,6 +128,15 @@ export function createConsoleSession() {
         rows: data.n,
         variables: data.variables.length,
       };
+    },
+    /** A file kept as its bytes: an Excel workbook, an SPSS or SAS file. */
+    addBinary(name, bytes) {
+      // A workbook or an SPSS or SAS file is checked as addData checks it.
+      if (binaryKind(name)) return this.addData(name, bytes);
+      const file = { bytes: new Uint8Array(bytes) };
+      added.set(name, file);
+      put(name, file);
+      return { memory: memory() };
     },
     removeFile(name) {
       added.delete(name);
@@ -159,7 +184,25 @@ export function createConsoleSession() {
         block.lines = block.lines.map((line) =>
           line.replace(/(?<![\uD800-\uDBFF])[\uDC80-\uDCFF]/g, "\uFFFD"),
         );
-      return { output, rc, memory: memory() };
+      // Graphs written by graph export, for the page to turn into files.
+      const made = session.exported ?? [];
+      session.exported = [];
+      return { output, rc, made, memory: memory() };
     },
   };
+}
+
+/**
+ * The name of an added file a run looked for and did not find, from the
+ * error that stopped it; "" when the run did not stop on a missing file.
+ */
+export function missingFile(output) {
+  const last = output.at(-1);
+  if (!last || last.rc !== 601 || /^\s*(sysuse|webuse)\b/.test(last.command))
+    return "";
+  for (const line of last.lines) {
+    const m = /^file (.+?) not found\b/.exec(line);
+    if (m) return m[1].replace(/^"(.*)"$/, "$1");
+  }
+  return "";
 }
