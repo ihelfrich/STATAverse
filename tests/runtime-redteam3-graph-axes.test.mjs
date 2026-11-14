@@ -420,3 +420,738 @@ test("graph combine needs graphs and graph dir lists them in columns", () => {
     ["    abcdefgh          alongergraphname  g2", "    abcdefghi         g1"],
   );
 });
+
+// ---- Fourth round: the problems a tester found at 8e2f4ff, each value
+// recorded from Stata 19 MP (version 17, set processors 1) by exporting the
+// same graph with graph export … .svg and reading its <text> elements. The
+// printed messages, graph dir and the histogram bin lines are compared in
+// tools/output-cases.txt (case graph-axes-merge).
+
+test("legend(on) outside by() draws a legend in every panel", () => {
+  const s = labor();
+  // Stata: Hourly wage three times, the y title and one legend per panel.
+  assert.equal(
+    count(graph(s, "scatter wage educ, by(female) legend(on)"), "Hourly wage"),
+    3,
+  );
+  // Two plots: a legend in each panel and the shared one, three of each.
+  for (const command of [
+    "twoway (scatter wage educ) (lfit wage educ), by(female) legend(on)",
+    "twoway (scatter wage educ) (lfit wage educ), by(female, legend(on)) legend(on)",
+  ]) {
+    const svg = graph(s, command);
+    assert.equal(count(svg, "Hourly wage"), 3);
+    assert.equal(count(svg, "Fitted values"), 3);
+  }
+  // by(…, legend(on)) gives a single plot the shared legend: twice.
+  assert.equal(
+    count(graph(s, "scatter wage educ, by(female, legend(on))"), "Hourly wage"),
+    2,
+  );
+  // by(…, legend(off)) leaves only the panels' legends.
+  assert.equal(
+    count(
+      graph(s, "scatter wage educ, by(female, legend(off)) legend(on)"),
+      "Hourly wage",
+    ),
+    3,
+  );
+  const off = graph(
+    s,
+    "twoway (scatter wage educ) (lfit wage educ), by(female, legend(off)) legend(on)",
+  );
+  assert.equal(count(off, "Hourly wage"), 2);
+  assert.equal(count(off, "Fitted values"), 2);
+  // With total, three panels: the y title and three legends.
+  assert.equal(
+    count(
+      graph(s, "scatter wage educ, by(female, total) legend(on)"),
+      "Hourly wage",
+    ),
+    4,
+  );
+});
+
+test("histogram labels its x axis as Stata does", () => {
+  const s = labor();
+  const x = (command) => xLabels(graph(s, command));
+  // Stata labels over the first bar's left edge (histogram gives start())
+  // to the middle of the last bar.
+  for (const command of ["histogram education", "histogram education, bin(5)"])
+    assert.deepEqual(x(command), ["8", "10", "12", "14", "16", "18"]);
+  assert.deepEqual(x("histogram wage, width(5)"), [
+    "0",
+    "10",
+    "20",
+    "30",
+    "40",
+    "50",
+  ]);
+  for (const command of [
+    "histogram satisfaction, discrete",
+    "histogram satisfaction, discrete frequency",
+  ])
+    assert.deepEqual(x(command), ["0", "1", "2", "3", "4", "5"]);
+  for (const rule of ["#3", "#4"])
+    assert.deepEqual(x(`histogram wage, xlabel(${rule})`), ["0", "50"]);
+  // twoway histogram, with no start(), from the middle of the first bar.
+  assert.deepEqual(x("twoway (histogram wage, width(5))"), [
+    "10",
+    "20",
+    "30",
+    "40",
+    "50",
+  ]);
+  // A curve reaches the data's ends, or the bars' edges when discrete.
+  assert.deepEqual(x("histogram educ, kdensity"), ["5", "10", "15", "20"]);
+  assert.deepEqual(x("histogram satisfaction, discrete normal"), [
+    "0",
+    "2",
+    "4",
+    "6",
+  ]);
+});
+
+// [seed, N, x, command, Stata's x labels, Stata's y labels]: histograms of
+// random data drawn in Stata, every sixth of 160 histogram commands and
+// every ninth of 160 twoway histogram commands.
+const HISTOGRAMS = [
+  [
+    506,
+    242,
+    "runiform()*120 + 1990",
+    "histogram x, bin(9)",
+    "2000 2020 2040 2060 2080 2100",
+    "0 .005 .01 .015",
+  ],
+  [
+    512,
+    164,
+    "runiform()*7 + -40",
+    "histogram x, width(1.4)",
+    "-40 -38 -36 -34",
+    "0 .05 .1 .15 .2",
+  ],
+  [
+    518,
+    86,
+    "runiform()*1000 + 0.2",
+    "histogram x",
+    "0 200 400 600 800 1000",
+    "0 5.0e-04 .001 .0015",
+  ],
+  [
+    524,
+    308,
+    "runiform()*0.4 + -3",
+    "histogram x",
+    "-3 -2.9 -2.8 -2.7 -2.6",
+    "0 1 2 3 4",
+  ],
+  [
+    530,
+    230,
+    "runiform()*1 + 0",
+    "histogram x",
+    "0 .2 .4 .6 .8 1",
+    "0 .5 1 1.5",
+  ],
+  [
+    536,
+    152,
+    "runiform()*120 + 1990",
+    "histogram x, bin(5)",
+    "2000 2020 2040 2060 2080 2100",
+    "0 .002 .004 .006 .008 .01",
+  ],
+  [
+    542,
+    74,
+    "floor(runiform()*8)*0.5 + -40",
+    "histogram x, discrete",
+    "-40 -39 -38 -37 -36",
+    "0 .1 .2 .3 .4",
+  ],
+  [
+    548,
+    296,
+    "runiform()*1000 + 0.2",
+    "histogram x",
+    "0 200 400 600 800 1000",
+    "0 5.0e-04 .001 .0015",
+  ],
+  [
+    554,
+    218,
+    "runiform()*0.4 + -3",
+    "histogram x",
+    "-3 -2.9 -2.8 -2.7 -2.6",
+    "0 1 2 3 4",
+  ],
+  [
+    560,
+    140,
+    "runiform()*1 + 0",
+    "histogram x",
+    "0 .2 .4 .6 .8 1",
+    "0 .5 1 1.5 2",
+  ],
+  [
+    566,
+    62,
+    "runiform()*120 + 1990",
+    "histogram x, bin(18)",
+    "2000 2050 2100",
+    "0 .005 .01 .015 .02",
+  ],
+  [
+    572,
+    284,
+    "runiform()*7 + -40",
+    "histogram x, width(3.5)",
+    "-40 -39 -38 -37 -36 -35",
+    "0 .05 .1 .15",
+  ],
+  [
+    578,
+    206,
+    "runiform()*1000 + 0.2",
+    "histogram x",
+    "0 200 400 600 800 1000",
+    "0 5.0e-04 .001 .0015",
+  ],
+  [
+    584,
+    128,
+    "floor(runiform()*2)*1 + -3",
+    "histogram x, discrete",
+    "-3.5 -3 -2.5 -2",
+    "0 .1 .2 .3 .4 .5",
+  ],
+  [590, 50, "runiform()*1 + 0", "histogram x", "0 .2 .4 .6 .8 1", "0 .5 1 1.5"],
+  [
+    596,
+    272,
+    "runiform()*120 + 1990",
+    "histogram x, bin(14)",
+    "2000 2050 2100",
+    "0 .005 .01 .015",
+  ],
+  [
+    602,
+    194,
+    "runiform()*7 + -40",
+    "histogram x, width(1.4)",
+    "-40 -38 -36 -34",
+    "0 .05 .1 .15",
+  ],
+  [
+    608,
+    116,
+    "runiform()*1000 + 0.2",
+    "histogram x",
+    "0 200 400 600 800 1000",
+    "0 5.0e-04 .001 .0015 .002",
+  ],
+  [
+    614,
+    38,
+    "runiform()*0.4 + -3",
+    "histogram x",
+    "-3 -2.9 -2.8 -2.7 -2.6",
+    "0 1 2 3",
+  ],
+  [
+    620,
+    260,
+    "runiform()*1 + 0",
+    "histogram x",
+    "0 .2 .4 .6 .8 1",
+    "0 .5 1 1.5",
+  ],
+  [
+    626,
+    182,
+    "floor(runiform()*8)*0.5 + 1990",
+    "histogram x, discrete",
+    "1990 1991 1992 1993 1994",
+    "0 .1 .2 .3",
+  ],
+  [
+    632,
+    104,
+    "runiform()*7 + -40",
+    "histogram x, width(0.88)",
+    "-40 -38 -36 -34 -32",
+    "0 .05 .1 .15 .2",
+  ],
+  [
+    638,
+    26,
+    "runiform()*1000 + 0.2",
+    "histogram x",
+    "0 200 400 600 800 1000",
+    "0 5.0e-04 .001 .0015",
+  ],
+  [
+    644,
+    248,
+    "runiform()*0.4 + -3",
+    "histogram x",
+    "-3 -2.9 -2.8 -2.7 -2.6",
+    "0 1 2 3 4",
+  ],
+  [
+    650,
+    170,
+    "runiform()*1 + 0",
+    "histogram x",
+    "0 .2 .4 .6 .8 1",
+    "0 .5 1 1.5",
+  ],
+  [
+    656,
+    92,
+    "runiform()*120 + 1990",
+    "histogram x, bin(6)",
+    "2000 2020 2040 2060 2080 2100",
+    "0 .002 .004 .006 .008 .01",
+  ],
+  [
+    504,
+    168,
+    "runiform()*0.4 + -3",
+    "twoway (histogram x)",
+    "-3 -2.9 -2.8 -2.7 -2.6",
+    "0 1 2 3 4",
+  ],
+  [
+    513,
+    201,
+    "runiform()*13 + 0",
+    "twoway (histogram x)",
+    "0 5 10 15",
+    "0 .05 .1 .15",
+  ],
+  [
+    522,
+    234,
+    "runiform()*7 + -40",
+    "twoway (histogram x, width(1.2))",
+    "-40 -38 -36 -34 -32",
+    "0 .05 .1 .15",
+  ],
+  [
+    531,
+    267,
+    "runiform()*3 + 100",
+    "twoway (histogram x, bin(17) xlabel(#9))",
+    "100 100.5 101 101.5 102 102.5 103",
+    "0 .1 .2 .3 .4 .5",
+  ],
+  [
+    540,
+    300,
+    "runiform()*1 + 0",
+    "twoway (histogram x)",
+    "0 .2 .4 .6 .8 1",
+    "0 .5 1 1.5",
+  ],
+  [
+    549,
+    33,
+    "floor(runiform()*3)*2 + 2",
+    "twoway (histogram x, discrete)",
+    "2 3 4 5 6",
+    "0 .05 .1 .15 .2",
+  ],
+  [
+    558,
+    66,
+    "runiform()*1000 + 0.2",
+    "twoway (histogram x)",
+    "0 200 400 600 800 1000",
+    "0 5.0e-04 .001 .0015 .002",
+  ],
+  [
+    567,
+    99,
+    "runiform()*2.5 + 5",
+    "twoway (histogram x, width(0.42) xlabel(#5))",
+    "5 5.5 6 6.5 7 7.5",
+    "0 .1 .2 .3 .4 .5",
+  ],
+  [
+    576,
+    132,
+    "runiform()*120 + 1990",
+    "twoway (histogram x, bin(11) start(-50))",
+    "0 500 1000 1500 2000",
+    "0 .001 .002 .003 .004 .005",
+  ],
+  [
+    585,
+    165,
+    "runiform()*55 + 17",
+    "twoway (histogram x)",
+    "20 30 40 50 60 70",
+    "0 .005 .01 .015 .02 .025",
+  ],
+  [
+    594,
+    198,
+    "runiform()*0.4 + -3",
+    "twoway (histogram x)",
+    "-3 -2.9 -2.8 -2.7 -2.6",
+    "0 1 2 3 4",
+  ],
+  [
+    603,
+    231,
+    "runiform()*13 + 0",
+    "twoway (histogram x, xlabel(#9))",
+    "0 2 4 6 8 10 12",
+    "0 .02 .04 .06 .08 .1",
+  ],
+  [
+    612,
+    264,
+    "floor(runiform()*6)*1 + -40",
+    "twoway (histogram x, discrete)",
+    "-40 -39 -38 -37 -36 -35",
+    "0 .05 .1 .15 .2",
+  ],
+  [
+    621,
+    297,
+    "runiform()*3 + 100",
+    "twoway (histogram x, bin(5) start(-50))",
+    "-50 0 50 100",
+    "0 .01 .02 .03 .04",
+  ],
+  [
+    630,
+    30,
+    "runiform()*1 + 0",
+    "twoway (histogram x)",
+    ".2 .4 .6 .8 1",
+    "0 .5 1 1.5 2",
+  ],
+  [
+    639,
+    63,
+    "runiform()*0.07 + 2.25",
+    "twoway (histogram x, xlabel(#5))",
+    "2.26 2.28 2.3 2.32",
+    "0 5 10 15 20 25",
+  ],
+  [
+    648,
+    96,
+    "runiform()*1000 + 0.2",
+    "twoway (histogram x)",
+    "0 200 400 600 800 1000",
+    "0 5.0e-04 .001 .0015",
+  ],
+  [
+    657,
+    129,
+    "runiform()*2.5 + 5",
+    "twoway (histogram x, width(0.42))",
+    "5 5.5 6 6.5 7 7.5",
+    "0 .1 .2 .3 .4 .5",
+  ],
+];
+test("histograms of random data are labelled as Stata labels them", () => {
+  for (const [seed, n, x, command, xs, ys] of HISTOGRAMS) {
+    const s = labor();
+    for (const line of [
+      "clear",
+      `set seed ${seed}`,
+      `set obs ${n}`,
+      `generate x = ${x}`,
+    ])
+      assert.equal(s.run(line).rc, 0);
+    const svg = graph(s, command);
+    assert.equal(xLabels(svg).join(" "), xs, `${seed} ${command}`);
+    assert.equal(yLabels(svg).join(" "), ys, `${seed} ${command}`);
+  }
+});
+
+test("#0 labels nothing in by() panels, and minmax each panel's ends", () => {
+  const s = labor();
+  for (const command of [
+    "scatter wage educ, by(female) ylabel(#0)",
+    "scatter wage educ, by(union) ylabel(#0)",
+    "scatter hours educ, by(female) ylabel(#0)",
+    "scatter wage educ, by(female, total) ylabel(#0)",
+    "histogram wage, by(female) ylabel(#0)",
+    "scatter wage educ, by(female) ylabel(#-1)",
+  ])
+    assert.deepEqual(yLabels(graph(s, command)), [], command);
+  assert.deepEqual(
+    xLabels(graph(s, "scatter wage educ, by(female) xlabel(#0)")),
+    [],
+  );
+  // #1 labels the ends of all the panels' data; minmax the first panel's.
+  assert.deepEqual(
+    yLabels(graph(s, "scatter wage educ, by(female) ylabel(#1)")),
+    ["4.81", "50.77"],
+  );
+  assert.deepEqual(
+    yLabels(graph(s, "scatter wage educ, by(female) ylabel(minmax)")),
+    ["5.06", "50.77"],
+  );
+});
+
+test("axis labels are written in the display format of the plotted variable", () => {
+  const s = labor();
+  const y = (command) => yLabels(graph(s, command)),
+    x = (command) => xLabels(graph(s, command));
+  for (const line of [
+    "generate double yr = 2000000 + wage/100",
+    "generate double lwd = ln(wage)",
+    "generate w2 = wage",
+    "format w2 %9.1f",
+    "generate e2 = educ",
+    "format e2 %9.2f",
+    "generate double big = 123456789.123 + wage",
+    "generate double tiny = wage/1e7",
+    "generate fl = wage*1000000",
+    "generate double lw = ln(wage)",
+    "generate double le = ln(educ)",
+    "generate cw = wage*1000",
+    "format cw %9.0gc",
+  ])
+    assert.equal(s.run(line).rc, 0, line);
+  assert.deepEqual(y("scatter yr educ"), [
+    "2000000",
+    "2000000.1",
+    "2000000.2",
+    "2000000.3",
+    "2000000.4",
+    "2000000.5",
+  ]);
+  assert.deepEqual(y("scatter lwd educ, ylabel(#0)"), [
+    "1.5706971",
+    "3.9273056",
+  ]);
+  assert.equal(s.run("format lwd %9.2f").rc, 0);
+  assert.deepEqual(y("scatter lwd educ"), [
+    "1.50",
+    "2.00",
+    "2.50",
+    "3.00",
+    "3.50",
+    "4.00",
+  ]);
+  assert.deepEqual(y("scatter lwd educ, ylabel(#0)"), ["1.57", "3.93"]);
+  const tenths = ["0.0", "10.0", "20.0", "30.0", "40.0", "50.0"];
+  assert.deepEqual(y("scatter w2 educ"), tenths);
+  // The first plot's variable names the format; a fit's is %9.0g.
+  assert.deepEqual(y("scatter w2 lwd educ"), tenths);
+  assert.deepEqual(y("scatter lwd w2 educ"), [
+    "0.00",
+    "10.00",
+    "20.00",
+    "30.00",
+    "40.00",
+    "50.00",
+  ]);
+  assert.deepEqual(y("twoway (lfit w2 educ) (scatter w2 educ)"), [
+    "0",
+    "10",
+    "20",
+    "30",
+    "40",
+    "50",
+  ]);
+  assert.deepEqual(x("scatter wage e2"), ["5.00", "10.00", "15.00", "20.00"]);
+  assert.deepEqual(y("scatter w2 educ, by(female)"), [
+    "0.0",
+    "20.0",
+    "40.0",
+    "60.0",
+  ]);
+  assert.deepEqual(x("histogram w2"), tenths);
+  assert.deepEqual(y("scatter w2 educ, ylabel(minmax)"), ["4.8", "50.8"]);
+  // Bar heights are %6.4g; a density Stata makes is %10.0g.
+  assert.deepEqual(y("histogram wage, ylabel(#0)"), ["0", ".057"]);
+  assert.deepEqual(y("histogram hours, ylabel(#0)"), ["0", ".0753"]);
+  assert.deepEqual(y("histogram w2, frequency ylabel(#0)"), ["0", "64"]);
+  assert.deepEqual(y("histogram w2, percent ylabel(#0)"), ["0", "10.92"]);
+  assert.deepEqual(y("histogram w2, fraction ylabel(#0)"), ["0", ".1092"]);
+  assert.deepEqual(y("kdensity w2, ylabel(#0)"), [".00032904", ".05556199"]);
+  const density = graph(s, "twoway (kdensity lw), ylabel(#0) xlabel(#0)");
+  assert.deepEqual(yLabels(density), [".01678597", ".8854821"]);
+  assert.deepEqual(xLabels(density), ["1.5706971", "3.9273056"]);
+  const fit = graph(s, "twoway (lfit lw le), ylabel(#0) xlabel(#0)");
+  assert.deepEqual(yLabels(fit), ["2.260064", "3.322691"]);
+  assert.deepEqual(xLabels(fit), ["2.079442", "2.944439"]);
+  const smooth = graph(s, "twoway (lowess lw le), ylabel(#0) xlabel(#0)");
+  assert.deepEqual(yLabels(smooth), ["2.4121203", "3.5055441"]);
+  assert.deepEqual(xLabels(smooth), ["2.0794415", "2.944439"]);
+  assert.deepEqual(y("scatter big educ"), Array(6).fill("1.235e+08"));
+  assert.deepEqual(y("scatter tiny educ"), [
+    "0",
+    "1.000e-06",
+    "2.000e-06",
+    "3.000e-06",
+    "4.000e-06",
+    "5.000e-06",
+  ]);
+  assert.deepEqual(y("scatter fl educ, ylabel(#0)"), ["4810000", "5.08e+07"]);
+  assert.deepEqual(y("scatter cw educ"), [
+    "0",
+    "10,000",
+    "20,000",
+    "30,000",
+    "40,000",
+    "50,000",
+  ]);
+});
+
+test("label rules are read as Stata reads them", () => {
+  const s = labor();
+  const y = (rule) => yLabels(graph(s, `scatter wage educ, ylabel(${rule})`));
+  assert.deepEqual(y("minmax"), ["4.81", "50.77"]);
+  assert.deepEqual(y("minmax 25"), ["4.81", "50.77", "25"]);
+  assert.deepEqual(y("#3 10"), ["0", "20", "40", "60", "10"]);
+  assert.deepEqual(y('#3 10 "ten"'), ["0", "20", "40", "60", "ten"]);
+  // A value of the rule that follows it too is drawn where the list puts it.
+  assert.deepEqual(y("#3 20"), ["0", "40", "60", "20"]);
+  assert.deepEqual(y('#3 20 "x"'), ["0", "40", "60", "x"]);
+  assert.deepEqual(y('0(10)30 20 "x"'), ["0", "10", "30", "x"]);
+  assert.deepEqual(y("#3 10(5)20"), ["0", "40", "60", "10", "15", "20"]);
+  assert.deepEqual(y("."), []);
+  assert.deepEqual(y(". 10"), ["10"]);
+  assert.deepEqual(y('. 10 "ten"'), ["ten"]);
+  assert.deepEqual(y('none 10 "x"'), ["x"]);
+  assert.deepEqual(y("none, nogrid"), []);
+  assert.deepEqual(y('10 15 "x"'), ["10", "x"]);
+  assert.deepEqual(y("10(5)20 30(5)40"), ["10", "15", "20", "30", "35", "40"]);
+  assert.deepEqual(y('10 20(5)30 "x"'), ["10", "20", "25", "x"]);
+  assert.deepEqual(y('10/20 "x"'), [
+    ..."10 11 12 13 14 15 16 17 18 19".split(" "),
+    "x",
+  ]);
+  assert.deepEqual(y('1e1 "a"'), ["a"]);
+  assert.deepEqual(y('10 ""'), ["10"]);
+  assert.deepEqual(y('10 20 ""'), ["10", "20"]);
+  assert.deepEqual(y('10 "a" 10 "b"'), ["a", "b"]);
+  assert.deepEqual(y('10 "a" 10 "b" 20'), ["a", "b", "20"]);
+  // ##3 is for minor ticks: Stata says so and draws no labels.
+  const minor = s.run("scatter wage educ, ylabel(##3)");
+  assert.equal(minor.rc, 0);
+  assert.deepEqual(
+    minor.output.flatMap((o) => o.lines ?? []),
+    ["##3 ignored, only allowed for minor ticks"],
+  );
+  for (const [rule, shown] of [
+    ["#3 #4", "#4"],
+    ['10 "ten" none 30', '10 "ten" none 30'],
+    ["none none", "none"],
+    ['10(5)20 "x"', '"x"'],
+    ['. "missing"', '"missing"'],
+    ["25 minmax", "25 minmax"],
+    ["minmax #3", "#3"],
+    ["#3 none", "none"],
+    ["10 . 20", "10 . 20"],
+    ["MINMAX", "MINMAX"],
+    ['#3 "x"', '"x"'],
+  ]) {
+    const out = refused(s, `scatter wage educ, ylabel(${rule})`);
+    assert.equal(out.rc, 198, rule);
+    assert.equal(
+      out.text.split("\n")[0],
+      `invalid label specifier, :  ${shown}:`,
+      rule,
+    );
+  }
+});
+
+test("repeated label and line options are merged, as are those in a plot", () => {
+  const s = labor();
+  const lines = (svg) =>
+    (svg.match(/stroke="#333333" stroke-width="1"\/>/g) ?? []).length;
+  assert.equal(lines(graph(s, "scatter wage educ, yline(10) yline(20)")), 2);
+  assert.equal(lines(graph(s, "scatter wage educ, xline(10) xline(12)")), 2);
+  assert.equal(lines(graph(s, "scatter wage educ, yline(10 20) yline(30)")), 3);
+  // A later label option replaces the values and keeps the suboptions.
+  const y = (options) => yLabels(graph(s, `scatter wage educ, ${options}`));
+  assert.deepEqual(
+    xLabels(graph(s, "scatter wage educ, xlabel(10) xlabel(12)")),
+    ["12"],
+  );
+  assert.deepEqual(y("ylabel(10 20) ylabel(30)"), ["30"]);
+  assert.deepEqual(y("ylabel(10 20) ylabel()"), ["10", "20"]);
+  assert.deepEqual(y("ylabel(10 20, grid) ylabel(#3)"), [
+    "0",
+    "20",
+    "40",
+    "60",
+  ]);
+  assert.deepEqual(y("ylabel(#3, nogrid) ylabel(10)"), ["10"]);
+  assert.deepEqual(y('ylabel(10 "a") ylabel(20 "b")'), ["b"]);
+  assert.deepEqual(y("ylabel(10 20) ylabel(none)"), []);
+  // The graph's options written inside a plot are the graph's.
+  const inside = graph(
+    s,
+    "twoway (scatter wage educ, title(hi) xlabel(#9) yline(20))",
+  );
+  assert.equal(count(inside, "hi"), 1);
+  assert.equal(lines(inside), 1);
+  assert.deepEqual(xLabels(inside), ["8", "10", "12", "14", "16", "18", "20"]);
+  assert.equal(
+    count(
+      graph(
+        s,
+        "twoway (scatter wage educ, title(a)) (lfit wage educ, title(b)), title(c)",
+      ),
+      "c",
+    ),
+    1,
+  );
+  assert.deepEqual(
+    yLabels(
+      graph(
+        s,
+        "twoway (scatter wage educ, ylabel(10 20)) (lfit wage educ, ylabel(30))",
+      ),
+    ),
+    ["30"],
+  );
+  assert.equal(
+    count(
+      graph(
+        s,
+        "twoway (scatter wage educ, xtitle(X)) (lfit wage educ), xtitle(Y)",
+      ),
+      "Y",
+    ),
+    1,
+  );
+});
+
+test("generated plots are titled, and histogram's curves named, as in Stata", () => {
+  const s = labor();
+  assert.equal(count(graph(s, "twoway (lfit wage educ)"), "Fitted values"), 1);
+  assert.equal(count(graph(s, "twoway (qfit wage educ)"), "Fitted values"), 1);
+  // Stata: the y title lowess w2 e2 (recorded with w2 and e2 copies of
+  // wage and educ).
+  assert.equal(s.run("generate w2 = wage").rc, 0);
+  assert.equal(s.run("generate e2 = educ").rc, 0);
+  assert.equal(count(graph(s, "twoway (lowess w2 e2)"), "lowess w2 e2"), 1);
+  const density = graph(s, "twoway (kdensity wage)");
+  assert.equal(count(density, "kdensity wage"), 1);
+  assert.equal(count(density, "x"), 1);
+  // histogram draws a legend only when asked.
+  assert.equal(count(graph(s, "histogram wage, normal"), "Density"), 1);
+  assert.equal(
+    count(graph(s, "histogram wage, kdensity legend(order(1 2))"), "Density"),
+    1,
+  );
+  const asked = graph(s, "histogram wage, normal legend(on)");
+  assert.equal(count(asked, "Density"), 2);
+  assert.equal(count(asked, "normal wage"), 1);
+});

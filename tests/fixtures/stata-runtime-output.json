@@ -32597,6 +32597,234 @@
       ]
     },
     {
+      "id": "graph-axes-merge",
+      "source": "clear\ninput double y double x1 double x2 byte g byte cl\n3.1 1 2.0 1 1\n4.9 2 1.5 1 1\n7.2 3 3.1 1 2\n8.8 4 2.2 2 2\n11.5 5 4.0 2 2\n12.1 6 3.3 2 3\n15.3 7 5.1 3 3\n15.9 8 4.4 3 3\n19.2 9 6.2 3 4\n20.4 10 5.0 1 4\n22.8 11 7.3 2 4\n25.1 12 6.1 3 4\nend\ngraph drop _all\nscatter y x1, name(g1)\nhistogram y, name(g2)\nscatter y x1, name(Alpha)\nscatter y x1, name(gab)\ngraph dir\ngraph dir g*\ngraph dir g?\ngraph dir *a*\ngraph dir G*\ngraph dir zzz\ngraph dir, memory\ngraph dir g*, m\ngraph dir, gph\ngraph dir, g\ncapture noisily graph dir g1 Alpha\ncapture noisily graph dir, bogus\ncapture noisily graph dir, MEMORY\ngraph drop _all\ncapture noisily scatter y x1, by(g, cols(0) rows(2))\ncapture noisily scatter y x1, by(g, cols(2) rows(0))\ncapture noisily scatter y x1, by(g, cols(-1))\ncapture noisily scatter y x1, by(g, cols(1.5))\ncapture noisily scatter y x1, by(g, rows(abc))\ncapture noisily scatter y x1, by(g, rows(0) cols(0))\ncapture noisily scatter y x1, by(g, cols(2) rows(-1))\nscatter y x1, by(g, cols())\ncapture noisily twoway (scatter y x1) (lfit y x1), by(g, LEGEND(off))\ncapture noisily twoway (scatter y x1) (lfit y x1), by(g, le(off))\ncapture noisily scatter y x1, by(g, Bogus(2))\ncapture noisily scatter y x1, bogus(2)\ncapture noisily scatter y x1, yline(\"10\")\ncapture noisily scatter y x1, yline(`\"10\"')\ncapture noisily scatter y x1, xline(\"10\" 12)\ncapture noisily scatter y x1, yline( )\ncapture noisily scatter y x1, yline(1,2)\ncapture noisily scatter y x1, yline(1, bogus)\ncapture noisily scatter y x1, yline(1, Lcolor(red))\ncapture noisily scatter y x1, yline(abc, bogus)\nscatter y x1, yline(10,)\nscatter y x1, yline(10) yline(20)\nscatter y x1, xline(2) xline(4)\nscatter y x1, xlabel(2) xlabel(4)\nscatter y x1, ylabel(10 20) ylabel(30)\ntwoway (scatter y x1, title(a) yline(5)) (lfit y x1, ylabel(10))\nscatter y x1, ylabel(minmax)\nscatter y x1, ylabel(#3 10)\nscatter y x1, ylabel(##3)\nscatter y x1, ylabel(.)\nscatter y x1, ylabel(. 10 \"ten\")\nscatter y x1, ylabel(10/20 \"x\")\nscatter y x1, ylabel(10 \"a\" 10 \"b\")\ncapture noisily scatter y x1, ylabel(#3 #4)\ncapture noisily scatter y x1, ylabel(10 \"ten\" none 30)\ncapture noisily scatter y x1, ylabel(none none)\ncapture noisily scatter y x1, ylabel(10(5)20 \"x\")\ncapture noisily scatter y x1, ylabel(. \"missing\")\ncapture noisily scatter y x1, ylabel(25 minmax)\ncapture noisily scatter y x1, ylabel(10 #3)\ncapture noisily scatter y x1, ylabel(minmax #3)\ncapture noisily scatter y x1, ylabel(10 . 20)\ncapture noisily scatter y x1, ylabel(MINMAX)\ncapture noisily scatter y x1, ylabel(#3 \"x\")\ngen double h = x2 + 100.05855\nhistogram h\nhistogram h, discrete\ngen float f = x2 / 3\nhistogram f, discrete\nhistogram f, normal legend(on)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input double y double x1 double x2 byte g byte cl",
+          "lines": [
+            "              y          x1          x2         g        cl",
+            "  1. 3.1 1 2.0 1 1",
+            "  2. 4.9 2 1.5 1 1",
+            "  3. 7.2 3 3.1 1 2",
+            "  4. 8.8 4 2.2 2 2",
+            "  5. 11.5 5 4.0 2 2",
+            "  6. 12.1 6 3.3 2 3",
+            "  7. 15.3 7 5.1 3 3",
+            "  8. 15.9 8 4.4 3 3",
+            "  9. 19.2 9 6.2 3 4",
+            " 10. 20.4 10 5.0 1 4",
+            " 11. 22.8 11 7.3 2 4",
+            " 12. 25.1 12 6.1 3 4",
+            " 13. end"
+          ]
+        },
+        { "command": "graph drop _all", "lines": [] },
+        { "command": "scatter y x1, name(g1)", "lines": [] },
+        {
+          "command": "histogram y, name(g2)",
+          "lines": ["(bin=3, start=3.1, width=7.3333333)"]
+        },
+        { "command": "scatter y x1, name(Alpha)", "lines": [] },
+        { "command": "scatter y x1, name(gab)", "lines": [] },
+        { "command": "graph dir", "lines": ["    Alpha  g1     g2     gab"] },
+        { "command": "graph dir g*", "lines": ["    g1   g2   gab"] },
+        { "command": "graph dir g?", "lines": ["    g1  g2"] },
+        { "command": "graph dir *a*", "lines": ["    Alpha  gab"] },
+        { "command": "graph dir G*", "lines": [] },
+        { "command": "graph dir zzz", "lines": [] },
+        {
+          "command": "graph dir, memory",
+          "lines": ["    Alpha  g1     g2     gab"]
+        },
+        { "command": "graph dir g*, m", "lines": ["    g1   g2   gab"] },
+        { "command": "graph dir, gph", "lines": [] },
+        { "command": "graph dir, g", "lines": [] },
+        {
+          "command": "capture noisily graph dir g1 Alpha",
+          "lines": ["varlist not allowed"]
+        },
+        {
+          "command": "capture noisily graph dir, bogus",
+          "lines": ["option bogus not allowed"]
+        },
+        {
+          "command": "capture noisily graph dir, MEMORY",
+          "lines": ["option MEMORY not allowed"]
+        },
+        { "command": "graph drop _all", "lines": [] },
+        {
+          "command": "capture noisily scatter y x1, by(g, cols(0) rows(2))",
+          "lines": [
+            "cols() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily scatter y x1, by(g, cols(2) rows(0))",
+          "lines": [
+            "rows() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily scatter y x1, by(g, cols(-1))",
+          "lines": [
+            "cols() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily scatter y x1, by(g, cols(1.5))",
+          "lines": ["cols() invalid -- invalid number, noninteger value"]
+        },
+        {
+          "command": "capture noisily scatter y x1, by(g, rows(abc))",
+          "lines": ["rows() invalid -- invalid number"]
+        },
+        {
+          "command": "capture noisily scatter y x1, by(g, rows(0) cols(0))",
+          "lines": [
+            "rows() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily scatter y x1, by(g, cols(2) rows(-1))",
+          "lines": [
+            "rows() invalid -- invalid number, outside of allowed range"
+          ]
+        },
+        { "command": "scatter y x1, by(g, cols())", "lines": [] },
+        {
+          "command": "capture noisily twoway (scatter y x1) (lfit y x1), by(g, LEGEND(off))",
+          "lines": ["option LEGEND() not allowed"]
+        },
+        {
+          "command": "capture noisily twoway (scatter y x1) (lfit y x1), by(g, le(off))",
+          "lines": ["option le() not allowed"]
+        },
+        {
+          "command": "capture noisily scatter y x1, by(g, Bogus(2))",
+          "lines": ["option Bogus() not allowed"]
+        },
+        {
+          "command": "capture noisily scatter y x1, bogus(2)",
+          "lines": ["option bogus() not allowed"]
+        },
+        {
+          "command": "capture noisily scatter y x1, yline(\"10\")",
+          "lines": ["invalid line argument, \"10\""]
+        },
+        {
+          "command": "capture noisily scatter y x1, yline(`\"10\"')",
+          "lines": ["invalid line argument, `\"10\"'"]
+        },
+        {
+          "command": "capture noisily scatter y x1, xline(\"10\" 12)",
+          "lines": ["invalid line argument, \"10\" 12"]
+        },
+        {
+          "command": "capture noisily scatter y x1, yline( )",
+          "lines": ["something required"]
+        },
+        {
+          "command": "capture noisily scatter y x1, yline(1,2)",
+          "lines": ["option 2 not allowed"]
+        },
+        {
+          "command": "capture noisily scatter y x1, yline(1, bogus)",
+          "lines": ["option bogus not allowed"]
+        },
+        {
+          "command": "capture noisily scatter y x1, yline(1, Lcolor(red))",
+          "lines": ["option Lcolor() not allowed"]
+        },
+        {
+          "command": "capture noisily scatter y x1, yline(abc, bogus)",
+          "lines": ["option bogus not allowed"]
+        },
+        { "command": "scatter y x1, yline(10,)", "lines": [] },
+        { "command": "scatter y x1, yline(10) yline(20)", "lines": [] },
+        { "command": "scatter y x1, xline(2) xline(4)", "lines": [] },
+        { "command": "scatter y x1, xlabel(2) xlabel(4)", "lines": [] },
+        { "command": "scatter y x1, ylabel(10 20) ylabel(30)", "lines": [] },
+        {
+          "command": "twoway (scatter y x1, title(a) yline(5)) (lfit y x1, ylabel(10))",
+          "lines": []
+        },
+        { "command": "scatter y x1, ylabel(minmax)", "lines": [] },
+        { "command": "scatter y x1, ylabel(#3 10)", "lines": [] },
+        {
+          "command": "scatter y x1, ylabel(##3)",
+          "lines": ["##3 ignored, only allowed for minor ticks"]
+        },
+        { "command": "scatter y x1, ylabel(.)", "lines": [] },
+        { "command": "scatter y x1, ylabel(. 10 \"ten\")", "lines": [] },
+        { "command": "scatter y x1, ylabel(10/20 \"x\")", "lines": [] },
+        { "command": "scatter y x1, ylabel(10 \"a\" 10 \"b\")", "lines": [] },
+        {
+          "command": "capture noisily scatter y x1, ylabel(#3 #4)",
+          "lines": ["invalid label specifier, :  #4:"]
+        },
+        {
+          "command": "capture noisily scatter y x1, ylabel(10 \"ten\" none 30)",
+          "lines": ["invalid label specifier, :  10 \"ten\" none 30:"]
+        },
+        {
+          "command": "capture noisily scatter y x1, ylabel(none none)",
+          "lines": ["invalid label specifier, :  none:"]
+        },
+        {
+          "command": "capture noisily scatter y x1, ylabel(10(5)20 \"x\")",
+          "lines": ["invalid label specifier, :  \"x\":"]
+        },
+        {
+          "command": "capture noisily scatter y x1, ylabel(. \"missing\")",
+          "lines": ["invalid label specifier, :  \"missing\":"]
+        },
+        {
+          "command": "capture noisily scatter y x1, ylabel(25 minmax)",
+          "lines": ["invalid label specifier, :  25 minmax:"]
+        },
+        {
+          "command": "capture noisily scatter y x1, ylabel(10 #3)",
+          "lines": ["invalid label specifier, :  10 #3:"]
+        },
+        {
+          "command": "capture noisily scatter y x1, ylabel(minmax #3)",
+          "lines": ["invalid label specifier, :  #3:"]
+        },
+        {
+          "command": "capture noisily scatter y x1, ylabel(10 . 20)",
+          "lines": ["invalid label specifier, :  10 . 20:"]
+        },
+        {
+          "command": "capture noisily scatter y x1, ylabel(MINMAX)",
+          "lines": ["invalid label specifier, :  MINMAX:"]
+        },
+        {
+          "command": "capture noisily scatter y x1, ylabel(#3 \"x\")",
+          "lines": ["invalid label specifier, :  \"x\":"]
+        },
+        { "command": "gen double h = x2 + 100.05855", "lines": [] },
+        {
+          "command": "histogram h",
+          "lines": ["(bin=3, start=101.55855, width=1.9333333)"]
+        },
+        {
+          "command": "histogram h, discrete",
+          "lines": ["(start=101.55855, width=.09999847)"]
+        },
+        { "command": "gen float f = x2 / 3", "lines": [] },
+        {
+          "command": "histogram f, discrete",
+          "lines": ["(start=.5, width=.0333333)"]
+        },
+        {
+          "command": "histogram f, normal legend(on)",
+          "lines": ["(bin=3, start=.5, width=.64444447)"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
