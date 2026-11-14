@@ -143,6 +143,27 @@ function baseLevel(spec, levels, variable, sample) {
   return spec.value;
 }
 /**
+ * poisson, nbreg, qreg, glm and cloglog read their variables with syntax
+ * varlist(numeric fv), which refuses a string variable by name; Stata 19
+ * prints "string variables not allowed in varlist; s is a string
+ * variable", r(109), where regress and logit find no observations. A
+ * factor (i.s) is left to design(), which refuses it as a factor.
+ */
+export function numericVarlist(session, text) {
+  for (const token of String(text).trim().split(/\s+/))
+    for (const part of token.split("#")) {
+      const m = /^(?:c\.)?([A-Za-z_*?~][\w*?~-]*)$/.exec(part);
+      if (!m) continue;
+      for (const name of session.varlist(m[1]))
+        if (isStringType(session.data.get(name).type))
+          throw new StataError(
+            `string variables not allowed in varlist;\n${name} is a string variable`,
+            109,
+          );
+    }
+}
+
+/**
  * Reads "y x1 i.g c.x1#c.x2 i.g##c.x1" into a dependent variable and design
  * columns. Each term is a product of components, a component being a
  * continuous variable or the levels of a factor. A bare name is continuous
@@ -152,10 +173,21 @@ function baseLevel(spec, levels, variable, sample) {
 export function design(session, text, rows, constant = true, levelRows) {
   const tokens = text.trim().split(/\s+/).filter(Boolean);
   if (!tokens.length) throw new StataError("varlist required", 100);
-  const numeric = (name) => {
+  // A string variable as a factor is an error as Stata's fvexpand makes
+  // it; used as a number it is missing in every observation, so the
+  // sample is empty, and Stata 19 says "no observations", r(2000), for
+  // regress, logit, ivregress, xtreg and the others that come here.
+  let stringUsed = null;
+  const numeric = (name, factor = false) => {
     const variable = session.data.get(session.varlist(name)[0]);
-    if (isStringType(variable.type))
-      throw new StataError("string variables may not be used", 109);
+    if (isStringType(variable.type)) {
+      if (factor)
+        throw new StataError(
+          `${variable.name}:  string variables may not be used as factor variables`,
+          109,
+        );
+      stringUsed = variable;
+    }
     return variable;
   };
   const component = (word, inInteraction) => {
@@ -165,9 +197,10 @@ export function design(session, text, rows, constant = true, levelRows) {
         `${word}: this factor-variable or time-series operator is not available yet`,
         198,
       );
+    const factor = m ? m[1] !== "c" : inInteraction;
     return {
-      variable: numeric(m ? m[2] : word),
-      factor: m ? m[1] !== "c" : inInteraction,
+      variable: numeric(m ? m[2] : word, factor),
+      factor,
       // The base level ib#., ib(#n)., ib(first|last|freq). or b#. asks
       // for, or none for ibn.
       base: m ? baseSpecification(m[1]) : undefined,
@@ -250,6 +283,7 @@ export function design(session, text, rows, constant = true, levelRows) {
     else
       for (const name of session.varlist(token)) add([component(name, false)]);
   }
+  if (stringUsed) throw new StataError("no observations", 2000);
   const sample = rows.filter(
     (i) =>
       !isMissing(dependent.data[i]) &&

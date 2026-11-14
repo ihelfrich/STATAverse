@@ -121739,6 +121739,393 @@
       ]
     },
     {
+      "id": "pass7-ux-destring-hint",
+      "source": "clear\ninput id str8 income str4 score\n1 \"1,200\" \"55\"\n2 \"2,500\" \"NA\"\n3 \"800\" \"61\"\n4 \"1,050\" \"70\"\nend\ncapture noisily regress score income\ndestring score income, replace\ndestring score income, replace ignore(\",\") force\nlist\nregress score income\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id str8 income str4 score",
+          "lines": [
+            "            id     income      score",
+            "  1. 1 \"1,200\" \"55\"",
+            "  2. 2 \"2,500\" \"NA\"",
+            "  3. 3 \"800\" \"61\"",
+            "  4. 4 \"1,050\" \"70\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "capture noisily regress score income",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "destring score income, replace",
+          "lines": [
+            "score: contains nonnumeric characters; no replace",
+            "income: contains nonnumeric characters; no replace"
+          ]
+        },
+        {
+          "command": "destring score income, replace ignore(\",\") force",
+          "lines": [
+            "score: contains nonnumeric characters not specified in ignore(); replaced as byte",
+            "(1 missing value generated)",
+            "income: character , removed; replaced as int"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------------+",
+            "     | id   income   score |",
+            "     |---------------------|",
+            "  1. |  1     1200      55 |",
+            "  2. |  2     2500       . |",
+            "  3. |  3      800      61 |",
+            "  4. |  4     1050      70 |",
+            "     +---------------------+"
+          ]
+        },
+        {
+          "command": "regress score income",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =         3",
+            "-------------+----------------------------------   F(1, 1)         =      0.07",
+            "       Model |  7.83673469         1  7.83673469   Prob > F        =    0.8311",
+            "    Residual |  106.163265         1  106.163265   R-squared       =    0.0687",
+            "-------------+----------------------------------   Adj R-squared   =   -0.8625",
+            "       Total |         114         2          57   Root MSE        =    10.304",
+            "",
+            "------------------------------------------------------------------------------",
+            "       score | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "      income |  -.0097959   .0360549    -0.27   0.831    -.4679173    .4483255",
+            "       _cons |   71.95918   37.13542     1.94   0.303     -399.891    543.8094",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass7-ux-edit-strings",
+      "source": "clear\nset obs 8\ngenerate str10 name = \"abc\"\nreplace name = \"US\" + char(36) + \"abc\" in 2\nreplace name = \"it's \" + char(96) + \"ok'\" in 3\nreplace name = \"say \" + char(34) + \"hi\" + char(34) + \" \" + char(36) + \"x \\\" + char(96) + \"y'\" in 4\nreplace name = \"C:\\\" + char(36) + \"tmp\\\" in 5\nreplace name = \"\" in 6\nreplace name = char(36) + char(96) + char(34) in 7\nreplace name = \"a\\b\" in 8\nlist\ngenerate n = strlen(name)\nlist n\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 8",
+          "lines": ["Number of observations (_N) was 0, now 8."]
+        },
+        { "command": "generate str10 name = \"abc\"", "lines": [] },
+        {
+          "command": "replace name = \"US\" + char(36) + \"abc\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace name = \"it's \" + char(96) + \"ok'\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace name = \"say \" + char(34) + \"hi\" + char(34) + \" \" + char(36) + \"x \\\" + char(96) + \"y'\" in 4",
+          "lines": ["variable name was str10 now str16", "(1 real change made)"]
+        },
+        {
+          "command": "replace name = \"C:\\\" + char(36) + \"tmp\\\" in 5",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace name = \"\" in 6",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace name = char(36) + char(96) + char(34) in 7",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace name = \"a\\b\" in 8",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------+",
+            "     |             name |",
+            "     |------------------|",
+            "  1. |              abc |",
+            "  2. |           US$abc |",
+            "  3. |        it's `ok' |",
+            "  4. | say \"hi\" $x \\`y' |",
+            "  5. |         C:\\$tmp\\ |",
+            "     |------------------|",
+            "  6. |                  |",
+            "  7. |              $`\" |",
+            "  8. |              a\\b |",
+            "     +------------------+"
+          ]
+        },
+        { "command": "generate n = strlen(name)", "lines": [] },
+        {
+          "command": "list n",
+          "lines": [
+            "     +----+",
+            "     |  n |",
+            "     |----|",
+            "  1. |  3 |",
+            "  2. |  6 |",
+            "  3. |  9 |",
+            "  4. | 16 |",
+            "  5. |  8 |",
+            "     |----|",
+            "  6. |  0 |",
+            "  7. |  3 |",
+            "  8. |  3 |",
+            "     +----+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass7-ux-error-messages",
+      "source": "clear\nset obs 4\ngenerate id = _n\ngenerate income = 100 * _n\ngenerate str6 sex = cond(mod(_n,2),\"male\",\"female\")\ncapture noisily generate male = (sex == 1)\ncapture noisily describe if income > 1\ncapture noisily describe in 1/2\ncapture noisily list income [fw=id]\ncapture noisily tabstat income, stat(mean) by(sex\ntabstat income, stat(mean) by(sex)\ncapture noisily regress income id, cluster(sex\ncapture noisily tabulate sex, detial\ncapture noisily tabulate sex, detail\ncapture noisily summarize income, rbust\ncapture noisily summarize income, detial\ncapture noisily replace income = Income + 1\ncapture noisily generate y = incme * 2\ncapture noisily summarize i\ngenerate male = (sex == \"male\")\nencode sex, generate(sex_code)\nlist\nclear\ncapture noisily count if x > 1\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate income = 100 * _n", "lines": [] },
+        {
+          "command": "generate str6 sex = cond(mod(_n,2),\"male\",\"female\")",
+          "lines": []
+        },
+        {
+          "command": "capture noisily generate male = (sex == 1)",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "capture noisily describe if income > 1",
+          "lines": ["if not allowed"]
+        },
+        {
+          "command": "capture noisily describe in 1/2",
+          "lines": ["in range not allowed"]
+        },
+        {
+          "command": "capture noisily list income [fw=id]",
+          "lines": ["weights not allowed"]
+        },
+        {
+          "command": "capture noisily tabstat income, stat(mean) by(sex",
+          "lines": [") required"]
+        },
+        {
+          "command": "tabstat income, stat(mean) by(sex)",
+          "lines": [
+            "Summary for variables: income",
+            "Group variable: sex",
+            "",
+            "   sex |      Mean",
+            "-------+----------",
+            "female |       300",
+            "  male |       200",
+            "-------+----------",
+            " Total |       250",
+            "------------------"
+          ]
+        },
+        {
+          "command": "capture noisily regress income id, cluster(sex",
+          "lines": [") required"]
+        },
+        {
+          "command": "capture noisily tabulate sex, detial",
+          "lines": ["option detial not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate sex, detail",
+          "lines": ["option detail not allowed"]
+        },
+        {
+          "command": "capture noisily summarize income, rbust",
+          "lines": ["option rbust not allowed"]
+        },
+        {
+          "command": "capture noisily summarize income, detial",
+          "lines": ["option detial not allowed"]
+        },
+        {
+          "command": "capture noisily replace income = Income + 1",
+          "lines": ["Income not found"]
+        },
+        {
+          "command": "capture noisily generate y = incme * 2",
+          "lines": ["incme not found"]
+        },
+        {
+          "command": "capture noisily summarize i",
+          "lines": ["i ambiguous abbreviation"]
+        },
+        { "command": "generate male = (sex == \"male\")", "lines": [] },
+        { "command": "encode sex, generate(sex_code)", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------------------------------+",
+            "     | id   income      sex   male   sex_code |",
+            "     |----------------------------------------|",
+            "  1. |  1      100     male      1       male |",
+            "  2. |  2      200   female      0     female |",
+            "  3. |  3      300     male      1       male |",
+            "  4. |  4      400   female      0     female |",
+            "     +----------------------------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "capture noisily count if x > 1",
+          "lines": ["x not found"]
+        }
+      ]
+    },
+    {
+      "id": "pass7-ux-strings-in-models",
+      "source": "clear\nset obs 20\ngenerate id = ceil(_n/4)\ngenerate t = mod(_n-1,4)+1\ngenerate x = mod(_n, 3)\ngenerate y = mod(_n, 2)\ngenerate c = _n\ngenerate str4 s = string(_n)\ngenerate w = 1 + mod(_n,2)\nxtset id t\ncapture noisily regress y s\ncapture noisily regress s x\ncapture noisily regress y x s\ncapture noisily regress y x i.s\ncapture noisily regress y c.s#c.x\ncapture noisily regress y s [aw=w]\ncapture noisily logit y s\ncapture noisily logistic y s\ncapture noisily probit y s\ncapture noisily poisson c s\ncapture noisily nbreg c s\ncapture noisily qreg c s\ncapture noisily glm c s\ncapture noisily cloglog y s\ncapture noisily areg c s, absorb(id)\ncapture noisily xtreg c s, fe\ncapture noisily xtreg c s, re\ncapture noisily xtreg c x s, be\ncapture noisily ivregress 2sls c (s = x)\ncapture noisily ivregress 2sls c x (y = s)\ncapture noisily tobit c s, ll(0)\ncapture noisily mlogit x s\ncapture noisily ologit x s\ncapture noisily oprobit x s\nxtset, clear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 20",
+          "lines": ["Number of observations (_N) was 0, now 20."]
+        },
+        { "command": "generate id = ceil(_n/4)", "lines": [] },
+        { "command": "generate t = mod(_n-1,4)+1", "lines": [] },
+        { "command": "generate x = mod(_n, 3)", "lines": [] },
+        { "command": "generate y = mod(_n, 2)", "lines": [] },
+        { "command": "generate c = _n", "lines": [] },
+        { "command": "generate str4 s = string(_n)", "lines": [] },
+        { "command": "generate w = 1 + mod(_n,2)", "lines": [] },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 4",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "capture noisily regress y s",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily regress s x",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily regress y x s",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily regress y x i.s",
+          "lines": ["s:  string variables may not be used as factor variables"]
+        },
+        {
+          "command": "capture noisily regress y c.s#c.x",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily regress y s [aw=w]",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily logit y s",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily logistic y s",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily probit y s",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily poisson c s",
+          "lines": [
+            "string variables not allowed in varlist;",
+            "s is a string variable"
+          ]
+        },
+        {
+          "command": "capture noisily nbreg c s",
+          "lines": [
+            "string variables not allowed in varlist;",
+            "s is a string variable"
+          ]
+        },
+        {
+          "command": "capture noisily qreg c s",
+          "lines": [
+            "string variables not allowed in varlist;",
+            "s is a string variable"
+          ]
+        },
+        {
+          "command": "capture noisily glm c s",
+          "lines": [
+            "string variables not allowed in varlist;",
+            "s is a string variable"
+          ]
+        },
+        {
+          "command": "capture noisily cloglog y s",
+          "lines": [
+            "string variables not allowed in varlist;",
+            "s is a string variable"
+          ]
+        },
+        {
+          "command": "capture noisily areg c s, absorb(id)",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily xtreg c s, fe",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily xtreg c s, re",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily xtreg c x s, be",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily ivregress 2sls c (s = x)",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily ivregress 2sls c x (y = s)",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily tobit c s, ll(0)",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily mlogit x s",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily ologit x s",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily oprobit x s",
+          "lines": ["no observations"]
+        },
+        { "command": "xtset, clear", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

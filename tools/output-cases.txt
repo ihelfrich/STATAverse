@@ -17437,3 +17437,91 @@ quietly logit employed age i.educ c.age#i.female
 quietly estat summarize
 matrix list r(stats)
 set linesize 200
+=== pass7-ux-destring-hint
+clear
+input id str8 income str4 score
+1 "1,200" "55"
+2 "2,500" "NA"
+3 "800" "61"
+4 "1,050" "70"
+end
+capture noisily regress score income
+destring score income, replace
+destring score income, replace ignore(",") force
+list
+regress score income
+=== pass7-ux-edit-strings
+clear
+set obs 8
+generate str10 name = "abc"
+replace name = "US" + char(36) + "abc" in 2
+replace name = "it's " + char(96) + "ok'" in 3
+replace name = "say " + char(34) + "hi" + char(34) + " " + char(36) + "x \" + char(96) + "y'" in 4
+replace name = "C:\" + char(36) + "tmp\" in 5
+replace name = "" in 6
+replace name = char(36) + char(96) + char(34) in 7
+replace name = "a\b" in 8
+list
+generate n = strlen(name)
+list n
+=== pass7-ux-error-messages
+clear
+set obs 4
+generate id = _n
+generate income = 100 * _n
+generate str6 sex = cond(mod(_n,2),"male","female")
+capture noisily generate male = (sex == 1)
+capture noisily describe if income > 1
+capture noisily describe in 1/2
+capture noisily list income [fw=id]
+capture noisily tabstat income, stat(mean) by(sex
+tabstat income, stat(mean) by(sex)
+capture noisily regress income id, cluster(sex
+capture noisily tabulate sex, detial
+capture noisily tabulate sex, detail
+capture noisily summarize income, rbust
+capture noisily summarize income, detial
+capture noisily replace income = Income + 1
+capture noisily generate y = incme * 2
+capture noisily summarize i
+generate male = (sex == "male")
+encode sex, generate(sex_code)
+list
+clear
+capture noisily count if x > 1
+=== pass7-ux-strings-in-models
+clear
+set obs 20
+generate id = ceil(_n/4)
+generate t = mod(_n-1,4)+1
+generate x = mod(_n, 3)
+generate y = mod(_n, 2)
+generate c = _n
+generate str4 s = string(_n)
+generate w = 1 + mod(_n,2)
+xtset id t
+capture noisily regress y s
+capture noisily regress s x
+capture noisily regress y x s
+capture noisily regress y x i.s
+capture noisily regress y c.s#c.x
+capture noisily regress y s [aw=w]
+capture noisily logit y s
+capture noisily logistic y s
+capture noisily probit y s
+capture noisily poisson c s
+capture noisily nbreg c s
+capture noisily qreg c s
+capture noisily glm c s
+capture noisily cloglog y s
+capture noisily areg c s, absorb(id)
+capture noisily xtreg c s, fe
+capture noisily xtreg c s, re
+capture noisily xtreg c x s, be
+capture noisily ivregress 2sls c (s = x)
+capture noisily ivregress 2sls c x (y = s)
+capture noisily tobit c s, ll(0)
+capture noisily mlogit x s
+capture noisily ologit x s
+capture noisily oprobit x s
+xtset, clear

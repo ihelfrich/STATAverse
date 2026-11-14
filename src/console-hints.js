@@ -7,8 +7,8 @@
 
 // What a return code usually means, when nothing more particular is known.
 export const RC_HINTS = {
-  100: "A list of variables was needed and none was given.",
-  101: "That command does not take factor or time-series notation here. Make the variable with generate first.",
+  100: "Something the command needs is missing; the message above names it.",
+  101: "The command does not take part of what was typed; the message above names that part.",
   102: "Too few variables were given for that command.",
   103: "Too many variables were given for that command.",
   109: "A string was used where a number was needed, or the other way round.",
@@ -63,46 +63,6 @@ const ELSEWHERE = {
     "Factor variables do its work: regress y i.group runs without xi:.",
   ],
 };
-
-// Options students use most, for a misspelt one.
-const OPTIONS = [
-  "robust",
-  "cluster",
-  "detail",
-  "clear",
-  "replace",
-  "noconstant",
-  "level",
-  "missing",
-  "nolabel",
-  "row",
-  "column",
-  "cell",
-  "generate",
-  "absorb",
-  "beta",
-  "noheader",
-  "separator",
-  "abbreviate",
-  "noobs",
-  "statistics",
-  "format",
-  "title",
-  "xtitle",
-  "ytitle",
-  "legend",
-  "frequency",
-  "percent",
-  "normal",
-  "nolog",
-  "force",
-  "ignore",
-  "chi2",
-  "exact",
-  "nofreq",
-  "means",
-  "vce",
-];
 
 /** The edit distance between two words, adjacent swaps counting once. */
 export function distance(a, b) {
@@ -197,38 +157,165 @@ export function resolveCommand(word, commands) {
   );
 }
 
-/** The words of a command line that name variables in memory. */
+/** The variables in memory that the words of a command line name. */
 function namedVariables(rest, variables) {
   const names = variables.map((v) => v.name),
     found = [];
-  for (const word of rest
-    .split(/(?:,|\bif\b|\bin\b)/)[0]
-    .split(/[^A-Za-z0-9_]+/)) {
+  for (const word of rest.split(",")[0].split(/[^A-Za-z0-9_]+/)) {
     if (!word) continue;
-    const exact = names.includes(word)
-      ? word
-      : names.filter((name) => name.startsWith(word)).length === 1
-        ? names.find((name) => name.startsWith(word))
-        : "";
+    const starting = names.filter((name) => name.startsWith(word)),
+      exact = names.includes(word)
+        ? word
+        : starting.length === 1
+          ? starting[0]
+          : "";
     if (exact && !found.includes(exact)) found.push(exact);
   }
   return found;
 }
 
+const plural = (names, one, many) => (names.length > 1 ? many : one);
+const quoted = (texts) => texts.map((text) => `"${text}"`);
+
+/**
+ * What to say of string variables used where numbers are needed, from what
+ * they hold (the session's record.strings). destring is offered only when
+ * it would work: every entry a number, perhaps written with commas, or an
+ * entry such as NA that means no value, which force makes missing. A
+ * variable of words is to be compared with text in quotes, or encoded.
+ */
+function stringAdvice(strings, contents) {
+  const numeric = strings.filter((name) => contents[name]?.others === 0),
+    mixed = strings.filter(
+      (name) => contents[name]?.others > 0 && contents[name].numbers > 0,
+    ),
+    words = strings.filter(
+      (name) => contents[name]?.others > 0 && !contents[name].numbers,
+    ),
+    unknown = strings.filter((name) => !contents[name]),
+    sentences = [];
+  let fix = "";
+  if (numeric.length) {
+    const missing = [
+        ...new Set(numeric.flatMap((name) => contents[name].missing)),
+      ],
+      ignore = [
+        ...new Set(numeric.flatMap((name) => [...contents[name].ignore])),
+      ].join(""),
+      marks = {
+        ",": "commas",
+        $: "$ signs",
+        "%": "% signs",
+        " ": "spaces",
+      },
+      written = [
+        missing.length ? `${either(quoted(missing))} for a missing value` : "",
+        ignore
+          ? `${both([...ignore].map((c) => marks[c]))} in the numbers`
+          : "",
+      ].filter(Boolean);
+    fix = `destring ${numeric.join(" ")}, replace${ignore ? ` ignore("${ignore}")` : ""}${missing.length ? " force" : ""}`;
+    sentences.push(
+      `${both(numeric)} ${plural(numeric, "is", "are")} stored as text but ${plural(numeric, "holds", "hold")} numbers${written.length ? `, with ${both(written)}` : ""}. ${fix} makes ${plural(numeric, "it", "them")} numeric${missing.length ? `, with ${either(quoted(missing))} as missing (.)` : ""}.`,
+    );
+  }
+  for (const name of mixed)
+    sentences.push(
+      `${name} is stored as text: most entries are numbers, but some, such as ${either(quoted(contents[name].words))}, are not. Correct those with replace, then destring ${name}, replace makes it numeric (force would make them missing instead).`,
+    );
+  if (words.length) {
+    const [first] = words,
+      example = contents[first].words[0];
+    sentences.push(
+      `${both(words)} ${plural(words, "holds", "hold")} text, such as ${either(quoted(contents[first].words.slice(0, 2)))}, not numbers. Compare ${plural(words, "it", "them")} with text in quotes, as ${first} == "${example}", or make a numbered copy with encode ${first}, generate(${first}_code).`,
+    );
+  }
+  if (unknown.length)
+    sentences.push(
+      `${both(unknown)} ${plural(unknown, "is", "are")} stored as text. If ${plural(unknown, "it holds", "they hold")} numbers, destring makes ${plural(unknown, "it", "them")} numeric; help destring shows its ignore() and force options.`,
+    );
+  return {
+    text: sentences.join(" "),
+    help: fix || !words.length ? "destring" : "encode",
+    suggest: [fix || !words.length ? "destring" : "encode"],
+    fix,
+  };
+}
+
+/** What a command does not take, from "… not allowed", r(101). */
+function notTaken(name, message) {
+  const what = /^(.+?) not allowed/m.exec(message)?.[1] ?? "";
+  if (/factor[- ]variable|time-series|operator/.test(message))
+    return "That command does not take factor or time-series notation here. Make the variable with generate first.";
+  if (what === "if")
+    return `${name} does not take an if condition; it works on every observation. Take out the if part.`;
+  if (what === "in range" || what === "in")
+    return `${name} does not take in; it works on every observation. Take out the in part.`;
+  if (/^[a-z]*weights?$/.test(what))
+    return `${name} does not take ${what === "weights" ? "weights" : what}. Take out the part in square brackets.`;
+  if (what === "options")
+    return `${name} takes no options. Take out the comma and what follows it.`;
+  if (what === "varlist") return `${name} does not take variable names here.`;
+  if (what === "using") return `${name} does not take using here.`;
+  if (what === "=exp") return `${name} does not take = and an expression here.`;
+  return RC_HINTS[101];
+}
+
+/** The close brackets a line lacks, when its last option is left open. */
+function closing(command) {
+  let depth = 0,
+    open = -1;
+  for (let i = 0; i < command.length; i++)
+    if (command[i] === "(") {
+      if (!depth) open = i;
+      depth++;
+    } else if (command[i] === ")") depth = Math.max(0, depth - 1);
+  // Only one bracket open, and nothing bracketed after it: the close
+  // belongs at the end.
+  if (depth !== 1 || /[()]/.test(command.slice(open + 1))) return "";
+  return `${command.trimEnd()})`;
+}
+
+/** What is missing, from "… required", r(100). */
+function required(name, message) {
+  const what = /^(.+?) required/m.exec(message)?.[1] ?? "";
+  if (what === ")")
+    return "A bracket opened with ( is not closed. Add ) where the option ends.";
+  if (what === "varlist")
+    return "A list of variables was needed and none was given.";
+  if (what === "using") return `${name} needs using and the name of a file.`;
+  if (what === "=exp")
+    return `${name} needs = and an expression, as in generate y = x * 2.`;
+  if (what) return `${name} needs ${what}, and none was given.`;
+  return RC_HINTS[100];
+}
+
+/** Whether a record is one line that could be run again by itself. */
+const oneLine = (record) =>
+  !record.echo?.length && !/[\n{}]/.test(record.command);
+
 /**
  * What to tell a student about a record that failed, or null.
  * `commands` is the runtime's COMMANDS; `variables` the variables in
  * memory as the Console has them ({ name, type }). Returns { text, help,
- * suggest }: help is the command whose help to offer, suggest the names
- * offered in its place.
+ * suggest, fix }: help is the command whose help to offer, suggest the
+ * names offered in its place, fix a corrected command line. A record of a
+ * loop or a block has no fix: the change belongs in the do-file.
  */
-export function adviseRecord(record, { commands = [], variables = [] } = {}) {
+export function adviseRecord(record, context = {}) {
+  const advice = advise(record, context);
+  if (advice?.fix && !oneLine(record)) delete advice.fix;
+  return advice;
+}
+
+function advise(record, { commands = [], variables = [] }) {
   if (!record?.rc) return null;
   const rc = record.rc,
     message = record.lines.join("\n"),
     { word, rest } = commandParts(record.command),
     command = resolveCommand(word, commands),
     help = command || "",
+    name = command || word || "That command",
     names = [...new Set(commands.map((c) => c.name))];
   // A command that does not run here: what does, nearest first.
   const unknown = /command (\S+) is unrecognized/.exec(message);
@@ -254,15 +341,16 @@ export function adviseRecord(record, { commands = [], variables = [] } = {}) {
       fix: close.length ? swap(record.command, typed, close[0]) : "",
     };
   }
-  // A variable name that is not in memory: the names nearest it.
-  const missing = /^variable (\S+) not found/m.exec(message);
+  // A name that is not in memory. Stata says "variable x not found" in a
+  // varlist and "x not found" in an expression.
+  if (rc === 111 && !variables.length)
+    return {
+      text: "There is no data in memory. Load a dataset first, with use, sysuse or import delimited.",
+      help: "use",
+      suggest: [],
+    };
+  const missing = /^(?:variable )?([A-Za-z_]\w*) not found$/m.exec(message);
   if (rc === 111 && missing) {
-    if (!variables.length)
-      return {
-        text: "There is no data in memory. Load a dataset first, with use, sysuse or import delimited.",
-        help: "use",
-        suggest: [],
-      };
     const close = nearest(
       missing[1],
       variables.map((v) => v.name),
@@ -281,22 +369,36 @@ export function adviseRecord(record, { commands = [], variables = [] } = {}) {
       fix: close.length ? swap(record.command, missing[1], close[0]) : "",
     };
   }
+  const ambiguous = /^(\S+) ambiguous abbreviation$/m.exec(message);
+  if (rc === 111 && ambiguous) {
+    const starting = variables
+      .map((v) => v.name)
+      .filter((name) => name.startsWith(ambiguous[1]));
+    return {
+      text: `More than one variable begins with ${ambiguous[1]}${starting.length ? `: ${both(starting.slice(0, 4))}${starting.length > 4 ? " and others" : ""}` : ""}. Write more of the name.`,
+      help,
+      suggest: [],
+    };
+  }
   // A string variable where a number is needed: usually a CSV column that
-  // has text in it, such as NA, or numbers written with commas.
+  // has text in it, such as NA, or numbers written with commas. regress,
+  // logit and most models count a string variable as missing, and so
+  // find "no observations", r(2000); poisson, glm and others refuse it in
+  // their varlist, and an expression says "type mismatch", r(109).
   if (
-    rc === 109 &&
-    /string variables? (may not|not allowed)|type mismatch/.test(message)
+    (rc === 109 &&
+      /string variables? (may not|not allowed)|type mismatch/.test(message)) ||
+    (rc === 2000 && /^no observations$/m.test(message))
   ) {
-    const strings = namedVariables(rest, variables).filter((name) =>
+    // An empty sample has other causes, such as an if that matches
+    // nothing, so only the variables of the model are looked at.
+    const strings = namedVariables(
+      rc === 2000 ? rest.split(/\bif\b|\bin\b/)[0] : rest,
+      variables,
+    ).filter((name) =>
       /^str/.test(variables.find((v) => v.name === name)?.type ?? ""),
     );
-    if (strings.length)
-      return {
-        text: `${both(strings)} ${strings.length > 1 ? "are" : "is"} stored as text. If ${strings.length > 1 ? "they hold" : "it holds"} numbers, destring ${strings.join(" ")}, replace makes ${strings.length > 1 ? "them" : "it"} numeric; add ignore(",") for thousands separators, or force to make entries such as NA missing.`,
-        help: "destring",
-        suggest: ["destring"],
-        fix: `destring ${strings.join(" ")}, replace`,
-      };
+    if (strings.length) return stringAdvice(strings, record.strings ?? {});
   }
   // if x = 1 in place of if x == 1.
   if (
@@ -312,11 +414,25 @@ export function adviseRecord(record, { commands = [], variables = [] } = {}) {
       ),
       suggest: [],
     };
-  const option = /^option (\S+?)\(?\)? not allowed/m.exec(message);
-  if (rc === 198 && option) {
-    const close = nearest(option[1], OPTIONS, 1);
+  if (rc === 101) return { text: notTaken(name, message), help, suggest: [] };
+  if (rc === 100)
     return {
-      text: `${command || word} has no option ${option[1]} here.${close.length ? ` Did you mean ${close[0]}?` : " Check its spelling."} Options come after the comma.`,
+      text: required(name, message),
+      help,
+      suggest: [],
+      fix: /^\) required/m.test(message) ? closing(record.command) : "",
+    };
+  // A misspelt option: the nearest of the options this command takes, as
+  // the runtime lists them; none is guessed for a command that does not.
+  const option = /^option (\S+?)(?:\(\))? not allowed$/m.exec(message);
+  if (rc === 198 && option) {
+    const close = record.allowed?.length
+      ? nearest(option[1], record.allowed, 1)
+      : [];
+    return {
+      text: close.length
+        ? `${name} has no option ${option[1]}. Did you mean ${close[0]}?`
+        : `${name} has no option ${option[1]}. Check the spelling and the options ${name} takes in its help.`,
       help,
       suggest: close,
       fix: close.length ? swap(record.command, option[1], close[0]) : "",

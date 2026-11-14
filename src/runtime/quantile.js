@@ -12,6 +12,7 @@ import {
   coefficientRows,
   design,
   invertSymmetric,
+  numericVarlist,
   tableWidth,
 } from "./estimation.js";
 import { count } from "./reports.js";
@@ -163,6 +164,7 @@ function qreg(session, text, ctx) {
     q = options.quantile >= 1 ? options.quantile / 100 : options.quantile;
   if (!(q > 0 && q < 1))
     throw new StataError("quantile() must be between 0 and 1", 198);
+  numericVarlist(session, parsed.anything);
   const { dependent, columns, sample } = design(
       session,
       parsed.anything,

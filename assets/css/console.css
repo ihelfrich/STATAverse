@@ -2455,6 +2455,65 @@ th[aria-sort="descending"] .browse-sort::after {
   font-family: var(--sans);
   white-space: normal;
 }
+/* On a phone each variable is a card: its name, then its label, then its
+   type, format and value label on one line, so that nothing is hidden in
+   a box that scrolls sideways. The headings stay, as sort buttons. */
+@media (max-width: 600px) {
+  #console-variable-table {
+    display: flex;
+    flex-direction: column;
+  }
+  #console-variable-table thead,
+  #console-variable-table tbody,
+  #console-variable-table caption {
+    display: block;
+  }
+  #console-variable-table caption {
+    order: 1;
+  }
+  #console-variable-table thead tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  #console-variable-table thead th {
+    border: 0;
+    padding: 4px 0;
+  }
+  #console-variable-table tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 14px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  #console-variable-table tbody td {
+    border: 0;
+    padding: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  #console-variable-table tbody td:nth-child(1),
+  #console-variable-table tbody td:nth-child(2) {
+    flex: 1 1 100%;
+  }
+  #console-variable-table tbody td:nth-child(2):empty {
+    display: none;
+  }
+  #console-variable-table tbody td:nth-child(n + 3) {
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  #console-variable-table .console-label-row td {
+    flex: 1 1 100%;
+  }
+  #console-variable-table tbody tr[hidden],
+  #console-variable-table[hidden] {
+    display: none;
+  }
+}
 .console-label-toggle {
   font: inherit;
   color: #0f2f86;

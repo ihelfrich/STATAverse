@@ -14,6 +14,7 @@ import {
   abbreviate,
   baseLevelsAsked,
   invertSymmetric,
+  numericVarlist,
   tableWidth,
 } from "./estimation.js";
 import {
@@ -642,8 +643,9 @@ function glm(session, text, ctx) {
       "anything [if] [in] [fweight pweight iweight aweight] [, Family(string) Link(string) Level(cilevel) noLOg noCONStant BASElevels ALLBASElevels Robust VCE(string) | EForm SCale(string) OFFset(varname) EXPosure(varname) IRLS]",
       text,
     ),
-    options = parsed.options,
-    asked = glmRequest(session, parsed);
+    options = parsed.options;
+  numericVarlist(session, parsed.anything);
+  const asked = glmRequest(session, parsed);
   // [w=exp] is a frequency weight, and Stata says so.
   if (asked.wtype === "fweight" && bareWeight(text))
     ctx.out("(frequency weights assumed)");
@@ -847,7 +849,9 @@ function cloglog(session, text, ctx) {
       "anything [if] [in] [, Level(cilevel) noLOg noCONStant BASElevels ALLBASElevels | Robust VCE(string) EForm OFFset(varname)]",
       text,
     ),
-    fitted = fitCloglog(session, parsed, ctx),
+    fitted =
+      (numericVarlist(session, parsed.anything),
+      fitCloglog(session, parsed, ctx)),
     { n, y, ll } = fitted,
     zeros = y.filter((v) => !v).length,
     constant = fitted.model.constant,

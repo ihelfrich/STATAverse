@@ -7,16 +7,45 @@
 
 const PAGE = 100;
 
+/**
+ * A string as an expression whose value is exactly that text. Stata reads
+ * $name and `name' inside quotes as macros, and a backslash before either
+ * as an escape, so those characters, and the double quote, are joined in
+ * with char() rather than written inside the quotes.
+ */
+export function stringValue(text) {
+  const pieces = [];
+  for (const [, plain, special] of String(text).matchAll(
+    /([^"$`]*)(["$`]?)/g,
+  )) {
+    if (plain) pieces.push(`"${plain}"`);
+    if (special) pieces.push(`char(${special.charCodeAt(0)})`);
+  }
+  return pieces.length ? pieces.join(" + ") : '""';
+}
+
 /** A value as Stata reads it in an expression of a replace command. */
 export function replaceValue(text, column) {
   const typed = text.trim();
-  if (/^str/.test(column.type)) {
-    if (/[`'"]/.test(typed) || /"/.test(text)) return `\`"${text}"'`;
-    return `"${text}"`;
-  }
+  if (/^str/.test(column.type)) return stringValue(text);
   if (typed === "" || /^\.[a-z]?$/.test(typed)) return typed || ".";
   if (/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(typed)) return typed;
   return null;
+}
+
+/**
+ * A value as the editor offers it for change. A float is shown as the
+ * shortest decimal stored as the same float, so that one made from 4.1
+ * reads 4.1, as in Stata's Data Editor, and not 4.099999904632568.
+ */
+export function editText(value, type) {
+  if (value === null) return ".";
+  if (typeof value !== "number" || type !== "float") return String(value);
+  for (let digits = 1; digits <= 9; digits++) {
+    const text = String(Number(value.toPrecision(digits)));
+    if (Math.fround(Number(text)) === value) return text;
+  }
+  return String(value);
 }
 
 export function mountBrowser({ drawer, ask, run, onOpen }) {
@@ -101,7 +130,8 @@ export function mountBrowser({ drawer, ask, run, onOpen }) {
       raw = row.raw[k];
     input.type = "text";
     input.className = "browse-input";
-    input.value = raw === null ? "." : String(raw);
+    const before = editText(raw, column.type);
+    input.value = before;
     input.setAttribute(
       "aria-label",
       `New value of ${column.name} in observation ${row.obs}`,
@@ -111,18 +141,26 @@ export function mountBrowser({ drawer, ask, run, onOpen }) {
     input.focus();
     input.select();
     let done = false;
-    const close = () => {
+    // Escape, or Enter on an unchanged value, puts the focus back on the
+    // cell; leaving the input for elsewhere leaves the focus there.
+    const close = (back) => {
       done = true;
+      if (back) refocus = { obs: row.obs, k };
       show();
     };
     input.addEventListener("keydown", async (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        close();
+        event.stopPropagation();
+        close(true);
         return;
       }
       if (event.key !== "Enter") return;
       event.preventDefault();
+      if (input.value === before) {
+        close(true);
+        return;
+      }
       const value = replaceValue(input.value, column);
       if (value === null) {
         note.textContent = `${column.name} is numeric: type a number, or . for missing.`;
@@ -134,7 +172,7 @@ export function mountBrowser({ drawer, ask, run, onOpen }) {
       await run(`replace ${column.name} = ${value} in ${row.obs}`);
     });
     input.addEventListener("blur", () => {
-      if (!done) close();
+      if (!done) close(false);
     });
   }
 
@@ -212,7 +250,10 @@ export function mountBrowser({ drawer, ask, run, onOpen }) {
     if (ticket !== asked) return;
     page = reply;
     state.from = reply.from;
-    note.textContent = "";
+    // A row past the end shows the last page, and says so.
+    note.textContent = reply.past
+      ? `There ${reply.shown === 1 ? "is" : "are"} only ${reply.shown.toLocaleString("en-US")} row${reply.shown === 1 ? "" : "s"}; the last page is shown.`
+      : "";
     show();
   }
 
@@ -259,11 +300,17 @@ export function mountBrowser({ drawer, ask, run, onOpen }) {
   });
 
   return {
-    /** Opens the browser as browse or edit with what followed them. */
-    open(where = "", edit = false) {
+    /**
+     * Opens the browser as browse or edit with what followed them; with
+     * labels false, as browse, nolabel, numbers are shown in place of
+     * their value labels.
+     */
+    open(where = "", edit = false, showLabels = true) {
       state.where = where;
       state.from = 0;
       state.edit = edit;
+      state.labels = showLabels;
+      labels.setAttribute("aria-pressed", String(showLabels));
       editing.setAttribute("aria-pressed", String(edit));
       const was = drawer.open;
       drawer.open = true;

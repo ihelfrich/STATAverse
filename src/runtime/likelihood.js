@@ -16,6 +16,7 @@ import {
   baseLevelsAsked,
   design,
   invertSymmetric,
+  numericVarlist,
   tableWidth,
   termRows,
 } from "./estimation.js";
@@ -1734,7 +1735,8 @@ function nbreg(session, text, ctx) {
       text,
     ),
     options = parsed.options,
-    asked = requested(session, parsed),
+    asked =
+      (numericVarlist(session, parsed.anything), requested(session, parsed)),
     constant = options.constant !== false,
     f = frame(session, parsed, constant, constant, false, asked),
     n = f.y.length,

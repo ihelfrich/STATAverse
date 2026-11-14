@@ -503,6 +503,23 @@ const note = (message) => (_session, _text, ctx) => ctx.out(message);
 const quiet = () => {};
 
 /**
+ * browse and edit: [varlist] [if] [in] [, nolabel], read as Stata reads
+ * them, so that a name not in memory or an option they lack is an error.
+ * What they would show is left in session.opened (the text after macro
+ * expansion, and whether value labels are shown), for a page that has a
+ * data browser to open it.
+ */
+const opensEditor = (message) => (session, text, ctx) => {
+  const parsed = session.parse("[varlist] [if] [in] [, NOLabel]", text);
+  session.rows(parsed, null);
+  session.opened = {
+    where: splitAtComma(text)[0].trim(),
+    labels: !parsed.options.nolabel,
+  };
+  ctx.out(message);
+};
+
+/**
  * timer on|off|clear|list [#]: wall-clock timers 1 to 100. Each keeps its
  * running total, how many times it was stopped, and when it was started.
  */
@@ -1056,14 +1073,14 @@ export const EVERYDAY_COMMANDS = [
   {
     name: "browse",
     minimum: 2,
-    run: note(
+    run: opensEditor(
       "(browse opens Stata's Data Editor; here, use list to see the data)",
     ),
   },
   {
     name: "edit",
     minimum: 2,
-    run: note(
+    run: opensEditor(
       "(edit opens Stata's Data Editor; here, use replace to change values)",
     ),
   },

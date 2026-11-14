@@ -9,7 +9,7 @@ import { LIBRARY } from "./console-datasets.js";
 import { readDta, writeDta } from "./console-dta.js";
 import { binaryKind, checkForeign } from "./runtime/foreign.js";
 import { applyFormat } from "./runtime/format.js";
-import { isMissing } from "./runtime/values.js";
+import { isMissing, parseNumber } from "./runtime/values.js";
 
 const library = Object.fromEntries(
   Object.entries(LIBRARY).map(([id, entry]) => [id, entry.data]),
@@ -199,7 +199,7 @@ export function createConsoleSession() {
       labels = true,
     } = {}) {
       const data = session.data,
-        parsed = session.parse("[varlist] [if] [in]", where),
+        parsed = session.parse("[varlist] [if] [in] [, NOLabel]", where),
         names = parsed.varlist.length ? parsed.varlist : data.names,
         columns = names.map((name) => data.get(name)),
         key = JSON.stringify([stamp, where, order, find, labels]);
@@ -237,12 +237,18 @@ export function createConsoleSession() {
         }
         view = { key, rows };
       }
+      // A start past the end shows the last page, in step with the others.
       const rows = view.rows,
-        start = Math.max(0, Math.min(from, Math.max(0, rows.length - 1)));
+        past = from >= rows.length && rows.length > 0,
+        start = past
+          ? Math.floor((rows.length - 1) / Math.max(1, count)) *
+            Math.max(1, count)
+          : Math.max(0, from);
       return {
         observations: data.n,
         shown: rows.length,
         from: start,
+        past,
         columns: columns.map(({ name, type, format, label, valueLabel }) => ({
           name,
           type,
@@ -271,26 +277,52 @@ export function createConsoleSession() {
      */
     run(source, { doFile = false, progress = null } = {}) {
       stamp++;
-      if (progress) {
-        let commands = 0,
-          last = 0;
-        session.record = function (...args) {
-          Session.prototype.record.apply(this, args);
-          commands++;
-          const now = Date.now();
-          if (now - last < 120) return;
-          last = now;
-          progress({ line: args[5] ?? this.line ?? 0, commands });
-        };
-      }
+      let commands = 0,
+        last = 0;
+      session.opened = null;
+      // The error a command stopped at, for what the Console says of it.
+      session.dispatch = function (...args) {
+        try {
+          return Session.prototype.dispatch.apply(this, args);
+        } catch (error) {
+          this.failure = error;
+          throw error;
+        }
+      };
+      session.record = function (...args) {
+        Session.prototype.record.apply(this, args);
+        const entry = args[0].at(-1),
+          failure = this.failure;
+        this.failure = null;
+        // browse and edit say what the data browser is to show.
+        if (this.opened) {
+          if (!args[3]) entry.opened = this.opened;
+          this.opened = null;
+        }
+        // The options a command takes, when one it lacks was given.
+        if (args[3] && failure?.code === args[3] && failure.allowed)
+          entry.allowed = failure.allowed;
+        commands++;
+        const now = Date.now();
+        if (!progress || now - last < 120) return;
+        last = now;
+        progress({ line: args[5] ?? this.line ?? 0, commands });
+      };
       let ran;
       try {
         ran = session.run(source, doFile ? undefined : interactive);
       } finally {
         delete session.record;
+        delete session.dispatch;
+        session.failure = null;
         stamp++;
       }
       const { output, rc } = ran;
+      // A string variable where a number was needed: what its text is, so
+      // that the Console's hint offers a command that works on it.
+      for (const block of output)
+        if (block.rc === 109 || block.rc === 2000)
+          block.strings = stringContents(session, block);
       // A byte that is not UTF-8 (text from an old file, or cut out of a
       // character) is shown as U+FFFD, where Stata prints the raw byte.
       for (const block of output)
@@ -303,6 +335,90 @@ export function createConsoleSession() {
       return { output, rc, made, memory: memory() };
     },
   };
+}
+
+// Entries that mean "no value" in files from other programs: destring with
+// force makes them missing, which is what they mean.
+const NOT_A_VALUE =
+  /^(?:n\/?a|n\.a\.?|nan|null|none|missing|-+|\?+|\*+|\.+|#n\/a|not available|unknown|no data)$/i;
+
+/**
+ * What the string variables named in a failed record hold, read as destring
+ * reads them: { numbers, ignore, missing, words, others }. numbers counts
+ * entries that are numbers, perhaps once the characters in ignore (a comma,
+ * $, % or a space) are taken out; missing names entries such as NA that
+ * mean no value; words names, most common first, the entries that are text
+ * (others counts how many different ones there are).
+ */
+function stringContents(session, block) {
+  const names = session.data.names,
+    named = new Set(),
+    contents = {};
+  // Names written whole, or abbreviated to a start only one name has.
+  for (const word of `${block.command} ${(block.echo ?? []).join(" ")}`.split(
+    /[^A-Za-z0-9_]+/,
+  )) {
+    if (!word) continue;
+    const starting = names.filter((name) => name.startsWith(word));
+    if (names.includes(word)) named.add(word);
+    else if (starting.length === 1) named.add(starting[0]);
+  }
+  for (const variable of session.data.variables) {
+    if (!/^str/.test(variable.type) || !named.has(variable.name)) continue;
+    const kinds = new Map(),
+      ignore = new Set(),
+      missing = new Map(),
+      words = new Map();
+    let numbers = 0;
+    const kindOf = (raw) => {
+      const cell = raw.trim();
+      if (cell === "" || cell === "." || /^\.[a-z]$/.test(cell)) return "";
+      if (parseNumber(cell.replace(/^0+/, "0")) !== undefined) return "number";
+      // Commas count only between thousands: 1,5 may be a decimal comma.
+      const bare = raw.replace(/[,$%\s]/g, "").trim(),
+        grouped =
+          !cell.includes(",") ||
+          /^[-+]?\$?\d{1,3}(,\d{3})+(\.\d*)?%?$/.test(cell.replace(/\s/g, ""));
+      if (
+        bare &&
+        grouped &&
+        parseNumber(bare.replace(/^0+/, "0")) !== undefined
+      )
+        return `number${[...new Set(raw.trim().match(/[,$%\s]/g))].join("")}`;
+      return NOT_A_VALUE.test(cell) ? "missing" : "word";
+    };
+    for (const raw of variable.data) {
+      let kind = kinds.get(raw);
+      if (kind === undefined) {
+        kind = kindOf(raw);
+        if (kinds.size < 10000) kinds.set(raw, kind);
+      }
+      if (!kind) continue;
+      if (kind.startsWith("number")) {
+        numbers++;
+        for (const c of kind.slice(6)) ignore.add(c);
+      } else {
+        const tally = kind === "missing" ? missing : words,
+          cell = raw.trim();
+        tally.set(cell, (tally.get(cell) ?? 0) + 1);
+      }
+    }
+    const common = (tally) =>
+      [...tally]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([text]) => text);
+    contents[variable.name] = {
+      numbers,
+      ignore: [
+        ...new Set([...ignore].map((c) => (/\s/.test(c) ? " " : c))),
+      ].join(""),
+      missing: common(missing),
+      words: common(words),
+      others: words.size,
+    };
+  }
+  return contents;
 }
 
 /**

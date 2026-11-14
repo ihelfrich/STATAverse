@@ -184,10 +184,12 @@ test("a messy CSV: the hint says which columns are text and how to fix them", as
   await hint
     .getByRole("button", { name: /^Try destring score, replace/ })
     .click();
+  // The command the button offers is the one run, as a student would.
   await expect(page.locator("#console-command")).toHaveValue(
-    "destring score, replace",
+    "destring score, replace force",
   );
-  await type(page, "destring score, replace force");
+  await page.locator("#console-command").press("Enter");
+  await expect(lastRecord(page)).toContainText("(1 missing value generated)");
   await type(page, "regress score hours");
   await expect(lastRecord(page)).toContainText("Number of obs   =         3");
   await expect(lastRecord(page).locator(".console-hint")).toHaveCount(0);

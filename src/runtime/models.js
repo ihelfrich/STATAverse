@@ -29,6 +29,7 @@ import {
   tableWidth,
   abbreviate,
   baseLevelsAsked,
+  numericVarlist,
   test as testT,
   unitConstraint,
 } from "./estimation.js";
@@ -355,6 +356,7 @@ function maximumLikelihood(kind) {
         text,
       ),
       options = parsed.options;
+    if (kind === "poisson") numericVarlist(session, parsed.anything);
     // Stata resamples observations, which a weight would stand in for.
     if (
       parsed.weight &&

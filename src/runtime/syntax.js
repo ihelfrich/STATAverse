@@ -596,7 +596,13 @@ export function applySyntax(declaration, text, context) {
     if (matches.length > 1) throw new StataError("invalid syntax", 198);
     if (matches.length && !allowed)
       throw notAllowed(
-        kind === "exp" ? "=exp" : kind === "weight" ? "weights" : kind,
+        kind === "exp"
+          ? "=exp"
+          : kind === "weight"
+            ? "weights"
+            : kind === "in"
+              ? "in range"
+              : kind,
       );
     if (!matches.length && allowed && kind !== "weight" && !decl[kind].optional)
       throw new StataError(`${kind === "exp" ? "=exp" : kind} required`, 100);
@@ -699,11 +705,20 @@ export function applySyntax(declaration, text, context) {
     const match = matchOption(item.name, decl.options);
     if (!match) {
       // Stata names an option written with an argument as name().
-      if (!decl.star)
-        throw new StataError(
+      if (!decl.star) {
+        const error = new StataError(
           `option ${item.name}${item.argument === undefined ? "" : "()"} not allowed`,
           198,
         );
+        // The options this command does take, for the Console to suggest
+        // the nearest of them; what Stata prints is unchanged.
+        error.allowed = decl.options
+          .filter((option) => !option.unavailable)
+          .map((option) =>
+            option.kind === "off" ? "no" + option.name : option.name,
+          );
+        throw error;
+      }
       extra.push(item.word);
       continue;
     }

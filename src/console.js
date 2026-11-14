@@ -25,7 +25,12 @@ import {
   refusal,
 } from "./console-files.js";
 import { picture, typeOf } from "./console-picture.js";
-import { adviseRecord, commandParts, resolveCommand } from "./console-hints.js";
+import {
+  adviseRecord,
+  commandParts,
+  nearest,
+  resolveCommand,
+} from "./console-hints.js";
 import { HELP, helpUrl } from "./console-help.js";
 import { mountBrowser } from "./console-browse.js";
 
@@ -548,6 +553,17 @@ function showVariables(memory) {
       body.append(values);
     } else labelCell.textContent = variable.valueLabel ?? "";
   }
+  // On a phone the rows are laid out as cards (console.css), which takes
+  // a table's own roles away in some browsers; they are given explicitly.
+  table.setAttribute("role", "table");
+  for (const part of table.querySelectorAll("thead, tbody"))
+    part.setAttribute("role", "rowgroup");
+  for (const row of table.querySelectorAll("tr"))
+    row.setAttribute("role", "row");
+  for (const cell of table.querySelectorAll("th"))
+    cell.setAttribute("role", "columnheader");
+  for (const cell of table.querySelectorAll("td"))
+    cell.setAttribute("role", "cell");
   table.hidden = !memory.variables.length;
   $("console-variable-tools").hidden = !memory.variables.length;
   filterVariables();
@@ -763,11 +779,49 @@ function hintNode(record) {
     );
   return hint;
 }
-/** The command help names, or "" when it is not a help command. */
+/**
+ * What help was asked about: a command or topic, "" for help alone, or
+ * null when the record is not a help command.
+ */
 function helpAsked(record) {
   const { word, rest } = commandParts(record.command);
-  if (record.rc || resolveCommand(word, COMMANDS) !== "help") return "";
+  if (record.rc || resolveCommand(word, COMMANDS) !== "help") return null;
   return rest.trim().split(/\s+/)[0] ?? "";
+}
+/**
+ * help on something that is not a command here: Stata's help for that
+ * topic, or, for help alone, its contents and the Commands list.
+ */
+function topicCard(topic) {
+  const card = document.createElement("span"),
+    what = document.createElement("span"),
+    link = document.createElement("a");
+  card.className = "console-help-card";
+  what.className = "console-help-what";
+  what.textContent = topic
+    ? `${topic} is not a command that runs here; Stata's help may have a page on it. The Commands list shows what runs here.`
+    : "The Commands list shows every command that runs here, each with a line of help. Stata's own help starts at its contents.";
+  link.href = topic ? helpUrl(topic) : helpUrl("contents");
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = topic
+    ? `Stata's help for ${topic}`
+    : "Stata's help contents";
+  card.append(
+    what,
+    toolButton("Open the Commands list", "", () => {
+      const drawer = $("drawer-commands"),
+        filter = $("console-filter");
+      drawer.open = true;
+      filter.value = "";
+      filter.dispatchEvent(new Event("input"));
+      drawer.scrollIntoView({ block: "start" });
+      focusSoon(filter);
+    }),
+    " ",
+    link,
+  );
+  return card;
 }
 /** One command and what it printed, as it appears in the Results window. */
 function recordNode(record) {
@@ -818,18 +872,23 @@ function recordNode(record) {
     const hint = hintNode(record);
     if (hint) block.append(hint);
   }
-  // help shows this site's entry for the command, and Stata's own help.
+  // help shows this site's entry for the command, and Stata's own help;
+  // a topic that is not a command, such as datetime, links to Stata's
+  // help for it, and help alone to its contents.
   const asked = helpAsked(record);
-  if (asked) {
-    const name = resolveCommand(asked, COMMANDS);
+  if (asked !== null) {
+    const name = asked && resolveCommand(asked, COMMANDS);
     if (name) block.append(helpCard(name), "\n");
     else {
-      const hint = hintNode({
-        command: asked,
-        lines: [`command ${asked} is unrecognized`],
-        rc: 199,
-      });
-      if (hint) block.append(hint);
+      block.append(topicCard(asked), "\n");
+      if (asked && nearest(asked, names).length) {
+        const hint = hintNode({
+          command: asked,
+          lines: [`command ${asked} is unrecognized`],
+          rc: 199,
+        });
+        if (hint) block.append(hint);
+      }
     }
   }
   for (const graph of graphs) block.append(graphOf(graph), "\n");
@@ -956,6 +1015,7 @@ const progress = {
   line: 0,
   commands: 0,
   lines: 0,
+  from: 0,
   timer: null,
 };
 function showProgress(running) {
@@ -978,11 +1038,13 @@ function drawProgress() {
     bar.max = progress.lines;
     bar.value = Math.min(progress.line, progress.lines);
   } else bar.removeAttribute("value");
-  const where = progress.line
-    ? progress.lines > 1
-      ? `line ${progress.line} of ${progress.lines}, `
-      : ""
-    : "";
+  const at = progress.from + progress.line,
+    where =
+      progress.line && progress.lines > 1
+        ? progress.from
+          ? `line ${at} (the selection is lines ${progress.from + 1}–${progress.from + progress.lines}), `
+          : `line ${at} of ${progress.lines}, `
+        : "";
   $("console-progress-text").textContent =
     `${where ? `At ${where}` : ""}${progress.commands ? `${progress.commands.toLocaleString("en-US")} command${progress.commands === 1 ? "" : "s"} run, ` : ""}${seconds.toFixed(1)} s.${worker ? " Stop, or Ctrl or ⌘ + ., ends the run." : ""}`.replace(
       /^./,
@@ -1007,11 +1069,14 @@ function quietNotes(record) {
   const { word, rest } = commandParts(record.command),
     name = resolveCommand(word, COMMANDS);
   if (record.rc || !["browse", "edit", "help"].includes(name)) return record;
+  // browse and edit give what they show after macros are expanded; the
+  // text typed is the fallback.
   return {
     ...record,
     lines: record.lines.filter((line) => !NOTES.test(line)),
     opens: name,
-    where: rest.trim(),
+    where: record.opened?.where ?? rest.trim(),
+    labels: record.opened?.labels ?? true,
   };
 }
 /** Runs text in the session and shows what it printed; null after a fault. */
@@ -1021,6 +1086,8 @@ async function perform(text, origin) {
     // What the command line runs keeps its locals for the next command;
     // the do-file, a selection of it and the map's steps run as do-files.
     progress.lines = origin?.file ? text.split("\n").length : 0;
+    // A selection's lines are counted as the editor's gutter numbers them.
+    progress.from = origin?.file ? origin.from : 0;
     result = await ask(
       { kind: "run", source: text, doFile: origin != null },
       ({ line, commands }) => {
@@ -1056,7 +1123,8 @@ async function perform(text, origin) {
   const opened = records.findLast(
     (record) => !record.rc && /^(browse|edit)$/.test(record.opens ?? ""),
   );
-  if (opened) browser.open(opened.where, opened.opens === "edit");
+  if (opened)
+    browser.open(opened.where, opened.opens === "edit", opened.labels);
   else browser.refresh();
   if (result.made?.length) await keepMade(result.made);
   return result;
