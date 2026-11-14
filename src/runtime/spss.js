@@ -5,6 +5,7 @@
 // notes printed follow Stata 19; see tests/runtime-userdata-foreign.test.mjs.
 import { unzlibSync } from "fflate";
 import { StataError } from "./errors.js";
+import { displayValue } from "./format.js";
 import {
   bytesOf,
   findFile,
@@ -408,7 +409,8 @@ export function importSpss(session, text, ctx) {
         .filter(Boolean),
       string = targets.some((v) => v.width > 0),
       map = new Map();
-    let reported = false;
+    let reported = false,
+      invalid = false;
     for (const { value, text } of set.entries) {
       if (string) {
         notes.push(
@@ -427,15 +429,24 @@ export function importSpss(session, text, ctx) {
         little,
       );
       if (!Number.isInteger(number) || Math.abs(number) > 2147483647) {
-        notes.push(`may not label ${number}`);
+        // A bad value met before any good one removes the set, values that
+        // follow included, as Stata 19 does; the variables keep the name of
+        // the label they no longer have. After a good value it is skipped.
+        notes.push(`may not label ${displayValue(number)}`);
         notes.push(
           `note: invalid numeric value for value label ${labelName}, skipped`,
         );
+        if (!map.size) {
+          notes.push(
+            `note: no values defined for value label ${labelName}, removed`,
+          );
+          invalid = true;
+        }
         continue;
       }
       map.set(number, file.decode(text));
     }
-    data.valueLabels.set(labelName, map);
+    if (!invalid) data.valueLabels.set(labelName, map);
     for (const v of targets) {
       if (v.width > 0) {
         notes.push(
@@ -446,22 +457,28 @@ export function importSpss(session, text, ctx) {
       labelOf.set(v, labelName);
     }
   });
-  const taken = new Set();
-  variables.forEach((v, position) => {
+  const taken = new Set(variables.map((v) => v.name));
+  let renamed = 0;
+  variables.forEach((v) => {
     let varName = v.name;
     if (letterCase === "upper") varName = varName.toUpperCase();
     if (letterCase === "lower") varName = varName.toLowerCase();
     // SPSS allows names Stata does not, such as Sepal.Length; Stata names
-    // such a variable _v and its position.
-    if (!isName(varName) || isReserved(varName) || taken.has(varName))
-      varName = `_v${position + 1}`;
-    taken.add(varName);
+    // such variables _v1, _v2, ... in turn (_V1 under case(upper)).
+    if (!isName(varName) || isReserved(varName) || data.has(varName)) {
+      const stem = letterCase === "upper" ? "_V" : "_v";
+      do varName = `${stem}${++renamed}`;
+      while (taken.has(varName) || data.has(varName));
+    }
     if (v.width > 0) {
       const values = v.column.map((b) => file.decode(b).replace(/[ \0]+$/, ""));
+      // With no cases there is nothing to shorten the string to, and Stata
+      // keeps SPSS's 8-byte width and the print width as the format.
       data.generate(varName, values, {
-        type: `str${Math.max(1, v.width)}`,
+        type: `str${n ? Math.max(1, v.width) : Math.min(2045, Math.ceil(Math.max(1, v.width) / 8) * 8)}`,
         string: true,
       });
+      if (!n) data.get(varName).format = `%${(v.print >> 8) & 0xff || 1}s`;
     } else {
       const code = (v.print >> 16) & 0xff,
         width = (v.print >> 8) & 0xff,
@@ -477,7 +494,7 @@ export function importSpss(session, text, ctx) {
         return x;
       });
       data.generate(varName, values, {
-        type: format.shift ? "double" : integerType(values),
+        type: format.shift || !n ? "double" : integerType(values),
       });
       data.get(varName).format = format.format;
       if (labelOf.has(v)) data.get(varName).valueLabel = labelOf.get(v);

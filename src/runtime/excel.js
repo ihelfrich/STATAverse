@@ -5,14 +5,16 @@
 // storage types, display formats and the text of numbers in string columns
 // were recorded from Stata 19's import excel on hand-built workbooks; see
 // tests/runtime-userdata-foreign.test.mjs.
-import { unzipSync, strFromU8 } from "fflate";
+import { unzipSync, strFromU8, strToU8 } from "fflate";
 import { zip } from "../console-zip.js";
+import { STANDARD_MESSAGES } from "./error-messages.js";
 import { StataError } from "./errors.js";
 import { applyFormat, parseFormat } from "./format.js";
 import { count } from "./reports.js";
 import { Dataset } from "./store.js";
 import {
   MISSING,
+  byteLength,
   isMissing,
   isName,
   isReserved,
@@ -139,7 +141,8 @@ export const varsObs = (k, n) =>
 
 // ----- cell addresses -----
 const MAX_COLUMN = 16384,
-  MAX_ROW = 1048576;
+  MAX_ROW = 1048576,
+  MAX_VARIABLES = 5000;
 export function columnName(k) {
   let s = "";
   for (; k > 0; k = Math.floor((k - 1) / 26))
@@ -449,6 +452,7 @@ function readXlsx(bytes, name) {
     let parsed = null;
     sheets.push({
       name: a.name ?? "",
+      path: rel && /\/worksheet$/.test(rel.type) ? rel.target : null,
       cells() {
         if (!parsed) {
           const xml =
@@ -462,7 +466,18 @@ function readXlsx(bytes, name) {
     });
   }
   if (!sheets.length) throw loadError(name);
-  return { date1904, sheets, kind: "xlsx" };
+  // The parts as read, so that a workbook a student changes keeps whatever
+  // this reader does not model: styles, merged cells, formulas and the rest.
+  const exists = (path) => (path && entries[path] ? path : null);
+  const source = {
+    entries,
+    workbookPath,
+    relsPath: `${dir}_rels/${workbookPath.slice(dir.length)}.rels`,
+    stylesPath: exists(typed("/styles") ?? dir + "styles.xml"),
+    sstPath: exists(typed("/sharedStrings") ?? dir + "sharedStrings.xml"),
+    calcChainPath: exists(typed("/calcChain")),
+  };
+  return { date1904, sheets, kind: "xlsx", source };
 }
 
 function parseSheet(xml, strings, style, name) {
@@ -476,6 +491,10 @@ function parseSheet(xml, strings, style, name) {
     const ra = attributes(r[1]);
     rowNumber = ra.r ? Number(ra.r) : rowNumber + 1;
     if (!(rowNumber >= 1 && rowNumber <= MAX_ROW)) throw loadError(name);
+    // A row with no cells, such as a blank row whose height was changed,
+    // still counts in the rows of the data area, as in Stata.
+    if (rowNumber < bounds.minRow) bounds.minRow = rowNumber;
+    if (rowNumber > bounds.maxRow) bounds.maxRow = rowNumber;
     let col = 0;
     for (const c of (r[2] ?? "").matchAll(
       /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g,
@@ -489,8 +508,17 @@ function parseSheet(xml, strings, style, name) {
         ({ row, col } = address);
       } else col++;
       const type = a.t ?? "n",
-        v = /<v(?:\s[^>]*)?>([\s\S]*?)<\/v>/.exec(body)?.[1],
         formula = /<f(?:\s[^>]*)?>([\s\S]*?)<\/f>/.exec(body)?.[1];
+      let v = /<v(?:\s[^>]*)?>([\s\S]*?)<\/v>/.exec(body)?.[1];
+      // A formula whose result was never calculated (openpyxl and pandas
+      // write <v/>) is read by Stata as 0; one with no <v> at all is missing.
+      if (
+        (v === undefined || v.trim() === "") &&
+        type === "n" &&
+        /<f\b/.test(body) &&
+        /<v(?:\s[^>]*)?(?:\/>|>\s*<\/v>)/.test(body)
+      )
+        v = "0";
       let cell;
       if (type === "s") {
         const k = Number(v);
@@ -502,9 +530,18 @@ function parseSheet(xml, strings, style, name) {
         const is = /<is\b[^>]*>([\s\S]*?)<\/is>/.exec(body);
         cell = is ? { t: "s", v: richText(is[1]) } : { t: "z" };
       } else if (type === "str")
-        cell = { t: "s", v: v === undefined ? "" : unescapeText(v) };
+        cell =
+          v !== undefined
+            ? { t: "s", v: unescapeText(v) }
+            : /<v(?:\s[^>]*)?\/>/.test(body)
+              ? { t: "s", v: "" }
+              : { t: "z" };
       else if (type === "b")
-        cell = v === undefined ? { t: "z" } : { t: "b", v: Number(v) ? 1 : 0 };
+        // An uncalculated boolean formula is read as false.
+        cell =
+          v === undefined && !/<f\b/.test(body)
+            ? { t: "z" }
+            : { t: "b", v: Number(v ?? 0) ? 1 : 0 };
       else if (type === "e") cell = { t: "e", v: decode(v ?? "") };
       else if (type === "d") {
         const time = Date.parse(decode(v ?? ""));
@@ -536,9 +573,10 @@ function parseSheet(xml, strings, style, name) {
   return { rows, bounds };
 }
 
+// A sheet of empty rows only is shown in column A, as Stata shows it.
 const sheetRange = ({ bounds: b }) =>
   b.maxRow
-    ? `${columnName(b.minCol)}${b.minRow}:${columnName(b.maxCol)}${b.maxRow}`
+    ? `${columnName(b.maxCol ? b.minCol : 1)}${b.minRow}:${columnName(Math.max(1, b.maxCol))}${b.maxRow}`
     : "";
 
 // ----- import excel -----
@@ -585,32 +623,46 @@ function headerName(text, col, taken) {
 /** cellrange([start][:end]), checked for its form before any file is read. */
 function parseRange(text) {
   const [startText, endText] = text.split(":").map((s) => s.trim());
-  let start = { row: 1, col: 1 },
+  if (!startText && !endText)
+    throw new StataError("invalid cell range in option cellrange()", 198);
+  // The messages Stata 19 gives for each kind of bad corner.
+  const corner = (typed) => {
+    const m = /^([A-Za-z]*)(.*)$/.exec(typed),
+      [, letters, rest] = m;
+    if (!letters && !/^[0-9]+$/.test(rest))
+      throw new StataError(
+        `invalid column name ${typed} in option cellrange()`,
+        198,
+      );
+    if (!letters || !/^[0-9]+$/.test(rest))
+      throw new StataError(
+        `invalid cell range ${typed} in option cellrange()`,
+        198,
+      );
+    if (columnNumber(letters) > MAX_COLUMN)
+      throw new StataError(
+        `column name ${letters.toUpperCase()} out of range in option cellrange()`,
+        198,
+      );
+    const row = Number(rest);
+    if (row < 1 || row > MAX_ROW)
+      throw new StataError(
+        `row number ${rest} out of range in option cellrange()`,
+        198,
+      );
+    return { row, col: columnNumber(letters) };
+  };
+  // With no upper-left corner, the range starts where the data start.
+  let start = startText ? corner(startText) : null,
     end = null;
-  if (startText) {
-    start = cellAddress(startText);
-    if (!start) {
-      if (!/[0-9]/.test(startText))
-        throw new StataError("invalid row number in option cellrange()", 198);
-      throw new StataError(
-        `invalid cell range ${startText} in option cellrange()`,
-        198,
-      );
-    }
-  }
   if (endText !== undefined) {
-    end = cellAddress(endText);
-    if (!end)
-      throw new StataError(
-        `invalid cell range ${endText} in option cellrange()`,
-        198,
-      );
-    if (end.col < start.col)
+    end = corner(endText);
+    if (start && end.col < start.col)
       throw new StataError(
         `invalid column range ${startText} in option cellrange();\n    The upper left column is to the right of the lower right column.`,
         198,
       );
-    if (end.row < start.row)
+    if (start && end.row < start.row)
       throw new StataError(
         `invalid row range ${start.row - 1} in option cellrange();\n    The upper left row is after the right of the lower right row.`,
         198,
@@ -625,7 +677,10 @@ function fitRange({ start, end }, b) {
       `invalid ${what} range in option cellrange();\n    The ${corner} ${what} is ${side} the data area in the worksheet.`,
       198,
     );
+  start ??= { row: b.minRow, col: b.minCol };
   if (start.col > b.maxCol) throw outside("column", "upper left", "right of");
+  if (start.col < b.minCol) throw outside("column", "upper left", "left of");
+  if (start.row < b.minRow) throw outside("row", "upper left", "before");
   if (start.row > b.maxRow) throw outside("row", "upper left", "after");
   if (end && end.col > b.maxCol)
     throw outside("column", "lower right", "right of");
@@ -661,8 +716,9 @@ function extVarlist(text) {
 
 function describeWorkbook(book, ctx, session) {
   const names = book.sheets.map((s) => s.name),
-    width = Math.max(8, ...names.map((n) => [...n].length)),
-    pad = (text) => " ".repeat(Math.max(0, width - [...text].length)) + text;
+    // Stata sizes and pads the table by bytes, not characters.
+    width = Math.max(8, ...names.map((n) => byteLength(n))),
+    pad = (text) => " ".repeat(Math.max(0, width - byteLength(text))) + text;
   ctx.out("");
   ctx.out(`  ${pad("Sheet")} | Range`);
   ctx.out(`  ${"-".repeat(width + 1)}+${"-".repeat(width + 1)}`);
@@ -730,7 +786,7 @@ export function importExcel(session, text, ctx) {
     b = cells.bounds;
   let range = null;
   if (corners) range = fitRange(corners, b);
-  else if (b.maxRow)
+  else if (b.maxRow && b.maxCol)
     range = { r1: b.minRow, c1: b.minCol, r2: b.maxRow, c2: b.maxCol };
   if (!range) {
     ctx.out(varsObs(0, 0));
@@ -759,7 +815,10 @@ export function importExcel(session, text, ctx) {
       name: name ?? headerName(cell?.t === "s" ? header : "", col, taken),
     };
   });
-  for (const v of built) {
+  // Stata makes the first 5,000 variables and then stops with r(900),
+  // leaving them in memory; it shows the message twice.
+  const tooMany = built.length > MAX_VARIABLES;
+  for (const v of built.slice(0, MAX_VARIABLES)) {
     if (letterCase === "lower") v.name = v.name.toLowerCase();
     if (letterCase === "upper") v.name = v.name.toUpperCase();
     const column = Array.from({ length: n }, (_, i) =>
@@ -778,6 +837,14 @@ export function importExcel(session, text, ctx) {
   }
   session.data = data;
   session.cleanFingerprint = null;
+  if (tooMany) {
+    const message =
+      (session.settings?.linesize ?? 80) >= 117
+        ? "no room to add more variables\n    Up to 5,000 variables are currently allowed, although you could reset the maximum using set maxvar; see help memory."
+        : STANDARD_MESSAGES[900];
+    for (const line of message.split("\n")) ctx.out(line);
+    throw new StataError(message, 900);
+  }
   ctx.out(varsObs(built.length, n));
 }
 
@@ -851,16 +918,58 @@ const escapeXml = (text) =>
       (c) =>
         `_x${c.charCodeAt(0).toString(16).padStart(4, "0").toUpperCase()}_`,
     );
-// The number formats export excel gives cells, by kind.
-const WRITE_FORMATS = {
-  number: { id: 1 },
-  date: { id: 14 },
-  clock: { id: 22 },
-};
+// The number format export excel gives a variable's cells, from its display
+// format, as Stata 19 writes them: dates of every unit as 14 (m/d/yyyy),
+// date-times as 22 and times of day as 19, %#.2f as 2 (0.00), %#.2fc as 4
+// (#,##0.00), %#.2e as 11 (0.00E+00), %#.#gc as 3 (#,##0), and 1 (0) else.
+function writeFormat(format) {
+  if (/^%-?t[cC]/.test(format)) {
+    const rest = format
+      .replace(/^%-?t[cC]/, "")
+      .replace(
+        /HH|Hh|hH|hh|MM|SS|ss|\.s+|\.S+|[aApP]\.?[mM]\.?|![\s\S]|[_:.,\-/\\+ ]/g,
+        "",
+      );
+    return { id: format.replace(/^%-?t[cC]/, "") && !rest ? 19 : 22 };
+  }
+  if (/^%-?(t[dmqwhy]|d)/.test(format)) return { id: 14 };
+  const spec = parseFormat(format);
+  if (spec?.kind !== "number") return { id: 1 };
+  if (spec.style === "g") return { id: spec.commas ? 3 : 1 };
+  if (spec.digits !== 2) return { id: 1 };
+  if (spec.style === "f") return { id: spec.commas ? 4 : 2 };
+  return { id: spec.commas ? 1 : 11 };
+}
 
-/** A writable copy of a workbook: sheets of cells kept by row and column. */
+/** Days since 1960 of the first day of a %tm, %tq, %tw, %th or %ty value. */
+function periodStart(value, unit) {
+  const v = Math.floor(value);
+  if (unit === "y") return civilDays(v, 1, 1);
+  const per = { m: 12, q: 4, w: 52, h: 2 }[unit],
+    year = 1960 + Math.floor(v / per),
+    part = v - (year - 1960) * per;
+  if (unit === "w") return civilDays(year, 1, 1) + 7 * part;
+  return civilDays(year, (part * 12) / per + 1, 1);
+}
+// Days from 1 January 1960 on the proleptic Gregorian calendar.
+function civilDays(year, month, day) {
+  const y = month <= 2 ? year - 1 : year,
+    era = Math.floor(y / 400),
+    yoe = y - era * 400,
+    doy = Math.floor((153 * (month + (month > 2 ? -3 : 9)) + 2) / 5) + day - 1,
+    doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy;
+  return era * 146097 + doe - 719468 + 3653;
+}
+
+/**
+ * A writable copy of a workbook: sheets of cells kept by row and column.
+ * The cells read from the file are marked kept; a cell a command writes is
+ * a new object, which is how the writer knows what changed.
+ */
 function editableBook(book) {
   return {
+    date1904: book.date1904,
+    source: book.source,
     sheets: book.sheets.map((sheet) => {
       const { rows } = sheet.cells(),
         copy = new Map();
@@ -873,17 +982,53 @@ function editableBook(book) {
               v: cell.v,
               nf: cell.f ? { id: cell.f.id, code: cell.f.code } : undefined,
               formula: cell.formula,
+              kept: true,
             });
-          else row.set(c, { ...cell });
+          else row.set(c, { ...cell, kept: true });
         }
         copy.set(r, row);
       }
-      return { name: sheet.name, rows: copy };
+      return { name: sheet.name, path: sheet.path, rows: copy };
     }),
   };
 }
 
+/** The XML of one cell. */
+function cellXml(cell, ref, s, share, p = "") {
+  const sAttr = s ? ` s="${s}"` : "",
+    f = cell.formula ? `<${p}f>${escapeXml(cell.formula)}</${p}f>` : "";
+  if (cell.t === "s")
+    return `<${p}c r="${ref}"${sAttr} t="s"><${p}v>${share(cell.v)}</${p}v></${p}c>`;
+  if (cell.t === "b")
+    return `<${p}c r="${ref}"${sAttr} t="b">${f}<${p}v>${cell.v}</${p}v></${p}c>`;
+  if (cell.t === "e")
+    return `<${p}c r="${ref}"${sAttr} t="e">${f}<${p}v>${escapeXml(cell.v)}</${p}v></${p}c>`;
+  if (cell.t === "n")
+    return `<${p}c r="${ref}"${sAttr}>${f}<${p}v>${cell.v}</${p}v></${p}c>`;
+  return f
+    ? `<${p}c r="${ref}"${sAttr}>${f}</${p}c>`
+    : `<${p}c r="${ref}"${sAttr}/>`;
+}
+
+const STYLES_BODY =
+  '<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>';
+const TYPES = {
+  worksheet:
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
+  styles:
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml",
+  sharedStrings:
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml",
+};
+const REL =
+  "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+
+/** A new workbook, or a changed one written over the parts it was read from. */
 export function writeXlsx(book) {
+  return book.source ? patchXlsx(book) : freshXlsx(book);
+}
+
+function freshXlsx(book) {
   const strings = [],
     stringIndex = new Map(),
     xfs = [{ id: 0 }],
@@ -906,46 +1051,9 @@ export function writeXlsx(book) {
   };
   const files = [];
   book.sheets.forEach((sheet, k) => {
-    const rowNumbers = [...sheet.rows.keys()].sort((a, b) => a - b);
-    let minRow = Infinity,
-      maxRow = 0,
-      minCol = Infinity,
-      maxCol = 0;
-    const body = rowNumbers
-      .map((r) => {
-        const cols = [...sheet.rows.get(r).keys()].sort((a, b) => a - b);
-        if (!cols.length) return "";
-        minRow = Math.min(minRow, r);
-        maxRow = Math.max(maxRow, r);
-        minCol = Math.min(minCol, cols[0]);
-        maxCol = Math.max(maxCol, cols.at(-1));
-        const cells = cols.map((c) => {
-          const cell = sheet.rows.get(r).get(c),
-            ref = `${columnName(c)}${r}`,
-            s = styleOf(cell.nf),
-            sAttr = s ? ` s="${s}"` : "",
-            f = cell.formula ? `<f>${escapeXml(cell.formula)}</f>` : "";
-          if (cell.t === "s")
-            return `<c r="${ref}"${sAttr} t="s"><v>${share(cell.v)}</v></c>`;
-          if (cell.t === "b")
-            return `<c r="${ref}"${sAttr} t="b">${f}<v>${cell.v}</v></c>`;
-          if (cell.t === "e")
-            return `<c r="${ref}"${sAttr} t="e">${f}<v>${escapeXml(cell.v)}</v></c>`;
-          if (cell.t === "n")
-            return `<c r="${ref}"${sAttr}>${f}<v>${cell.v}</v></c>`;
-          return f
-            ? `<c r="${ref}"${sAttr}>${f}</c>`
-            : `<c r="${ref}"${sAttr}/>`;
-        });
-        return `<row r="${r}">${cells.join("")}</row>`;
-      })
-      .join("");
-    const dimension = maxRow
-      ? `${columnName(minCol)}${minRow}:${columnName(maxCol)}${maxRow}`
-      : "A1";
     files.push({
       name: `xl/worksheets/sheet${k + 1}.xml`,
-      data: `${HEAD}<worksheet ${NS}><dimension ref="${dimension}"/><sheetData>${body}</sheetData></worksheet>`,
+      data: newSheetXml(sheet, (cell) => styleOf(cell.nf), share),
     });
   });
   const sheets = book.sheets;
@@ -956,7 +1064,7 @@ export function writeXlsx(book) {
     },
     {
       name: "xl/styles.xml",
-      data: `${HEAD}<styleSheet ${NS}>${customs.size ? `<numFmts count="${customs.size}">${[...customs].map(([code, id]) => `<numFmt numFmtId="${id}" formatCode="${escapeXml(code)}"/>`).join("")}</numFmts>` : ""}<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${xfs.length}">${xfs.map((x) => `<xf numFmtId="${x.id}" fontId="0" fillId="0" borderId="0" xfId="0"${x.id ? ' applyNumberFormat="1"' : ""}/>`).join("")}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`,
+      data: `${HEAD}<styleSheet ${NS}>${customs.size ? `<numFmts count="${customs.size}">${[...customs].map(([code, id]) => `<numFmt numFmtId="${id}" formatCode="${escapeXml(code)}"/>`).join("")}</numFmts>` : ""}${STYLES_BODY}<cellXfs count="${xfs.length}">${xfs.map((x) => `<xf numFmtId="${x.id}" fontId="0" fillId="0" borderId="0" xfId="0"${x.id ? ' applyNumberFormat="1"' : ""}/>`).join("")}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`,
     },
     {
       name: "xl/workbook.xml",
@@ -964,19 +1072,353 @@ export function writeXlsx(book) {
     },
     {
       name: "xl/_rels/workbook.xml.rels",
-      data: `${HEAD}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s, k) => `<Relationship Id="rId${k + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${k + 1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId${sheets.length + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>`,
+      data: `${HEAD}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s, k) => `<Relationship Id="rId${k + 1}" Type="${REL}/worksheet" Target="worksheets/sheet${k + 1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length + 1}" Type="${REL}/styles" Target="styles.xml"/><Relationship Id="rId${sheets.length + 2}" Type="${REL}/sharedStrings" Target="sharedStrings.xml"/></Relationships>`,
     },
     {
       name: "[Content_Types].xml",
-      data: `${HEAD}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((s, k) => `<Override PartName="/xl/worksheets/sheet${k + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/></Types>`,
+      data: `${HEAD}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((s, k) => `<Override PartName="/xl/worksheets/sheet${k + 1}.xml" ContentType="${TYPES.worksheet}"/>`).join("")}<Override PartName="/xl/styles.xml" ContentType="${TYPES.styles}"/><Override PartName="/xl/sharedStrings.xml" ContentType="${TYPES.sharedStrings}"/></Types>`,
     },
     {
       name: "_rels/.rels",
-      data: `${HEAD}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+      data: `${HEAD}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
     },
   );
   // Content types first, as Excel prefers.
   return zip([files.at(-2), files.at(-1), ...files.slice(0, -2)]);
+}
+
+/** A whole worksheet part holding a sheet's cells. */
+function newSheetXml(sheet, styleOf, share) {
+  const { body, dimension } = sheetRows(
+    [...sheet.rows].map(([r, cols]) => [r, { attrs: "", cells: cols }]),
+    (cell, ref) => cellXml(cell, ref, styleOf(cell), share),
+    "",
+  );
+  return `${HEAD}<worksheet ${NS}><dimension ref="${dimension}"/><sheetData>${body}</sheetData></worksheet>`;
+}
+
+/**
+ * The <row> elements of a sheet from rows of { attrs, cells }, where a cell
+ * is a cell object or the XML it had in the file, and the used range.
+ */
+function sheetRows(rows, render, p) {
+  let minRow = Infinity,
+    maxRow = 0,
+    minCol = Infinity,
+    maxCol = 0;
+  const body = rows
+    .sort((a, b) => a[0] - b[0])
+    .map(([r, { attrs, cells }]) => {
+      const cols = [...cells.keys()].sort((a, b) => a - b);
+      if (!cols.length && !attrs) return "";
+      minRow = Math.min(minRow, r);
+      maxRow = Math.max(maxRow, r);
+      if (cols.length) {
+        minCol = Math.min(minCol, cols[0]);
+        maxCol = Math.max(maxCol, cols.at(-1));
+      }
+      const xml = cols.map((c) => {
+        const cell = cells.get(c),
+          ref = `${columnName(c)}${r}`;
+        return typeof cell === "string" ? cell : render(cell, ref);
+      });
+      const open = /\br\s*=/.test(attrs) ? attrs : ` r="${r}"${attrs}`;
+      return xml.length
+        ? `<${p}row${open}>${xml.join("")}</${p}row>`
+        : `<${p}row${open}/>`;
+    })
+    .join("");
+  const dimension = maxCol
+    ? `${columnName(minCol)}${minRow}:${columnName(maxCol)}${maxRow}`
+    : "A1";
+  return { body, dimension };
+}
+
+const prefixOf = (xml, element) =>
+  new RegExp(`<([A-Za-z_][\\w.-]*:)?${element}\\b`).exec(xml)?.[1] ?? "";
+
+/**
+ * Writes the changed cells and new sheets into the workbook's own parts and
+ * leaves every other part as it was, as Stata's putexcel and export excel
+ * do: styles, merged cells, formulas, drawings and document properties
+ * stay. Shared strings and cell styles are added at the ends of their lists.
+ */
+function patchXlsx(book) {
+  const src = book.source,
+    out = new Map(Object.entries(src.entries)),
+    text = (path) => (out.has(path) ? strFromU8(out.get(path)) : null),
+    put = (path, xml) => out.set(path, strToU8(xml)),
+    dir = src.workbookPath.replace(/[^/]*$/, "");
+  let types = text("[Content_Types].xml") ?? "",
+    rels = text(src.relsPath) ?? "",
+    workbook = text(src.workbookPath);
+  const relIds = new Set(
+    [...rels.matchAll(/\bId="([^"]*)"/g)].map((m) => m[1]),
+  );
+  const addPart = (path, type, contentType) => {
+    let n = relIds.size + 1;
+    while (relIds.has(`rId${n}`)) n++;
+    const id = `rId${n}`;
+    relIds.add(id);
+    rels = rels.replace(
+      /<\/([\w.-]+:)?Relationships>\s*$/,
+      `<Relationship Id="${id}" Type="${REL}/${type}" Target="${path.slice(dir.length)}"/>$&`,
+    );
+    types = types.replace(
+      /<\/([\w.-]+:)?Types>\s*$/,
+      `<Override PartName="/${path}" ContentType="${contentType}"/>$&`,
+    );
+    return id;
+  };
+
+  // Shared strings: new ones go after the file's own.
+  let sstPath = src.sstPath,
+    sst = sstPath ? text(sstPath) : null;
+  const added = [],
+    addedIndex = new Map(),
+    base = sst ? [...sst.matchAll(/<([\w.-]+:)?si\b/g)].length : 0;
+  let references = 0;
+  const share = (value) => {
+    references++;
+    if (!addedIndex.has(value))
+      addedIndex.set(value, base + added.push(value) - 1);
+    return addedIndex.get(value);
+  };
+
+  // Cell styles: a number format each, added after the file's own.
+  let styles = src.stylesPath ? text(src.stylesPath) : null;
+  const sp = styles ? prefixOf(styles, "styleSheet") : "",
+    cellXfs = styles
+      ? new RegExp(
+          `<${sp}cellXfs\\b[^>]*?(?:/>|>([\\s\\S]*?)</${sp}cellXfs>)`,
+        ).exec(styles)
+      : null,
+    xfCount = cellXfs
+      ? [...(cellXfs[1] ?? "").matchAll(new RegExp(`<${sp}xf\\b`, "g"))].length
+      : 1,
+    usedIds = styles
+      ? [
+          ...styles.matchAll(/<([\w.-]+:)?numFmt\b[^>]*\bnumFmtId="(\d+)"/g),
+        ].map((m) => Number(m[2]))
+      : [],
+    newXfs = [],
+    xfIndex = new Map(),
+    newFormats = new Map();
+  let nextFormat = Math.max(163, ...usedIds) + 1;
+  const styleOf = (nf) => {
+    if (!nf) return 0;
+    let id = nf.id ?? 0;
+    if (nf.code !== undefined && nf.code !== null) {
+      if (!newFormats.has(nf.code)) newFormats.set(nf.code, nextFormat++);
+      id = newFormats.get(nf.code);
+    }
+    if (!id) return 0;
+    if (!xfIndex.has(id)) xfIndex.set(id, xfCount + newXfs.push(id) - 1);
+    return xfIndex.get(id);
+  };
+
+  let calcChainStale = false;
+  const sheetIds = [...(workbook.matchAll(/\bsheetId="(\d+)"/g) ?? [])].map(
+    (m) => Number(m[1]),
+  );
+  let nextSheetId = Math.max(0, ...sheetIds) + 1;
+  for (const sheet of book.sheets) {
+    const changed = [];
+    for (const [r, cols] of sheet.rows)
+      for (const [c, cell] of cols) if (!cell.kept) changed.push([r, c, cell]);
+    if (sheet.path && !sheet.cleared && !changed.length) continue;
+    if (!sheet.path) {
+      // A new sheet: a part of its own, listed in the workbook.
+      let n = 1;
+      while (out.has(`${dir}worksheets/sheet${n}.xml`)) n++;
+      const path = `${dir}worksheets/sheet${n}.xml`,
+        id = addPart(path, "worksheet", TYPES.worksheet),
+        wp = prefixOf(workbook, "sheets");
+      let r =
+        /xmlns:([\w.-]+)="http:\/\/schemas\.openxmlformats\.org\/officeDocument\/2006\/relationships"/.exec(
+          workbook,
+        )?.[1];
+      if (!r) {
+        r = "r";
+        workbook = workbook.replace(
+          /<([\w.-]+:)?workbook\b/,
+          `$& xmlns:r="${REL}"`,
+        );
+      }
+      workbook = workbook.replace(
+        new RegExp(`</${wp}sheets>`),
+        `<${wp}sheet name="${escapeXml(sheet.name)}" sheetId="${nextSheetId++}" ${r}:id="${id}"/>$&`,
+      );
+      put(
+        path,
+        newSheetXml(sheet, (cell) => styleOf(cell.nf), share),
+      );
+      continue;
+    }
+    let xml = text(sheet.path);
+    const p = prefixOf(xml, "worksheet"),
+      data = new RegExp(
+        `<${p}sheetData\\b([^>]*?)(?:/>|>([\\s\\S]*?)</${p}sheetData>)`,
+      ).exec(xml);
+    // The rows and cells as written in the file, by number.
+    const rows = new Map(),
+      oldCells = new Map();
+    let rowNumber = 0;
+    for (const m of (data?.[2] ?? "").matchAll(
+      new RegExp(`<${p}row\\b([^>]*?)(?:/>|>([\\s\\S]*?)</${p}row>)`, "g"),
+    )) {
+      const a = attributes(m[1]);
+      rowNumber = a.r ? Number(a.r) : rowNumber + 1;
+      const cells = new Map();
+      let col = 0;
+      for (const c of (m[2] ?? "").matchAll(
+        new RegExp(`<${p}c\\b([^>]*?)(?:/>|>([\\s\\S]*?)</${p}c>)`, "g"),
+      )) {
+        const ca = attributes(c[1]);
+        col = ca.r ? (cellAddress(ca.r)?.col ?? col + 1) : col + 1;
+        const raw = ca.r
+          ? c[0]
+          : c[0].replace(
+              new RegExp(`^<${p}c\\b`),
+              `$& r="${columnName(col)}${rowNumber}"`,
+            );
+        cells.set(col, raw);
+        oldCells.set(`${rowNumber}|${col}`, {
+          s: ca.s,
+          formula: new RegExp(`<${p}f\\b`).test(c[2] ?? ""),
+        });
+      }
+      // A sheet being replaced keeps none of its rows.
+      if (!sheet.cleared) rows.set(rowNumber, { attrs: m[1], cells });
+    }
+    if (sheet.cleared && [...oldCells.values()].some((o) => o.formula))
+      calcChainStale = true;
+    for (const [r, c, cell] of changed) {
+      if (!rows.has(r)) rows.set(r, { attrs: "", cells: new Map() });
+      const row = rows.get(r),
+        old = sheet.cleared ? undefined : oldCells.get(`${r}|${c}`);
+      if (old?.formula) calcChainStale = true;
+      row.attrs = row.attrs.replace(/\s+spans="[^"]*"/, "");
+      // putexcel, and export excel with keepcellfmt, keep a cell's style.
+      const s =
+        cell.keepStyle && old?.s !== undefined
+          ? Number(old.s)
+          : styleOf(cell.nf);
+      row.cells.set(c, cellXml(cell, `${columnName(c)}${r}`, s, share, p));
+    }
+    const { body, dimension } = sheetRows([...rows], null, p);
+    const newData = `<${p}sheetData${data?.[1] ?? ""}>${body}</${p}sheetData>`;
+    xml = data
+      ? xml.slice(0, data.index) +
+        newData +
+        xml.slice(data.index + data[0].length)
+      : xml.replace(new RegExp(`</${p}worksheet>`), `${newData}$&`);
+    xml = xml.replace(
+      new RegExp(`(<${p}dimension\\b[^>]*\\bref=")[^"]*"`),
+      `$1${dimension}"`,
+    );
+    put(sheet.path, xml);
+  }
+
+  if (added.length) {
+    const items = added
+      .map((t) => `<si><t xml:space="preserve">${escapeXml(t)}</t></si>`)
+      .join("");
+    if (sst) {
+      const q = prefixOf(sst, "sst");
+      sst = sst
+        .replace(new RegExp(`<${q}sst\\b([^>]*?)/>`), `<${q}sst$1></${q}sst>`)
+        .replace(
+          new RegExp(`</${q}sst>`),
+          items.replace(/<(\/?)(si|t)\b/g, `<$1${q}$2`) + "$&",
+        )
+        .replace(
+          /(<([\w.-]+:)?sst\b[^>]*\buniqueCount=")(\d+)"/,
+          (m, head) => `${head}${base + added.length}"`,
+        )
+        .replace(
+          /(<([\w.-]+:)?sst\b[^>]*\bcount=")(\d+)"/,
+          (m, head, prefix, n) => `${head}${Number(n) + references}"`,
+        );
+    } else {
+      sstPath = `${dir}sharedStrings.xml`;
+      sst = `${HEAD}<sst ${NS} count="${references}" uniqueCount="${added.length}">${items}</sst>`;
+      addPart(sstPath, "sharedStrings", TYPES.sharedStrings);
+    }
+    put(sstPath, sst);
+  }
+  if (newXfs.length || newFormats.size) {
+    if (!styles) {
+      const path = `${dir}styles.xml`;
+      styles = `${HEAD}<styleSheet ${NS}>${STYLES_BODY}<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+      src.stylesPath = path;
+      addPart(path, "styles", TYPES.styles);
+    }
+    const xfs = newXfs
+      .map(
+        (id) =>
+          `<${sp}xf numFmtId="${id}" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>`,
+      )
+      .join("");
+    if (cellXfs)
+      styles = styles
+        .replace(
+          new RegExp(`<${sp}cellXfs\\b([^>]*?)/>`),
+          `<${sp}cellXfs$1></${sp}cellXfs>`,
+        )
+        .replace(new RegExp(`</${sp}cellXfs>`), `${xfs}$&`)
+        .replace(
+          new RegExp(`(<${sp}cellXfs\\b[^>]*\\bcount=")\\d+"`),
+          `$1${xfCount + newXfs.length}"`,
+        );
+    else
+      styles = styles.replace(
+        new RegExp(`</${sp}styleSheet>`),
+        `<${sp}cellXfs count="${1 + newXfs.length}"><${sp}xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>${xfs}</${sp}cellXfs>$&`,
+      );
+    if (newFormats.size) {
+      const formats = [...newFormats]
+        .map(
+          ([code, id]) =>
+            `<${sp}numFmt numFmtId="${id}" formatCode="${escapeXml(code)}"/>`,
+        )
+        .join("");
+      styles = new RegExp(`</${sp}numFmts>`).test(styles)
+        ? styles
+            .replace(new RegExp(`</${sp}numFmts>`), `${formats}$&`)
+            .replace(
+              new RegExp(`(<${sp}numFmts\\b[^>]*\\bcount=")(\\d+)"`),
+              (m, head, n) => `${head}${Number(n) + newFormats.size}"`,
+            )
+        : styles.replace(
+            new RegExp(`<${sp}styleSheet\\b[^>]*>`),
+            `$&<${sp}numFmts count="${newFormats.size}">${formats}</${sp}numFmts>`,
+          );
+    }
+    put(src.stylesPath, styles);
+  }
+  // A formula overwritten with a value leaves Excel's calculation chain
+  // pointing at it, which Excel reports as damage; Excel rebuilds the chain.
+  if (calcChainStale && src.calcChainPath) {
+    out.delete(src.calcChainPath);
+    const target = src.calcChainPath.slice(dir.length);
+    rels = rels.replace(
+      new RegExp(
+        `<([\\w.-]+:)?Relationship\\b[^>]*Target="/?(?:${dir})?${target.replace(/[.]/g, "\\.")}"[^>]*/>`,
+      ),
+      "",
+    );
+    types = types.replace(
+      new RegExp(
+        `<([\\w.-]+:)?Override\\b[^>]*PartName="/${src.calcChainPath.replace(/[.]/g, "\\.")}"[^>]*/>`,
+      ),
+      "",
+    );
+  }
+  put(src.workbookPath, workbook);
+  put(src.relsPath, rels);
+  put("[Content_Types].xml", types);
+  return zip([...out].map(([name, data]) => ({ name, data })));
 }
 
 const XLS_REFUSAL = (name) =>
@@ -1072,6 +1514,7 @@ export function exportExcel(session, text, ctx) {
   const variables = parsed.varlist.map((v) => session.data.get(v));
   if (!variables.length)
     throw new StataError("too few variables specified", 102);
+  if (!session.data.n) throw new StataError("no observations", 2000);
   if (!/\.[A-Za-z0-9]+$/.test(raw) || /\.xls$/i.test(raw))
     throw XLS_REFUSAL(/\.[A-Za-z0-9]+$/.test(raw) ? raw : `${raw}.xls`);
   const name = raw,
@@ -1089,6 +1532,9 @@ export function exportExcel(session, text, ctx) {
     !options.sheetreplace
   )
     throw new StataError(`file ${name} already exists`, 602);
+  const rows = session.rows(parsed, null);
+  if (!rows.length)
+    throw new StataError("observations must be between 1 and 1048576", 198);
   const book = openForWriting(session, name, options.replace);
   let sheet = book.sheets.find((s) => s.name === sheetName);
   if (sheet && !modify && !replaceSheet)
@@ -1097,12 +1543,27 @@ export function exportExcel(session, text, ctx) {
       602,
     );
   if (!sheet) {
+    checkSheetName(
+      sheetName,
+      header
+        ? "_xlshwritestr()"
+        : isStringType(variables[0].type)
+          ? "_xlshwritestrcol()"
+          : "_xlshwritenumcol()",
+    );
     sheet = { name: sheetName, rows: new Map() };
     book.sheets.push(sheet);
-  } else if (replaceSheet) sheet.rows = new Map();
+  } else if (replaceSheet) {
+    sheet.rows = new Map();
+    sheet.cleared = true;
+  }
+  // Serial numbers count from 1904 in a workbook that uses that system.
+  const shift = book.date1904 ? 1462 : 0;
   const put = (row, col, cell) => {
     if (!sheet.rows.has(row)) sheet.rows.set(row, new Map());
-    sheet.rows.get(row).set(col, cell);
+    sheet.rows
+      .get(row)
+      .set(col, options.keepcellfmt ? { ...cell, keepStyle: true } : cell);
   };
   const missingText =
     options.missing !== undefined ? unquote(options.missing) : null;
@@ -1119,7 +1580,6 @@ export function exportExcel(session, text, ctx) {
     );
     row++;
   }
-  const rows = session.rows(parsed, null);
   for (const i of rows) {
     variables.forEach((v, k) => {
       const value = v.data[i],
@@ -1131,7 +1591,8 @@ export function exportExcel(session, text, ctx) {
           : null;
       if (labels?.has(value))
         return put(row, col, { t: "s", v: labels.get(value) });
-      const kind = kindOf(v.format);
+      const kind = kindOf(v.format),
+        nf = writeFormat(v.format);
       if (dateFormat && kind !== "number")
         return put(row, col, {
           t: "s",
@@ -1139,26 +1600,37 @@ export function exportExcel(session, text, ctx) {
             ? (missingText ?? "")
             : dateText(value, dateFormat),
         });
+      // Stata 19 writes an empty string for a %tc format showing fractions
+      // of a second, which Excel's formats cannot copy.
+      if (kind === "clock" && /\.s/i.test(v.format))
+        return put(row, col, { t: "s", v: "" });
       if (isMissing(value)) {
         if (missingText !== null)
           return put(row, col, { t: "s", v: missingText });
         if (labels && value !== MISSING)
           return put(row, col, { t: "s", v: missingName(value) });
-        return put(row, col, { t: "z", nf: WRITE_FORMATS[kindOf(v.format)] });
+        return put(row, col, { t: "z", nf });
       }
-      if (kind === "date")
+      // %tm, %tq, %tw, %th and %ty values are written as the date their
+      // period starts, as Stata does.
+      if (kind === "date" || kind === "period")
         return put(row, col, {
           t: "n",
-          v: daysToSerial(value),
-          nf: WRITE_FORMATS.date,
+          v:
+            daysToSerial(
+              kind === "date"
+                ? value
+                : periodStart(value, /^%-?t([mqwhy])/.exec(v.format)[1]),
+            ) - shift,
+          nf,
         });
       if (kind === "clock")
         return put(row, col, {
           t: "n",
-          v: daysToSerial(value / 86400000),
-          nf: WRITE_FORMATS.clock,
+          v: daysToSerial(value / 86400000) - shift,
+          nf,
         });
-      put(row, col, { t: "n", v: value, nf: WRITE_FORMATS.number });
+      put(row, col, { t: "n", v: value, nf });
     });
     row++;
   }
@@ -1170,7 +1642,36 @@ const kindOf = (format) =>
     ? "clock"
     : /^%-?(td|d)/.test(format)
       ? "date"
-      : "number";
+      : /^%-?t[mqwhy]/.test(format)
+        ? "period"
+        : "number";
+
+// Excel refuses these sheet names; Stata's writer stops with a Mata error.
+function badSheetName(name) {
+  if (/[\\/?*[\]:]/.test(name) || /^'|'$/.test(name)) return "add";
+  if ([...name].length > 31) return "write";
+  return null;
+}
+function checkSheetName(name, writer) {
+  const fault = badSheetName(name);
+  if (!fault) return;
+  const line = (fn, code, what) =>
+    `${fn.padStart(24)}:  ${code.padStart(4)}  ${what}`;
+  const lines =
+    fault === "add"
+      ? [line("_xlbkaddsheet()", "9901", "Stata returned error")]
+      : [
+          line(writer, "9901", "Stata returned error"),
+          line("export_excel_write()", "-", "function returned error"),
+        ];
+  for (const fn of [
+    "export_excel_write_file()",
+    "export_excel_export_file()",
+    "<istmt>",
+  ])
+    lines.push(line(fn, "-", "function returned error"));
+  throw new StataError(lines.join("\n"), 9901);
+}
 /**
  * datestring(): a value as text in a date format. Stata shows a value
  * outside the years 100 to 9999 as a number, so that is written instead.
@@ -1350,15 +1851,29 @@ function putexcelCells(session, text, ctx) {
     book = openForWriting(session, state.name, fresh);
   let sheet = book.sheets.find((s) => s.name === state.sheet);
   if (!sheet) {
+    // Stata 19's messages for a sheet name Excel refuses.
+    const fault = badSheetName(state.sheet);
+    if (fault === "add" && fresh)
+      throw new StataError(`file ${state.name} could not be loaded`, 603);
+    if (fault === "add")
+      throw new StataError(
+        `worksheet ${state.sheet} could not be created`,
+        603,
+      );
+    if (fault) throw new StataError("could not write to file", 691);
     sheet = { name: state.sheet, rows: new Map() };
     book.sheets.push(sheet);
-  } else if (state.replaceSheet) sheet.rows = new Map();
+  } else if (state.replaceSheet) {
+    sheet.rows = new Map();
+    sheet.cleared = true;
+  }
+  // putexcel keeps the formatting a cell already has.
   for (const { address, cells } of writes)
     for (const { dr, dc, cell } of cells) {
       const r = address.row + dr,
         c = address.col + dc;
       if (!sheet.rows.has(r)) sheet.rows.set(r, new Map());
-      sheet.rows.get(r).set(c, cell);
+      sheet.rows.get(r).set(c, { ...cell, keepStyle: true });
     }
   saveBook(session, state.name, book);
   state.mode = "modify";

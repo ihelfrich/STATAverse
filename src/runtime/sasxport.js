@@ -15,6 +15,7 @@ import {
   unquote,
   varsObs,
 } from "./excel.js";
+import { count } from "./reports.js";
 import { Dataset } from "./store.js";
 import {
   MISSING,
@@ -274,7 +275,13 @@ const SAS8_FORMATS = {
   DATE: "%td",
   WEEKDATE: "%td_DAYNAME,_Month_DD,_CCYY",
   D: "%15.4g",
+  // Stata gives these formats and leaves the values as SAS's seconds.
+  DATETIME: "%tc",
+  TIME: "%tcHH:MM:SS",
 };
+
+const hasData = (session) =>
+  session.data.n > 0 || session.data.variables.length > 0;
 
 const integerType = (values) => {
   const present = values.filter((v) => !isMissing(v));
@@ -359,6 +366,20 @@ export function importSasxport(session, text, ctx, version) {
     const shown = /\.[A-Za-z0-9]+$/.test(name) ? name : `${name}.xpt`;
     throw new StataError(`file ${shown} not found`, 601);
   }
+  if (!options.describe) {
+    // import sasxport5 gives Stata's usual r(4) message; sasxport8 the
+    // message of the other import commands.
+    if (version === 5 && !options.clear && hasData(session))
+      throw new StataError(
+        "no; dataset in memory has changed since last saved",
+        4,
+      );
+    needClear(session, options.clear);
+    // Stata clears memory before it reads, so a file it then refuses
+    // leaves no data behind.
+    session.data = new Dataset({ defaultType: session.data.defaultType });
+    session.cleanFingerprint = null;
+  }
   let file;
   try {
     file = readXportFile(bytesOf(stored));
@@ -381,7 +402,6 @@ export function importSasxport(session, text, ctx, version) {
       throw new StataError(`member ${unquote(options.member)} not found`, 111);
   }
   if (options.describe) return describeMember(name, member, ctx);
-  needClear(session, options.clear);
   const data = new Dataset({ defaultType: session.data.defaultType });
   data.n = member.n;
   const lines = [];
@@ -427,8 +447,11 @@ export function importSasxport(session, text, ctx, version) {
     }
   } else {
     member.variables.forEach((v, k) => {
-      const values = member.columns[k],
-        format = v.format.toUpperCase();
+      const format = v.format.toUpperCase(),
+        // SAS's special missing values .A to .Z come in as plain missing.
+        values = v.numeric
+          ? member.columns[k].map((x) => (isMissing(x) ? MISSING : x))
+          : member.columns[k];
       if (v.numeric) {
         data.generate(v.name, values, { type: integerType(values) });
         data.get(v.name).format =
@@ -468,7 +491,7 @@ function describeMember(name, member, ctx) {
   ctx.out(
     ` vars:${String(member.variables.length).padStart(17)}             (date shown exactly as recorded in file)`,
   );
-  ctx.out(` size:${String(member.n * (width + 4)).padStart(17)}`);
+  ctx.out(` size:${count(member.n * (width + 4)).padStart(17)}`);
   ctx.out(dashes);
   ctx.out("variable    variable     value");
   ctx.out("  name        type       label      variable label");
@@ -478,7 +501,11 @@ function describeMember(name, member, ctx) {
       type = v.numeric
         ? SAS_DATES.has(format)
           ? "date"
-          : "numeric"
+          : format === "DATETIME"
+            ? "datetime"
+            : format === "TIME"
+              ? "time"
+              : "numeric"
         : `str${v.length}`,
       label =
         v.numeric &&
@@ -595,33 +622,49 @@ export function exportSasxport(session, text, ctx, version) {
     );
   const [head, optionText] = splitAtCommaSimple(text),
     options = readOptions(optionText, EXPORT5),
-    parsed = session.parse("anything [if] [in]", head);
-  if (
-    options.vallabfile !== undefined &&
-    unquote(options.vallabfile) !== "xpf" &&
-    unquote(options.vallabfile) !== "none"
-  )
-    throw new StataError(
-      `vallabfile(${unquote(options.vallabfile)}) is not available in the browser yet`,
-      198,
-      "Use vallabfile(xpf), the default, or vallabfile(none).",
-    );
-  let name = unquote(parsed.anything);
+    // export sasxport5 filename, or export sasxport5 [varlist] using filename
+    withUsing = /(^|\s)using(\s|"|$)/.test(head),
+    parsed = withUsing
+      ? session.parse("[varlist] using/ [if] [in]", head)
+      : session.parse("anything [if] [in]", head);
+  if (options.vallabfile !== undefined) {
+    const kind = unquote(options.vallabfile);
+    if (!["xpf", "sascode", "both", "none"].includes(kind))
+      throw new StataError("invalid syntax", 198);
+    if (kind === "sascode" || kind === "both")
+      throw new StataError(
+        `vallabfile(${kind}) is not available in the browser yet`,
+        198,
+        "Use vallabfile(xpf), the default, or vallabfile(none).",
+      );
+  }
+  let name = unquote(withUsing ? parsed.using : parsed.anything);
   if (!name) throw new StataError("invalid file specification", 198);
   if (!/\.[A-Za-z0-9]+$/.test(name)) name += ".xpt";
   const files = (session.files ??= new Map());
   if (files.has(name) && !options.replace)
     throw new StataError(`file ${name} already exists`, 602);
-  const data = session.data;
-  if (!data.variables.length) throw new StataError("no variables defined", 111);
-  // Names: at most eight characters, written in capitals.
+  const all = session.data;
+  if (!all.variables.length) throw new StataError("no variables defined", 111);
+  if (!all.n) throw new StataError("no observations", 2000);
+  // The variables written: those named, in the order named, or all.
+  const data = {
+    valueLabels: all.valueLabels,
+    variables:
+      withUsing && parsed.varlist.length
+        ? parsed.varlist.map((v) => all.get(v))
+        : all.variables,
+  };
+  // Names: at most eight characters, written in capitals. Stata also asks
+  // to rename a name with capitals in it, though only its case changes, and
+  // numbers a clash from 2.
   const renames = [],
     used = new Set();
   const sasNames = data.variables.map((v) => {
     let sas = v.name.toUpperCase();
-    if (sas.length > 8) {
+    if (sas.length > 8 || v.name !== v.name.toLowerCase()) {
       sas = sas.slice(0, 8);
-      for (let k = 1; used.has(sas); k++)
+      for (let k = 2; used.has(sas); k++)
         sas = sas.slice(0, 8 - String(k).length) + k;
       renames.push([v.name, sas]);
     }
@@ -633,7 +676,11 @@ export function exportSasxport(session, text, ctx, version) {
     if (!options.rename)
       throw new StataError(
         [
-          "the following variable(s) have names that must be changed to fit into .xpt format:  (suggested renamings shown):",
+          ...wrapNote(
+            "the following variable(s) have names that must be changed to fit into .xpt format:  (suggested renamings shown):",
+            session.settings?.linesize ?? 80,
+            0,
+          ),
           "",
           ...list,
           "",

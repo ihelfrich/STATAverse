@@ -274,7 +274,13 @@ function readBiff(bytes) {
       const offset =
           (data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24)) >>> 0,
         kind = data[5];
-      sheets.push({ offset, kind, name: unicodeString(data, 6, 1) });
+      let name = unicodeString(data, 6, 1);
+      // Stata 19 shows a sheet name stored as 8-bit characters with its
+      // UTF-8 bytes read again as Latin-1 ("Ñandú" becomes "ÃandÃº"), and
+      // sheet() must name it that way.
+      if (!(data[7] & 1) && /[^\x00-\x7f]/.test(name))
+        name = String.fromCharCode(...new TextEncoder().encode(name));
+      sheets.push({ offset, kind, name });
     } else if (type === 0x00fc) {
       const parts = [data.subarray(8)];
       while (all[k + 1]?.type === 0x003c) parts.push(all[++k].data);

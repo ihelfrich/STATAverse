@@ -4901,3 +4901,121 @@ import excel using hdr.xlsx, allstring clear
 list
 import excel using hdr.xlsx, firstrow case(lower) clear
 list
+=== excel-export-number-formats
+clear
+set obs 3
+generate int m = ym(2024, _n)
+format m %tm
+generate int q = yq(2024, _n)
+format q %tq
+generate int w = yw(2024, _n)
+format w %tw
+generate int h = yh(2024, _n)
+format h %th
+generate int y = 2020 + _n
+format y %ty
+generate double a = 1234.5678 * _n
+format a %9.2f
+generate double c = 1234567.891 * _n
+format c %12.2fc
+generate double e = 1234.5678 * _n
+format e %8.2e
+generate double g = 1234.5678 * _n
+format g %12.0gc
+generate double f1 = 1234.5678 * _n
+format f1 %9.1f
+export excel m using nf2.xlsx, datestring("%tdCCYY-NN-DD") replace
+export excel using nf.xlsx, firstrow(variables) replace
+import excel using nf.xlsx, firstrow clear
+display "`: type m' `: format m' `: format q' `: format w' `: format h' `: format y'"
+display "`: format a' `: format c' `: format e' `: format g' `: format f1'"
+list
+import excel using nf2.xlsx, clear
+list
+=== excel-export-refusals
+clear
+set obs 3
+generate id = _n
+generate str3 s = "ab"
+capture noisily export excel id using bad.xlsx, sheet("bad/name") replace
+display _rc
+capture noisily export excel id using bad.xlsx, sheet("a[b]") replace
+capture noisily export excel id using bad.xlsx, sheet("'quoted'") replace
+capture noisily export excel s id using bad.xlsx, sheet("abcdefghijklmnopqrstuvwxyz123456") replace
+display _rc
+capture noisily export excel id using bad.xlsx, sheet("abcdefghijklmnopqrstuvwxyz123456") firstrow(variables) replace
+capture noisily export excel id using bad.xlsx, sheet("abcdefghijklmnopqrstuvwxyz12345") replace
+capture noisily export excel id using bad.xlsx if id > 5, replace
+display _rc
+capture noisily export sasxport5 id using one.xpt, replace
+capture noisily export sasxport5 id s using "two.xpt" in 1/2, replace
+import sasxport5 two.xpt, clear
+list
+capture noisily export sasxport5 two.xpt, vallabfile(xpt) replace
+display _rc
+drop in 1/2
+capture noisily export excel id using none.xlsx, replace
+display _rc
+capture noisily export excel id using none.xlsx, firstrow(variables) replace
+capture noisily export sasxport5 none.xpt, replace
+display _rc
+=== excel-cellrange-data-area
+clear
+set obs 3
+generate id = _n
+generate score = 70 + _n
+export excel using area.xlsx, cell(C3) firstrow(variables) replace
+import excel using area.xlsx, describe
+capture noisily import excel using area.xlsx, cellrange(A1) firstrow clear
+display _rc " " _N " " c(k)
+capture noisily import excel using area.xlsx, cellrange(C1) firstrow clear
+capture noisily import excel using area.xlsx, cellrange(B3:D6) clear
+capture noisily import excel using area.xlsx, cellrange(:D5) firstrow clear
+list
+capture noisily import excel using area.xlsx, cellrange(C3) firstrow clear
+list
+capture noisily import excel using area.xlsx, cellrange(5) clear
+capture noisily import excel using area.xlsx, cellrange(AAAA1) clear
+capture noisily import excel using area.xlsx, cellrange(A0) clear
+capture noisily import excel using area.xlsx, cellrange(1A) clear
+capture noisily import excel using area.xlsx, cellrange(C3:D) clear
+capture noisily import excel using area.xlsx, cellrange(:) clear
+capture noisily import excel using area.xlsx, cellrange(C3:XFE9) clear
+capture noisily import excel using area.xlsx, cellrange(C3:D1048577) clear
+display _rc " " _N " " c(k)
+=== excel-sheet-names-and-wide-sheets
+clear
+set obs 2
+generate v = _n
+export excel using names.xlsx, sheet("Ñandú sheet") replace
+export excel using names.xlsx, sheet("x")
+import excel using names.xlsx, describe
+import excel using names.xlsx, sheet("Ñandú sheet") clear
+list
+putexcel set names.xlsx, modify sheet("x")
+putexcel XFD1 = 9
+capture noisily import excel using names.xlsx, sheet("x") clear
+display _rc " " _N " " c(k)
+=== putexcel-modify-keeps-workbook
+clear
+set obs 3
+generate id = _n
+generate str5 name = "n" + string(_n)
+generate double when = mdy(1, _n, 2024)
+format when %td
+export excel using keep.xlsx, firstrow(variables) replace
+putexcel set keep.xlsx, modify sheet("Sheet1")
+putexcel E2 = "added"
+putexcel B3 = 42
+putexcel C4 = 7
+export excel id using keep.xlsx, sheet("more")
+export excel name using keep.xlsx, sheet("Sheet1", modify) cell(F1)
+import excel using keep.xlsx, describe
+import excel using keep.xlsx, sheet("Sheet1") firstrow clear
+list
+import excel using keep.xlsx, sheet("more") clear
+list
+capture noisily export sasxport5 k.xpt, replace
+export sasxport5 k.xpt, rename replace
+capture noisily import sasxport5 k.xpt
+display _rc
