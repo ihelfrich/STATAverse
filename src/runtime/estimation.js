@@ -1529,7 +1529,13 @@ export function coefficientSpace(model) {
   if (spaces.has(model)) return spaces.get(model);
   const entries = [],
     dropped = (k) => model.estimable?.[k] === false;
-  if (model.equations) {
+  // A model whose equations hold different coefficients, as arima's and
+  // var's do, lists each coefficient's equation and name itself.
+  if (model.stripe)
+    model.stripe.forEach(({ equation, name }, index) =>
+      entries.push({ equation, name, index, omitted: dropped(index) }),
+    );
+  else if (model.equations) {
     const variables = model.coefficientNames?.slice() ?? [];
     for (const name of model.names) {
       const plain = name.replace(/^[^:]+:/, "");
@@ -2515,8 +2521,9 @@ function listConstraints(model, space, spec, session) {
     } else {
       const at = listCoefficient(model, space, null, token, session),
         { name, equation } = space.entries[at];
-      // After mlogit a name without an equation is tested in each.
-      if (model.equations && equation !== "/")
+      // After mlogit, arima or var a name without an equation is tested in
+      // each equation that has it.
+      if ((model.equations || model.stripe) && equation !== "/")
         space.entries.forEach((e, j) => {
           if (e.name === name && e.equation !== "/")
             add(unitConstraint(space, j));

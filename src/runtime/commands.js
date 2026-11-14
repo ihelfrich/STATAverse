@@ -28,6 +28,7 @@ import { MORE_DATA_COMMANDS } from "./more-data.js";
 import { TABLE_COMMANDS } from "./tables.js";
 import { GLM_COMMANDS } from "./glm.js";
 import { TIMESERIES_COMMANDS } from "./timeseries.js";
+import { ARIMA_COMMANDS } from "./arima.js";
 import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
 import { CONTRAST_COMMANDS } from "./contrast.js";
@@ -2334,7 +2335,19 @@ const command = (name, minimum, run, byable = false) => ({
 });
 // A command under by: runs once per group, with a heading for each.
 
+// Estimators that bring their own predict (arima, var) answer it first;
+// any other model goes on to the predict of MODEL_COMMANDS.
+const modelPredict = MODEL_COMMANDS.find((c) => c.name === "predict");
+const ownPredict = {
+  ...modelPredict,
+  run: (session, text, ctx) =>
+    (typeof session.estimates?.ownPredict === "function"
+      ? session.estimates.ownPredict
+      : modelPredict.run)(session, text, ctx),
+};
+
 export const COMMANDS = [
+  ownPredict,
   // Listed first so that test, lincom and predict choose by distribution.
   ...MODEL_COMMANDS,
   ...SVY_COMMANDS,
@@ -2353,6 +2366,7 @@ export const COMMANDS = [
   ...TABLE_COMMANDS,
   ...GLM_COMMANDS,
   ...TIMESERIES_COMMANDS,
+  ...ARIMA_COMMANDS,
   ...GRAPH_COMMANDS,
   ...MARGINS_COMMANDS,
   // Before DELIMITED_COMMANDS: its import and export hand delimited text on.

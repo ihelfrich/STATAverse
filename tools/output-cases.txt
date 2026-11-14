@@ -17437,3 +17437,220 @@ quietly logit employed age i.educ c.age#i.female
 quietly estat summarize
 matrix list r(stats)
 set linesize 200
+=== pass7-ts-arima-models
+clear
+set seed 12345
+set obs 200
+generate t = _n
+tsset t
+generate double e = invnormal(runiform())
+generate double y = 0
+replace y = 1 + .6*(y[_n-1]-1) + e + .3*e[_n-1] in 2/l
+generate double x = runiform()
+replace y = y + 2*x
+arima y, arima(1,0,1)
+display e(ll)
+display e(sigma)
+display e(chi2)
+display e(N) " " e(k) " " e(df_m) " " e(ar_max) " " e(ma_max)
+arima y x, ar(1) ma(1)
+arima y x, arima(2,1,0)
+arima y, ar(1 2) noconstant
+arima y, ma(1/2) nolog
+arima y x, ar(1) nolog vce(robust)
+arima y x, ar(1) nolog vce(oim)
+arima y, ar(1) nolog level(90)
+arima, level(80)
+test _cons
+arima y x, ar(1) ma(1) iterate(0)
+arima y x, ar(1) nolog
+test x
+test [ARMA]L.ar
+lincom x
+display _b[x]
+display _se[x]
+display _b[ARMA:L.ar]
+=== pass7-ts-arima-predict
+clear
+set seed 2024
+set obs 150
+generate t = tm(2000m1) + _n - 1
+format t %tm
+tsset t
+generate double e = invnormal(runiform())
+generate double y = 0
+replace y = .7*y[_n-1] + e - .4*e[_n-1] in 2/l
+generate double x = runiform()
+replace y = y + x + 5
+generate double z = sum(y - 5)
+arima y x, ar(1) ma(1)
+predict xb1
+predict r1, residuals
+predict m1, mse
+predict y1, y
+predict s1, stdp
+predict yr1, yresiduals
+predict d1, dynamic(tm(2010m1))
+predict dm1, mse dynamic(tm(2010m1))
+summarize xb1 r1 m1 y1 s1 yr1 d1 dm1
+list t y xb1 r1 m1 s1 d1 dm1 in 1/3
+list t y xb1 r1 s1 d1 dm1 in 119/124
+describe xb1 r1 m1 y1 s1 yr1 d1 dm1
+arima D.z, ar(1) nolog
+predict dx1
+predict dy1, y
+predict dr1, residuals
+predict dyr, yresiduals
+predict dyd, y dynamic(tm(2011m1))
+list t z dx1 dy1 dr1 dyr dyd in 1/3
+list t z dx1 dy1 dyd in 132/136
+describe dx1 dy1 dr1 dyr dyd
+arima y x if t >= tm(2003m1), ar(1) nolog
+predict ifx
+list t ifx in 35/38
+arima D.y, ar(1 4) ma(2) nolog
+replace y = . in 50
+arima y, ar(1)
+predict gx
+predict gm, mse
+list t y gx gm in 49/52
+replace y = . in 51/53
+arima y, ar(1) nolog
+=== pass7-ts-arima-names-and-errors
+clear
+set seed 404
+set obs 90
+generate t = ty(1930) + _n - 1
+format t %ty
+tsset t
+generate double x = runiform()
+generate double longvariablename = sum(invnormal(runiform()) + .5*x)
+generate s = "a"
+arima D.longvariablename L.x, ar(1) nolog
+set linesize 79
+arima D.longvariablename L.x, ar(1) nolog
+set linesize 200
+arima longvariablename x, arima(1,1,0) nolog
+capture noisily arima longvariablename, ar(0)
+capture noisily arima longvariablename, ar(1) arima(1,0,0)
+capture noisily arima s, ar(1)
+capture noisily arima i.x, ar(1)
+=== pass7-ts-pperron
+clear
+set seed 12345
+set obs 120
+generate t = tq(1990q1) + _n - 1
+format t %tq
+tsset t
+generate double e1 = invnormal(runiform())
+generate double y = 0
+replace y = .5*y[_n-1] + e1 in 2/l
+generate double z = sum(e1)
+generate double longvariablename = sum(invnormal(runiform()))
+pperron z
+display r(N) " " r(lags) " " %10.0g r(Zrho) " " %10.0g r(Zt) " " %10.0g r(pval)
+matrix list r(cvalues)
+pperron z, lags(2) trend
+pperron z, noconstant
+pperron y, regress
+pperron z if t > tq(1992q1)
+pperron z, trend regress
+matrix list r(table), format(%9.0g)
+pperron longvariablename, lags(0)
+capture noisily pperron y, trend noconstant
+clear
+set seed 5
+set obs 12000
+generate t = _n
+tsset t
+generate double z = sum(invnormal(runiform()))
+pperron z
+=== pass7-ts-var
+clear
+set seed 12345
+set obs 120
+generate t = tq(1990q1) + _n - 1
+format t %tq
+tsset t
+generate double e1 = invnormal(runiform())
+generate double e2 = invnormal(runiform())
+generate double y = 0
+generate double x = 0
+replace y = .5*y[_n-1] + .2*x[_n-1] + e1 in 2/l
+replace x = .3*y[_n-1] + .4*x[_n-1] + e2 in 2/l
+generate double w = runiform()
+var y x
+display e(ll) " " e(aic) " " e(fpe) " " e(detsig_ml)
+display e(chi2_1) " " e(r2_2) " " e(rmse_1)
+var y x, lags(1/3) exog(w)
+vargranger
+matrix list r(gstats)
+var y x, lags(1 3) noconstant
+vargranger
+var y x, dfk small
+vargranger
+varsoc y x
+matrix list r(stats)
+varsoc y x, maxlag(2) exog(w)
+quietly var y x, lags(1/2)
+varsoc
+var, level(90)
+predict v1
+predict v2, residuals equation(x)
+predict v3, stdp equation(#2)
+describe v1 v2 v3
+summarize v1 v2 v3
+test [y]L.x [y]L2.x
+=== pass7-ts-var-names-gaps
+clear
+set seed 77
+set obs 120
+generate t = tq(1990q1) + _n - 1
+format t %tq
+tsset t
+generate double e1 = invnormal(runiform())
+generate double e2 = invnormal(runiform())
+generate double y = 0
+generate double x = 0
+replace y = .5*y[_n-1] + .2*x[_n-1] + e1 in 2/l
+replace x = .3*y[_n-1] + .4*x[_n-1] + e2 in 2/l
+generate double w = runiform()
+generate double z = sum(e1)
+generate double longvariablename = sum(e2)
+var D.z D.longvariablename, lags(1) exog(L.w)
+set linesize 79
+var D.z D.longvariablename, lags(1) exog(L.w)
+set linesize 200
+var y x w, lags(2)
+vargranger
+varsoc y x, noconstant maxlag(3)
+varsoc y x w, maxlag(3)
+replace y = . in 60
+var y x
+varsoc y x
+capture noisily varsoc y x, maxlag(1)
+regress y x
+capture noisily vargranger
+=== pass7-ts-edge-delta-and-white-noise
+clear
+set seed 99
+set obs 80
+generate t = 2*_n
+tsset t, delta(2)
+generate double e = invnormal(runiform())
+generate double y = 0
+replace y = .5*y[_n-1] + e in 2/l
+generate double x = runiform()
+arima y
+arima y x, nolog
+arima y, ar(1) nolog
+predict p1, dynamic(100)
+list t y p1 in 48/52
+pperron y
+var y, lags(1/2)
+var y x, lags(1)
+varsoc y x, maxlag(3)
+drop in 30/32
+arima y, ar(1) nolog
+var y x, lags(1)
+pperron y

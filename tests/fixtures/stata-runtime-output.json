@@ -121739,6 +121739,2186 @@
       ]
     },
     {
+      "id": "pass7-ts-arima-models",
+      "source": "clear\nset seed 12345\nset obs 200\ngenerate t = _n\ntsset t\ngenerate double e = invnormal(runiform())\ngenerate double y = 0\nreplace y = 1 + .6*(y[_n-1]-1) + e + .3*e[_n-1] in 2/l\ngenerate double x = runiform()\nreplace y = y + 2*x\narima y, arima(1,0,1)\ndisplay e(ll)\ndisplay e(sigma)\ndisplay e(chi2)\ndisplay e(N) \" \" e(k) \" \" e(df_m) \" \" e(ar_max) \" \" e(ma_max)\narima y x, ar(1) ma(1)\narima y x, arima(2,1,0)\narima y, ar(1 2) noconstant\narima y, ma(1/2) nolog\narima y x, ar(1) nolog vce(robust)\narima y x, ar(1) nolog vce(oim)\narima y, ar(1) nolog level(90)\narima, level(80)\ntest _cons\narima y x, ar(1) ma(1) iterate(0)\narima y x, ar(1) nolog\ntest x\ntest [ARMA]L.ar\nlincom x\ndisplay _b[x]\ndisplay _se[x]\ndisplay _b[ARMA:L.ar]\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate t = _n", "lines": [] },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 200", "        Delta: 1 unit"]
+        },
+        { "command": "generate double e = invnormal(runiform())", "lines": [] },
+        { "command": "generate double y = 0", "lines": [] },
+        {
+          "command": "replace y = 1 + .6*(y[_n-1]-1) + e + .3*e[_n-1] in 2/l",
+          "lines": ["(199 real changes made)"]
+        },
+        { "command": "generate double x = runiform()", "lines": [] },
+        {
+          "command": "replace y = y + 2*x",
+          "lines": ["(200 real changes made)"]
+        },
+        {
+          "command": "arima y, arima(1,0,1)",
+          "lines": [
+            "(setting optimization to BHHH)",
+            "Iteration 0:  Log likelihood = -342.69069",
+            "Iteration 1:  Log likelihood = -337.90173",
+            "Iteration 2:  Log likelihood = -337.24978",
+            "Iteration 3:  Log likelihood = -337.18167",
+            "Iteration 4:  Log likelihood = -337.17264",
+            "(switching optimization to BFGS)",
+            "Iteration 5:  Log likelihood =  -337.1711",
+            "Iteration 6:  Log likelihood = -337.17063",
+            "Iteration 7:  Log likelihood = -337.17062",
+            "",
+            "ARIMA regression",
+            "",
+            "Sample: 1 thru 200                              Number of obs     =        200",
+            "                                                Wald chi2(2)      =     154.36",
+            "Log likelihood = -337.1706                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "       _cons |    2.02669   .2854015     7.10   0.000     1.467313    2.586067",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .6620043   .0886587     7.47   0.000     .4882364    .8357721",
+            "             |",
+            "          ma |",
+            "         L1. |   .0493588   .1152429     0.43   0.668    -.1765132    .2752308",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.303807   .0703303    18.54   0.000     1.165962    1.441651",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        { "command": "display e(ll)", "lines": ["-337.17062"] },
+        { "command": "display e(sigma)", "lines": ["1.3038066"] },
+        { "command": "display e(chi2)", "lines": ["154.36475"] },
+        {
+          "command": "display e(N) \" \" e(k) \" \" e(df_m) \" \" e(ar_max) \" \" e(ma_max)",
+          "lines": ["200 4 2 1 1"]
+        },
+        {
+          "command": "arima y x, ar(1) ma(1)",
+          "lines": [
+            "(setting optimization to BHHH)",
+            "Iteration 0:  Log likelihood = -303.01556",
+            "Iteration 1:  Log likelihood = -297.95005",
+            "Iteration 2:  Log likelihood = -297.70258",
+            "Iteration 3:  Log likelihood = -297.69464",
+            "Iteration 4:  Log likelihood = -297.69341",
+            "(switching optimization to BFGS)",
+            "Iteration 5:  Log likelihood = -297.69319",
+            "Iteration 6:  Log likelihood = -297.69312",
+            "Iteration 7:  Log likelihood = -297.69312",
+            "",
+            "ARIMA regression",
+            "",
+            "Sample: 1 thru 200                              Number of obs     =        200",
+            "                                                Wald chi2(3)      =     374.88",
+            "Log likelihood = -297.6931                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           x |    2.13817    .199588    10.71   0.000     1.746985    2.529355",
+            "       _cons |   1.011593   .2987095     3.39   0.001     .4261329    1.597053",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .6369234   .0724457     8.79   0.000     .4949325    .7789143",
+            "             |",
+            "          ma |",
+            "         L1. |   .3280466   .0930961     3.52   0.000     .1455816    .5105115",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.069288   .0556736    19.21   0.000     .9601697    1.178406",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "arima y x, arima(2,1,0)",
+          "lines": [
+            "(setting optimization to BHHH)",
+            "Iteration 0:  Log likelihood = -309.49807",
+            "Iteration 1:  Log likelihood = -309.42801",
+            "Iteration 2:  Log likelihood = -309.42308",
+            "Iteration 3:  Log likelihood = -309.42251",
+            "Iteration 4:  Log likelihood = -309.42243",
+            "(switching optimization to BFGS)",
+            "Iteration 5:  Log likelihood = -309.42242",
+            "",
+            "ARIMA regression",
+            "",
+            "Sample: 2 thru 200                              Number of obs     =        199",
+            "                                                Wald chi2(3)      =     123.96",
+            "Log likelihood = -309.4224                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "         D.y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           x |",
+            "         D1. |   2.124352   .1975149    10.76   0.000      1.73723    2.511474",
+            "             |",
+            "       _cons |   .0176005   .0757616     0.23   0.816    -.1308897    .1660906",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .1015181    .072417     1.40   0.161    -.0404167    .2434528",
+            "         L2. |  -.1933188   .0750088    -2.58   0.010    -.3403333   -.0463043",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.145498   .0631354    18.14   0.000     1.021755    1.269241",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "arima y, ar(1 2) noconstant",
+          "lines": [
+            "(setting optimization to BHHH)",
+            "Iteration 0:  Log likelihood = -347.13485",
+            "Iteration 1:  Log likelihood = -347.12278",
+            "Iteration 2:  Log likelihood = -347.12265",
+            "Iteration 3:  Log likelihood = -347.12264",
+            "",
+            "ARIMA regression",
+            "",
+            "Sample: 1 thru 200                              Number of obs     =        200",
+            "                                                Wald chi2(2)      =     497.04",
+            "Log likelihood = -347.1226                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .8107028   .0730445    11.10   0.000     .6675382    .9538673",
+            "         L2. |   .0606561     .07286     0.83   0.405    -.0821468    .2034591",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |    1.36792   .0754962    18.12   0.000     1.219951     1.51589",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "arima y, ma(1/2) nolog",
+          "lines": [
+            "ARIMA regression",
+            "",
+            "Sample: 1 thru 200                              Number of obs     =        200",
+            "                                                Wald chi2(2)      =      77.87",
+            "Log likelihood = -341.3145                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "       _cons |   2.023336   .1939049    10.43   0.000     1.643289    2.403382",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ma |",
+            "         L1. |   .6634246   .0753253     8.81   0.000     .5157898    .8110595",
+            "         L2. |    .390579   .0768457     5.08   0.000     .2399642    .5411938",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.331303   .0700435    19.01   0.000      1.19402    1.468586",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "arima y x, ar(1) nolog vce(robust)",
+          "lines": [
+            "ARIMA regression",
+            "",
+            "Sample: 1 thru 200                              Number of obs     =        200",
+            "                                                Wald chi2(2)      =     309.30",
+            "Log pseudolikelihood = -303.558                 Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Semirobust",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           x |   2.041239   .2305593     8.85   0.000     1.589351    2.493127",
+            "       _cons |   1.066935    .335744     3.18   0.001     .4088888    1.724981",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .7666284   .0458967    16.70   0.000     .6766725    .8565844",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.101459   .0542973    20.29   0.000     .9950385     1.20788",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "arima y x, ar(1) nolog vce(oim)",
+          "lines": [
+            "ARIMA regression",
+            "",
+            "Sample: 1 thru 200                              Number of obs     =        200",
+            "                                                Wald chi2(2)      =     366.49",
+            "Log likelihood = -303.558                       Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OIM",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           x |   2.041239   .2233068     9.14   0.000     1.603566    2.478913",
+            "       _cons |   1.066935   .3447702     3.09   0.002     .3911978    1.742672",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .7666284   .0452727    16.93   0.000     .6778955    .8553614",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.101459   .0550749    20.00   0.000     .9935145    1.209404",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "arima y, ar(1) nolog level(90)",
+          "lines": [
+            "ARIMA regression",
+            "",
+            "Sample: 1 thru 200                              Number of obs     =        200",
+            "                                                Wald chi2(1)      =     162.27",
+            "Log likelihood = -337.2989                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "       _cons |   2.028145    .294546     6.89   0.000      1.54366     2.51263",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .6881425   .0540201    12.74   0.000     .5992874    .7769977",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.304643   .0693134    18.82   0.000     1.190632    1.418653",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "arima, level(80)",
+          "lines": [
+            "ARIMA regression",
+            "",
+            "Sample: 1 thru 200                              Number of obs     =        200",
+            "                                                Wald chi2(1)      =     162.27",
+            "Log likelihood = -337.2989                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [80% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "       _cons |   2.028145    .294546     6.89   0.000     1.650669    2.405621",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .6881425   .0540201    12.74   0.000      .618913    .7573721",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.304643   .0693134    18.82   0.000     1.215814    1.393471",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "test _cons",
+          "lines": [
+            " ( 1)  [y]_cons = 0",
+            " ( 2)  [sigma]_cons = 0",
+            "",
+            "           chi2(  2) =  405.54",
+            "         Prob > chi2 =    0.0000"
+          ]
+        },
+        {
+          "command": "arima y x, ar(1) ma(1) iterate(0)",
+          "lines": [
+            "(setting optimization to BHHH)",
+            "Iteration 0:  Log likelihood = -303.01556",
+            "convergence not achieved",
+            "",
+            "ARIMA regression",
+            "",
+            "Sample: 1 thru 200                              Number of obs     =        200",
+            "                                                Wald chi2(3)      =     462.73",
+            "Log likelihood = -303.0156                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           x |   1.911999   .1983445     9.64   0.000     1.523251    2.300747",
+            "       _cons |   1.108463   .2975546     3.73   0.000     .5252664    1.691659",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .7377282   .0575972    12.81   0.000     .6248398    .8506166",
+            "             |",
+            "          ma |",
+            "         L1. |   .0412768   .0907238     0.45   0.649    -.1365386    .2190921",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.039514   .0508853    20.43   0.000     .9397806    1.139247",
+            "------------------------------------------------------------------------------",
+            "Warning: Convergence not achieved.",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "arima y x, ar(1) nolog",
+          "lines": [
+            "ARIMA regression",
+            "",
+            "Sample: 1 thru 200                              Number of obs     =        200",
+            "                                                Wald chi2(2)      =     432.99",
+            "Log likelihood = -303.558                       Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           x |   2.041239   .2236893     9.13   0.000     1.602816    2.479662",
+            "       _cons |   1.066935   .3558308     3.00   0.003     .3695195     1.76435",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .7666284   .0466761    16.42   0.000      .675145    .8581119",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.101459   .0576069    19.12   0.000     .9885517    1.214367",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "test x",
+          "lines": [
+            " ( 1)  [y]x = 0",
+            "",
+            "           chi2(  1) =   83.27",
+            "         Prob > chi2 =    0.0000"
+          ]
+        },
+        {
+          "command": "test [ARMA]L.ar",
+          "lines": [
+            " ( 1)  [ARMA]L.ar = 0",
+            "",
+            "           chi2(  1) =  269.76",
+            "         Prob > chi2 =    0.0000"
+          ]
+        },
+        {
+          "command": "lincom x",
+          "lines": [
+            " ( 1)  [y]x = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   2.041239   .2236893     9.13   0.000     1.602816    2.479662",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display _b[x]", "lines": ["2.0412392"] },
+        { "command": "display _se[x]", "lines": [".22368928"] },
+        { "command": "display _b[ARMA:L.ar]", "lines": [".76662845"] }
+      ]
+    },
+    {
+      "id": "pass7-ts-arima-predict",
+      "source": "clear\nset seed 2024\nset obs 150\ngenerate t = tm(2000m1) + _n - 1\nformat t %tm\ntsset t\ngenerate double e = invnormal(runiform())\ngenerate double y = 0\nreplace y = .7*y[_n-1] + e - .4*e[_n-1] in 2/l\ngenerate double x = runiform()\nreplace y = y + x + 5\ngenerate double z = sum(y - 5)\narima y x, ar(1) ma(1)\npredict xb1\npredict r1, residuals\npredict m1, mse\npredict y1, y\npredict s1, stdp\npredict yr1, yresiduals\npredict d1, dynamic(tm(2010m1))\npredict dm1, mse dynamic(tm(2010m1))\nsummarize xb1 r1 m1 y1 s1 yr1 d1 dm1\nlist t y xb1 r1 m1 s1 d1 dm1 in 1/3\nlist t y xb1 r1 s1 d1 dm1 in 119/124\ndescribe xb1 r1 m1 y1 s1 yr1 d1 dm1\narima D.z, ar(1) nolog\npredict dx1\npredict dy1, y\npredict dr1, residuals\npredict dyr, yresiduals\npredict dyd, y dynamic(tm(2011m1))\nlist t z dx1 dy1 dr1 dyr dyd in 1/3\nlist t z dx1 dy1 dyd in 132/136\ndescribe dx1 dy1 dr1 dyr dyd\narima y x if t >= tm(2003m1), ar(1) nolog\npredict ifx\nlist t ifx in 35/38\narima D.y, ar(1 4) ma(2) nolog\nreplace y = . in 50\narima y, ar(1)\npredict gx\npredict gm, mse\nlist t y gx gm in 49/52\nreplace y = . in 51/53\narima y, ar(1) nolog\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2024", "lines": [] },
+        {
+          "command": "set obs 150",
+          "lines": ["Number of observations (_N) was 0, now 150."]
+        },
+        { "command": "generate t = tm(2000m1) + _n - 1", "lines": [] },
+        { "command": "format t %tm", "lines": [] },
+        {
+          "command": "tsset t",
+          "lines": [
+            "Time variable: t, 2000m1 to 2012m6",
+            "        Delta: 1 month"
+          ]
+        },
+        { "command": "generate double e = invnormal(runiform())", "lines": [] },
+        { "command": "generate double y = 0", "lines": [] },
+        {
+          "command": "replace y = .7*y[_n-1] + e - .4*e[_n-1] in 2/l",
+          "lines": ["(149 real changes made)"]
+        },
+        { "command": "generate double x = runiform()", "lines": [] },
+        {
+          "command": "replace y = y + x + 5",
+          "lines": ["(150 real changes made)"]
+        },
+        { "command": "generate double z = sum(y - 5)", "lines": [] },
+        {
+          "command": "arima y x, ar(1) ma(1)",
+          "lines": [
+            "(setting optimization to BHHH)",
+            "Iteration 0:  Log likelihood =  -218.5395",
+            "Iteration 1:  Log likelihood = -217.78502",
+            "Iteration 2:  Log likelihood = -217.69758",
+            "Iteration 3:  Log likelihood = -217.66524",
+            "Iteration 4:  Log likelihood = -217.65398",
+            "(switching optimization to BFGS)",
+            "Iteration 5:  Log likelihood = -217.64947",
+            "Iteration 6:  Log likelihood = -217.64668",
+            "Iteration 7:  Log likelihood = -217.64668",
+            "",
+            "ARIMA regression",
+            "",
+            "Sample: 2000m1 thru 2012m6                      Number of obs     =        150",
+            "                                                Wald chi2(3)      =      52.50",
+            "Log likelihood = -217.6467                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           x |   1.003127   .2985759     3.36   0.001     .4179287    1.588325",
+            "       _cons |   5.066773   .1834925    27.61   0.000     4.707134    5.426412",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .5613305   .1891227     2.97   0.003     .1906568    .9320042",
+            "             |",
+            "          ma |",
+            "         L1. |  -.1827374   .2263273    -0.81   0.419    -.6263307     .260856",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.031906   .0551266    18.72   0.000     .9238598    1.139952",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "predict xb1",
+          "lines": ["(option xb assumed; predicted values)"]
+        },
+        { "command": "predict r1, residuals", "lines": [] },
+        { "command": "predict m1, mse", "lines": [] },
+        { "command": "predict y1, y", "lines": [] },
+        { "command": "predict s1, stdp", "lines": [] },
+        { "command": "predict yr1, yresiduals", "lines": [] },
+        {
+          "command": "predict d1, dynamic(tm(2010m1))",
+          "lines": ["(option xb assumed; predicted values)"]
+        },
+        { "command": "predict dm1, mse dynamic(tm(2010m1))", "lines": [] },
+        {
+          "command": "summarize xb1 r1 m1 y1 s1 yr1 d1 dm1",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "         xb1 |        150    5.545128    .5649757   3.993322   7.037696",
+            "          r1 |        150   -.0000704    1.035352  -2.949908   2.966515",
+            "          m1 |        150    1.066358    .0181983    1.06483    1.28767",
+            "          y1 |        150    5.545128    .5649757   3.993322   7.037696",
+            "          s1 |        150    .1849094    .0266922   .1592567    .259264",
+            "-------------+---------------------------------------------------------",
+            "         yr1 |        150   -.0000704    1.035352  -2.949908   2.966515",
+            "          d1 |        150    5.565967    .4886268   4.103898   6.766176",
+            "         dm1 |        150    1.108757    .0882384    1.06483    1.28767"
+          ]
+        },
+        {
+          "command": "list t y xb1 r1 m1 s1 d1 dm1 in 1/3",
+          "lines": [
+            "     +---------------------------------------------------------------------------------------+",
+            "     |      t           y        xb1          r1         m1         s1         d1        dm1 |",
+            "     |---------------------------------------------------------------------------------------|",
+            "  1. | 2000m1   5.5765007   5.645076   -.0685755    1.28767   .1786559   5.645076    1.28767 |",
+            "  2. | 2000m2   5.9825378   5.313672    .6688663   1.070983   .1595213   5.313672   1.070983 |",
+            "  3. | 2000m3   4.5522998   5.316552   -.7642519   1.065034   .1817964   5.316552   1.065034 |",
+            "     +---------------------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list t y xb1 r1 s1 d1 dm1 in 119/124",
+          "lines": [
+            "     +-----------------------------------------------------------------------------+",
+            "     |       t           y        xb1          r1         s1         d1        dm1 |",
+            "     |-----------------------------------------------------------------------------|",
+            "119. | 2009m11   2.6478487   5.385115   -2.737266   .1668477   5.385115    1.06483 |",
+            "120. | 2009m12   4.1728082    4.18805   -.0152421   .1756916    4.18805    1.06483 |",
+            "121. |  2010m1   5.1702919   4.643345    .5269465   .1698772   4.643345    1.06483 |",
+            "122. |  2010m2   3.4814386   5.009433   -1.527994   .1777174   4.809935   1.217455 |",
+            "123. |  2010m3   4.9331334   5.232784   -.2996502   .2166644   5.699287   1.265546 |",
+            "     |-----------------------------------------------------------------------------|",
+            "124. |  2010m4   5.3154079   4.931186    .3842224    .159459   5.306494   1.280699 |",
+            "     +-----------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "describe xb1 r1 m1 y1 s1 yr1 d1 dm1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "xb1             float   %9.0g                 xb prediction, one-step",
+            "r1              float   %9.0g                 residual, one-step",
+            "m1              float   %9.0g                 MSE of xb, one-step",
+            "y1              float   %9.0g                 y prediction, one-step",
+            "s1              float   %9.0g                 S.E. of the prediction",
+            "yr1             float   %9.0g                 y residual, one-step",
+            "d1              float   %9.0g                 xb prediction, dyn(tm(2010m1))",
+            "dm1             float   %9.0g                 MSE of xb, dyn(tm(2010m1))"
+          ]
+        },
+        {
+          "command": "arima D.z, ar(1) nolog",
+          "lines": [
+            "ARIMA regression",
+            "",
+            "Sample: 2000m2 thru 2012m6                      Number of obs     =        149",
+            "                                                Wald chi2(1)      =      26.53",
+            "Log likelihood = -222.6445                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "         D.z | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "z            |",
+            "       _cons |   .5459583   .1631979     3.35   0.001     .2260962    .8658204",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .4364645   .0847391     5.15   0.000     .2703788    .6025501",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.077513   .0528003    20.41   0.000     .9740263       1.181",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "predict dx1",
+          "lines": ["(option xb assumed; predicted values)"]
+        },
+        {
+          "command": "predict dy1, y",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict dr1, residuals",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict dyr, yresiduals",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict dyd, y dynamic(tm(2011m1))",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "list t z dx1 dy1 dr1 dyr dyd in 1/3",
+          "lines": [
+            "     +---------------------------------------------------------------------------+",
+            "     |      t           z        dx1        dy1        dr1        dyr        dyd |",
+            "     |---------------------------------------------------------------------------|",
+            "  1. | 2000m1    .5765007   .5459583          .          .          .          . |",
+            "  2. | 2000m2   1.5590385   .5459583   1.122459   .4365795   .4365795   1.122459 |",
+            "  3. | 2000m3   1.1113383   .7365097   2.295548   -1.18421   -1.18421   2.295548 |",
+            "     +---------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list t z dx1 dy1 dyd in 132/136",
+          "lines": [
+            "     +------------------------------------------------------+",
+            "     |       t           z        dx1        dy1        dyd |",
+            "     |------------------------------------------------------|",
+            "132. | 2010m12   73.141482   .5764769   72.65431   72.65431 |",
+            "133. |  2011m1   76.652879   .7719097   73.91339   73.91339 |",
+            "134. |  2011m2   79.412097   1.840267   78.49315   74.55797 |",
+            "135. |  2011m3   81.324389   1.511967   80.92406   75.14697 |",
+            "136. |  2011m4   83.085983   1.142315   82.46671   75.71172 |",
+            "     +------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "describe dx1 dy1 dr1 dyr dyd",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "dx1             float   %9.0g                 xb prediction, one-step",
+            "dy1             float   %9.0g                 y prediction, one-step",
+            "dr1             float   %9.0g                 residual, one-step",
+            "dyr             float   %9.0g                 y residual, one-step",
+            "dyd             float   %9.0g                 y prediction, dyn(tm(2011m1))"
+          ]
+        },
+        {
+          "command": "arima y x if t >= tm(2003m1), ar(1) nolog",
+          "lines": [
+            "ARIMA regression",
+            "",
+            "Sample: 2003m1 thru 2012m6                      Number of obs     =        114",
+            "                                                Wald chi2(2)      =      38.26",
+            "Log likelihood = -163.2299                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           x |   .7884891    .346037     2.28   0.023     .1102691    1.466709",
+            "       _cons |   5.217583   .2268528    23.00   0.000      4.77296    5.662207",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .4812053   .0979892     4.91   0.000     .2891501    .6732606",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |    1.01182   .0574553    17.61   0.000     .8992093     1.12443",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "predict ifx",
+          "lines": ["(option xb assumed; predicted values)"]
+        },
+        {
+          "command": "list t ifx in 35/38",
+          "lines": [
+            "     +--------------------+",
+            "     |       t        ifx |",
+            "     |--------------------|",
+            " 35. | 2002m11   4.982708 |",
+            " 36. | 2002m12   5.104517 |",
+            " 37. |  2003m1   5.743628 |",
+            " 38. |  2003m2   5.107541 |",
+            "     +--------------------+"
+          ]
+        },
+        {
+          "command": "arima D.y, ar(1 4) ma(2) nolog",
+          "lines": [
+            "ARIMA regression",
+            "",
+            "Sample: 2000m2 thru 2012m6                      Number of obs     =        149",
+            "                                                Wald chi2(3)      =      38.21",
+            "Log likelihood = -230.8831                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "         D.y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "       _cons |  -.0001284   .0376823    -0.00   0.997    -.0739842    .0737275",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |  -.4930186   .0991501    -4.97   0.000    -.6873492   -.2986881",
+            "         L4. |  -.0755515   .0735847    -1.03   0.305    -.2197749     .068672",
+            "             |",
+            "          ma |",
+            "         L2. |  -.4077121   .1000531    -4.07   0.000    -.6038125   -.2116117",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.137584   .0597679    19.03   0.000     1.020441    1.254727",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "replace y = . in 50",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "arima y, ar(1)",
+          "lines": [
+            "Number of gaps in sample = 1",
+            "(note: filtering over missing observations)",
+            "",
+            "(setting optimization to BHHH)",
+            "Iteration 0:  Log likelihood = -222.72811",
+            "Iteration 1:  Log likelihood = -222.72029",
+            "Iteration 2:  Log likelihood = -222.71961",
+            "Iteration 3:  Log likelihood = -222.71951",
+            "Iteration 4:  Log likelihood = -222.71949",
+            "(switching optimization to BFGS)",
+            "Iteration 5:  Log likelihood = -222.71949",
+            "",
+            "ARIMA regression",
+            "",
+            "Sample: 2000m1 thru 2012m6, but with a gap      Number of obs     =        149",
+            "                                                Wald chi2(1)      =      26.33",
+            "Log likelihood = -222.7195                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "       _cons |   5.542895   .1626676    34.07   0.000     5.224072    5.861717",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .4342718   .0846381     5.13   0.000     .2683841    .6001595",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.077435   .0527671    20.42   0.000     .9740138    1.180857",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "predict gx",
+          "lines": ["(option xb assumed; predicted values)"]
+        },
+        { "command": "predict gm, mse", "lines": [] },
+        {
+          "command": "list t y gx gm in 49/52",
+          "lines": [
+            "     +------------------------------------------+",
+            "     |      t           y         gx         gm |",
+            "     |------------------------------------------|",
+            " 49. | 2004m1     5.59799   5.948669   1.160867 |",
+            " 50. | 2004m2           .   5.566821   1.160867 |",
+            " 51. | 2004m3   5.2838468   5.553285   1.379797 |",
+            " 52. | 2004m4   5.4593701   5.430398   1.160867 |",
+            "     +------------------------------------------+"
+          ]
+        },
+        {
+          "command": "replace y = . in 51/53",
+          "lines": ["(3 real changes made, 3 to missing)"]
+        },
+        {
+          "command": "arima y, ar(1) nolog",
+          "lines": [
+            "Number of gaps in sample = 1",
+            "(note: filtering over missing observations)",
+            "",
+            "ARIMA regression",
+            "",
+            "Sample: 2000m1 thru 2012m6, but with a gap      Number of obs     =        146",
+            "                                                Wald chi2(1)      =      25.32",
+            "Log likelihood = -219.5388                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "       _cons |   5.544505   .1649982    33.60   0.000     5.221115    5.867896",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .4331547   .0860841     5.03   0.000      .264433    .6018764",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.086939   .0543434    20.00   0.000     .9804279     1.19345",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass7-ts-arima-names-and-errors",
+      "source": "clear\nset seed 404\nset obs 90\ngenerate t = ty(1930) + _n - 1\nformat t %ty\ntsset t\ngenerate double x = runiform()\ngenerate double longvariablename = sum(invnormal(runiform()) + .5*x)\ngenerate s = \"a\"\narima D.longvariablename L.x, ar(1) nolog\nset linesize 79\narima D.longvariablename L.x, ar(1) nolog\nset linesize 200\narima longvariablename x, arima(1,1,0) nolog\ncapture noisily arima longvariablename, ar(0)\ncapture noisily arima longvariablename, ar(1) arima(1,0,0)\ncapture noisily arima s, ar(1)\ncapture noisily arima i.x, ar(1)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 404", "lines": [] },
+        {
+          "command": "set obs 90",
+          "lines": ["Number of observations (_N) was 0, now 90."]
+        },
+        {
+          "command": "generate t = ty(1930) + _n - 1",
+          "lines": ["unknown function ty()", "r(133);"]
+        }
+      ]
+    },
+    {
+      "id": "pass7-ts-pperron",
+      "source": "clear\nset seed 12345\nset obs 120\ngenerate t = tq(1990q1) + _n - 1\nformat t %tq\ntsset t\ngenerate double e1 = invnormal(runiform())\ngenerate double y = 0\nreplace y = .5*y[_n-1] + e1 in 2/l\ngenerate double z = sum(e1)\ngenerate double longvariablename = sum(invnormal(runiform()))\npperron z\ndisplay r(N) \" \" r(lags) \" \" %10.0g r(Zrho) \" \" %10.0g r(Zt) \" \" %10.0g r(pval)\nmatrix list r(cvalues)\npperron z, lags(2) trend\npperron z, noconstant\npperron y, regress\npperron z if t > tq(1992q1)\npperron z, trend regress\nmatrix list r(table), format(%9.0g)\npperron longvariablename, lags(0)\ncapture noisily pperron y, trend noconstant\nclear\nset seed 5\nset obs 12000\ngenerate t = _n\ntsset t\ngenerate double z = sum(invnormal(runiform()))\npperron z\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 120",
+          "lines": ["Number of observations (_N) was 0, now 120."]
+        },
+        { "command": "generate t = tq(1990q1) + _n - 1", "lines": [] },
+        { "command": "format t %tq", "lines": [] },
+        {
+          "command": "tsset t",
+          "lines": [
+            "Time variable: t, 1990q1 to 2019q4",
+            "        Delta: 1 quarter"
+          ]
+        },
+        {
+          "command": "generate double e1 = invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "generate double y = 0", "lines": [] },
+        {
+          "command": "replace y = .5*y[_n-1] + e1 in 2/l",
+          "lines": ["(119 real changes made)"]
+        },
+        { "command": "generate double z = sum(e1)", "lines": [] },
+        {
+          "command": "generate double longvariablename = sum(invnormal(runiform()))",
+          "lines": []
+        },
+        {
+          "command": "pperron z",
+          "lines": [
+            "Phillips–Perron test for unit root       Number of obs   = 119",
+            "Variable: z                              Newey–West lags =   4",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)         -10.141      -19.863      -13.738      -11.025",
+            " Z(t)            -2.214       -3.504       -2.889       -2.579",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 0.2013."
+          ]
+        },
+        {
+          "command": "display r(N) \" \" r(lags) \" \" %10.0g r(Zrho) \" \" %10.0g r(Zt) \" \" %10.0g r(pval)",
+          "lines": ["119 4 -10.140708 -2.2138699  .20125004"]
+        },
+        {
+          "command": "matrix list r(cvalues)",
+          "lines": [
+            "r(cvalues)[2,4]",
+            "         test stat   1% cvalue   5% cvalue  10% cvalue",
+            "Z(rho)  -10.140708  -19.863333     -13.738  -11.025333",
+            "  Z(t)  -2.2138699  -3.5036667  -2.8887333  -2.5787333"
+          ]
+        },
+        {
+          "command": "pperron z, lags(2) trend",
+          "lines": [
+            "Phillips–Perron test for unit root       Number of obs   = 119",
+            "Variable: z                              Newey–West lags =   2",
+            "",
+            "H0: Random walk with or without drift",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)         -12.276      -27.527      -20.776      -17.563",
+            " Z(t)            -2.711       -4.034       -3.447       -3.147",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 0.2316."
+          ]
+        },
+        {
+          "command": "pperron z, noconstant",
+          "lines": [
+            "Phillips–Perron test for unit root       Number of obs   = 119",
+            "Variable: z                              Newey–West lags =   4",
+            "",
+            "H0: Random walk without drift, a = 0, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)          -2.049      -13.338       -7.913       -5.613",
+            " Z(t)            -1.012       -2.597       -1.950       -1.611",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "pperron y, regress",
+          "lines": [
+            "Phillips–Perron test for unit root       Number of obs   = 119",
+            "Variable: y                              Newey–West lags =   4",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)         -55.869      -19.863      -13.738      -11.025",
+            " Z(t)            -5.912       -3.504       -2.889       -2.579",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 0.0000.",
+            "",
+            "Regression table",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           y |",
+            "         L1. |   .5180161   .0807228     6.42   0.000     .3581488    .6778834",
+            "             |",
+            "       _cons |   .0071298    .107404     0.07   0.947    -.2055783    .2198378",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "pperron z if t > tq(1992q1)",
+          "lines": [
+            "Phillips–Perron test for unit root       Number of obs   = 111",
+            "Variable: z                              Newey–West lags =   4",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)         -10.978      -19.837      -13.722      -11.015",
+            " Z(t)            -2.183       -3.506       -2.889       -2.579",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 0.2125."
+          ]
+        },
+        {
+          "command": "pperron z, trend regress",
+          "lines": [
+            "Phillips–Perron test for unit root       Number of obs   = 119",
+            "Variable: z                              Newey–West lags =   4",
+            "",
+            "H0: Random walk with or without drift",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)         -12.106      -27.527      -20.776      -17.563",
+            " Z(t)            -2.696       -4.034       -3.447       -3.147",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 0.2378.",
+            "",
+            "Regression table",
+            "------------------------------------------------------------------------------",
+            "           z | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           z |",
+            "         L1. |   .9003234   .0372716    24.16   0.000     .8265022    .9741445",
+            "             |",
+            "      _trend |   .0071678   .0031383     2.28   0.024     .0009521    .0133835",
+            "       _cons |  -.9912076   .3366826    -2.94   0.004     -1.65805   -.3243653",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list r(table), format(%9.0g)",
+          "lines": [
+            "r(table)[9,3]",
+            "                L.",
+            "                z     _trend      _cons",
+            "     b   .9003234   .0071678  -.9912076",
+            "    se   .0372716   .0031383   .3366826",
+            "     t   24.15574      2.284  -2.944042",
+            "pvalue   4.45e-47   .0241909   .0039144",
+            "    ll   .8265022   .0009521   -1.65805",
+            "    ul   .9741445   .0133835  -.3243653",
+            "    df        116        116        116",
+            "  crit   1.980626   1.980626   1.980626",
+            " eform          0          0          0"
+          ]
+        },
+        {
+          "command": "pperron longvariablename, lags(0)",
+          "lines": [
+            "Phillips–Perron test for unit root       Number of obs   = 119",
+            "Variable: longvariablename               Newey–West lags =   0",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)          -6.082      -19.863      -13.738      -11.025",
+            " Z(t)            -1.651       -3.504       -2.889       -2.579",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 0.4568."
+          ]
+        },
+        {
+          "command": "capture noisily pperron y, trend noconstant",
+          "lines": ["cannot choose trend if constant is excluded"]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 5", "lines": [] },
+        {
+          "command": "set obs 12000",
+          "lines": ["Number of observations (_N) was 0, now 12,000."]
+        },
+        { "command": "generate t = _n", "lines": [] },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 12000", "        Delta: 1 unit"]
+        },
+        {
+          "command": "generate double z = sum(invnormal(runiform()))",
+          "lines": []
+        },
+        {
+          "command": "pperron z",
+          "lines": [
+            "Phillips–Perron test for unit root    Number of obs   = 11,999",
+            "Variable: z                           Newey–West lags =     11",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)          -3.511      -20.700      -14.100      -11.300",
+            " Z(t)            -1.273       -3.430       -2.860       -2.570",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 0.6415."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass7-ts-var",
+      "source": "clear\nset seed 12345\nset obs 120\ngenerate t = tq(1990q1) + _n - 1\nformat t %tq\ntsset t\ngenerate double e1 = invnormal(runiform())\ngenerate double e2 = invnormal(runiform())\ngenerate double y = 0\ngenerate double x = 0\nreplace y = .5*y[_n-1] + .2*x[_n-1] + e1 in 2/l\nreplace x = .3*y[_n-1] + .4*x[_n-1] + e2 in 2/l\ngenerate double w = runiform()\nvar y x\ndisplay e(ll) \" \" e(aic) \" \" e(fpe) \" \" e(detsig_ml)\ndisplay e(chi2_1) \" \" e(r2_2) \" \" e(rmse_1)\nvar y x, lags(1/3) exog(w)\nvargranger\nmatrix list r(gstats)\nvar y x, lags(1 3) noconstant\nvargranger\nvar y x, dfk small\nvargranger\nvarsoc y x\nmatrix list r(stats)\nvarsoc y x, maxlag(2) exog(w)\nquietly var y x, lags(1/2)\nvarsoc\nvar, level(90)\npredict v1\npredict v2, residuals equation(x)\npredict v3, stdp equation(#2)\ndescribe v1 v2 v3\nsummarize v1 v2 v3\ntest [y]L.x [y]L2.x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 120",
+          "lines": ["Number of observations (_N) was 0, now 120."]
+        },
+        { "command": "generate t = tq(1990q1) + _n - 1", "lines": [] },
+        { "command": "format t %tq", "lines": [] },
+        {
+          "command": "tsset t",
+          "lines": [
+            "Time variable: t, 1990q1 to 2019q4",
+            "        Delta: 1 quarter"
+          ]
+        },
+        {
+          "command": "generate double e1 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate double e2 = invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "generate double y = 0", "lines": [] },
+        { "command": "generate double x = 0", "lines": [] },
+        {
+          "command": "replace y = .5*y[_n-1] + .2*x[_n-1] + e1 in 2/l",
+          "lines": ["(119 real changes made)"]
+        },
+        {
+          "command": "replace x = .3*y[_n-1] + .4*x[_n-1] + e2 in 2/l",
+          "lines": ["(119 real changes made)"]
+        },
+        { "command": "generate double w = runiform()", "lines": [] },
+        {
+          "command": "var y x",
+          "lines": [
+            "Vector autoregression",
+            "",
+            "Sample: 1990q3 thru 2019q4                      Number of obs     =        118",
+            "Log likelihood =  -338.9672                     AIC               =   5.914698",
+            "FPE            =   1.270037                     HQIC              =   6.010036",
+            "Det(Sigma_ml)  =   1.071921                     SBIC              =   6.149502",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     5     1.18213   0.2722   44.13819   0.0000",
+            "x                     5     .917049   0.4215   85.96148   0.0000",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |   .5301485   .0933012     5.68   0.000     .3472815    .7130156",
+            "         L2. |  -.0652848   .0996148    -0.66   0.512    -.2605262    .1299567",
+            "             |",
+            "           x |",
+            "         L1. |   .0581025   .1182215     0.49   0.623    -.1736073    .2898123",
+            "         L2. |    .084252   .1112173     0.76   0.449      -.13373    .3022339",
+            "             |",
+            "       _cons |    .018268   .1067726     0.17   0.864    -.1910025    .2275386",
+            "-------------+----------------------------------------------------------------",
+            "x            |",
+            "           y |",
+            "         L1. |   .2833893   .0723794     3.92   0.000     .1415283    .4252503",
+            "         L2. |  -.0564295   .0772772    -0.73   0.465    -.2078901    .0950311",
+            "             |",
+            "           x |",
+            "         L1. |    .496685   .0917115     5.42   0.000     .3169337    .6764363",
+            "         L2. |   .0751628    .086278     0.87   0.384    -.0939389    .2442646",
+            "             |",
+            "       _cons |  -.0185765     .08283    -0.22   0.823    -.1809203    .1437673",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(ll) \" \" e(aic) \" \" e(fpe) \" \" e(detsig_ml)",
+          "lines": ["-338.96721 5.9146984 1.2700368 1.0719214"]
+        },
+        {
+          "command": "display e(chi2_1) \" \" e(r2_2) \" \" e(rmse_1)",
+          "lines": ["44.138188 .42145939 1.1821292"]
+        },
+        {
+          "command": "var y x, lags(1/3) exog(w)",
+          "lines": [
+            "Vector autoregression",
+            "",
+            "Sample: 1990q4 thru 2019q4                      Number of obs     =        117",
+            "Log likelihood =  -330.7284                     AIC               =   5.926982",
+            "FPE            =   1.286152                     HQIC              =   6.080337",
+            "Det(Sigma_ml)  =   .9779697                     SBIC              =   6.304715",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     8     1.19108   0.2869   47.06099   0.0000",
+            "x                     8     .892915   0.4709   104.1113   0.0000",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |   .5106863   .0959523     5.32   0.000     .3226233    .6987493",
+            "         L2. |  -.0701929   .1123977    -0.62   0.532    -.2904884    .1501026",
+            "         L3. |   .0214308   .1018225     0.21   0.833    -.1781376    .2209992",
+            "             |",
+            "           x |",
+            "         L1. |    .039599   .1187926     0.33   0.739    -.1932302    .2724281",
+            "         L2. |  -.0072652    .131694    -0.06   0.956    -.2653806    .2508502",
+            "         L3. |    .171185   .1135237     1.51   0.132    -.0513174    .3936874",
+            "             |",
+            "           w |  -.1334776   .3878148    -0.34   0.731    -.8935807    .6266254",
+            "       _cons |    .085427   .2231894     0.38   0.702    -.3520162    .5228702",
+            "-------------+----------------------------------------------------------------",
+            "x            |",
+            "           y |",
+            "         L1. |   .2543964   .0719323     3.54   0.000     .1134118    .3953811",
+            "         L2. |   -.053554   .0842609    -0.64   0.525    -.2187023    .1115943",
+            "         L3. |   .0152414    .076333     0.20   0.842    -.1343685    .1648513",
+            "             |",
+            "           x |",
+            "         L1. |   .4919907   .0890549     5.52   0.000     .3174463    .6665351",
+            "         L2. |   .1587903   .0987266     1.61   0.108    -.0347104    .3522909",
+            "         L3. |  -.1219361    .085105    -1.43   0.152    -.2887389    .0448666",
+            "             |",
+            "           w |  -.7967415    .290732    -2.74   0.006    -1.366566   -.2269171",
+            "       _cons |   .3820345   .1673178     2.28   0.022     .0540976    .7099713",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "vargranger",
+          "lines": [
+            "   Granger causality Wald tests",
+            "  +------------------------------------------------------------------+",
+            "  |          Equation           Excluded |   chi2     df Prob > chi2 |",
+            "  |--------------------------------------+---------------------------|",
+            "  |                 y                  x |  3.8369     3    0.280    |",
+            "  |                 y                ALL |  3.8369     3    0.280    |",
+            "  |--------------------------------------+---------------------------|",
+            "  |                 x                  y |  14.182     3    0.003    |",
+            "  |                 x                ALL |  14.182     3    0.003    |",
+            "  +------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "matrix list r(gstats)",
+          "lines": [
+            "r(gstats)[4,3]",
+            "            chi2         df          p",
+            "  y:x  3.8369419          3  .27961832",
+            "y:ALL  3.8369419          3  .27961832",
+            "  x:y   14.18232          3   .0026672",
+            "x:ALL   14.18232          3   .0026672"
+          ]
+        },
+        {
+          "command": "var y x, lags(1 3) noconstant",
+          "lines": [
+            "Vector autoregression",
+            "",
+            "Sample: 1990q4 thru 2019q4                      Number of obs     =        117",
+            "Log likelihood =  -336.4411                     AIC               =   5.887882",
+            "FPE            =   1.236372                     HQIC              =    5.96456",
+            "Det(Sigma_ml)  =    1.07829                     SBIC              =   6.076749",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     4     1.17253   0.2836    46.3085   0.0000",
+            "x                     4      .91798   0.4220   85.40611   0.0000",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |   .4893641   .0825332     5.93   0.000     .3276019    .6511262",
+            "         L3. |  -.0111114   .0861584    -0.13   0.897    -.1799787    .1577559",
+            "             |",
+            "           x |",
+            "         L1. |   .0207341   .1019041     0.20   0.839    -.1789942    .2204624",
+            "         L3. |   .1691346   .0998275     1.69   0.090    -.0265237     .364793",
+            "-------------+----------------------------------------------------------------",
+            "x            |",
+            "           y |",
+            "         L1. |   .2697884   .0646158     4.18   0.000     .1431439     .396433",
+            "         L3. |  -.0010081   .0674539    -0.01   0.988    -.1332153    .1311991",
+            "             |",
+            "           x |",
+            "         L1. |   .5532958   .0797813     6.94   0.000     .3969273    .7096644",
+            "         L3. |  -.0852213   .0781556    -1.09   0.276    -.2384034    .0679609",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "vargranger",
+          "lines": [
+            "   Granger causality Wald tests",
+            "  +------------------------------------------------------------------+",
+            "  |          Equation           Excluded |   chi2     df Prob > chi2 |",
+            "  |--------------------------------------+---------------------------|",
+            "  |                 y                  x |   3.608     2    0.165    |",
+            "  |                 y                ALL |   3.608     2    0.165    |",
+            "  |--------------------------------------+---------------------------|",
+            "  |                 x                  y |  17.851     2    0.000    |",
+            "  |                 x                ALL |  17.851     2    0.000    |",
+            "  +------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "var y x, dfk small",
+          "lines": [
+            "Vector autoregression",
+            "",
+            "Sample: 1990q3 thru 2019q4                      Number of obs     =        118",
+            "Log likelihood =  -338.9672                     AIC               =   5.914698",
+            "FPE            =   1.270037                     HQIC              =   6.010036",
+            "Det(Sigma_ml)  =   1.071921                     SBIC              =   6.149502",
+            "",
+            "Equation           Parms      RMSE     R-sq        F       P > F",
+            "----------------------------------------------------------------",
+            "y                     5     1.18213   0.2722   10.56698   0.0000",
+            "x                     5     .917049   0.4215   20.57976   0.0000",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |   .5301485   .0953431     5.56   0.000     .3412567    .7190403",
+            "         L2. |  -.0652848   .1017948    -0.64   0.523    -.2669587    .1363892",
+            "             |",
+            "           x |",
+            "         L1. |   .0581025   .1208087     0.48   0.631    -.1812413    .2974463",
+            "         L2. |    .084252   .1136512     0.74   0.460    -.1409117    .3094156",
+            "             |",
+            "       _cons |    .018268   .1091093     0.17   0.867    -.1978972    .2344332",
+            "-------------+----------------------------------------------------------------",
+            "x            |",
+            "           y |",
+            "         L1. |   .2833893   .0739634     3.83   0.000     .1368545    .4299241",
+            "         L2. |  -.0564295   .0789684    -0.71   0.476    -.2128801    .1000212",
+            "             |",
+            "           x |",
+            "         L1. |    .496685   .0937186     5.30   0.000     .3110116    .6823585",
+            "         L2. |   .0751628   .0881661     0.85   0.396    -.0995102    .2498359",
+            "             |",
+            "       _cons |  -.0185765   .0846427    -0.22   0.827    -.1862689    .1491159",
+            "------------------------------------------------------------------------------",
+            "Note: Small-sample degrees-of-freedom adjustment applied when estimating",
+            "      covariance matrix of residuals."
+          ]
+        },
+        {
+          "command": "vargranger",
+          "lines": [
+            "   Granger causality Wald tests",
+            "  +------------------------------------------------------------------------+",
+            "  |          Equation           Excluded |     F      df    df_r  Prob > F |",
+            "  |--------------------------------------+---------------------------------|",
+            "  |                 y                  x |   .8508     2     113   0.4298  |",
+            "  |                 y                ALL |   .8508     2     113   0.4298  |",
+            "  |--------------------------------------+---------------------------------|",
+            "  |                 x                  y |  8.2284     2     113   0.0005  |",
+            "  |                 x                ALL |  8.2284     2     113   0.0005  |",
+            "  +------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "varsoc y x",
+          "lines": [
+            "Lag-order selection criteria",
+            "",
+            "   Sample: 1991q1 thru 2019q4                              Number of obs = 116",
+            "  +---------------------------------------------------------------------------+",
+            "  | Lag |    LL      LR      df    p     FPE       AIC      HQIC      SBIC    |",
+            "  |-----+---------------------------------------------------------------------|",
+            "  |   0 | -383.306                     2.63124   6.64321   6.66248   6.69069  |",
+            "  |   1 | -336.385  93.843*   4  0.000  1.2554*  5.90318*    5.961*  6.04561* |",
+            "  |   2 | -335.076  2.6166    4  0.624 1.31514   5.94959   6.04595   6.18697  |",
+            "  |   3 | -332.594  4.9638    4  0.291 1.35027   5.97577   6.11067    6.3081  |",
+            "  |   4 | -330.954  3.2816    4  0.512 1.40679   6.01644   6.18989   6.44372  |",
+            "  +---------------------------------------------------------------------------+",
+            "   * optimal lag",
+            "   Endogenous: y x",
+            "    Exogenous: _cons"
+          ]
+        },
+        {
+          "command": "matrix list r(stats)",
+          "lines": [
+            "r(stats)[5,9]",
+            "           lag          LL          LR          df           p         FPE         AIC        HQIC        SBIC",
+            "r1           0   -383.3062          .b          .b          .b   2.6312448   6.6432103   6.6624827    6.690686",
+            "r2           1  -336.38465   93.843087           4   2.008e-19    1.255398   5.9031837    5.961001   6.0456108",
+            "r3           2  -335.07637   2.6165707           4   .62389051   1.3151429   5.9495926   6.0459547    6.186971",
+            "r4           3  -332.59446   4.9638198           4   .29102999    1.350272   5.9757665   6.1106735   6.3080964",
+            "r1           4  -330.95366   3.2815971           4   .51185331   1.4067939   6.0164424   6.1898942   6.4437237"
+          ]
+        },
+        {
+          "command": "varsoc y x, maxlag(2) exog(w)",
+          "lines": [
+            "Lag-order selection criteria",
+            "",
+            "   Sample: 1990q3 thru 2019q4                              Number of obs = 118",
+            "  +---------------------------------------------------------------------------+",
+            "  | Lag |    LL      LR      df    p     FPE       AIC      HQIC      SBIC    |",
+            "  |-----+---------------------------------------------------------------------|",
+            "  |   0 | -383.651                     2.44638   6.57036   6.60849   6.66428  |",
+            "  |   1 | -336.406   94.49*   4  0.000 1.17549*  5.83739*  5.91366*  6.02523* |",
+            "  |   2 | -334.756  3.2991    4  0.509 1.22342   5.87723   5.99163   6.15899  |",
+            "  +---------------------------------------------------------------------------+",
+            "   * optimal lag",
+            "   Endogenous: y x",
+            "    Exogenous: w  _cons"
+          ]
+        },
+        { "command": "quietly var y x, lags(1/2)", "lines": [] },
+        {
+          "command": "varsoc",
+          "lines": [
+            "Lag-order selection criteria",
+            "",
+            "   Sample: 1990q3 thru 2019q4                              Number of obs = 118",
+            "  +---------------------------------------------------------------------------+",
+            "  | Lag |    LL      LR      df    p     FPE       AIC      HQIC      SBIC    |",
+            "  |-----+---------------------------------------------------------------------|",
+            "  |   0 | -388.003                     2.54585   6.61022   6.62928   6.65718  |",
+            "  |   1 |  -340.31  95.385*   4  0.000 1.21401*  5.86966*  5.92687*  6.01055* |",
+            "  |   2 | -338.967  2.6858    4  0.612 1.27004    5.9147   6.01004    6.1495  |",
+            "  +---------------------------------------------------------------------------+",
+            "   * optimal lag",
+            "   Endogenous: y x",
+            "    Exogenous: _cons"
+          ]
+        },
+        {
+          "command": "var, level(90)",
+          "lines": [
+            "Vector autoregression",
+            "",
+            "Sample: 1990q3 thru 2019q4                      Number of obs     =        118",
+            "Log likelihood =  -338.9672                     AIC               =   5.914698",
+            "FPE            =   1.270037                     HQIC              =   6.010036",
+            "Det(Sigma_ml)  =   1.071921                     SBIC              =   6.149502",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     5     1.18213   0.2722   44.13819   0.0000",
+            "x                     5     .917049   0.4215   85.96148   0.0000",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |   .5301485   .0933012     5.68   0.000     .3766817    .6836154",
+            "         L2. |  -.0652848   .0996148    -0.66   0.512    -.2291365     .098567",
+            "             |",
+            "           x |",
+            "         L1. |   .0581025   .1182215     0.49   0.623    -.1363545    .2525595",
+            "         L2. |    .084252   .1112173     0.76   0.449    -.0986842    .2671882",
+            "             |",
+            "       _cons |    .018268   .1067726     0.17   0.864    -.1573573    .1938934",
+            "-------------+----------------------------------------------------------------",
+            "x            |",
+            "           y |",
+            "         L1. |   .2833893   .0723794     3.92   0.000     .1643358    .4024428",
+            "         L2. |  -.0564295   .0772772    -0.73   0.465    -.1835392    .0706802",
+            "             |",
+            "           x |",
+            "         L1. |    .496685   .0917115     5.42   0.000      .345833    .6475371",
+            "         L2. |   .0751628    .086278     0.87   0.384    -.0667518    .2170775",
+            "             |",
+            "       _cons |  -.0185765     .08283    -0.22   0.823    -.1548197    .1176667",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "predict v1",
+          "lines": [
+            "(option xb assumed; fitted values)",
+            "(2 missing values generated)"
+          ]
+        },
+        {
+          "command": "predict v2, residuals equation(x)",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "predict v3, stdp equation(#2)",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "describe v1 v2 v3",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              float   %9.0g                 Linear prediction",
+            "v2              float   %9.0g                 Residuals",
+            "v3              float   %9.0g                 S.E. of the prediction"
+          ]
+        },
+        {
+          "command": "summarize v1 v2 v3",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          v1 |        118   -.0059455    .7105219  -1.867724   1.773245",
+            "          v2 |        118   -1.90e-09    .9012367  -2.297004   2.548963",
+            "          v3 |        118    .1769654    .0532165   .0847817   .3083564"
+          ]
+        },
+        {
+          "command": "test [y]L.x [y]L2.x",
+          "lines": [
+            " ( 1)  [y]L.x = 0",
+            " ( 2)  [y]L2.x = 0",
+            "",
+            "           chi2(  2) =    1.78",
+            "         Prob > chi2 =    0.4113"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass7-ts-var-names-gaps",
+      "source": "clear\nset seed 77\nset obs 120\ngenerate t = tq(1990q1) + _n - 1\nformat t %tq\ntsset t\ngenerate double e1 = invnormal(runiform())\ngenerate double e2 = invnormal(runiform())\ngenerate double y = 0\ngenerate double x = 0\nreplace y = .5*y[_n-1] + .2*x[_n-1] + e1 in 2/l\nreplace x = .3*y[_n-1] + .4*x[_n-1] + e2 in 2/l\ngenerate double w = runiform()\ngenerate double z = sum(e1)\ngenerate double longvariablename = sum(e2)\nvar D.z D.longvariablename, lags(1) exog(L.w)\nset linesize 79\nvar D.z D.longvariablename, lags(1) exog(L.w)\nset linesize 200\nvar y x w, lags(2)\nvargranger\nvarsoc y x, noconstant maxlag(3)\nvarsoc y x w, maxlag(3)\nreplace y = . in 60\nvar y x\nvarsoc y x\ncapture noisily varsoc y x, maxlag(1)\nregress y x\ncapture noisily vargranger\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 77", "lines": [] },
+        {
+          "command": "set obs 120",
+          "lines": ["Number of observations (_N) was 0, now 120."]
+        },
+        { "command": "generate t = tq(1990q1) + _n - 1", "lines": [] },
+        { "command": "format t %tq", "lines": [] },
+        {
+          "command": "tsset t",
+          "lines": [
+            "Time variable: t, 1990q1 to 2019q4",
+            "        Delta: 1 quarter"
+          ]
+        },
+        {
+          "command": "generate double e1 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate double e2 = invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "generate double y = 0", "lines": [] },
+        { "command": "generate double x = 0", "lines": [] },
+        {
+          "command": "replace y = .5*y[_n-1] + .2*x[_n-1] + e1 in 2/l",
+          "lines": ["(119 real changes made)"]
+        },
+        {
+          "command": "replace x = .3*y[_n-1] + .4*x[_n-1] + e2 in 2/l",
+          "lines": ["(119 real changes made)"]
+        },
+        { "command": "generate double w = runiform()", "lines": [] },
+        { "command": "generate double z = sum(e1)", "lines": [] },
+        {
+          "command": "generate double longvariablename = sum(e2)",
+          "lines": []
+        },
+        {
+          "command": "var D.z D.longvariablename, lags(1) exog(L.w)",
+          "lines": [
+            "Vector autoregression",
+            "",
+            "Sample: 1990q3 thru 2019q4                      Number of obs     =        118",
+            "Log likelihood =  -331.5015                     AIC               =   5.754262",
+            "FPE            =   1.081728                     HQIC              =   5.830532",
+            "Det(Sigma_ml)  =   .9445135                     SBIC              =   5.942105",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "D_z                   4     1.00948   0.0173   2.081018   0.5558",
+            "D_longvariable~e      4     1.00558   0.0243   2.938959   0.4011",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------------",
+            "                   | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------------+----------------------------------------------------------------",
+            "D_z                |",
+            "                 z |",
+            "               LD. |   .0156638   .0922882     0.17   0.865    -.1652179    .1965454",
+            "                   |",
+            "  longvariablename |",
+            "               LD. |   -.050004   .0908721    -0.55   0.582    -.2281101    .1281021",
+            "                   |",
+            "                 w |",
+            "               L1. |  -.4049994    .314556    -1.29   0.198    -1.021518    .2115191",
+            "                   |",
+            "             _cons |   .2705018   .1978227     1.37   0.172    -.1172235    .6582271",
+            "-------------------+----------------------------------------------------------------",
+            "D_longvariablename |",
+            "                 z |",
+            "               LD. |   -.127998   .0919317    -1.39   0.164    -.3081807    .0521848",
+            "                   |",
+            "  longvariablename |",
+            "               LD. |   .0407968    .090521     0.45   0.652    -.1366211    .2182147",
+            "                   |",
+            "                 w |",
+            "               L1. |   .2472053   .3133406     0.79   0.430    -.3669311    .8613417",
+            "                   |",
+            "             _cons |  -.1025144   .1970583    -0.52   0.603    -.4887416    .2837128",
+            "------------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "var D.z D.longvariablename, lags(1) exog(L.w)",
+          "lines": [
+            "Vector autoregression",
+            "",
+            "Sample: 1990q3 thru 2019q4                      Number of obs     =        118",
+            "Log likelihood =  -331.5015                     AIC               =   5.754262",
+            "FPE            =   1.081728                     HQIC              =   5.830532",
+            "Det(Sigma_ml)  =   .9445135                     SBIC              =   5.942105",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "D_z                   4     1.00948   0.0173   2.081018   0.5558",
+            "D_longvariable~e      4     1.00558   0.0243   2.938959   0.4011",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "D_z          |",
+            "           z |",
+            "         LD. |   .0156638   .0922882     0.17   0.865    -.1652179    .1965454",
+            "             |",
+            "longvariab~e |",
+            "         LD. |   -.050004   .0908721    -0.55   0.582    -.2281101    .1281021",
+            "             |",
+            "           w |",
+            "         L1. |  -.4049994    .314556    -1.29   0.198    -1.021518    .2115191",
+            "             |",
+            "       _cons |   .2705018   .1978227     1.37   0.172    -.1172235    .6582271",
+            "-------------+----------------------------------------------------------------",
+            "D_longvari~e |",
+            "           z |",
+            "         LD. |   -.127998   .0919317    -1.39   0.164    -.3081807    .0521848",
+            "             |",
+            "longvariab~e |",
+            "         LD. |   .0407968    .090521     0.45   0.652    -.1366211    .2182147",
+            "             |",
+            "           w |",
+            "         L1. |   .2472053   .3133406     0.79   0.430    -.3669311    .8613417",
+            "             |",
+            "       _cons |  -.1025144   .1970583    -0.52   0.603    -.4887416    .2837128",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "var y x w, lags(2)",
+          "lines": [
+            "Vector autoregression",
+            "",
+            "Sample: 1990q3 thru 2019q4                      Number of obs     =        118",
+            "Log likelihood =  -373.2921                     AIC               =   6.530375",
+            "FPE            =   .1376311                     HQIC              =   6.644779",
+            "Det(Sigma_ml)  =   .1122927                     SBIC              =   6.812139",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     4     1.11703   0.0482   5.977148   0.1127",
+            "x                     4     1.09306   0.0161   1.930776   0.5869",
+            "w                     4     .291904   0.0270    3.28054   0.3504",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L2. |   .1017107   .0905256     1.12   0.261    -.0757163    .2791376",
+            "             |",
+            "           x |",
+            "         L2. |  -.1730018   .0930899    -1.86   0.063    -.3554548    .0094511",
+            "             |",
+            "           w |",
+            "         L2. |  -.2991116   .3485195    -0.86   0.391    -.9821973     .383974",
+            "             |",
+            "       _cons |   .2600984   .2199421     1.18   0.237    -.1709803     .691177",
+            "-------------+----------------------------------------------------------------",
+            "x            |",
+            "           y |",
+            "         L2. |   .1101989   .0885836     1.24   0.213    -.0634218    .2838195",
+            "             |",
+            "           x |",
+            "         L2. |   .0617396   .0910929     0.68   0.498    -.1167992    .2402784",
+            "             |",
+            "           w |",
+            "         L2. |  -.1130281   .3410428    -0.33   0.740    -.7814597    .5554036",
+            "             |",
+            "       _cons |   .1279174   .2152238     0.59   0.552    -.2939135    .5497482",
+            "-------------+----------------------------------------------------------------",
+            "w            |",
+            "           y |",
+            "         L2. |  -.0255551   .0236564    -1.08   0.280    -.0719207    .0208105",
+            "             |",
+            "           x |",
+            "         L2. |   -.025846   .0243265    -1.06   0.288     -.073525    .0218331",
+            "             |",
+            "           w |",
+            "         L2. |   .1031879   .0910759     1.13   0.257    -.0753177    .2816935",
+            "             |",
+            "       _cons |   .5019211   .0574758     8.73   0.000     .3892706    .6145716",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "vargranger",
+          "lines": [
+            "   Granger causality Wald tests",
+            "  +------------------------------------------------------------------+",
+            "  |          Equation           Excluded |   chi2     df Prob > chi2 |",
+            "  |--------------------------------------+---------------------------|",
+            "  |                 y                  x |  3.4538     1    0.063    |",
+            "  |                 y                  w |  .73657     1    0.391    |",
+            "  |                 y                ALL |  4.2222     2    0.121    |",
+            "  |--------------------------------------+---------------------------|",
+            "  |                 x                  y |  1.5476     1    0.213    |",
+            "  |                 x                  w |  .10984     1    0.740    |",
+            "  |                 x                ALL |  1.6408     2    0.440    |",
+            "  |--------------------------------------+---------------------------|",
+            "  |                 w                  y |   1.167     1    0.280    |",
+            "  |                 w                  x |  1.1288     1    0.288    |",
+            "  |                 w                ALL |  2.0629     2    0.356    |",
+            "  +------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "varsoc y x, noconstant maxlag(3)",
+          "lines": [
+            "Lag-order selection criteria",
+            "",
+            "   Sample: 1990q4 thru 2019q4                              Number of obs = 117",
+            "  +---------------------------------------------------------------------------+",
+            "  | Lag |    LL      LR      df    p     FPE       AIC      HQIC      SBIC    |",
+            "  |-----+---------------------------------------------------------------------|",
+            "  |   1 | -328.539       .    4      . 1.00871*  5.68442*  5.72276*  5.77885* |",
+            "  |   2 | -327.152  2.7729    4  0.597 1.05485    5.7291   5.80577   5.91796  |",
+            "  |   3 | -325.949   2.407    4  0.661 1.10664    5.7769   5.89192    6.0602  |",
+            "  +---------------------------------------------------------------------------+",
+            "   * optimal lag",
+            "   Endogenous: y x",
+            "    Exogenous:"
+          ]
+        },
+        {
+          "command": "varsoc y x w, maxlag(3)",
+          "lines": [
+            "Lag-order selection criteria",
+            "",
+            "   Sample: 1990q4 thru 2019q4                              Number of obs = 117",
+            "  +---------------------------------------------------------------------------+",
+            "  | Lag |    LL      LR      df    p     FPE       AIC      HQIC      SBIC    |",
+            "  |-----+---------------------------------------------------------------------|",
+            "  |   0 | -376.749                     .132364   6.49143   6.52019   6.56226  |",
+            "  |   1 | -348.561  56.376*   9  0.000 .095358*  6.16343*  6.27845*  6.44673* |",
+            "  |   2 | -345.475  6.1709    9  0.723  .10554   6.26453   6.46581   6.76031  |",
+            "  |   3 | -339.777  11.396    9  0.250 .111761   6.32098   6.60852   7.02923  |",
+            "  +---------------------------------------------------------------------------+",
+            "   * optimal lag",
+            "   Endogenous: y x w",
+            "    Exogenous: _cons"
+          ]
+        },
+        {
+          "command": "replace y = . in 60",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "var y x",
+          "lines": [
+            "Vector autoregression",
+            "",
+            "Sample: 1990q3 thru 2019q4, but with a gap      Number of obs     =        115",
+            "Log likelihood =  -321.7815                     AIC               =   5.770113",
+            "FPE            =   1.099074                     HQIC              =   5.866996",
+            "Det(Sigma_ml)  =   .9235276                     SBIC              =   6.008802",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     5     1.00428   0.2428   36.86948   0.0000",
+            "x                     5     1.01331   0.1822   25.62823   0.0000",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |   .4809409   .0924982     5.20   0.000     .2996479     .662234",
+            "         L2. |  -.1031539   .0929155    -1.11   0.267     -.285265    .0789572",
+            "             |",
+            "           x |",
+            "         L1. |  -.0903076   .0918961    -0.98   0.326    -.2704208    .0898055",
+            "         L2. |  -.0804964   .0926144    -0.87   0.385    -.2620174    .1010245",
+            "             |",
+            "       _cons |   .0448893   .0920824     0.49   0.626    -.1355888    .2253674",
+            "-------------+----------------------------------------------------------------",
+            "x            |",
+            "           y |",
+            "         L1. |   .1558171   .0933298     1.67   0.095     -.027106    .3387403",
+            "         L2. |  -.0242832    .093751    -0.26   0.796    -.2080318    .1594653",
+            "             |",
+            "           x |",
+            "         L1. |   .4397454   .0927224     4.74   0.000     .2580128     .621478",
+            "         L2. |  -.0936877   .0934472    -1.00   0.316    -.2768409    .0894654",
+            "             |",
+            "       _cons |   .0559363   .0929103     0.60   0.547    -.1261646    .2380372",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "varsoc y x",
+          "lines": [
+            "Lag-order selection criteria",
+            "",
+            "   Sample: 1991q1 thru 2019q4, but with a gap              Number of obs = 111",
+            "  +---------------------------------------------------------------------------+",
+            "  | Lag |    LL      LR      df    p     FPE       AIC      HQIC      SBIC    |",
+            "  |-----+---------------------------------------------------------------------|",
+            "  |   0 | -338.479                     1.58249   6.13475   6.15456   6.18357  |",
+            "  |   1 | -308.982  58.993*   4  0.000 .999623*  5.67535*  5.73477*  5.82181* |",
+            "  |   2 | -307.623  2.7189    4  0.606 1.04843   5.72293   5.82195   5.96703  |",
+            "  |   3 | -305.875  3.4949    4  0.479 1.09209   5.76351   5.90215   6.10526  |",
+            "  |   4 | -301.706  8.3388    4  0.080 1.08918   5.76046   5.93871   6.19985  |",
+            "  +---------------------------------------------------------------------------+",
+            "   * optimal lag",
+            "   Endogenous: y x",
+            "    Exogenous: _cons"
+          ]
+        },
+        {
+          "command": "capture noisily varsoc y x, maxlag(1)",
+          "lines": ["maxlag() must be at least 2"]
+        },
+        {
+          "command": "regress y x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       119",
+            "-------------+----------------------------------   F(1, 117)       =      1.66",
+            "       Model |  2.08566993         1  2.08566993   Prob > F        =    0.2007",
+            "    Residual |  147.377827       117  1.25963955   R-squared       =    0.0140",
+            "-------------+----------------------------------   Adj R-squared   =    0.0055",
+            "       Total |  149.463497       118  1.26663981   Root MSE        =    1.1223",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.1206058   .0937278    -1.29   0.201    -.3062289    .0650173",
+            "       _cons |   .0946144   .1030355     0.92   0.360     -.109442    .2986708",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily vargranger",
+          "lines": [
+            "vargranger only works with estimates from var, svar, ivsvar,or xtvar"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass7-ts-edge-delta-and-white-noise",
+      "source": "clear\nset seed 99\nset obs 80\ngenerate t = 2*_n\ntsset t, delta(2)\ngenerate double e = invnormal(runiform())\ngenerate double y = 0\nreplace y = .5*y[_n-1] + e in 2/l\ngenerate double x = runiform()\narima y\narima y x, nolog\narima y, ar(1) nolog\npredict p1, dynamic(100)\nlist t y p1 in 48/52\npperron y\nvar y, lags(1/2)\nvar y x, lags(1)\nvarsoc y x, maxlag(3)\ndrop in 30/32\narima y, ar(1) nolog\nvar y x, lags(1)\npperron y\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 99", "lines": [] },
+        {
+          "command": "set obs 80",
+          "lines": ["Number of observations (_N) was 0, now 80."]
+        },
+        { "command": "generate t = 2*_n", "lines": [] },
+        {
+          "command": "tsset t, delta(2)",
+          "lines": ["Time variable: t, 2 to 160", "        Delta: 2 units"]
+        },
+        { "command": "generate double e = invnormal(runiform())", "lines": [] },
+        { "command": "generate double y = 0", "lines": [] },
+        {
+          "command": "replace y = .5*y[_n-1] + e in 2/l",
+          "lines": ["(79 real changes made)"]
+        },
+        { "command": "generate double x = runiform()", "lines": [] },
+        {
+          "command": "arima y",
+          "lines": [
+            "(setting optimization to BHHH)",
+            "Iteration 0:  Log likelihood = -121.96618",
+            "Iteration 1:  Log likelihood = -121.96618",
+            "",
+            "ARIMA regression",
+            "",
+            "Sample: 2 thru 160                              Number of obs     =         80",
+            "                                                Wald chi2(.)      =          .",
+            "Log likelihood = -121.9662                      Prob > chi2       =          .",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "       _cons |    .025301   .1243536     0.20   0.839    -.2184276    .2690297",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |    1.11142   .0943149    11.78   0.000     .9265665    1.296274",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "arima y x, nolog",
+          "lines": [
+            "ARIMA regression",
+            "",
+            "Sample: 2 thru 160                              Number of obs     =         80",
+            "                                                Wald chi2(1)      =       0.16",
+            "Log likelihood = -121.8578                      Prob > chi2       =     0.6852",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           x |   -.181791    .448391    -0.41   0.685    -1.060621    .6970393",
+            "       _cons |   .1218009   .2842461     0.43   0.668    -.4353111     .678913",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.109915   .0962873    11.53   0.000     .9211955    1.298635",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "arima y, ar(1) nolog",
+          "lines": [
+            "ARIMA regression",
+            "",
+            "Sample: 2 thru 160                              Number of obs     =         80",
+            "                                                Wald chi2(1)      =      10.69",
+            "Log likelihood = -115.827                       Prob > chi2       =     0.0011",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "       _cons |     .02083   .1841456     0.11   0.910    -.3400888    .3817488",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .3752047   .1147536     3.27   0.001     .1502919    .6001175",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.028323   .0847281    12.14   0.000     .8622591    1.194387",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "predict p1, dynamic(100)",
+          "lines": ["(option xb assumed; predicted values)"]
+        },
+        {
+          "command": "list t y p1 in 48/52",
+          "lines": [
+            "     +------------------------------+",
+            "     |   t            y          p1 |",
+            "     |------------------------------|",
+            " 48. |  96    1.4698344    .4223329 |",
+            " 49. |  98   -.92218127    .5645033 |",
+            " 50. | 100    .83353272   -.3329923 |",
+            " 51. | 102    1.4913905   -.1119258 |",
+            " 52. | 104    .15643299   -.0289806 |",
+            "     +------------------------------+"
+          ]
+        },
+        {
+          "command": "pperron y",
+          "lines": [
+            "Phillips–Perron test for unit root        Number of obs   = 79",
+            "Variable: y                               Newey–West lags =  3",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)         -49.016      -19.422      -13.532      -10.874",
+            " Z(t)            -5.871       -3.539       -2.907       -2.588",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 0.0000."
+          ]
+        },
+        {
+          "command": "var y, lags(1/2)",
+          "lines": [
+            "Vector autoregression",
+            "",
+            "Sample: 6 thru 160                              Number of obs     =         78",
+            "Log likelihood =   -111.721                     AIC               =   2.941563",
+            "FPE            =   1.109295                     HQIC              =   2.977849",
+            "Det(Sigma_ml)  =   1.027125                     SBIC              =   3.032206",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     3     1.03354   0.1527   14.05858   0.0009",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |   .3980337   .1108804     3.59   0.000     .1807121    .6153552",
+            "         L2. |  -.0447894   .1116523    -0.40   0.688    -.2636239    .1740451",
+            "             |",
+            "       _cons |  -.0130117   .1148038    -0.11   0.910    -.2380229    .2119995",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "var y x, lags(1)",
+          "lines": [
+            "Vector autoregression",
+            "",
+            "Sample: 4 thru 160                              Number of obs     =         79",
+            "Log likelihood =   -136.202                     AIC               =    3.60005",
+            "FPE            =   .1254773                     HQIC              =   3.672147",
+            "Det(Sigma_ml)  =   .1077865                     SBIC              =   3.780008",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     3     1.05405   0.1455   13.45556   0.0012",
+            "x                     3     .325144   0.0073   .5825533   0.7473",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |   .3782673   .1042734     3.63   0.000     .1738951    .5826395",
+            "             |",
+            "           x |",
+            "         L1. |  -.1419492   .3683213    -0.39   0.700    -.8638457    .5799474",
+            "             |",
+            "       _cons |   .0878624   .2258716     0.39   0.697    -.3548378    .5305627",
+            "-------------+----------------------------------------------------------------",
+            "x            |",
+            "           y |",
+            "         L1. |   .0242621   .0321653     0.75   0.451    -.0387807    .0873049",
+            "             |",
+            "           x |",
+            "         L1. |  -.0095038   .1136164    -0.08   0.933    -.2321878    .2131802",
+            "             |",
+            "       _cons |   .5348703   .0696748     7.68   0.000     .3983102    .6714304",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "varsoc y x, maxlag(3)",
+          "lines": [
+            "Lag-order selection criteria",
+            "",
+            "   Sample: 8 thru 160                                       Number of obs = 77",
+            "  +---------------------------------------------------------------------------+",
+            "  | Lag |    LL      LR      df    p     FPE       AIC      HQIC      SBIC    |",
+            "  |-----+---------------------------------------------------------------------|",
+            "  |   0 | -137.733                     .129208   3.62942   3.65377    3.6903* |",
+            "  |   1 | -131.228  13.009*   4  0.011 .121079*  3.56436*  3.63742*    3.747  |",
+            "  |   2 | -129.842   2.772    4  0.597 .129623   3.63226   3.75401   3.93665  |",
+            "  |   3 | -127.634  4.4166    4  0.353 .135885    3.6788   3.84925   4.10495  |",
+            "  +---------------------------------------------------------------------------+",
+            "   * optimal lag",
+            "   Endogenous: y x",
+            "    Exogenous: _cons"
+          ]
+        },
+        { "command": "drop in 30/32", "lines": ["(3 observations deleted)"] },
+        {
+          "command": "arima y, ar(1) nolog",
+          "lines": [
+            "Number of gaps in sample = 1",
+            "(note: filtering over missing observations)",
+            "",
+            "ARIMA regression",
+            "",
+            "Sample: 2 thru 160, but with a gap              Number of obs     =         77",
+            "                                                Wald chi2(1)      =       9.18",
+            "Log likelihood = -110.0054                      Prob > chi2       =     0.0024",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "       _cons |   .0856994   .1771679     0.48   0.629    -.2615433    .4329422",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .3491936   .1152555     3.03   0.002     .1232968    .5750903",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   1.008069   .0840715    11.99   0.000     .8432917    1.172846",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        {
+          "command": "var y x, lags(1)",
+          "lines": [
+            "Vector autoregression",
+            "",
+            "Sample: 4 thru 160, but with a gap              Number of obs     =         75",
+            "Log likelihood =  -128.6222                     AIC               =   3.589926",
+            "FPE            =   .1242148                     HQIC              =   3.663954",
+            "Det(Sigma_ml)  =   .1058399                     SBIC              =   3.775325",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     3     1.04115   0.1278   10.98714   0.0041",
+            "x                     3     .327318   0.0152   1.157229   0.5607",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |    .356934   .1082963     3.30   0.001     .1446771    .5691908",
+            "             |",
+            "           x |",
+            "         L1. |  -.0604776   .3696156    -0.16   0.870    -.7849108    .6639556",
+            "             |",
+            "       _cons |   .0953915   .2258352     0.42   0.673    -.3472373    .5380204",
+            "-------------+----------------------------------------------------------------",
+            "x            |",
+            "           y |",
+            "         L1. |   .0361026   .0340465     1.06   0.289    -.0306273    .1028325",
+            "             |",
+            "           x |",
+            "         L1. |  -.0139752   .1162008    -0.12   0.904    -.2417246    .2137741",
+            "             |",
+            "       _cons |   .5284999   .0709987     7.44   0.000     .3893451    .6676548",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "pperron y",
+          "lines": [
+            "Phillips–Perron test for unit root        Number of obs   = 75",
+            "Variable: y                               Newey–West lags =  3",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)         -48.735      -19.350      -13.500      -10.850",
+            " Z(t)            -5.878       -3.545       -2.910       -2.590",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 0.0000."
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
