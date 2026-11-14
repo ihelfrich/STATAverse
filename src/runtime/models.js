@@ -1402,17 +1402,62 @@ function estat(session, text, ctx) {
         `estat ${what} is only available after logit and probit`,
         321,
       );
+    // The sample is e(sample), unless if, in or all name another: then
+    // every observation there with an outcome and a prediction, as lfit_p
+    // marks it.
+    const parsed = session.parse(
+        what === "gof"
+          ? "[if] [in] [, All Group(integer 0) OUTsample | Table]"
+          : "[if] [in] [, All CUToff(real 0.5)]",
+        text.trim().slice(what.length),
+      ),
+      options = parsed.options;
+    if (options.table)
+      throw new StataError(
+        "option table is not available yet; estat gof shows the test without the table",
+        198,
+      );
+    if (options.all && (parsed.if || parsed.in))
+      throw new StataError("all option not allowed with if or in", 198);
     const outcome = session.data.get(model.depvar).data,
-      rows = model.sample,
       index = (i) =>
         model.names.reduce(
           (t, name, k) =>
             t + model.b[k] * (name === "_cons" ? 1 : model.columns[k].value(i)),
           0,
         ),
-      p = rows.map((i) => model.family.mean(index(i))),
+      predicted = (i) =>
+        model.names.some(
+          (name, k) =>
+            name !== "_cons" &&
+            model.b[k] !== 0 &&
+            isMissing(model.columns[k].value(i)),
+        )
+          ? MISSING
+          : model.family.mean(index(i)),
+      rows =
+        parsed.if || parsed.in || options.all
+          ? session
+              .rows(parsed, null)
+              .filter((i) => !isMissing(outcome[i]) && !isMissing(predicted(i)))
+          : model.sample,
+      p = rows.map(predicted),
       y = rows.map((i) => Number(outcome[i] !== 0)),
       kind = model.kind === "logit" ? "logistic" : "probit";
+    if (what === "gof" && options.group < 0)
+      throw new StataError("option group() cannot be negative", 411);
+    if (what === "gof" && options.group > rows.length)
+      throw new StataError(
+        "number of groups cannot be greater than number of observations",
+        498,
+      );
+    if (what !== "gof" && (options.cutoff < 0 || options.cutoff > 1))
+      throw new StataError("cutoff() must be between 0 and 1", 198);
+    if (what === "gof" && options.group > 0) {
+      const r = hosmerLemeshow(model, rows, p, y, options, kind, ctx);
+      session.results.r = { ...r, p: chi2tail(r.df, r.chi2) };
+      return;
+    }
     ctx.out("");
     if (what === "gof") {
       // Observations with the same covariates form one pattern.
@@ -1428,7 +1473,7 @@ function estat(session, text, ctx) {
       for (const cell of patterns.values())
         chi2 +=
           (cell.y - cell.n * cell.p) ** 2 / (cell.n * cell.p * (1 - cell.p));
-      const df = patterns.size - model.rank,
+      const df = options.outsample ? patterns.size : patterns.size - model.rank,
         values = [
           count(rows.length),
           count(patterns.size),
@@ -1460,8 +1505,9 @@ function estat(session, text, ctx) {
       fp = 0,
       fn = 0,
       tn = 0;
+    const cutoff = options.cutoff;
     y.forEach((actual, r) => {
-      const positive = p[r] >= 0.5;
+      const positive = p[r] >= cutoff;
       if (positive && actual) tp++;
       else if (positive) fp++;
       else if (actual) fn++;
@@ -1489,7 +1535,9 @@ function estat(session, text, ctx) {
     ctx.out("-----------+--------------------------+-----------");
     row("   Total   ", tp + fn, fp + tn);
     ctx.out("");
-    ctx.out("Classified + if predicted Pr(D) >= .5");
+    ctx.out(
+      `Classified + if predicted Pr(D) >= ${applyFormat(cutoff, "%18.0g").trim()}`,
+    );
     ctx.out(`True D defined as ${model.depvar} != 0`);
     ctx.out(rule);
     line("Sensitivity", "Pr( +| D)", tp, tp + fn);
@@ -1507,15 +1555,112 @@ function estat(session, text, ctx) {
     );
     ctx.out(rule);
     ctx.out("");
+    const share = (a, b) => (b ? (100 * a) / b : MISSING);
     session.results.r = {
-      P_corr: (100 * (tp + tn)) / rows.length,
-      P_p1: (100 * tp) / (tp + fn),
-      P_n0: (100 * tn) / (tn + fp),
+      P_corr: share(tp + tn, rows.length),
+      P_p1: share(tp, tp + fn),
+      P_n0: share(tn, tn + fp),
+      P_p0: share(fp, fp + tn),
+      P_n1: share(fn, tp + fn),
+      P_1p: share(tp, tp + fp),
+      P_0n: share(tn, fn + tn),
+      P_0p: share(fp, tp + fp),
+      P_1n: share(fn, fn + tn),
     };
   } else if (ivDiagnostic(session, model, what, ctx)) {
     // Printed by the diagnostic.
   } else if (!regressDiagnostic(session, model, what, text, ctx))
     throw new StataError(`estat ${what} is not available yet`, 321);
+}
+
+/**
+ * estat gof, group(#): the Hosmer-Lemeshow test, as lfit computes it. The
+ * observations are sorted by predicted probability, those with one
+ * probability kept together, and cut where the running count passes each
+ * multiple of N/#; a group that ties leave empty is not counted.
+ */
+function hosmerLemeshow(model, rows, p, y, options, kind, ctx) {
+  const groups = options.group,
+    n = rows.length,
+    order = p.map((_, r) => r).sort((a, b) => p[a] - p[b]),
+    distinct = [];
+  for (const r of order) {
+    const last = distinct.at(-1);
+    if (last && last.p === p[r]) {
+      last.w++;
+      last.obs += y[r];
+      last.exp += p[r];
+    } else distinct.push({ p: p[r], w: 1, obs: y[r], exp: p[r] });
+  }
+  // Running sums at each distinct probability.
+  let w = 0,
+    obs = 0,
+    exp = 0;
+  const eps = groups * 1e-8,
+    cells = new Map();
+  let previous = 0,
+    start = { w: 0, obs: 0, exp: 0 };
+  distinct.forEach((d, j) => {
+    w += d.w;
+    obs += d.obs;
+    exp += d.exp;
+    const q = (groups * w) / n,
+      near = Math.abs(q - Math.round(q)) < eps,
+      k = near || j === distinct.length - 1 ? Math.round(q) : Math.floor(q);
+    if (k !== previous && k !== 0) {
+      cells.set(k, {
+        w: w - start.w,
+        obs: obs - start.obs,
+        exp: exp - start.exp,
+      });
+      start = { w, obs, exp };
+      previous = k;
+    }
+  });
+  let chi2 = 0,
+    m = 0;
+  for (const c of cells.values()) {
+    if (!(c.w > 0)) continue;
+    m++;
+    if (c.exp > 0 && c.exp < c.w)
+      chi2 += (c.obs - c.exp) ** 2 / (c.exp * (1 - c.exp / c.w));
+  }
+  const df = options.outsample ? m : m - 2;
+  if (df < 0)
+    throw new StataError(
+      "not enough degrees of freedom to perform the test",
+      322,
+    );
+  ctx.out(
+    `note: obs collapsed on ${groups} quantiles of estimated probabilities.`,
+  );
+  ctx.out("");
+  ctx.out(`Goodness-of-fit test after ${kind} model`);
+  ctx.out(`Variable: ${model.depvar}`);
+  ctx.out("");
+  const values = [
+      applyFormat(n, "%10.0fc").trim(),
+      applyFormat(m, "%10.0fc").trim(),
+      applyFormat(chi2, "%9.2f").trim(),
+      applyFormat(chi2tail(df, chi2), "%6.4f").trim(),
+    ],
+    labels = [
+      "Number of observations",
+      "Number of groups",
+      `Hosmer–Lemeshow chi2(${df})`,
+      "Prob > chi2",
+    ],
+    left = greatest(labels.map((l) => l.length)),
+    right = greatest(values.map((v) => v.length));
+  labels.forEach((label, k) =>
+    ctx.out(`${label.padStart(left)} = ${values[k].padStart(right)}`),
+  );
+  if (m < groups) {
+    ctx.out("");
+    ctx.out(`Warning: There are only ${m} distinct quantiles because of ties.`);
+  }
+  ctx.out("");
+  return { N: n, m, chi2, df };
 }
 
 function estimatesCommand(session, text, ctx) {

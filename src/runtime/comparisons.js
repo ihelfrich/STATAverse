@@ -167,13 +167,14 @@ export function estimatesTable(session, text, ctx) {
       : ["0.05", "0.01", "0.001"],
     widthOf = (f) => Number(/^%-?0?(\d+)/.exec(f)?.[1] ?? 10),
     field = Math.max(widthOf(format), withSe ? widthOf(seFormat) : 0) + 1,
-    cell = field + (stars ? 3 : 0) + 2,
-    rule = "-".repeat(14 + cell * entries.length),
-    split = `-------------+${"-".repeat(cell * entries.length)}`;
+    cell = field + (stars ? 3 : 0) + 2;
   if (stars && levels.length !== 3)
     throw new StataError("star() takes three significance levels", 198);
-  if (stars && withSe)
-    throw new StataError("option star not allowed with se", 198);
+  if (stars && (withSe || options.t || options.p))
+    throw new StataError(
+      "option star may not be combined with se, t, or p",
+      198,
+    );
   // Each model's coefficients by equation, as e(b) names them: regress's
   // one equation has no name (shown as _ beside others), the likelihood
   // models name theirs after the dependent variable, and ancillary
@@ -236,7 +237,9 @@ export function estimatesTable(session, text, ctx) {
         ? 2 * normal(-z)
         : 2 * ttail(model.df_r, z);
     },
-    value = (text) => text.padStart(field),
+    // A number wider than its format pushes the rest of the line right,
+    // as Stata's display does: the blank before it stays.
+    value = (text) => ` ${text.padStart(field - 1)}`,
     coefficientCell = (c) => {
       if (!c || c.status === "base") return "";
       if (c.status !== "value") return value(`(${c.status})`);
@@ -248,7 +251,7 @@ export function estimatesTable(session, text, ctx) {
     },
     seCell = (c) => (c?.status === "value" ? value(g(c.se, seFormat)) : ""),
     joined = (row, make) =>
-      entries.map((_, m) => make(row.cells[m]).padEnd(cell)).join(""),
+      columns.map((m) => `${make(row.cells[m]).padEnd(cell - 2)}  `).join(""),
     title = (name) => {
       const inner = field + (stars ? 3 : 0),
         left = Math.ceil((inner - name.length) / 2);
@@ -260,79 +263,98 @@ export function estimatesTable(session, text, ctx) {
       const stored = nameOf(session, session.estimates);
       return stored === "." ? "Active" : stored;
     };
-  ctx.out("");
-  ctx.out(rule);
-  ctx.out(
-    `    Variable |${names.map((name) => title(shown(name)).padEnd(cell)).join("")}`,
-  );
-  ctx.out(split);
-  const list = [...panels.values()],
+  // The models go in panels as wide as the line allows, each a table of
+  // its own with every row.
+  const linesize = session.settings?.linesize ?? 79,
+    perPanel = Math.max(1, Math.floor((linesize - 14) / cell)),
+    list = [...panels.values()],
     headed = list.length > 1;
-  list.forEach(({ equation, rows }, p) => {
-    if (p) ctx.out(split);
-    const ordered = [...rows.values()];
-    if (equation === "/") {
-      // Ancillary parameters: /cut1, or var(e.y) as it is, ending at the bar.
-      for (const row of ordered) {
-        const label = /\(/.test(row.key)
-          ? `${row.key.padStart(13)}|`
-          : `${`/${row.key}`.padStart(12)} |`;
-        ctx.out(`${label}${joined(row, coefficientCell)}`);
-        if (withSe) ctx.out(`${" ".repeat(13)}|${joined(row, seCell)}`);
-      }
-      return;
-    }
-    if (headed) ctx.out(`${equation.padEnd(13)}|`);
-    // The rows are laid out as a coefficient table lays them out, twelve
-    // characters wide: factors under their name, labelled levels, blank
-    // rows between groups. A base level that every model has as its base
-    // is not shown.
-    const table = {
-      names: ordered.map((row) => row.key),
-      columns: ordered.map((row) =>
-        row.term
-          ? {
-              term: row.term,
-              levels: row.levels,
-              base: row.cells.every((c) => !c || c.status === "base"),
-            }
-          : undefined,
-      ),
-      estimable: ordered.map(() => true),
-    };
-    const lines = termRows(
-      session,
-      table,
-      (k) =>
-        joined(ordered[k], coefficientCell) +
-        (withSe ? `\n${" ".repeat(13)}|${joined(ordered[k], seCell)}` : ""),
-      12,
-    );
-    for (const line of lines) for (const one of line.split("\n")) ctx.out(one);
-  });
-  if (options.stats) {
-    ctx.out(split);
-    for (const name of options.stats.trim().split(/\s+/))
-      ctx.out(
-        `${name.padStart(12)} |${entries
-          .map(({ model, e }) => {
-            const v = statistic(model, e, name);
-            return value(
-              isMissing(v) ? "" : g(v, name === "N" ? "%10.0g" : format),
-            ).padEnd(cell);
-          })
-          .join("")}`,
-      );
+  let columns = [];
+  for (let first = 0; first < entries.length; first += perPanel) {
+    columns = entries.map((_, m) => m).slice(first, first + perPanel);
+    showPanel();
   }
-  ctx.out(rule);
-  if (withSe) ctx.out("Legend: b/se".padStart(rule.length));
-  if (stars)
+  function showPanel() {
+    const rule = "-".repeat(14 + cell * columns.length),
+      split = `-------------+${"-".repeat(cell * columns.length)}`;
+    ctx.out("");
+    ctx.out(rule);
     ctx.out(
-      `Legend: * p<${levels[0]}; ** p<${levels[1]}; *** p<${levels[2]}`.padStart(
-        rule.length,
-      ),
+      `    Variable |${columns.map((m) => title(shown(names[m])).padEnd(cell)).join("")}`,
     );
-  ctx.out("");
+    ctx.out(split);
+    list.forEach(({ equation, rows }, p) => {
+      if (p) ctx.out(split);
+      const ordered = [...rows.values()];
+      if (equation === "/") {
+        // Ancillary parameters: /cut1, or var(e.y) as it is, ending at the bar.
+        for (const row of ordered) {
+          const label = /\(/.test(row.key)
+            ? `${row.key.padStart(13)}|`
+            : `${`/${row.key}`.padStart(12)} |`;
+          ctx.out(`${label}${joined(row, coefficientCell)}`);
+          if (withSe) ctx.out(`${" ".repeat(13)}|${joined(row, seCell)}`);
+        }
+        return;
+      }
+      if (headed) ctx.out(`${equation.padEnd(13)}|`);
+      // The rows are laid out as a coefficient table lays them out, twelve
+      // characters wide: factors under their name, labelled levels, blank
+      // rows between groups. A base level that every model has as its base
+      // is not shown.
+      const table = {
+        names: ordered.map((row) => row.key),
+        columns: ordered.map((row) =>
+          row.term
+            ? {
+                term: row.term,
+                levels: row.levels,
+                base: row.cells.every((c) => !c || c.status === "base"),
+              }
+            : undefined,
+        ),
+        estimable: ordered.map(() => true),
+        factorBlocks: entries.length > 1,
+        aloneGap: true,
+      };
+      const lines = termRows(
+        session,
+        table,
+        (k) =>
+          joined(ordered[k], coefficientCell) +
+          (withSe ? `\n${" ".repeat(13)}|${joined(ordered[k], seCell)}` : ""),
+        12,
+      );
+      for (const line of lines)
+        for (const one of line.split("\n")) ctx.out(one);
+    });
+    if (options.stats) {
+      ctx.out(split);
+      for (const name of options.stats.trim().split(/\s+/))
+        ctx.out(
+          `${name.padStart(12)} |${columns
+            .map((m) => entries[m])
+            .map(({ model, e }) => {
+              const v = statistic(model, e, name);
+              return (
+                value(
+                  isMissing(v) ? "" : g(v, name === "N" ? "%10.0g" : format),
+                ).padEnd(cell - 2) + "  "
+              );
+            })
+            .join("")}`,
+        );
+    }
+    ctx.out(rule);
+    if (withSe) ctx.out("Legend: b/se".padStart(rule.length));
+    if (stars)
+      ctx.out(
+        `Legend: * p<${levels[0]}; ** p<${levels[1]}; *** p<${levels[2]}`.padStart(
+          rule.length,
+        ),
+      );
+    ctx.out("");
+  }
 }
 // star(.1 .05 .01) and se(%9.3f) share their names with the bare options.
 const normalise = (text) =>

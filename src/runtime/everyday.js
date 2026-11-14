@@ -5,7 +5,7 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { invttail, ttail } from "./distributions.js";
 import { abbreviate } from "./estimation.js";
-import { count, labelled, moments } from "./reports.js";
+import { count, labelled, moments, perGroup } from "./reports.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
@@ -97,7 +97,7 @@ function ci(session, text, ctx) {
       m[2],
     ),
     level = parsed.options.level,
-    rows = session.rows(parsed, null),
+    rows = session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null),
     // The level's digits move the bracket: three spaces more for 95, one
     // for 99.5, as ci lays it out.
     digits = String(level).length,
@@ -157,10 +157,13 @@ function ci(session, text, ctx) {
       };
       continue;
     }
-    const se = stats.sd / Math.sqrt(stats.n),
-      critical = invttail(stats.n - 1, (1 - level / 100) / 2),
-      lb = stats.mean - critical * se,
-      ub = stats.mean + critical * se;
+    // One observation has no standard error: Stata shows it and the
+    // bounds as dots.
+    const one = stats.n < 2,
+      se = one ? MISSING : stats.sd / Math.sqrt(stats.n),
+      critical = one ? MISSING : invttail(stats.n - 1, (1 - level / 100) / 2),
+      lb = one ? MISSING : stats.mean - critical * se,
+      ub = one ? MISSING : stats.mean + critical * se;
     ctx.out(
       columns([
         [16, applyFormat(stats.n, "%10.0fc")],
@@ -479,7 +482,8 @@ export const EVERYDAY_COMMANDS = [
     },
   },
   { name: "mean", minimum: 4, run: mean },
-  { name: "ci", minimum: 2, run: ci },
+  // ci is byable(recall) in Stata: under by it runs once per group.
+  { name: "ci", minimum: 2, run: perGroup(ci), byable: true },
   { name: "pwcorr", minimum: 6, run: pwcorr },
   { name: "spearman", minimum: 8, run: spearman },
   { name: "clonevar", minimum: 8, run: clonevar },

@@ -52366,6 +52366,1786 @@
       ]
     },
     {
+      "id": "redteam5b-regress-degenerate",
+      "source": "set obs 2\ngenerate x = _n\ngenerate y = 3 * _n + 1\nregress y x\ndisplay e(df_m) \" \" e(F) \" \" e(r2_a) \" \" e(rmse) \" \" e(df_r) \" \" e(rss) \" \" e(ll)\nregress y x, beta\nregress y x, vce(robust)\ndisplay e(df_m) \" \" e(rank)\nclear\nset obs 3\ngenerate x = _n\ngenerate z = _n^2\ngenerate y = 3 * _n + 1 + z\nregress y x z\nclear\nset seed 4201\nset obs 20\ngenerate x = runiform()\ngenerate y = 2 * x + 1\ngenerate w = 1 + runiform()\nregress y x [aweight=w]\nclear\nset seed 4202\nset obs 200\ngenerate x1 = runiform()\ngenerate x2 = runiform()\ngenerate x3 = runiform()\ngenerate g = 1 + floor(runiform() * 4)\ngenerate c = mod(_n, 3)\ngenerate c2 = mod(_n, 2)\ngenerate c4 = mod(_n, 4)\ngenerate y = x1 + x2 + g + invnormal(runiform())\nregress y x1 x2 x3, vce(cluster c)\ndisplay e(df_m) \" \" e(F) \" \" e(rank) \" \" e(df_r)\nregress y x1 x2, vce(cluster c2)\ndisplay e(df_m) \" \" e(F) \" \" e(rank)\nregress y x1, vce(cluster c)\ndisplay e(df_m) \" \" e(rank)\nregress y x1 i.g, vce(cluster c4)\ndisplay e(df_m) \" \" e(F) \" \" e(rank)\nclear\nset seed 12345\nset obs 1000\ngenerate x = runiform()\ngenerate y8 = 3 * x + 0.0001 * invnormal(runiform())\nregress y8 x, beta\nregress y8 x\n",
+      "commands": [
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate y = 3 * _n + 1", "lines": [] },
+        {
+          "command": "regress y x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =         2",
+            "-------------+----------------------------------   F(1, 0)         =         .",
+            "       Model |         4.5         1         4.5   Prob > F        =         .",
+            "    Residual |           0         0           .   R-squared       =    1.0000",
+            "-------------+----------------------------------   Adj R-squared   =         .",
+            "       Total |         4.5         1         4.5   Root MSE        =         0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |          3          .        .       .            .           .",
+            "       _cons |          1          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(df_m) \" \" e(F) \" \" e(r2_a) \" \" e(rmse) \" \" e(df_r) \" \" e(rss) \" \" e(ll)",
+          "lines": ["1 . . 0 0 0 ."]
+        },
+        {
+          "command": "regress y x, beta",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =         2",
+            "-------------+----------------------------------   F(1, 0)         =         .",
+            "       Model |         4.5         1         4.5   Prob > F        =         .",
+            "    Residual |           0         0           .   R-squared       =    1.0000",
+            "-------------+----------------------------------   Adj R-squared   =         .",
+            "       Total |         4.5         1         4.5   Root MSE        =         0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|                     Beta",
+            "-------------+----------------------------------------------------------------",
+            "           x |          3          .        .       .                        1",
+            "       _cons |          1          .        .       .                        .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x, vce(robust)",
+          "lines": [
+            "Linear regression                               Number of obs     =          2",
+            "                                                F(0, 0)           =          .",
+            "                                                Prob > F          =          .",
+            "                                                R-squared         =     1.0000",
+            "                                                Root MSE          =          0",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |          3          .        .       .            .           .",
+            "       _cons |          1          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display e(df_m) \" \" e(rank)", "lines": ["0 0"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate z = _n^2", "lines": [] },
+        { "command": "generate y = 3 * _n + 1 + z", "lines": [] },
+        {
+          "command": "regress y x z",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =         3",
+            "-------------+----------------------------------   F(2, 0)         =         .",
+            "       Model |  98.6666667         2  49.3333333   Prob > F        =         .",
+            "    Residual |           0         0           .   R-squared       =    1.0000",
+            "-------------+----------------------------------   Adj R-squared   =         .",
+            "       Total |  98.6666667         2  49.3333333   Root MSE        =         0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |          3          .        .       .            .           .",
+            "           z |          1          .        .       .            .           .",
+            "       _cons |          1          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4201", "lines": [] },
+        {
+          "command": "set obs 20",
+          "lines": ["Number of observations (_N) was 0, now 20."]
+        },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate y = 2 * x + 1", "lines": [] },
+        { "command": "generate w = 1 + runiform()", "lines": [] },
+        {
+          "command": "regress y x [aweight=w]",
+          "lines": [
+            "(sum of wgt is 29.88210678100586)",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =        20",
+            "-------------+----------------------------------   F(1, 18)        =         .",
+            "       Model |  7.21133896         1  7.21133896   Prob > F        =         .",
+            "    Residual |           0        18           0   R-squared       =    1.0000",
+            "-------------+----------------------------------   Adj R-squared   =    1.0000",
+            "       Total |  7.21133896        19  .379544156   Root MSE        =         0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |          2          .        .       .            .           .",
+            "       _cons |          1          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4202", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate x1 = runiform()", "lines": [] },
+        { "command": "generate x2 = runiform()", "lines": [] },
+        { "command": "generate x3 = runiform()", "lines": [] },
+        { "command": "generate g = 1 + floor(runiform() * 4)", "lines": [] },
+        { "command": "generate c = mod(_n, 3)", "lines": [] },
+        { "command": "generate c2 = mod(_n, 2)", "lines": [] },
+        { "command": "generate c4 = mod(_n, 4)", "lines": [] },
+        {
+          "command": "generate y = x1 + x2 + g + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "regress y x1 x2 x3, vce(cluster c)",
+          "lines": [
+            "Linear regression                               Number of obs     =        200",
+            "                                                F(1, 2)           =          .",
+            "                                                Prob > F          =          .",
+            "                                                R-squared         =     0.0788",
+            "                                                Root MSE          =     1.4987",
+            "",
+            "                                      (Std. err. adjusted for 3 clusters in c)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .7984563   .1902536     4.20   0.052    -.0201389    1.617051",
+            "          x2 |   1.180751   .1635116     7.22   0.019     .4772178    1.884285",
+            "          x3 |   .5608856   .2254286     2.49   0.131    -.4090554    1.530827",
+            "       _cons |   2.406825   .1343355    17.92   0.003     1.828826    2.984824",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(df_m) \" \" e(F) \" \" e(rank) \" \" e(df_r)",
+          "lines": ["1 . 2 2"]
+        },
+        {
+          "command": "regress y x1 x2, vce(cluster c2)",
+          "lines": [
+            "Linear regression                               Number of obs     =        200",
+            "                                                F(0, 1)           =          .",
+            "                                                Prob > F          =          .",
+            "                                                R-squared         =     0.0685",
+            "                                                Root MSE          =     1.5033",
+            "",
+            "                                     (Std. err. adjusted for 2 clusters in c2)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .7335368   .2180324     3.36   0.184    -2.036827    3.503901",
+            "          x2 |    1.18996   .3328923     3.57   0.174    -3.039838    5.419758",
+            "       _cons |   2.701321   .1538392    17.56   0.036     .7466086    4.656034",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(df_m) \" \" e(F) \" \" e(rank)",
+          "lines": ["0 . 1"]
+        },
+        {
+          "command": "regress y x1, vce(cluster c)",
+          "lines": [
+            "Linear regression                               Number of obs     =        200",
+            "                                                F(1, 2)           =      34.81",
+            "                                                Prob > F          =     0.0275",
+            "                                                R-squared         =     0.0191",
+            "                                                Root MSE          =     1.5387",
+            "",
+            "                                      (Std. err. adjusted for 3 clusters in c)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .7585359   .1285612     5.90   0.028     .2053817     1.31169",
+            "       _cons |   3.265822   .1203218    27.14   0.001     2.748119    3.783525",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display e(df_m) \" \" e(rank)", "lines": ["1 2"] },
+        {
+          "command": "regress y x1 i.g, vce(cluster c4)",
+          "lines": [
+            "Linear regression                               Number of obs     =        200",
+            "                                                F(2, 3)           =          .",
+            "                                                Prob > F          =          .",
+            "                                                R-squared         =     0.5300",
+            "                                                Root MSE          =     1.0732",
+            "",
+            "                                     (Std. err. adjusted for 4 clusters in c4)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .6531022   .4179966     1.56   0.216    -.6771496    1.983354",
+            "             |",
+            "           g |",
+            "          2  |   .9268037   .0821479    11.28   0.001     .6653725    1.188235",
+            "          3  |   2.141509   .1887571    11.35   0.001     1.540799    2.742218",
+            "          4  |   2.853963   .0718652    39.71   0.000     2.625256     3.08267",
+            "             |",
+            "       _cons |   1.798627   .1450236    12.40   0.001     1.337097    2.260157",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(df_m) \" \" e(F) \" \" e(rank)",
+          "lines": ["2 . 3"]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 1000",
+          "lines": ["Number of observations (_N) was 0, now 1,000."]
+        },
+        { "command": "generate x = runiform()", "lines": [] },
+        {
+          "command": "generate y8 = 3 * x + 0.0001 * invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "regress y8 x, beta",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =     1,000",
+            "-------------+----------------------------------   F(1, 998)       >  99999.00",
+            "       Model |  753.464017         1  753.464017   Prob > F        =    0.0000",
+            "    Residual |  9.8304e-06       998  9.8501e-09   R-squared       =    1.0000",
+            "-------------+----------------------------------   Adj R-squared   =    1.0000",
+            "       Total |  753.464027       999  .754218245   Root MSE        =    9.9e-05",
+            "",
+            "------------------------------------------------------------------------------",
+            "          y8 | Coefficient  Std. err.      t    P>|t|                     Beta",
+            "-------------+----------------------------------------------------------------",
+            "           x |   3.000012   .0000108  2.8e+05   0.000                        1",
+            "       _cons |  -8.07e-06   6.20e-06    -1.30   0.193                        .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y8 x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =     1,000",
+            "-------------+----------------------------------   F(1, 998)       >  99999.00",
+            "       Model |  753.464017         1  753.464017   Prob > F        =    0.0000",
+            "    Residual |  9.8304e-06       998  9.8501e-09   R-squared       =    1.0000",
+            "-------------+----------------------------------   Adj R-squared   =    1.0000",
+            "       Total |  753.464027       999  .754218245   Root MSE        =    9.9e-05",
+            "",
+            "------------------------------------------------------------------------------",
+            "          y8 | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   3.000012   .0000108  2.8e+05   0.000     2.999991    3.000034",
+            "       _cons |  -8.07e-06   6.20e-06    -1.30   0.193    -.0000202    4.09e-06",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "redteam5b-ci-single-and-by",
+      "source": "set seed 4203\nset obs 40\ngenerate g = 1 + floor(runiform() * 3)\nlabel define cib5 1 \"Less than HS\" 2 \"High school\" 3 \"BA+\"\nlabel values g cib5\ngenerate y = 1000 * runiform()\ngenerate z = runiform()\nci means y in 1/1\nci means y z in 1/1\ndisplay r(N) \" \" r(mean) \" \" r(se) \" \" r(lb) \" \" r(ub)\nbysort g: ci means y\nby g: ci means y z, level(90)\ndisplay r(N) \" \" r(mean)\n",
+      "commands": [
+        { "command": "set seed 4203", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate g = 1 + floor(runiform() * 3)", "lines": [] },
+        {
+          "command": "label define cib5 1 \"Less than HS\" 2 \"High school\" 3 \"BA+\"",
+          "lines": []
+        },
+        { "command": "label values g cib5", "lines": [] },
+        { "command": "generate y = 1000 * runiform()", "lines": [] },
+        { "command": "generate z = runiform()", "lines": [] },
+        {
+          "command": "ci means y in 1/1",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "           y |          1    77.51084           .               .           ."
+          ]
+        },
+        {
+          "command": "ci means y z in 1/1",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "           y |          1    77.51084           .               .           .",
+            "           z |          1    .9582266           .               .           ."
+          ]
+        },
+        {
+          "command": "display r(N) \" \" r(mean) \" \" r(se) \" \" r(lb) \" \" r(ub)",
+          "lines": ["1 .95822656 . . ."]
+        },
+        {
+          "command": "bysort g: ci means y",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = Less than HS",
+            "",
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "           y |         12    461.2137    98.13547         245.219    677.2084",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = High school",
+            "",
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "           y |         17    473.6446    65.60921        334.5593    612.7299",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = BA+",
+            "",
+            "    Variable |        Obs        Mean    Std. err.       [95% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "           y |         11    459.5143    115.7326         201.646    717.3826"
+          ]
+        },
+        {
+          "command": "by g: ci means y z, level(90)",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = Less than HS",
+            "",
+            "    Variable |        Obs        Mean    Std. err.       [90% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "           y |         12    461.2137    98.13547        284.9737    637.4537",
+            "           z |         12    .5033473    .0852464        .3502545      .65644",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = High school",
+            "",
+            "    Variable |        Obs        Mean    Std. err.       [90% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "           y |         17    473.6446    65.60921        359.0985    588.1906",
+            "           z |         17    .4564423    .0724651        .3299267    .5829579",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = BA+",
+            "",
+            "    Variable |        Obs        Mean    Std. err.       [90% conf. interval]",
+            "-------------+---------------------------------------------------------------",
+            "           y |         11    459.5143    115.7326        249.7535    669.2751",
+            "           z |         11     .507593    .1066734        .3142516    .7009343"
+          ]
+        },
+        { "command": "display r(N) \" \" r(mean)", "lines": ["11 .50759296"] }
+      ]
+    },
+    {
+      "id": "redteam5b-estat-vce-interactions",
+      "source": "set linesize 79\nset seed 4204\nset obs 300\ngenerate group = 1 + floor(runiform() * 4)\ngenerate employed = runiform() > .5\ngenerate age = 20 + 40 * runiform()\ngenerate displace = 100 + 200 * runiform()\ngenerate y = 1000 + 30 * age + 500 * employed + 10 * age * employed + 300 * group + 200 * invnormal(runiform())\nquietly regress y c.age##i.employed, vce(robust)\nestat vce\nquietly regress y i.group##c.age\nestat vce\nquietly regress y i.employed##i.group\nestat vce\nquietly regress y c.displace##i.employed\nestat vce\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "set seed 4204", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        {
+          "command": "generate group = 1 + floor(runiform() * 4)",
+          "lines": []
+        },
+        { "command": "generate employed = runiform() > .5", "lines": [] },
+        { "command": "generate age = 20 + 40 * runiform()", "lines": [] },
+        {
+          "command": "generate displace = 100 + 200 * runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate y = 1000 + 30 * age + 500 * employed + 10 * age * employed + 300 * group + 200 * invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "quietly regress y c.age##i.employed, vce(robust)",
+          "lines": []
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of regress model",
+            "",
+            "             |                      1. 1.employed#",
+            "        e(V) |        age    employed       c.age       _cons",
+            "-------------+-----------------------------------------------",
+            "         age |   6.890406",
+            "  1.employed |  275.57764   24686.186",
+            "  1.employed#|",
+            "       c.age |  -6.890406  -587.25243    15.17573",
+            "       _cons | -275.57764  -11939.393   275.57764   11939.393"
+          ]
+        },
+        { "command": "quietly regress y i.group##c.age", "lines": [] },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of regress model",
+            "",
+            "             |          2.          3.          4.                2.group#",
+            "        e(V) |      group       group       group         age       c.age",
+            "-------------+------------------------------------------------------------",
+            "     2.group |  87376.443",
+            "     3.group |  44090.605   87076.739",
+            "     4.group |  44090.605   44090.605   76015.298",
+            "         age |  1004.2957   1004.2957   1004.2957   24.773793",
+            "     2.group#|",
+            "       c.age | -2075.3139  -1004.2957  -1004.2957  -24.773793   53.781304",
+            "     3.group#|",
+            "       c.age | -1004.2957  -1969.7585  -1004.2957  -24.773793   24.773793",
+            "     4.group#|",
+            "       c.age | -1004.2957  -1004.2957  -1740.0761  -24.773793   24.773793",
+            "       _cons | -44090.605  -44090.605  -44090.605  -1004.2957   1004.2957",
+            "",
+            "             |    3.group#    4.group#",
+            "        e(V) |      c.age       c.age       _cons",
+            "-------------+-----------------------------------",
+            "     3.group#|",
+            "       c.age |  48.044194",
+            "     4.group#|",
+            "       c.age |  24.773793   43.516371",
+            "       _cons |  1004.2957   1004.2957   44090.605"
+          ]
+        },
+        { "command": "quietly regress y i.employed##i.group", "lines": [] },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of regress model",
+            "",
+            "             |          1.          2.          3.          4. 1.employed#",
+            "        e(V) |   employed       group       group       group     2.group",
+            "-------------+------------------------------------------------------------",
+            "  1.employed |  11976.275",
+            "     2.group |  5156.4516   11763.155",
+            "     3.group |  5156.4516   5156.4516    9961.327",
+            "     4.group |  5156.4516   5156.4516   5156.4516   11374.526",
+            "  1.employed#|",
+            "     2.group | -11976.275  -11763.155  -5156.4516  -5156.4516   24989.479",
+            "  1.employed#|",
+            "     3.group | -11976.275  -5156.4516   -9961.327  -5156.4516   11976.275",
+            "  1.employed#|",
+            "     4.group | -11976.275  -5156.4516  -5156.4516  -11374.526   11976.275",
+            "       _cons | -5156.4516  -5156.4516  -5156.4516  -5156.4516   5156.4516",
+            "",
+            "             | 1.employed# 1.employed#",
+            "        e(V) |    3.group     4.group       _cons",
+            "-------------+-----------------------------------",
+            "  1.employed#|",
+            "     3.group |  22202.035",
+            "  1.employed#|",
+            "     4.group |  11976.275   22790.317",
+            "       _cons |  5156.4516   5156.4516   5156.4516"
+          ]
+        },
+        { "command": "quietly regress y c.displace##i.employed", "lines": [] },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of regress model",
+            "",
+            "             |                      1. 1.employed#",
+            "        e(V) |   displace    employed  c.displace       _cons",
+            "-------------+-----------------------------------------------",
+            "    displace |  .67716961",
+            "  1.employed |   136.0287   56562.966",
+            "  1.employed#|",
+            "  c.displace | -.67716961  -257.89451   1.2717784",
+            "       _cons |  -136.0287  -29441.613    136.0287   29441.613"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "redteam5b-estat-vce-interactions-logit",
+      "source": "set linesize 79\nset seed 4204\nset obs 300\ngenerate group = 1 + floor(runiform() * 4)\ngenerate employed = runiform() > .5\ngenerate age = 20 + 40 * runiform()\ngenerate yb = (age / 40 + employed - group / 2 + invnormal(runiform())) > 0\nquietly logit yb c.age##i.group, nolog\nestat vce\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "set seed 4204", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        {
+          "command": "generate group = 1 + floor(runiform() * 4)",
+          "lines": []
+        },
+        { "command": "generate employed = runiform() > .5", "lines": [] },
+        { "command": "generate age = 20 + 40 * runiform()", "lines": [] },
+        {
+          "command": "generate yb = (age / 40 + employed - group / 2 + invnormal(runiform())) > 0",
+          "lines": []
+        },
+        { "command": "quietly logit yb c.age##i.group, nolog", "lines": [] },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of logit model",
+            "",
+            "             | yb",
+            "             |                      2.          3.          4.    2.group#",
+            "        e(V) |        age       group       group       group       c.age",
+            "-------------+------------------------------------------------------------",
+            "yb           |",
+            "         age |  .00060764",
+            "     2.group |  .02345588   2.0274287",
+            "     3.group |  .02345588   .98705587    1.715217",
+            "     4.group |  .02345588   .98705587   .98705587   1.8636546",
+            "     2.group#|",
+            "       c.age | -.00060764  -.04839644  -.02345588  -.02345588   .00125798",
+            "     3.group#|",
+            "       c.age | -.00060764  -.02345588  -.03991126  -.02345588   .00060764",
+            "     4.group#|",
+            "       c.age | -.00060764  -.02345588  -.02345588  -.04255223   .00060764",
+            "       _cons | -.02345588  -.98705587  -.98705587  -.98705587   .02345588",
+            "",
+            "             | yb",
+            "             |    3.group#    4.group#",
+            "        e(V) |      c.age       c.age       _cons",
+            "-------------+-----------------------------------",
+            "yb           |",
+            "     3.group#|",
+            "       c.age |  .00100667",
+            "     4.group#|",
+            "       c.age |  .00060764   .00105627",
+            "       _cons |  .02345588   .02345588   .98705587"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "redteam5b-estimates-table-layouts",
+      "source": "set seed 4205\nset obs 74\ngenerate mpg = 12 + floor(30 * runiform())\ngenerate weight = 1800 + floor(3000 * runiform())\ngenerate length = 140 + floor(90 * runiform())\ngenerate turn = 30 + floor(20 * runiform())\ngenerate foreign = runiform() > .7\nlabel define origin5 0 \"Domestic\" 1 \"Foreign\"\nlabel values foreign origin5\ngenerate d = foreign\ngenerate rep = 1 + floor(5 * runiform())\ngenerate price = 12000 + 2 * weight - 50 * mpg + 1500 * foreign + 300 * rep + 1500 * invnormal(runiform())\nquietly regress price mpg i.foreign\nestimates store a\nquietly regress price weight i.foreign\nestimates store a2\nquietly regress price mpg i.d\nestimates store dd\nquietly regress price mpg i.rep\nestimates store r\nquietly regress price weight\nestimates table a a2\nestimates table a\nestimates table dd\nestimates table dd a\nestimates table r a\nestimates table a, se\nquietly regress price mpg i.foreign\nestimates table a a2\nestimates table a\nquietly regress price mpg i.d\nestimates table dd\nestimates table dd a\nquietly regress price mpg weight\nestimates store m1\nquietly regress price mpg weight length turn\nestimates store m2\nquietly regress price mpg\nestimates store m3\nquietly regress price weight\nestimates store m4\nquietly regress price length\nestimates store m5\nquietly regress price turn i.foreign\nestimates store m6\nset linesize 79\nestimates table m1 m2 m3 m4 m5 m6\nestimates table m1 m2 m3 m4 m5 m6, se stats(N r2)\nestimates table m1 m2 m3 m4 m5 m6, star\nset linesize 78\nestimates table m1 m2 m3 m4 m5 m6\nset linesize 200\nestimates table m1 m2 m3 m4 m5 m6, b(%7.2f)\nquietly regress price mpg\nestimates store s1\nquietly regress price mpg weight i.rep\nestimates store s2\nestimates table s1 s2, b(%7.2f) star(.05 .01 .001)\nestimates table s1 s2, b(%7.1f) se(%7.1f)\ncapture noisily estimates table s1 s2, star se\n",
+      "commands": [
+        { "command": "set seed 4205", "lines": [] },
+        {
+          "command": "set obs 74",
+          "lines": ["Number of observations (_N) was 0, now 74."]
+        },
+        {
+          "command": "generate mpg = 12 + floor(30 * runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate weight = 1800 + floor(3000 * runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate length = 140 + floor(90 * runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate turn = 30 + floor(20 * runiform())",
+          "lines": []
+        },
+        { "command": "generate foreign = runiform() > .7", "lines": [] },
+        {
+          "command": "label define origin5 0 \"Domestic\" 1 \"Foreign\"",
+          "lines": []
+        },
+        { "command": "label values foreign origin5", "lines": [] },
+        { "command": "generate d = foreign", "lines": [] },
+        { "command": "generate rep = 1 + floor(5 * runiform())", "lines": [] },
+        {
+          "command": "generate price = 12000 + 2 * weight - 50 * mpg + 1500 * foreign + 300 * rep + 1500 * invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "quietly regress price mpg i.foreign", "lines": [] },
+        { "command": "estimates store a", "lines": [] },
+        { "command": "quietly regress price weight i.foreign", "lines": [] },
+        { "command": "estimates store a2", "lines": [] },
+        { "command": "quietly regress price mpg i.d", "lines": [] },
+        { "command": "estimates store dd", "lines": [] },
+        { "command": "quietly regress price mpg i.rep", "lines": [] },
+        { "command": "estimates store r", "lines": [] },
+        { "command": "quietly regress price weight", "lines": [] },
+        {
+          "command": "estimates table a a2",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     a            a2",
+            "-------------+--------------------------",
+            "         mpg | -37.830138",
+            "             |",
+            "     foreign |",
+            "          1  |  1280.0024    1920.5142",
+            "             |",
+            "      weight |               1.7689743",
+            "       _cons |  19901.179      12640.3",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table a",
+          "lines": [
+            "---------------------------",
+            "    Variable |     a",
+            "-------------+-------------",
+            "         mpg | -37.830138",
+            "             |",
+            "   1.foreign |  1280.0024",
+            "       _cons |  19901.179",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table dd",
+          "lines": [
+            "---------------------------",
+            "    Variable |     dd",
+            "-------------+-------------",
+            "         mpg | -37.830138",
+            "             |",
+            "         1.d |  1280.0024",
+            "       _cons |  19901.179",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table dd a",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     dd           a",
+            "-------------+--------------------------",
+            "         mpg | -37.830138   -37.830138",
+            "             |",
+            "           d |",
+            "          1  |  1280.0024",
+            "             |",
+            "     foreign |",
+            "          1  |               1280.0024",
+            "             |",
+            "       _cons |  19901.179    19901.179",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table r a",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     r            a",
+            "-------------+--------------------------",
+            "         mpg | -40.884841   -37.830138",
+            "             |",
+            "         rep |",
+            "          2  |  976.11192",
+            "          3  |  1217.7613",
+            "          4  |  455.80231",
+            "          5  |  1269.0042",
+            "             |",
+            "     foreign |",
+            "          1  |               1280.0024",
+            "             |",
+            "       _cons |  19623.217    19901.179",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table a, se",
+          "lines": [
+            "---------------------------",
+            "    Variable |     a",
+            "-------------+-------------",
+            "         mpg | -37.830138",
+            "             |  31.209335",
+            "             |",
+            "   1.foreign |  1280.0024",
+            "             |  594.79437",
+            "       _cons |  19901.179",
+            "             |  900.28699",
+            "---------------------------",
+            "               Legend: b/se"
+          ]
+        },
+        { "command": "quietly regress price mpg i.foreign", "lines": [] },
+        {
+          "command": "estimates table a a2",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     a            a2",
+            "-------------+--------------------------",
+            "         mpg | -37.830138",
+            "             |",
+            "     foreign |",
+            "    Foreign  |  1280.0024    1920.5142",
+            "             |",
+            "      weight |               1.7689743",
+            "       _cons |  19901.179      12640.3",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table a",
+          "lines": [
+            "---------------------------",
+            "    Variable |     a",
+            "-------------+-------------",
+            "         mpg | -37.830138",
+            "             |",
+            "     foreign |",
+            "    Foreign  |  1280.0024",
+            "       _cons |  19901.179",
+            "---------------------------"
+          ]
+        },
+        { "command": "quietly regress price mpg i.d", "lines": [] },
+        {
+          "command": "estimates table dd",
+          "lines": [
+            "---------------------------",
+            "    Variable |     dd",
+            "-------------+-------------",
+            "         mpg | -37.830138",
+            "             |",
+            "         1.d |  1280.0024",
+            "       _cons |  19901.179",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table dd a",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     dd           a",
+            "-------------+--------------------------",
+            "         mpg | -37.830138   -37.830138",
+            "             |",
+            "           d |",
+            "          1  |  1280.0024",
+            "             |",
+            "     foreign |",
+            "          1  |               1280.0024",
+            "             |",
+            "       _cons |  19901.179    19901.179",
+            "----------------------------------------"
+          ]
+        },
+        { "command": "quietly regress price mpg weight", "lines": [] },
+        { "command": "estimates store m1", "lines": [] },
+        {
+          "command": "quietly regress price mpg weight length turn",
+          "lines": []
+        },
+        { "command": "estimates store m2", "lines": [] },
+        { "command": "quietly regress price mpg", "lines": [] },
+        { "command": "estimates store m3", "lines": [] },
+        { "command": "quietly regress price weight", "lines": [] },
+        { "command": "estimates store m4", "lines": [] },
+        { "command": "quietly regress price length", "lines": [] },
+        { "command": "estimates store m5", "lines": [] },
+        { "command": "quietly regress price turn i.foreign", "lines": [] },
+        { "command": "estimates store m6", "lines": [] },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "estimates table m1 m2 m3 m4 m5 m6",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "    Variable |     m1           m2           m3           m4           m5",
+            "-------------+-----------------------------------------------------------------",
+            "         mpg | -39.473478   -39.065229   -39.213667",
+            "      weight |  1.6022151    1.5866314                 1.6016424",
+            "      length |              -1.8064796                             -4.9166829",
+            "        turn |              -24.571356",
+            "             |",
+            "     foreign |",
+            "    Foreign  |",
+            "             |",
+            "       _cons |  14796.525    16137.178    20284.462    13733.239    20131.557",
+            "-------------------------------------------------------------------------------",
+            "",
+            "",
+            "---------------------------",
+            "    Variable |     m6",
+            "-------------+-------------",
+            "         mpg |",
+            "      weight |",
+            "      length |",
+            "        turn |  -27.45648",
+            "             |",
+            "     foreign |",
+            "    Foreign  |  1227.2299",
+            "             |",
+            "       _cons |  19973.505",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table m1 m2 m3 m4 m5 m6, se stats(N r2)",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "    Variable |     m1           m2           m3           m4           m5",
+            "-------------+-----------------------------------------------------------------",
+            "         mpg | -39.473478   -39.065229   -39.213667",
+            "             |  25.160114    25.436854     31.97985",
+            "      weight |  1.6022151    1.5866314                 1.6016424",
+            "             |  .23799464     .2415888                 .24039757",
+            "      length |              -1.8064796                             -4.9166829",
+            "             |               8.1610843                              10.335708",
+            "        turn |              -24.571356",
+            "             |               35.732625",
+            "             |",
+            "     foreign |",
+            "    Foreign  |",
+            "             |",
+            "             |",
+            "       _cons |  14796.525    16137.178    20284.462    13733.239    20131.557",
+            "             |  1082.0759    2380.6646    904.47328    852.06338     1922.655",
+            "-------------+-----------------------------------------------------------------",
+            "           N |         74           74           74           74           74",
+            "          r2 |  .40211003     .4066311    .02045567    .38138245    .00313306",
+            "-------------------------------------------------------------------------------",
+            "                                                                   Legend: b/se",
+            "",
+            "",
+            "---------------------------",
+            "    Variable |     m6",
+            "-------------+-------------",
+            "         mpg |",
+            "             |",
+            "      weight |",
+            "             |",
+            "      length |",
+            "             |",
+            "        turn |  -27.45648",
+            "             |  44.782501",
+            "             |",
+            "     foreign |",
+            "    Foreign  |  1227.2299",
+            "             |  609.27247",
+            "             |",
+            "       _cons |  19973.505",
+            "             |  1816.5507",
+            "-------------+-------------",
+            "           N |         74",
+            "          r2 |  .06634981",
+            "---------------------------",
+            "               Legend: b/se"
+          ]
+        },
+        {
+          "command": "estimates table m1 m2 m3 m4 m5 m6, star",
+          "lines": [
+            "------------------------------------------------------------------------------",
+            "    Variable |      m1              m2              m3              m4",
+            "-------------+----------------------------------------------------------------",
+            "         mpg | -39.473478      -39.065229      -39.213667",
+            "      weight |  1.6022151***    1.5866314***                    1.6016424***",
+            "      length |                 -1.8064796",
+            "        turn |                 -24.571356",
+            "             |",
+            "     foreign |",
+            "    Foreign  |",
+            "             |",
+            "       _cons |  14796.525***    16137.178***    20284.462***    13733.239***",
+            "------------------------------------------------------------------------------",
+            "                                      Legend: * p<0.05; ** p<0.01; *** p<0.001",
+            "",
+            "",
+            "----------------------------------------------",
+            "    Variable |      m5              m6",
+            "-------------+--------------------------------",
+            "         mpg |",
+            "      weight |",
+            "      length | -4.9166829",
+            "        turn |                  -27.45648",
+            "             |",
+            "     foreign |",
+            "    Foreign  |                  1227.2299*",
+            "             |",
+            "       _cons |  20131.557***    19973.505***",
+            "----------------------------------------------",
+            "      Legend: * p<0.05; ** p<0.01; *** p<0.001"
+          ]
+        },
+        { "command": "set linesize 78", "lines": [] },
+        {
+          "command": "estimates table m1 m2 m3 m4 m5 m6",
+          "lines": [
+            "------------------------------------------------------------------",
+            "    Variable |     m1           m2           m3           m4",
+            "-------------+----------------------------------------------------",
+            "         mpg | -39.473478   -39.065229   -39.213667",
+            "      weight |  1.6022151    1.5866314                 1.6016424",
+            "      length |              -1.8064796",
+            "        turn |              -24.571356",
+            "             |",
+            "     foreign |",
+            "    Foreign  |",
+            "             |",
+            "       _cons |  14796.525    16137.178    20284.462    13733.239",
+            "------------------------------------------------------------------",
+            "",
+            "",
+            "----------------------------------------",
+            "    Variable |     m5           m6",
+            "-------------+--------------------------",
+            "         mpg |",
+            "      weight |",
+            "      length | -4.9166829",
+            "        turn |               -27.45648",
+            "             |",
+            "     foreign |",
+            "    Foreign  |               1227.2299",
+            "             |",
+            "       _cons |  20131.557    19973.505",
+            "----------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] },
+        {
+          "command": "estimates table m1 m2 m3 m4 m5 m6, b(%7.2f)",
+          "lines": [
+            "--------------------------------------------------------------------------",
+            "    Variable |   m1        m2        m3        m4        m5        m6",
+            "-------------+------------------------------------------------------------",
+            "         mpg |  -39.47    -39.07    -39.21",
+            "      weight |    1.60      1.59                1.60",
+            "      length |             -1.81                         -4.92",
+            "        turn |            -24.57                                  -27.46",
+            "             |",
+            "     foreign |",
+            "    Foreign  |                                                   1227.23",
+            "             |",
+            "       _cons | 14796.53   16137.18   20284.46   13733.24   20131.56   19973.50",
+            "--------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly regress price mpg", "lines": [] },
+        { "command": "estimates store s1", "lines": [] },
+        { "command": "quietly regress price mpg weight i.rep", "lines": [] },
+        { "command": "estimates store s2", "lines": [] },
+        {
+          "command": "estimates table s1 s2, b(%7.2f) star(.05 .01 .001)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     s1           s2",
+            "-------------+--------------------------",
+            "         mpg |  -39.21       -38.65",
+            "      weight |                 1.70***",
+            "             |",
+            "         rep |",
+            "          2  |               496.11",
+            "          3  |              1455.54*",
+            "          4  |              1043.55",
+            "          5  |              1621.56*",
+            "             |",
+            "       _cons | 20284.46***   13581.66***",
+            "----------------------------------------",
+            "   Legend: * p<.05; ** p<.01; *** p<.001"
+          ]
+        },
+        {
+          "command": "estimates table s1 s2, b(%7.1f) se(%7.1f)",
+          "lines": [
+            "----------------------------------",
+            "    Variable |   s1        s2",
+            "-------------+--------------------",
+            "         mpg |   -39.2     -38.6",
+            "             |    32.0      24.5",
+            "      weight |               1.7",
+            "             |               0.2",
+            "             |",
+            "         rep |",
+            "          2  |             496.1",
+            "             |             645.8",
+            "          3  |            1455.5",
+            "             |             709.8",
+            "          4  |            1043.6",
+            "             |             600.1",
+            "          5  |            1621.6",
+            "             |             644.0",
+            "             |",
+            "       _cons | 20284.5   13581.7",
+            "             |   904.5    1159.7",
+            "----------------------------------",
+            "                      Legend: b/se"
+          ]
+        },
+        {
+          "command": "capture noisily estimates table s1 s2, star se",
+          "lines": ["option star may not be combined with se, t, or p"]
+        }
+      ]
+    },
+    {
+      "id": "redteam5b-sdtest-two-variables",
+      "source": "set seed 4206\nset obs 60\ngenerate a = 10 + 3 * invnormal(runiform())\ngenerate b = 12 + 4 * invnormal(runiform())\nreplace b = . in 1/5\nsdtest a == b\ndisplay r(F) \" \" r(p) \" \" r(df_1) \" \" r(df_2) \" \" r(sd_1) \" \" r(sd_2)\nsdtest b == a\nsdtest a == 3\ncapture noisily sdtest a\n",
+      "commands": [
+        { "command": "set seed 4206", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        {
+          "command": "generate a = 10 + 3 * invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate b = 12 + 4 * invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "replace b = . in 1/5",
+          "lines": ["(5 real changes made, 5 to missing)"]
+        },
+        {
+          "command": "sdtest a == b",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       a |      60    9.598253    .3822676    2.961032    8.833338    10.36317",
+            "       b |      55    11.71474    .5638493    4.181618    10.58429    12.84519",
+            "---------+--------------------------------------------------------------------",
+            "Combined |     115    10.61048    .3482634    3.734709    9.920578    11.30039",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(a) / sd(b)                                         f =   0.5014",
+            "H0: ratio = 1                                    Degrees of freedom =   59, 54",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.0051         2*Pr(F < f) = 0.0101           Pr(F > f) = 0.9949"
+          ]
+        },
+        {
+          "command": "display r(F) \" \" r(p) \" \" r(df_1) \" \" r(df_2) \" \" r(sd_1) \" \" r(sd_2)",
+          "lines": [".50141519 .0101025 59 54 2.9610323 4.1816184"]
+        },
+        {
+          "command": "sdtest b == a",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       b |      55    11.71474    .5638493    4.181618    10.58429    12.84519",
+            "       a |      60    9.598253    .3822676    2.961032    8.833338    10.36317",
+            "---------+--------------------------------------------------------------------",
+            "Combined |     115    10.61048    .3482634    3.734709    9.920578    11.30039",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(b) / sd(a)                                         f =   1.9944",
+            "H0: ratio = 1                                    Degrees of freedom =   54, 59",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.9949         2*Pr(F > f) = 0.0101           Pr(F > f) = 0.0051"
+          ]
+        },
+        {
+          "command": "sdtest a == 3",
+          "lines": [
+            "One-sample test of variance",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       a |      60    9.598253    .3822676    2.961032    8.833338    10.36317",
+            "------------------------------------------------------------------------------",
+            "    sd = sd(a)                                             c = chi2 =  57.4772",
+            "H0: sd = 3                                       Degrees of freedom =       59",
+            "",
+            "     Ha: sd < 3                   Ha: sd != 3                   Ha: sd > 3",
+            "  Pr(C < c) = 0.4682         2*Pr(C < c) = 0.9364           Pr(C > c) = 0.5318"
+          ]
+        },
+        {
+          "command": "capture noisily sdtest a",
+          "lines": ["by() option required"]
+        }
+      ]
+    },
+    {
+      "id": "redteam5b-estat-classification-gof",
+      "source": "set seed 4207\nset obs 200\ngenerate x1 = invnormal(runiform())\ngenerate x2 = runiform()\ngenerate g = 1 + floor(4 * runiform())\ngenerate y = (0.5 * x1 + x2 - 0.5 + invnormal(runiform())) > 0\nreplace x2 = . in 3\nquietly logit y x1 x2, nolog\nestat classification\nestat classification, cutoff(.3)\ndisplay r(P_corr) \" \" r(P_p1) \" \" r(P_n0) \" \" r(P_1p) \" \" r(P_0n)\nestat classification if g > 2\nestat classification in 1/50\nestat classification, all\nestat gof\nestat gof, group(10)\ndisplay r(N) \" \" r(m) \" \" r(df) \" \" r(chi2)\nestat gof, group(8)\nestat gof if g > 1\nestat gof, group(5) outsample\nquietly probit y x1 x2, nolog\nestat gof, group(10)\nestat classification, cutoff(.6)\nquietly logit y i.g, nolog\nestat gof, group(10)\n",
+      "commands": [
+        { "command": "set seed 4207", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate x2 = runiform()", "lines": [] },
+        { "command": "generate g = 1 + floor(4 * runiform())", "lines": [] },
+        {
+          "command": "generate y = (0.5 * x1 + x2 - 0.5 + invnormal(runiform())) > 0",
+          "lines": []
+        },
+        {
+          "command": "replace x2 = . in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "quietly logit y x1 x2, nolog", "lines": [] },
+        {
+          "command": "estat classification",
+          "lines": [
+            "Logistic model for y",
+            "",
+            "              -------- True --------",
+            "Classified |         D            ~D  |      Total",
+            "-----------+--------------------------+-----------",
+            "     +     |        70            27  |         97",
+            "     -     |        31            71  |        102",
+            "-----------+--------------------------+-----------",
+            "   Total   |       101            98  |        199",
+            "",
+            "Classified + if predicted Pr(D) >= .5",
+            "True D defined as y != 0",
+            "--------------------------------------------------",
+            "Sensitivity                     Pr( +| D)   69.31%",
+            "Specificity                     Pr( -|~D)   72.45%",
+            "Positive predictive value       Pr( D| +)   72.16%",
+            "Negative predictive value       Pr(~D| -)   69.61%",
+            "--------------------------------------------------",
+            "False + rate for true ~D        Pr( +|~D)   27.55%",
+            "False - rate for true D         Pr( -| D)   30.69%",
+            "False + rate for classified +   Pr(~D| +)   27.84%",
+            "False - rate for classified -   Pr( D| -)   30.39%",
+            "--------------------------------------------------",
+            "Correctly classified                        70.85%",
+            "--------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat classification, cutoff(.3)",
+          "lines": [
+            "Logistic model for y",
+            "",
+            "              -------- True --------",
+            "Classified |         D            ~D  |      Total",
+            "-----------+--------------------------+-----------",
+            "     +     |        91            72  |        163",
+            "     -     |        10            26  |         36",
+            "-----------+--------------------------+-----------",
+            "   Total   |       101            98  |        199",
+            "",
+            "Classified + if predicted Pr(D) >= .3",
+            "True D defined as y != 0",
+            "--------------------------------------------------",
+            "Sensitivity                     Pr( +| D)   90.10%",
+            "Specificity                     Pr( -|~D)   26.53%",
+            "Positive predictive value       Pr( D| +)   55.83%",
+            "Negative predictive value       Pr(~D| -)   72.22%",
+            "--------------------------------------------------",
+            "False + rate for true ~D        Pr( +|~D)   73.47%",
+            "False - rate for true D         Pr( -| D)    9.90%",
+            "False + rate for classified +   Pr(~D| +)   44.17%",
+            "False - rate for classified -   Pr( D| -)   27.78%",
+            "--------------------------------------------------",
+            "Correctly classified                        58.79%",
+            "--------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display r(P_corr) \" \" r(P_p1) \" \" r(P_n0) \" \" r(P_1p) \" \" r(P_0n)",
+          "lines": ["58.79397 90.09901 26.530612 55.828221 72.222222"]
+        },
+        {
+          "command": "estat classification if g > 2",
+          "lines": [
+            "Logistic model for y",
+            "",
+            "              -------- True --------",
+            "Classified |         D            ~D  |      Total",
+            "-----------+--------------------------+-----------",
+            "     +     |        27            11  |         38",
+            "     -     |        10            33  |         43",
+            "-----------+--------------------------+-----------",
+            "   Total   |        37            44  |         81",
+            "",
+            "Classified + if predicted Pr(D) >= .5",
+            "True D defined as y != 0",
+            "--------------------------------------------------",
+            "Sensitivity                     Pr( +| D)   72.97%",
+            "Specificity                     Pr( -|~D)   75.00%",
+            "Positive predictive value       Pr( D| +)   71.05%",
+            "Negative predictive value       Pr(~D| -)   76.74%",
+            "--------------------------------------------------",
+            "False + rate for true ~D        Pr( +|~D)   25.00%",
+            "False - rate for true D         Pr( -| D)   27.03%",
+            "False + rate for classified +   Pr(~D| +)   28.95%",
+            "False - rate for classified -   Pr( D| -)   23.26%",
+            "--------------------------------------------------",
+            "Correctly classified                        74.07%",
+            "--------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat classification in 1/50",
+          "lines": [
+            "Logistic model for y",
+            "",
+            "              -------- True --------",
+            "Classified |         D            ~D  |      Total",
+            "-----------+--------------------------+-----------",
+            "     +     |        14             4  |         18",
+            "     -     |         7            24  |         31",
+            "-----------+--------------------------+-----------",
+            "   Total   |        21            28  |         49",
+            "",
+            "Classified + if predicted Pr(D) >= .5",
+            "True D defined as y != 0",
+            "--------------------------------------------------",
+            "Sensitivity                     Pr( +| D)   66.67%",
+            "Specificity                     Pr( -|~D)   85.71%",
+            "Positive predictive value       Pr( D| +)   77.78%",
+            "Negative predictive value       Pr(~D| -)   77.42%",
+            "--------------------------------------------------",
+            "False + rate for true ~D        Pr( +|~D)   14.29%",
+            "False - rate for true D         Pr( -| D)   33.33%",
+            "False + rate for classified +   Pr(~D| +)   22.22%",
+            "False - rate for classified -   Pr( D| -)   22.58%",
+            "--------------------------------------------------",
+            "Correctly classified                        77.55%",
+            "--------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat classification, all",
+          "lines": [
+            "Logistic model for y",
+            "",
+            "              -------- True --------",
+            "Classified |         D            ~D  |      Total",
+            "-----------+--------------------------+-----------",
+            "     +     |        70            27  |         97",
+            "     -     |        31            71  |        102",
+            "-----------+--------------------------+-----------",
+            "   Total   |       101            98  |        199",
+            "",
+            "Classified + if predicted Pr(D) >= .5",
+            "True D defined as y != 0",
+            "--------------------------------------------------",
+            "Sensitivity                     Pr( +| D)   69.31%",
+            "Specificity                     Pr( -|~D)   72.45%",
+            "Positive predictive value       Pr( D| +)   72.16%",
+            "Negative predictive value       Pr(~D| -)   69.61%",
+            "--------------------------------------------------",
+            "False + rate for true ~D        Pr( +|~D)   27.55%",
+            "False - rate for true D         Pr( -| D)   30.69%",
+            "False + rate for classified +   Pr(~D| +)   27.84%",
+            "False - rate for classified -   Pr( D| -)   30.39%",
+            "--------------------------------------------------",
+            "Correctly classified                        70.85%",
+            "--------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat gof",
+          "lines": [
+            "Goodness-of-fit test after logistic model",
+            "Variable: y",
+            "",
+            "      Number of observations =    199",
+            "Number of covariate patterns =    199",
+            "           Pearson chi2(196) = 201.30",
+            "                 Prob > chi2 = 0.3825"
+          ]
+        },
+        {
+          "command": "estat gof, group(10)",
+          "lines": [
+            "note: obs collapsed on 10 quantiles of estimated probabilities.",
+            "",
+            "Goodness-of-fit test after logistic model",
+            "Variable: y",
+            "",
+            " Number of observations =    199",
+            "       Number of groups =     10",
+            "Hosmer–Lemeshow chi2(8) =   8.80",
+            "            Prob > chi2 = 0.3593"
+          ]
+        },
+        {
+          "command": "display r(N) \" \" r(m) \" \" r(df) \" \" r(chi2)",
+          "lines": ["199 10 8 8.8015197"]
+        },
+        {
+          "command": "estat gof, group(8)",
+          "lines": [
+            "note: obs collapsed on 8 quantiles of estimated probabilities.",
+            "",
+            "Goodness-of-fit test after logistic model",
+            "Variable: y",
+            "",
+            " Number of observations =    199",
+            "       Number of groups =      8",
+            "Hosmer–Lemeshow chi2(6) =   4.63",
+            "            Prob > chi2 = 0.5924"
+          ]
+        },
+        {
+          "command": "estat gof if g > 1",
+          "lines": [
+            "Goodness-of-fit test after logistic model",
+            "Variable: y",
+            "",
+            "      Number of observations =    150",
+            "Number of covariate patterns =    150",
+            "           Pearson chi2(147) = 156.51",
+            "                 Prob > chi2 = 0.2804"
+          ]
+        },
+        {
+          "command": "estat gof, group(5) outsample",
+          "lines": [
+            "note: obs collapsed on 5 quantiles of estimated probabilities.",
+            "",
+            "Goodness-of-fit test after logistic model",
+            "Variable: y",
+            "",
+            " Number of observations =    199",
+            "       Number of groups =      5",
+            "Hosmer–Lemeshow chi2(5) =   3.14",
+            "            Prob > chi2 = 0.6778"
+          ]
+        },
+        { "command": "quietly probit y x1 x2, nolog", "lines": [] },
+        {
+          "command": "estat gof, group(10)",
+          "lines": [
+            "note: obs collapsed on 10 quantiles of estimated probabilities.",
+            "",
+            "Goodness-of-fit test after probit model",
+            "Variable: y",
+            "",
+            " Number of observations =    199",
+            "       Number of groups =     10",
+            "Hosmer–Lemeshow chi2(8) =   8.96",
+            "            Prob > chi2 = 0.3453"
+          ]
+        },
+        {
+          "command": "estat classification, cutoff(.6)",
+          "lines": [
+            "Probit model for y",
+            "",
+            "              -------- True --------",
+            "Classified |         D            ~D  |      Total",
+            "-----------+--------------------------+-----------",
+            "     +     |        53            15  |         68",
+            "     -     |        48            83  |        131",
+            "-----------+--------------------------+-----------",
+            "   Total   |       101            98  |        199",
+            "",
+            "Classified + if predicted Pr(D) >= .6",
+            "True D defined as y != 0",
+            "--------------------------------------------------",
+            "Sensitivity                     Pr( +| D)   52.48%",
+            "Specificity                     Pr( -|~D)   84.69%",
+            "Positive predictive value       Pr( D| +)   77.94%",
+            "Negative predictive value       Pr(~D| -)   63.36%",
+            "--------------------------------------------------",
+            "False + rate for true ~D        Pr( +|~D)   15.31%",
+            "False - rate for true D         Pr( -| D)   47.52%",
+            "False + rate for classified +   Pr(~D| +)   22.06%",
+            "False - rate for classified -   Pr( D| -)   36.64%",
+            "--------------------------------------------------",
+            "Correctly classified                        68.34%",
+            "--------------------------------------------------"
+          ]
+        },
+        { "command": "quietly logit y i.g, nolog", "lines": [] },
+        {
+          "command": "estat gof, group(10)",
+          "lines": [
+            "note: obs collapsed on 10 quantiles of estimated probabilities.",
+            "",
+            "Goodness-of-fit test after logistic model",
+            "Variable: y",
+            "",
+            " Number of observations =    200",
+            "       Number of groups =      4",
+            "Hosmer–Lemeshow chi2(2) =   0.00",
+            "            Prob > chi2 = 1.0000",
+            "",
+            "Warning: There are only 4 distinct quantiles because of ties."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "redteam5b-qreg-collinear",
+      "source": "set seed 4208\nset obs 80\ngenerate w = 2000 + 2000 * runiform()\ngenerate w2 = 2 * w\ngenerate price = 1000 + w + 1000 * invnormal(runiform())\nqreg price w w2, nolog\nqreg price w2 w, nolog\n",
+      "commands": [
+        { "command": "set seed 4208", "lines": [] },
+        {
+          "command": "set obs 80",
+          "lines": ["Number of observations (_N) was 0, now 80."]
+        },
+        { "command": "generate w = 2000 + 2000 * runiform()", "lines": [] },
+        { "command": "generate w2 = 2 * w", "lines": [] },
+        {
+          "command": "generate price = 1000 + w + 1000 * invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "qreg price w w2, nolog",
+          "lines": [
+            "note: w2 omitted because of collinearity.",
+            "",
+            "Median regression                                   Number of obs =         80",
+            "  Raw sum of deviations 36864.41 (about 3559.0913)",
+            "  Min sum of deviations 27400.16                    Pseudo R2     =     0.2567",
+            "",
+            "------------------------------------------------------------------------------",
+            "       price | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |   1.184018   .2650155     4.47   0.000     .6564126    1.711623",
+            "          w2 |          0  (omitted)",
+            "       _cons |   152.1495   800.6843     0.19   0.850     -1441.89    1746.189",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "qreg price w2 w, nolog",
+          "lines": [
+            "note: w omitted because of collinearity.",
+            "",
+            "Median regression                                   Number of obs =         80",
+            "  Raw sum of deviations 36864.41 (about 3559.0913)",
+            "  Min sum of deviations 27400.16                    Pseudo R2     =     0.2567",
+            "",
+            "------------------------------------------------------------------------------",
+            "       price | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          w2 |    .592009   .1325077     4.47   0.000     .3282063    .8558116",
+            "           w |          0  (omitted)",
+            "       _cons |   152.1495   800.6843     0.19   0.850     -1441.89    1746.189",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "redteam5b-tabstat-display-width",
+      "source": "set seed 7\nset obs 30\ngenerate g = ceil(_n/10)\nlabel define gl5b 1 \"Café Ñandú group\" 2 \"日本語\" 3 \"plain\"\nlabel values g gl5b\ngenerate y = round(100 * runiform(), .01)\ntabstat y, by(g) stat(mean n sd)\ngenerate h = g\nlabel define hl5b 1 \"日本語日本語日本語\" 2 \"abc\" 3 \"plain\"\nlabel values h hl5b\ntabstat y, by(h) stat(mean n)\ntabstat y, by(h) stat(mean n) labelwidth(10)\ngenerate s = \"a\"\ncapture noisily tabstat s\ncapture noisily tabstat y s\n",
+      "commands": [
+        { "command": "set seed 7", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate g = ceil(_n/10)", "lines": [] },
+        {
+          "command": "label define gl5b 1 \"Café Ñandú group\" 2 \"日本語\" 3 \"plain\"",
+          "lines": []
+        },
+        { "command": "label values g gl5b", "lines": [] },
+        { "command": "generate y = round(100 * runiform(), .01)", "lines": [] },
+        {
+          "command": "tabstat y, by(g) stat(mean n sd)",
+          "lines": [
+            "Summary for variables: y",
+            "Group variable: g",
+            "",
+            "               g |      Mean         N        SD",
+            "-----------------+------------------------------",
+            "Café Ñandú group |    56.177        10  37.00681",
+            "          日本語 |    63.171        10  29.33575",
+            "           plain |     32.89        10  24.42706",
+            "-----------------+------------------------------",
+            "           Total |    50.746        30  32.41332",
+            "------------------------------------------------"
+          ]
+        },
+        { "command": "generate h = g", "lines": [] },
+        {
+          "command": "label define hl5b 1 \"日本語日本語日本語\" 2 \"abc\" 3 \"plain\"",
+          "lines": []
+        },
+        { "command": "label values h hl5b", "lines": [] },
+        {
+          "command": "tabstat y, by(h) stat(mean n)",
+          "lines": [
+            "Summary for variables: y",
+            "Group variable: h",
+            "",
+            "        h |      Mean         N",
+            "----------+--------------------",
+            " 日本語日 |    56.177        10",
+            "      abc |    63.171        10",
+            "    plain |     32.89        10",
+            "----------+--------------------",
+            "    Total |    50.746        30",
+            "-------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat y, by(h) stat(mean n) labelwidth(10)",
+          "lines": [
+            "Summary for variables: y",
+            "Group variable: h",
+            "",
+            "        h |      Mean         N",
+            "----------+--------------------",
+            " 日本語日 |    56.177        10",
+            "      abc |    63.171        10",
+            "    plain |     32.89        10",
+            "----------+--------------------",
+            "    Total |    50.746        30",
+            "-------------------------------"
+          ]
+        },
+        { "command": "generate s = \"a\"", "lines": [] },
+        {
+          "command": "capture noisily tabstat s",
+          "lines": [
+            "string variables not allowed in varlist;",
+            "s is a string variable"
+          ]
+        },
+        {
+          "command": "capture noisily tabstat y s",
+          "lines": [
+            "string variables not allowed in varlist;",
+            "s is a string variable"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "redteam5b-sums-precision",
+      "source": "set seed 4209\nset obs 14080\ngenerate double inc = round(30000 + 60000 * runiform(), .01)\ngenerate x = 20 + 40 * runiform()\ngenerate day = 22000 + floor(1000 * runiform())\nformat day %td\ngenerate double w3 = 1 / 3 + mod(_n, 7) / 9\ngenerate double wsmall = (1 + 9 * runiform()) / 1000\nsummarize inc\ndisplay %21.0g r(sum)\nregress inc x [aweight=w3]\nregress inc x [aweight=wsmall]\ngenerate double third = 1 / 3\nregress inc x [aweight=third] in 1/74\ntabstat inc if day < 22100, by(day)\nsummarize inc [aweight=w3]\ndisplay %21.0g r(sum_w) \" \" %21.0g r(mean)\n",
+      "commands": [
+        { "command": "set seed 4209", "lines": [] },
+        {
+          "command": "set obs 14080",
+          "lines": ["Number of observations (_N) was 0, now 14,080."]
+        },
+        {
+          "command": "generate double inc = round(30000 + 60000 * runiform(), .01)",
+          "lines": []
+        },
+        { "command": "generate x = 20 + 40 * runiform()", "lines": [] },
+        {
+          "command": "generate day = 22000 + floor(1000 * runiform())",
+          "lines": []
+        },
+        { "command": "format day %td", "lines": [] },
+        {
+          "command": "generate double w3 = 1 / 3 + mod(_n, 7) / 9",
+          "lines": []
+        },
+        {
+          "command": "generate double wsmall = (1 + 9 * runiform()) / 1000",
+          "lines": []
+        },
+        {
+          "command": "summarize inc",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "         inc |     14,080    60196.92    17295.13   30004.25   89996.96"
+          ]
+        },
+        {
+          "command": "display %21.0g r(sum)",
+          "lines": [" 847572623.6700000763"]
+        },
+        {
+          "command": "regress inc x [aweight=w3]",
+          "lines": [
+            "(sum of wgt is 9,386.33333333333)",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =    14,080",
+            "-------------+----------------------------------   F(1, 14078)     =      1.31",
+            "       Model |   391598577         1   391598577   Prob > F        =    0.2528",
+            "    Residual |  4.2147e+12    14,078   299383452   R-squared       =    0.0001",
+            "-------------+----------------------------------   Adj R-squared   =    0.0000",
+            "       Total |  4.2151e+12    14,079   299390002   Root MSE        =     17303",
+            "",
+            "------------------------------------------------------------------------------",
+            "         inc | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -14.27646   12.48286    -1.14   0.253    -38.74452    10.19159",
+            "       _cons |   60752.61   519.9415   116.85   0.000     59733.45    61771.76",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress inc x [aweight=wsmall]",
+          "lines": [
+            "(sum of wgt is 77.63011004218798)",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =    14,080",
+            "-------------+----------------------------------   F(1, 14078)     =      1.87",
+            "       Model |   560111305         1   560111305   Prob > F        =    0.1713",
+            "    Residual |  4.2122e+12    14,078   299207843   R-squared       =    0.0001",
+            "-------------+----------------------------------   Adj R-squared   =    0.0001",
+            "       Total |  4.2128e+12    14,079   299226375   Root MSE        =     17298",
+            "",
+            "------------------------------------------------------------------------------",
+            "         inc | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -17.12955   12.51974    -1.37   0.171    -41.66991    7.410799",
+            "       _cons |   60761.36   521.0317   116.62   0.000     59740.07    61782.65",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate double third = 1 / 3", "lines": [] },
+        {
+          "command": "regress inc x [aweight=third] in 1/74",
+          "lines": [
+            "(sum of wgt is 24.66666666666666)",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =        74",
+            "-------------+----------------------------------   F(1, 72)        =      2.26",
+            "       Model |   783358690         1   783358690   Prob > F        =    0.1371",
+            "    Residual |  2.4958e+10        72   346642453   R-squared       =    0.0304",
+            "-------------+----------------------------------   Adj R-squared   =    0.0170",
+            "       Total |  2.5742e+10        73   352624867   Root MSE        =     18618",
+            "",
+            "------------------------------------------------------------------------------",
+            "         inc | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -279.6172   186.0049    -1.50   0.137    -650.4112    91.17683",
+            "       _cons |   70479.55   8001.623     8.81   0.000     54528.61     86430.5",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat inc if day < 22100, by(day)",
+          "lines": [
+            "Summary for variables: inc",
+            "Group variable: day",
+            "",
+            "      day |      Mean",
+            "----------+----------",
+            "26mar2020 |  57596.64",
+            "27mar2020 |  57097.71",
+            "28mar2020 |  52245.87",
+            "29mar2020 |  55832.66",
+            "30mar2020 |  59751.73",
+            "31mar2020 |  63472.19",
+            "01apr2020 |  64225.07",
+            "02apr2020 |  63232.41",
+            "03apr2020 |  63165.07",
+            "04apr2020 |  61108.32",
+            "05apr2020 |  65023.38",
+            "06apr2020 |  60899.13",
+            "07apr2020 |  46295.19",
+            "08apr2020 |  56333.26",
+            "09apr2020 |  74307.51",
+            "10apr2020 |  58373.26",
+            "11apr2020 |  55541.95",
+            "12apr2020 |  63098.25",
+            "13apr2020 |  65807.32",
+            "14apr2020 |  62203.94",
+            "15apr2020 |  61401.56",
+            "16apr2020 |   53798.1",
+            "17apr2020 |  50084.61",
+            "18apr2020 |  56158.78",
+            "19apr2020 |   51792.6",
+            "20apr2020 |  65979.02",
+            "21apr2020 |  60831.61",
+            "22apr2020 |  65395.63",
+            "23apr2020 |  64645.57",
+            "24apr2020 |  70808.28",
+            "25apr2020 |  55198.72",
+            "26apr2020 |  58306.44",
+            "27apr2020 |  65414.06",
+            "28apr2020 |  59622.96",
+            "29apr2020 |  61235.65",
+            "30apr2020 |  59274.39",
+            "01may2020 |  61952.73",
+            "02may2020 |  61370.69",
+            "03may2020 |  56238.92",
+            "04may2020 |  57169.78",
+            "05may2020 |  61281.57",
+            "06may2020 |  59460.46",
+            "07may2020 |  56546.65",
+            "08may2020 |  59866.68",
+            "09may2020 |  61656.67",
+            "10may2020 |     58576",
+            "11may2020 |  57528.35",
+            "12may2020 |   62251.1",
+            "13may2020 |   62413.8",
+            "14may2020 |  65283.49",
+            "15may2020 |   57878.3",
+            "16may2020 |  56654.08",
+            "17may2020 |  61730.66",
+            "18may2020 |  61317.58",
+            "19may2020 |  65277.27",
+            "20may2020 |  57967.22",
+            "21may2020 |  56698.25",
+            "22may2020 |  62558.35",
+            "23may2020 |  60418.77",
+            "24may2020 |  65508.53",
+            "25may2020 |  64529.16",
+            "26may2020 |  66728.54",
+            "27may2020 |  59969.33",
+            "28may2020 |  64487.27",
+            "29may2020 |  57980.45",
+            "30may2020 |  59880.26",
+            "31may2020 |  51513.54",
+            "01jun2020 |  60790.13",
+            "02jun2020 |  56596.17",
+            "03jun2020 |  52346.22",
+            "04jun2020 |  60021.36",
+            "05jun2020 |   57551.9",
+            "06jun2020 |  59529.99",
+            "07jun2020 |  67589.84",
+            "08jun2020 |  61716.53",
+            "09jun2020 |     63222",
+            "10jun2020 |  64074.89",
+            "11jun2020 |  46694.32",
+            "12jun2020 |  63516.88",
+            "13jun2020 |   52652.1",
+            "14jun2020 |  52160.71",
+            "15jun2020 |  61010.35",
+            "16jun2020 |  61108.58",
+            "17jun2020 |  65951.99",
+            "18jun2020 |  56964.89",
+            "19jun2020 |  64818.64",
+            "20jun2020 |  63053.71",
+            "21jun2020 |  54224.21",
+            "22jun2020 |  65524.85",
+            "23jun2020 |   66216.7",
+            "24jun2020 |  46639.27",
+            "25jun2020 |  63247.94",
+            "26jun2020 |  53861.31",
+            "27jun2020 |  59740.48",
+            "28jun2020 |  68972.46",
+            "29jun2020 |  62100.92",
+            "30jun2020 |  61122.78",
+            "01jul2020 |  56275.89",
+            "02jul2020 |     63669",
+            "03jul2020 |   57417.1",
+            "----------+----------",
+            "    Total |  60136.44",
+            "---------------------"
+          ]
+        },
+        {
+          "command": "summarize inc [aweight=w3]",
+          "lines": [
+            "    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max",
+            "-------------+-----------------------------------------------------------------",
+            "         inc |  14,080  9386.33333    60181.82   17302.89   30004.25   89996.96"
+          ]
+        },
+        {
+          "command": "display %21.0g r(sum_w) \" \" %21.0g r(mean)",
+          "lines": [" 9386.333333333332121  60181.82009884347644"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

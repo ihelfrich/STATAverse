@@ -761,6 +761,22 @@ const prtestiOptions = (session, optionText) =>
     optionText ? "," + optionText : "",
   ).options;
 
+/**
+ * The count, mean and variance of two samples taken together, from the
+ * count, mean and variance of each, as sdtesti combines them.
+ */
+function pooled(a, b) {
+  const n = a.n + b.n,
+    mean = (a.n * a.mean + b.n * b.mean) / n,
+    variance =
+      ((a.n - 1) * a.variance +
+        (b.n - 1) * b.variance +
+        a.n * (a.mean - mean) ** 2 +
+        b.n * (b.mean - mean) ** 2) /
+      (n - 1);
+  return { n, mean, variance, sd: Math.sqrt(variance) };
+}
+
 function sdtest(session, text, ctx) {
   const t = target(text),
     parsed = session.parse("[if] [in] [, BY(varlist) Level(cilevel)]", t.rest),
@@ -775,18 +791,32 @@ function sdtest(session, text, ctx) {
       `${first.padStart(8)} |     Obs        Mean    Std. err.   Std. dev.   [${g(level)}% conf. interval]`,
     middle =
       "---------+--------------------------------------------------------------------";
+  // sdtest x == y compares the variances of two variables, each over its
+  // own nonmissing values; a number after == is a one-sample test.
+  const second =
+    t.value !== undefined && literal(t.value) === undefined
+      ? numericVariable(session, session.varlist(t.value)[0])
+      : null;
+  if (second && parsed.options.by)
+    throw new StataError("may not combine = and by()", 198);
   ctx.out("");
-  if (parsed.options.by) {
-    const two = twoGroups(session, parsed, variable),
-      [a, b] = two.groups.map((rows) => moments(values(variable, rows))),
-      all = moments(values(variable, two.rows)),
+  if (parsed.options.by || second) {
+    const two = second
+        ? { labels: [variable.name, second.name] }
+        : twoGroups(session, parsed, variable),
+      [a, b] = second
+        ? [variable, second].map((v) =>
+            moments(values(v, session.rows(parsed, null))),
+          )
+        : two.groups.map((rows) => moments(values(variable, rows))),
+      all = second ? pooled(a, b) : moments(values(variable, two.rows)),
       f = a.variance / b.variance,
-      lower = 1 - Ftail(a.n - 1, b.n - 1, f),
-      upper = 1 - lower,
+      upper = Ftail(a.n - 1, b.n - 1, f),
+      lower = 1 - upper,
       p = 2 * Math.min(lower, upper);
     ctx.out("Variance ratio test");
     ctx.out(RULE);
-    ctx.out(head("Group"));
+    ctx.out(head(second ? "Variable" : "Group"));
     ctx.out(middle);
     ctx.out(row(two.labels[0], a));
     ctx.out(row(two.labels[1], b));
@@ -811,7 +841,7 @@ function sdtest(session, text, ctx) {
     ctx.out("");
     ctx.out(alternatives("Ha: ratio < 1", "Ha: ratio != 1", "Ha: ratio > 1"));
     ctx.out(
-      `  Pr(F < f) = ${four(lower)}         2*Pr(F ${lower <= upper ? "<" : ">"} f) = ${four(p)}           Pr(F > f) = ${four(upper)}`,
+      `  Pr(F < f) = ${four(lower)}         2*Pr(F ${lower < upper ? "<" : ">"} f) = ${four(p)}           Pr(F > f) = ${four(upper)}`,
     );
     ctx.out("");
     session.results.r = {
@@ -828,8 +858,8 @@ function sdtest(session, text, ctx) {
     };
     return;
   }
-  if (t.value === undefined) throw new StataError("invalid syntax", 198);
-  const sd0 = session.scalar(t.value),
+  if (t.value === undefined) throw new StataError("by() option required", 100);
+  const sd0 = literal(t.value),
     m = moments(values(variable, session.rows(parsed, null))),
     df = m.n - 1,
     chi2 = (df * m.variance) / (sd0 * sd0),
@@ -858,7 +888,7 @@ function sdtest(session, text, ctx) {
     ),
   );
   ctx.out(
-    `  Pr(C < c) = ${four(lower)}         2*Pr(C ${lower <= upper ? "<" : ">"} c) = ${four(p)}           Pr(C > c) = ${four(upper)}`,
+    `  Pr(C < c) = ${four(lower)}         2*Pr(C ${lower < upper ? "<" : ">"} c) = ${four(p)}           Pr(C > c) = ${four(upper)}`,
   );
   ctx.out("");
   session.results.r = { p, p_l: lower, p_u: upper, sd: m.sd, chi2, df, N: m.n };

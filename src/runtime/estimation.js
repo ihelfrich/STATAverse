@@ -10,7 +10,13 @@ import { applyFormat, parseFormat } from "./format.js";
 import { FUNCTIONS } from "./functions.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
-import { count, labelled, percentile, weightedRows } from "./reports.js";
+import {
+  accurateSum,
+  count,
+  labelled,
+  percentile,
+  weightedRows,
+} from "./reports.js";
 import { optionItems, splitAtComma } from "./syntax.js";
 import { resolveVariable } from "./varlist.js";
 import { MISSING, isMissing, isName, isStringType } from "./values.js";
@@ -49,6 +55,27 @@ export function invertSymmetric(a) {
       out[i][j] = out[j][i] = sum;
     }
   return out;
+}
+/**
+ * The rank of a symmetric nonnegative matrix, found by sweeping each
+ * diagonal element in turn and treating one that has fallen below a
+ * relative tolerance of its original value as zero, as invsym() does.
+ */
+export function symmetricRank(m) {
+  const n = m.length,
+    a = m.map((row) => row.slice());
+  let rank = 0;
+  for (let j = 0; j < n; j++) {
+    const d = a[j][j];
+    if (!(m[j][j] > 0) || !(d > 1e-10 * m[j][j])) continue;
+    rank++;
+    for (let i = 0; i < n; i++)
+      if (i !== j)
+        for (let k = 0; k < n; k++)
+          if (k !== j) a[i][k] -= (a[i][j] * a[j][k]) / d;
+    for (let i = 0; i < n; i++) if (i !== j) a[i][j] = a[j][i] = 0;
+  }
+  return rank;
 }
 export const quadratic = (v, m) =>
   v.reduce(
@@ -354,7 +381,7 @@ export function fit(session, parsed, by) {
     obs = obs.filter((i) => !isMissing(all[i]) && all[i] !== 0);
     if (obs.some((i) => all[i] < 0))
       throw new StataError("negative weights encountered", 402);
-    sumW = obs.reduce((t, i) => t + all[i], 0);
+    sumW = accurateSum(obs, (i) => all[i]);
     if (wtype === "fweight") {
       if (obs.some((i) => !Number.isInteger(all[i])))
         throw new StataError("may not use noninteger frequency weights", 401);
@@ -426,12 +453,17 @@ export function fit(session, parsed, by) {
         intercept + kept.reduce((t, k, j) => t + x[k][i] * slopes[j], 0),
     ),
     residuals = y.map((v, i) => v - fitted[i]),
-    rss = cross(residuals, residuals),
-    tss = cross(yc, yc),
-    mss = tss - rss,
     rank = kept.length + (constant ? 1 : 0),
     dfModel = kept.length,
-    dfResidual = n - rank;
+    dfResidual = n - rank,
+    tss = cross(yc, yc),
+    // With as many parameters as observations, or an outcome the
+    // regressors fit exactly, the residual sum of squares is 0, not
+    // rounding noise: Stata's sweep treats what is left of y, as of any
+    // column, as zero below a relative tolerance.
+    noise = cross(residuals, residuals),
+    rss = dfResidual > 0 && noise > 1e-13 * tss ? noise : 0,
+    mss = tss - rss;
   // (Z'Z)^-1 for Z = [kept columns, 1], assembled from the centred inverse.
   const size = rank,
     bread = Array.from({ length: size }, () => new Array(size).fill(0));
@@ -496,8 +528,16 @@ export function fit(session, parsed, by) {
     );
   }
   const dfTest = cluster ? clusters - 1 : dfResidual;
+  // A robust variance can have less than full rank, as with fewer clusters
+  // than coefficients. Stata then leaves F missing and takes e(rank) and
+  // the model degrees of freedom (that rank less the constant) from it. A
+  // variance that is only nearly singular, as for year and year squared,
+  // keeps its F; the tolerance of symmetricRank() separates the two as the
+  // cases recorded from Stata 19 do.
+  const vRank = robust ? symmetricRank(covariance) : rank,
+    shortRank = vRank < rank;
   let F = MISSING;
-  if (dfModel > 0) {
+  if (dfModel > 0 && dfResidual > 0 && !shortRank) {
     if (!robust) F = mss / dfModel / (rss / dfResidual);
     else {
       const block = covariance
@@ -507,6 +547,8 @@ export function fit(session, parsed, by) {
       if (inverse) F = quadratic(slopes, inverse) / dfModel;
     }
   }
+  // An exact fit gives 0/0 or x/0: Stata shows such an F as missing.
+  if (!Number.isFinite(F)) F = MISSING;
   // Coefficients in the order of the design, with base and omitted columns
   // held at zero, then the constant. Positions go by column, not name: a
   // variable named twice has two columns of one name, one of them omitted.
@@ -539,19 +581,25 @@ export function fit(session, parsed, by) {
     constant,
     estimable: names.map((_, k) => position.has(k)),
     N: n,
-    df_m: dfModel,
+    df_m: shortRank ? Math.max(0, vRank - (constant ? 1 : 0)) : dfModel,
     df_r: dfTest,
-    rank,
+    rank: vRank,
     F,
     rss,
     mss,
     tss,
     r2: tss ? mss / tss : MISSING,
-    r2_a: tss
-      ? 1 - ((rss / dfResidual) * (n - (constant ? 1 : 0))) / tss
-      : MISSING,
-    rmse: Math.sqrt(rss / dfResidual),
-    ll: -0.5 * n * (Math.log(2 * Math.PI) + Math.log(rss / n) + 1),
+    // With no residual degrees of freedom (N equal to the parameters) the
+    // adjusted R-squared is missing and the root MSE is 0, as in Stata.
+    r2_a:
+      tss && dfResidual > 0
+        ? 1 - ((rss / dfResidual) * (n - (constant ? 1 : 0))) / tss
+        : MISSING,
+    rmse: dfResidual > 0 ? Math.sqrt(rss / dfResidual) : 0,
+    ll:
+      rss > 0
+        ? -0.5 * n * (Math.log(2 * Math.PI) + Math.log(rss / n) + 1)
+        : MISSING,
     vce: cluster ? "cluster" : robust ? "robust" : "ols",
     sumW,
     wtype,
@@ -592,7 +640,10 @@ function tableBlocks(session, model) {
     block.shown = block.items.filter(
       (k) => !hiddenBase(model.columns[k], model),
     );
+    // estimates table lays out every factor as a block of its own when it
+    // compares several models (model.factorBlocks).
     const one =
+      !model.factorBlocks &&
       block.term !== "_cons" &&
       !block.term.variable &&
       block.term.components.length === 1 &&
@@ -799,15 +850,21 @@ export function termRows(
   const out = [];
   let previousPlain = true;
   tableBlocks(session, model).forEach((block, b) => {
+    // In estimates table a factor shown as one row (1.name) has a blank row
+    // before it, though none after (model.aloneGap).
     const { shown, alone } = block,
       plain =
-        block.term === "_cons" ? previousPlain : !!block.term.variable || alone;
+        block.term === "_cons"
+          ? previousPlain
+          : !!block.term.variable || (alone && !model.aloneGap);
     if (b && !(plain && previousPlain)) out.push(gap);
     else if (b && block.term === "_cons" && !previousPlain) out.push(gap);
     // A factor headed by its name with one labelled level has a blank row
     // before it, but none after.
     previousPlain =
-      block.term === "_cons" ? previousPlain : plain || block.single;
+      block.term === "_cons"
+        ? previousPlain
+        : plain || block.single || (alone && !!model.aloneGap);
     const row = (label, k) =>
       out.push(
         model.estimable[k]
@@ -880,9 +937,23 @@ export function termRows(
  * (2.5e+04), as Stata shows it.
  */
 export const statisticCell = (value) =>
-  Math.abs(value) >= 9999.995
+  !isMissing(value) && Math.abs(value) >= 9999.995
     ? applyFormat(value, "%9.1e")
     : applyFormat(value, "%9.2f");
+
+/**
+ * The standard error, test statistic and two-sided p-value of coefficient
+ * k. A variance of zero or one that is not a number (an exact fit, or no
+ * residual degrees of freedom) leaves all three missing, shown as ".".
+ */
+export function coefficientTest(model, k) {
+  const v = model.V[k][k];
+  if (!(v > 0) || isMissing(v))
+    return { se: MISSING, t: MISSING, p: MISSING, missing: true };
+  const se = Math.sqrt(v),
+    t = model.b[k] / se;
+  return { se, t, p: 2 * ttail(model.df_r, Math.abs(t)), missing: false };
+}
 
 export function coefficientRows(session, model, level, width) {
   const critical = invttail(model.df_r, (1 - level / 100) / 2);
@@ -890,9 +961,12 @@ export function coefficientRows(session, model, level, width) {
     session,
     model,
     (k) => {
-      const se = Math.sqrt(model.V[k][k]),
-        t = model.b[k] / se;
-      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${statisticCell(t)}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(model.b[k] - critical * se).padStart(13)}${g(model.b[k] + critical * se).padStart(12)}`;
+      const { se, t, p, missing } = coefficientTest(model, k),
+        bound = (sign) =>
+          missing || !Number.isFinite(critical)
+            ? MISSING
+            : model.b[k] + sign * critical * se;
+      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${statisticCell(t)}${applyFormat(p, "%8.3f")}${g(bound(-1)).padStart(13)}${g(bound(1)).padStart(12)}`;
     },
     width,
   );
@@ -938,7 +1012,7 @@ function regress(session, text, ctx) {
     side = [
       stat("Number of obs", count(model.N), wide),
       // An F too large for its column is shown as a bound, > 99999.00.
-      model.F > 99999
+      !isMissing(model.F) && model.F > 99999
         ? stat(fLabel, "99999.00", wide, ">")
         : stat(fLabel, applyFormat(model.F, "%9.2f").trim(), wide),
       stat("Prob > F", applyFormat(p, "%6.4f").trim(), wide),
@@ -1032,14 +1106,13 @@ function regress(session, text, ctx) {
       session,
       model,
       (k) => {
-        const se = Math.sqrt(model.V[k][k]),
-          t = model.b[k] / se,
+        const { se, t, p } = coefficientTest(model, k),
           beta =
             model.names[k] === "_cons"
               ? MISSING
               : (model.b[k] * sd(model.sample.map(model.columns[k].value))) /
                 sdY;
-        return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${applyFormat(t, "%9.2f")}${applyFormat(2 * ttail(model.df_r, Math.abs(t)), "%8.3f")}${g(beta).padStart(25)}`;
+        return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${statisticCell(t)}${applyFormat(p, "%8.3f")}${g(beta).padStart(25)}`;
       },
       width,
       0,
@@ -2735,7 +2808,7 @@ function tabstatStatistics(text) {
 function tabstatSummary(values, weights) {
   const n = values.length,
     w = weights ?? values.map(() => 1),
-    W = w.reduce((a, b) => a + b, 0);
+    W = accurateSum(w);
   if (!n)
     return {
       N: 0,
@@ -2749,7 +2822,7 @@ function tabstatSummary(values, weights) {
       Kurtosis: MISSING,
       p: () => MISSING,
     };
-  const sum = values.reduce((t, v, i) => t + w[i] * v, 0),
+  const sum = accurateSum(values, (v, i) => w[i] * v),
     mean = sum / W,
     central = (k) => values.reduce((t, v, i) => t + w[i] * (v - mean) ** k, 0),
     m2 = central(2) / W,
@@ -2804,6 +2877,36 @@ const tabstatValue = (s, name) =>
           : /^p\d+$/.test(name)
             ? s.p(Number(name.slice(1)))
             : s[name];
+
+/** Whether a code point takes two columns on screen (East Asian wide). */
+const wideCharacter = (code) =>
+  (code >= 0x1100 && code <= 0x115f) ||
+  (code >= 0x2e80 && code <= 0x303e) ||
+  (code >= 0x3041 && code <= 0x33ff) ||
+  (code >= 0x3400 && code <= 0x4dbf) ||
+  (code >= 0x4e00 && code <= 0x9fff) ||
+  (code >= 0xa000 && code <= 0xa4cf) ||
+  (code >= 0xac00 && code <= 0xd7a3) ||
+  (code >= 0xf900 && code <= 0xfaff) ||
+  (code >= 0xfe30 && code <= 0xfe4f) ||
+  (code >= 0xff00 && code <= 0xff60) ||
+  (code >= 0xffe0 && code <= 0xffe6) ||
+  (code >= 0x20000 && code <= 0x3fffd);
+/** The columns a string takes on screen, as udstrlen() counts them. */
+export const displayWidth = (text) =>
+  [...text].reduce((t, c) => t + (wideCharacter(c.codePointAt(0)) ? 2 : 1), 0);
+/** The start of a string that fits in a number of columns: udsubstr(). */
+function displayPrefix(text, columns) {
+  let out = "",
+    used = 0;
+  for (const c of text) {
+    const w = wideCharacter(c.codePointAt(0)) ? 2 : 1;
+    if (used + w > columns) break;
+    out += c;
+    used += w;
+  }
+  return out;
+}
 
 /**
  * tabstat, laid out as tabstat.ado lays it out: statistics across the top
@@ -2948,10 +3051,15 @@ function tabstat(session, text, ctx) {
         : (by ? 1 + byw : 0) + (descr ? 9 : 0),
     linesize = session.settings?.linesize ?? 79,
     neblock = Math.max(1, Math.floor((linesize - lleft - 1) / colwidth)),
-    align = (text, width) =>
-      descr && by ? text.padEnd(width) : text.padStart(width),
+    // Labels are cut and aligned by the columns they take on screen, two
+    // for a Chinese, Japanese or Korean character, as udsubstr() and
+    // {ralign} take them.
+    align = (text, width) => {
+      const room = " ".repeat(Math.max(0, width - displayWidth(text)));
+      return descr && by ? text + room : room + text;
+    },
     groupLabel = (g, first) =>
-      by ? `${align(first ? g.label.slice(0, byw) : "", byw)} ` : "",
+      by ? `${align(first ? displayPrefix(g.label, byw) : "", byw)} ` : "",
     cell = (value, format) => applyFormat(value, format).padStart(colwidth),
     rule = (n, corner = "+") =>
       `${"-".repeat(lleft)}${corner}${"-".repeat(colwidth * n)}`,

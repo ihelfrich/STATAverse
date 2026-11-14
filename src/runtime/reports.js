@@ -32,6 +32,24 @@ export function percentile(sorted, p) {
   }
   return sorted[Math.min(n - 1, Math.floor(position))];
 }
+/**
+ * A sum carried with its rounding error (Neumaier's compensated sum), so
+ * that it is the exact sum rounded once, as Stata's sums are: plain
+ * addition drifts in the last digits, which a mean on a .xx5 boundary or
+ * a weight sum shown to 16 digits exposes.
+ */
+export function accurateSum(values, term = (v) => v) {
+  let sum = 0,
+    error = 0;
+  for (let k = 0; k < values.length; k++) {
+    const v = term(values[k], k),
+      t = sum + v;
+    error += Math.abs(sum) >= Math.abs(v) ? sum - t + v : v - t + sum;
+    sum = t;
+  }
+  return sum + error;
+}
+
 export function moments(values) {
   const n = values.length;
   if (!n)
@@ -44,15 +62,14 @@ export function moments(values) {
       min: MISSING,
       max: MISSING,
     };
-  let sum = 0,
-    min = Infinity,
+  let min = Infinity,
     max = -Infinity;
   for (const v of values) {
-    sum += v;
     if (v < min) min = v;
     if (v > max) max = v;
   }
-  const mean = sum / n;
+  const sum = accurateSum(values),
+    mean = sum / n;
   let ss = 0;
   for (const v of values) ss += (v - mean) ** 2;
   const variance = n > 1 ? ss / (n - 1) : MISSING;
@@ -119,9 +136,9 @@ function weightedMoments(variable, rows, weights) {
   if (isStringType(variable.type)) return moments([]);
   const use = rows.filter((i) => !isMissing(variable.data[i])),
     n = use.length,
-    sumW = use.reduce((t, i) => t + weights[i], 0);
+    sumW = accurateSum(use, (i) => weights[i]);
   if (!n) return moments([]);
-  const sum = use.reduce((t, i) => t + weights[i] * variable.data[i], 0),
+  const sum = accurateSum(use, (i) => weights[i] * variable.data[i]),
     mean = sum / sumW,
     variance =
       n > 1

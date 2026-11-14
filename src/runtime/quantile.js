@@ -169,9 +169,12 @@ function qreg(session, text, ctx) {
       session.rows(parsed, null),
       true,
     ),
-    active = columns.filter((c) => !c.base),
     n = sample.length;
   if (!n) throw new StataError("no observations", 2000);
+  // A regressor collinear with those before it is omitted, as _rmcoll
+  // omits it in qreg.ado.
+  for (const c of columns) c.omitted = !!c.collinear && !c.base;
+  const active = columns.filter((c) => !c.base && !c.omitted);
   const y = sample.map((i) => dependent.data[i]),
     x = sample.map((i) => [...active.map((c) => c.value(i)), 1]),
     k = x[0].length,
@@ -262,6 +265,8 @@ function qreg(session, text, ctx) {
     level = options.level,
     pseudo = 1 - full.value / alone.value;
   session.estimates = model;
+  for (const c of columns)
+    if (c.omitted) ctx.out(`note: ${c.name} omitted because of collinearity.`);
   session.results.e = {
     N: n,
     df_m: k - 1,

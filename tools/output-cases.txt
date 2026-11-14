@@ -7155,3 +7155,234 @@ qreg y x, quantile(.25) nolog
 display %18.10g e(q_v)
 qreg y x in 1/100, quantile(.1) nolog
 display %18.10g e(q_v)
+=== redteam5b-regress-degenerate
+set obs 2
+generate x = _n
+generate y = 3 * _n + 1
+regress y x
+display e(df_m) " " e(F) " " e(r2_a) " " e(rmse) " " e(df_r) " " e(rss) " " e(ll)
+regress y x, beta
+regress y x, vce(robust)
+display e(df_m) " " e(rank)
+clear
+set obs 3
+generate x = _n
+generate z = _n^2
+generate y = 3 * _n + 1 + z
+regress y x z
+clear
+set seed 4201
+set obs 20
+generate x = runiform()
+generate y = 2 * x + 1
+generate w = 1 + runiform()
+regress y x [aweight=w]
+clear
+set seed 4202
+set obs 200
+generate x1 = runiform()
+generate x2 = runiform()
+generate x3 = runiform()
+generate g = 1 + floor(runiform() * 4)
+generate c = mod(_n, 3)
+generate c2 = mod(_n, 2)
+generate c4 = mod(_n, 4)
+generate y = x1 + x2 + g + invnormal(runiform())
+regress y x1 x2 x3, vce(cluster c)
+display e(df_m) " " e(F) " " e(rank) " " e(df_r)
+regress y x1 x2, vce(cluster c2)
+display e(df_m) " " e(F) " " e(rank)
+regress y x1, vce(cluster c)
+display e(df_m) " " e(rank)
+regress y x1 i.g, vce(cluster c4)
+display e(df_m) " " e(F) " " e(rank)
+clear
+set seed 12345
+set obs 1000
+generate x = runiform()
+generate y8 = 3 * x + 0.0001 * invnormal(runiform())
+regress y8 x, beta
+regress y8 x
+=== redteam5b-ci-single-and-by
+set seed 4203
+set obs 40
+generate g = 1 + floor(runiform() * 3)
+label define cib5 1 "Less than HS" 2 "High school" 3 "BA+"
+label values g cib5
+generate y = 1000 * runiform()
+generate z = runiform()
+ci means y in 1/1
+ci means y z in 1/1
+display r(N) " " r(mean) " " r(se) " " r(lb) " " r(ub)
+bysort g: ci means y
+by g: ci means y z, level(90)
+display r(N) " " r(mean)
+=== redteam5b-estat-vce-interactions
+set linesize 79
+set seed 4204
+set obs 300
+generate group = 1 + floor(runiform() * 4)
+generate employed = runiform() > .5
+generate age = 20 + 40 * runiform()
+generate displace = 100 + 200 * runiform()
+generate y = 1000 + 30 * age + 500 * employed + 10 * age * employed + 300 * group + 200 * invnormal(runiform())
+quietly regress y c.age##i.employed, vce(robust)
+estat vce
+quietly regress y i.group##c.age
+estat vce
+quietly regress y i.employed##i.group
+estat vce
+quietly regress y c.displace##i.employed
+estat vce
+set linesize 200
+=== redteam5b-estat-vce-interactions-logit
+set linesize 79
+set seed 4204
+set obs 300
+generate group = 1 + floor(runiform() * 4)
+generate employed = runiform() > .5
+generate age = 20 + 40 * runiform()
+generate yb = (age / 40 + employed - group / 2 + invnormal(runiform())) > 0
+quietly logit yb c.age##i.group, nolog
+estat vce
+set linesize 200
+=== redteam5b-estimates-table-layouts
+set seed 4205
+set obs 74
+generate mpg = 12 + floor(30 * runiform())
+generate weight = 1800 + floor(3000 * runiform())
+generate length = 140 + floor(90 * runiform())
+generate turn = 30 + floor(20 * runiform())
+generate foreign = runiform() > .7
+label define origin5 0 "Domestic" 1 "Foreign"
+label values foreign origin5
+generate d = foreign
+generate rep = 1 + floor(5 * runiform())
+generate price = 12000 + 2 * weight - 50 * mpg + 1500 * foreign + 300 * rep + 1500 * invnormal(runiform())
+quietly regress price mpg i.foreign
+estimates store a
+quietly regress price weight i.foreign
+estimates store a2
+quietly regress price mpg i.d
+estimates store dd
+quietly regress price mpg i.rep
+estimates store r
+quietly regress price weight
+estimates table a a2
+estimates table a
+estimates table dd
+estimates table dd a
+estimates table r a
+estimates table a, se
+quietly regress price mpg i.foreign
+estimates table a a2
+estimates table a
+quietly regress price mpg i.d
+estimates table dd
+estimates table dd a
+quietly regress price mpg weight
+estimates store m1
+quietly regress price mpg weight length turn
+estimates store m2
+quietly regress price mpg
+estimates store m3
+quietly regress price weight
+estimates store m4
+quietly regress price length
+estimates store m5
+quietly regress price turn i.foreign
+estimates store m6
+set linesize 79
+estimates table m1 m2 m3 m4 m5 m6
+estimates table m1 m2 m3 m4 m5 m6, se stats(N r2)
+estimates table m1 m2 m3 m4 m5 m6, star
+set linesize 78
+estimates table m1 m2 m3 m4 m5 m6
+set linesize 200
+estimates table m1 m2 m3 m4 m5 m6, b(%7.2f)
+quietly regress price mpg
+estimates store s1
+quietly regress price mpg weight i.rep
+estimates store s2
+estimates table s1 s2, b(%7.2f) star(.05 .01 .001)
+estimates table s1 s2, b(%7.1f) se(%7.1f)
+capture noisily estimates table s1 s2, star se
+=== redteam5b-sdtest-two-variables
+set seed 4206
+set obs 60
+generate a = 10 + 3 * invnormal(runiform())
+generate b = 12 + 4 * invnormal(runiform())
+replace b = . in 1/5
+sdtest a == b
+display r(F) " " r(p) " " r(df_1) " " r(df_2) " " r(sd_1) " " r(sd_2)
+sdtest b == a
+sdtest a == 3
+capture noisily sdtest a
+=== redteam5b-estat-classification-gof
+set seed 4207
+set obs 200
+generate x1 = invnormal(runiform())
+generate x2 = runiform()
+generate g = 1 + floor(4 * runiform())
+generate y = (0.5 * x1 + x2 - 0.5 + invnormal(runiform())) > 0
+replace x2 = . in 3
+quietly logit y x1 x2, nolog
+estat classification
+estat classification, cutoff(.3)
+display r(P_corr) " " r(P_p1) " " r(P_n0) " " r(P_1p) " " r(P_0n)
+estat classification if g > 2
+estat classification in 1/50
+estat classification, all
+estat gof
+estat gof, group(10)
+display r(N) " " r(m) " " r(df) " " r(chi2)
+estat gof, group(8)
+estat gof if g > 1
+estat gof, group(5) outsample
+quietly probit y x1 x2, nolog
+estat gof, group(10)
+estat classification, cutoff(.6)
+quietly logit y i.g, nolog
+estat gof, group(10)
+=== redteam5b-qreg-collinear
+set seed 4208
+set obs 80
+generate w = 2000 + 2000 * runiform()
+generate w2 = 2 * w
+generate price = 1000 + w + 1000 * invnormal(runiform())
+qreg price w w2, nolog
+qreg price w2 w, nolog
+=== redteam5b-tabstat-display-width
+set seed 7
+set obs 30
+generate g = ceil(_n/10)
+label define gl5b 1 "Café Ñandú group" 2 "日本語" 3 "plain"
+label values g gl5b
+generate y = round(100 * runiform(), .01)
+tabstat y, by(g) stat(mean n sd)
+generate h = g
+label define hl5b 1 "日本語日本語日本語" 2 "abc" 3 "plain"
+label values h hl5b
+tabstat y, by(h) stat(mean n)
+tabstat y, by(h) stat(mean n) labelwidth(10)
+generate s = "a"
+capture noisily tabstat s
+capture noisily tabstat y s
+=== redteam5b-sums-precision
+set seed 4209
+set obs 14080
+generate double inc = round(30000 + 60000 * runiform(), .01)
+generate x = 20 + 40 * runiform()
+generate day = 22000 + floor(1000 * runiform())
+format day %td
+generate double w3 = 1 / 3 + mod(_n, 7) / 9
+generate double wsmall = (1 + 9 * runiform()) / 1000
+summarize inc
+display %21.0g r(sum)
+regress inc x [aweight=w3]
+regress inc x [aweight=wsmall]
+generate double third = 1 / 3
+regress inc x [aweight=third] in 1/74
+tabstat inc if day < 22100, by(day)
+summarize inc [aweight=w3]
+display %21.0g r(sum_w) " " %21.0g r(mean)

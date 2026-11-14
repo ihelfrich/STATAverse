@@ -290,7 +290,10 @@ function vce(session, model, text, ctx) {
   const space = coefficientSpace(model),
     shown = [];
   space.entries.forEach((e, i) => {
-    const base = e.name.split("#").every((part) => /^\d+b\./.test(part)),
+    // A cell of an interaction with a base level in it is a base cell, as
+    // 0b.g#co.x or 1o.g#1b.h: Stata leaves those out along with base
+    // levels.
+    const base = e.name.split("#").some((part) => /^\d+b\./.test(part)),
       estimated =
         e.index >= 0 ? model.estimable?.[e.index] !== false : !e.omitted;
     if (!estimated && base) return;
@@ -376,8 +379,19 @@ function vce(session, model, text, ctx) {
         equation = shown[r].equation;
         ctx.out(`${equationOf(r).padEnd(13)}|${blank()}`);
       }
+      // An interaction too long for the stub is split after its last #,
+      // the first part on a line of its own.
+      const name = shown[r].name,
+        cut =
+          name.length > 12 && name.includes("#")
+            ? name.lastIndexOf("#") + 1
+            : 0;
+      if (cut)
+        ctx.out(
+          `${abbreviate(name.slice(0, cut), 13).padStart(13)}|${blank()}`.trimEnd(),
+        );
       ctx.out(
-        `${abbreviate(shown[r].name, 12).padStart(12)} |${across((c) =>
+        `${abbreviate(name.slice(cut), 12).padStart(12)} |${across((c) =>
           c <= r
             ? `${value(shown[r], shown[c]).padStart(cell - 1)} `
             : " ".repeat(cell),
