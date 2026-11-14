@@ -36,7 +36,9 @@ import { percentile } from "./reports.js";
 import {
   abbreviate,
   baseLevelsAsked,
+  coefficientSpace,
   estimates,
+  stripeName,
   tableWidth,
 } from "./estimation.js";
 import {
@@ -217,17 +219,28 @@ function readFailure(session, text) {
   if (!source) return { bd: "", ev: "" };
   const m = /^([^\s=]+)\s*(?:(==?)\s*([\s\S]*))?$/.exec(source);
   if (!m) throw invalid("option failure(): syntax error");
-  const bd = oneVariable(session, m[1]);
-  if (!m[2]) return { bd, ev: "" };
+  const bd = oneVariable(session, m[1]),
+    // A string failure variable is a type mismatch, as st_set.ado's
+    // comparison of it with numbers finds; its numlist is read first.
+    numeric = () => {
+      if (isStringType(session.data.get(bd).type))
+        throw new StataError("type mismatch", 109);
+    };
+  if (!m[2]) {
+    numeric();
+    return { bd, ev: "" };
+  }
   const list = m[3]
     .trim()
     .split(/\s+/)
-    .flatMap((token) =>
-      token === "." || /^\.[a-z]$/.test(token)
-        ? [MISSING]
-        : parseNumlist(token),
-    );
+    .flatMap((token) => {
+      if (token === "." || /^\.[a-z]$/.test(token)) return [MISSING];
+      if (token.startsWith('"'))
+        throw new StataError("invalid numlist has too few elements", 122);
+      return parseNumlist(token);
+    });
   if (!list.length) throw invalid("option failure(): syntax error");
+  numeric();
   return {
     bd,
     ev: list.map((v) => (isMissing(v) ? "." : formatNumber(v))).join(" "),
@@ -964,6 +977,7 @@ function stsum(session, text, ctx) {
     by = byVariables(session, parsed.options.by),
     rows = stRows(session, parsed, by),
     columns = stColumns(session);
+  if (!rows.length) throw new StataError("no observations", 2000);
   stHeader(ctx, s, parsed.options.show === false);
   ctx.out("");
   // The heading: the by-variables' names, the last two beside the columns.
@@ -1073,7 +1087,7 @@ function stsList(session, text, ctx) {
     throw invalid("options survival and failure may not be combined");
   const by = byVariables(session, o.by),
     { s, groups } = survivorGroups(session, parsed, by, o.level);
-  if (!groups[0].rows.length) throw new StataError("no observations", 2000);
+  if (!groups[0]?.rows.length) throw new StataError("no observations", 2000);
   stHeader(ctx, s, o.show === false);
   ctx.out("");
   ctx.out(`Kaplan–Meier ${o.failure ? "failure" : "survivor"} function`);
@@ -1155,8 +1169,9 @@ function stsGraph(session, text, ctx) {
     throw invalid("options survival and failure may not be combined");
   const by = byVariables(session, o.by),
     { s, groups } = survivorGroups(session, parsed, by, 95);
-  if (!groups[0].rows.length) throw new StataError("no observations", 2000);
+  // sts graph shows the settings before it finds the sample empty.
   stHeader(ctx, s, o.show === false);
+  if (!groups[0]?.rows.length) throw new StataError("no observations", 2000);
   const looks = looksOf({ ...o, by: undefined }),
     layers = groups.map((g) => {
       // A step function from time 0, as connect(J) draws it.
@@ -1221,6 +1236,7 @@ function stsTest(session, text, ctx) {
     by = parsed.varlist.map((name) => session.data.get(name)),
     rows = stRows(session, parsed, by),
     columns = stColumns(session);
+  if (!rows.length) throw new StataError("no observations", 2000);
   stHeader(ctx, s, o.show === false);
   if (!rows.some((i) => columns.d[i]))
     throw new StataError(
@@ -1230,6 +1246,15 @@ function stsTest(session, text, ctx) {
   const groups = byGroups(by, rows),
     k = groups.length,
     which = new Map();
+  // The test's variance has a row and column for each group, and is
+  // summed at every failure time and inverted: a continuous variable
+  // makes thousands of groups, more than a browser can compare in
+  // reasonable time and memory.
+  if (k > STS_TEST_GROUPS)
+    throw new StataError(
+      `${parsed.varlist.join(" ")} ${parsed.varlist.length > 1 ? "take" : "takes"} ${k.toLocaleString("en-US")} distinct values here; sts test compares at most ${STS_TEST_GROUPS.toLocaleString("en-US")} groups\nGroup a continuous variable first, for example with egen's cut().`,
+      134,
+    );
   groups.forEach((g, j) => g.rows.forEach((i) => which.set(i, j)));
   // The risk sets at each failure time, overall and by group.
   const events = [];
@@ -1243,10 +1268,15 @@ function stsTest(session, text, ctx) {
     expectedSums = Array.from({ length: k }, () => quadSum()),
     observed = new Array(k).fill(0),
     rankSums = Array.from({ length: k }, () => quadSum()),
-    VSums = Array.from({ length: k }, () =>
-      Array.from({ length: k }, () => quadSum()),
-    );
-  const wilcoxon = !!o.wilcoxon;
+    wilcoxon = !!o.wilcoxon,
+    // With many groups the variance is summed piece by piece instead of
+    // time by time: each element of V is Σ a_t n_i δij - Σ c_t n_i n_j,
+    // and each group's number at risk changes only at its own records.
+    many = k > STS_TEST_DIRECT,
+    VSums = many ? null : quadMatrix(k),
+    diagonal = many ? quadMatrix(k) : null,
+    pieces = many ? Array.from({ length: k }, () => [[0, 0]]) : null,
+    weights = [];
   for (let e = 0; e < events.length;) {
     const time = events[e][0],
       deaths = new Array(k).fill(0),
@@ -1260,21 +1290,45 @@ function stsTest(session, text, ctx) {
     changes.forEach((c, g) => (atRisk[g] += c));
     const dt = deaths.reduce((a, b) => a + b, 0),
       nt = ni.reduce((a, b) => a + b, 0);
+    if (many)
+      changes.forEach(
+        (c, g) =>
+          c && pieces[g].push([weights.length + (dt ? 1 : 0), atRisk[g]]),
+      );
     if (!dt) continue;
-    const factor = nt > 1 ? (dt * (nt - dt)) / (nt * nt * (nt - 1)) : 0;
+    const factor = nt > 1 ? (dt * (nt - dt)) / (nt * nt * (nt - 1)) : 0,
+      // The time's weights of n_i on the diagonal and of n_i n_j.
+      a = wilcoxon
+        ? nt > 1
+          ? (nt * dt * (nt - dt)) / (nt - 1)
+          : 0
+        : nt * factor,
+      c = wilcoxon ? (nt > 1 ? a / nt : 0) : factor,
+      active = [];
+    if (many) weights.push(c);
+    for (let g = 0; g < k; g++) if (ni[g]) active.push(g);
     for (let i = 0; i < k; i++) {
       expectedSums[i].add((ni[i] * dt) / nt);
       observed[i] += deaths[i];
       if (wilcoxon) rankSums[i].add(nt * (deaths[i] - (ni[i] * dt) / nt));
-      for (let j = 0; j < k; j++) {
+      // A group with none at risk adds zeros to its row and column, which
+      // leave the sums as they are.
+      if (!ni[i]) continue;
+      if (many) {
+        diagonal.add(i, a * ni[i]);
+        continue;
+      }
+      for (const j of active) {
         if (wilcoxon) {
           if (nt > 1)
-            VSums[i][j].add(
+            VSums.add(
+              i * k + j,
               ((nt * nt * ni[i] * dt * (nt - dt)) / (nt * (nt - 1))) *
                 ((i === j ? 1 : 0) - ni[j] / nt),
             );
         } else
-          VSums[i][j].add(
+          VSums.add(
+            i * k + j,
             (i === j ? ni[i] * (nt - ni[i]) : -ni[i] * ni[j]) * factor,
           );
       }
@@ -1282,13 +1336,22 @@ function stsTest(session, text, ctx) {
   }
   const expected = expectedSums.map((q) => q.value),
     ranks = rankSums.map((q) => q.value),
-    V = VSums.map((r) => r.map((q) => q.value));
+    V = many
+      ? pairedVariance(k, pieces, weights, diagonal)
+      : Array.from({ length: k }, (_, i) =>
+          Array.from({ length: k }, (_, j) => VSums.value(i * k + j)),
+        );
   const v = wilcoxon ? ranks : observed.map((x, i) => expected[i] - x),
-    inverse = generalizedInverse(V),
-    chi2 = v.reduce(
-      (t, x, i) => t + x * v.reduce((u, y, j) => u + inverse[i][j] * y, 0),
-      0,
-    ),
+    // With many groups the statistic is taken from the factor of V alone,
+    // not its inverse, which would cost several times as much.
+    chi2 = many
+      ? inverseForm(V, v)
+      : ((inverse) =>
+          v.reduce(
+            (t, x, i) =>
+              t + x * v.reduce((u, y, j) => u + inverse[i][j] * y, 0),
+            0,
+          ))(generalizedInverse(V)),
     df = k - 1;
   // The table: one row for each group, labelled by its values.
   const title =
@@ -1338,6 +1401,107 @@ function stsTest(session, text, ctx) {
   session.results.r = wilcoxon
     ? { chi2, df, by: parsed.varlist.join(" ") }
     : { chi2, df };
+}
+
+/** The most groups sts test compares. */
+const STS_TEST_GROUPS = 1000;
+/** Beyond this many groups sts test sums its variance piece by piece. */
+const STS_TEST_DIRECT = 50;
+/**
+ * v' inv(V) v for v in the span of V, with the generalised inverse taken
+ * as generalizedInverse takes it: the columns by their diagonal, largest
+ * first, one whose pivot falls to 1e-9 of its diagonal left out. The
+ * Cholesky factor of the rest gives the form by one forward solve.
+ */
+function inverseForm(V, v) {
+  const n = V.length,
+    order = [...Array(n).keys()].sort((i, j) => V[j][j] - V[i][i] || i - j),
+    keep = [],
+    factor = [];
+  for (const j of order) {
+    const row = new Float64Array(keep.length + 1);
+    let pivot = V[j][j];
+    for (let q = 0; q < keep.length; q++) {
+      const L = factor[q];
+      let x = V[j][keep[q]];
+      for (let p = 0; p < q; p++) x -= row[p] * L[p];
+      row[q] = x / L[q];
+      pivot -= row[q] * row[q];
+    }
+    if (!(pivot > 1e-9 * Math.abs(V[j][j]))) continue;
+    row[keep.length] = Math.sqrt(pivot);
+    keep.push(j);
+    factor.push(row);
+  }
+  let total = 0;
+  const y = new Float64Array(keep.length);
+  for (let q = 0; q < keep.length; q++) {
+    const L = factor[q];
+    let x = v[keep[q]];
+    for (let p = 0; p < q; p++) x -= L[p] * y[p];
+    y[q] = x / L[q];
+    total += y[q] * y[q];
+  }
+  return total;
+}
+/**
+ * The variance of sts test from each group's numbers at risk, held as
+ * pieces [first failure index, number], and the weights c_t of the
+ * failure times: V_ij = diagonal_i δij - Σ_t c_t n_i(t) n_j(t), the sum
+ * taken over the stretches where both numbers hold, from cumulative
+ * weights carried to twice double precision.
+ */
+function pairedVariance(k, pieces, weights, diagonal) {
+  const T = weights.length,
+    high = new Float64Array(T + 1),
+    low = new Float64Array(T + 1);
+  for (let l = 0; l < T; l++) {
+    const s = high[l],
+      x = weights[l],
+      total = s + x;
+    high[l + 1] = total;
+    low[l + 1] =
+      low[l] + (Math.abs(s) >= Math.abs(x) ? s - total + x : x - total + s);
+  }
+  const span = (from, to) => high[to] - high[from] + (low[to] - low[from]),
+    V = Array.from({ length: k }, () => new Array(k).fill(0));
+  for (let i = 0; i < k; i++)
+    for (let j = i; j < k; j++) {
+      const p = pieces[i],
+        q = pieces[j];
+      let a = 0,
+        b = 0,
+        from = 0,
+        sum = 0;
+      while (from < T) {
+        const nextA = a + 1 < p.length ? p[a + 1][0] : T,
+          nextB = b + 1 < q.length ? q[b + 1][0] : T,
+          to = Math.min(nextA, nextB, T);
+        const product = p[a][1] * q[b][1];
+        if (product && to > from) sum += product * span(from, to);
+        from = to;
+        if (nextA === to && a + 1 < p.length) a++;
+        if (nextB === to && b + 1 < q.length) b++;
+        if (to >= T) break;
+      }
+      V[i][j] = V[j][i] = -sum;
+    }
+  for (let i = 0; i < k; i++) V[i][i] += diagonal.value(i);
+  return V;
+}
+/** k*k running sums carried as quadSum carries them, in flat arrays. */
+function quadMatrix(k) {
+  const sum = new Float64Array(k * k),
+    carry = new Float64Array(k * k);
+  return {
+    add(a, x) {
+      const s = sum[a],
+        total = s + x;
+      carry[a] += Math.abs(s) >= Math.abs(x) ? s - total + x : x - total + s;
+      sum[a] = total;
+    },
+    value: (a) => (Number.isFinite(sum[a]) ? sum[a] + carry[a] : sum[a]),
+  };
 }
 
 // ----- stcox -----
@@ -1489,26 +1653,41 @@ function coxLikelihood(T, T0, D, X, method) {
   };
 }
 
-/** Gauss–Legendre nodes and weights on [0, 1]. */
-const LEGENDRE = (() => {
-  const m = 16,
+/**
+ * The 15 nodes and weights of Gauss–Laguerre quadrature, ∫0^∞ e^-v f(v) dv
+ * ≈ Σ w f(v). Stata integrates the exact marginal likelihood with them:
+ * its log likelihoods equal the 15-point sums to every digit it shows,
+ * as for tied groups of 207, 235 and 236 among 1,000, 678 and 326 at risk,
+ * where Stata's -1466.5746 is the 15-point value and the integral itself
+ * gives -1129.6494 (docs/numerical-contract.md).
+ */
+const LAGUERRE = (() => {
+  const m = 15,
     nodes = [],
     weights = [];
-  for (let i = 1; i <= m; i++) {
-    let x = Math.cos((Math.PI * (i - 0.25)) / (m + 0.5)),
+  let z = 0;
+  for (let i = 0; i < m; i++) {
+    if (i === 0) z = 3 / (1 + 2.4 * m);
+    else if (i === 1) z += 15 / (1 + 2.5 * m);
+    else z += ((1 + 2.55 * (i - 1)) / (1.9 * (i - 1))) * (z - nodes[i - 2]);
+    let p1 = 0,
+      p2 = 0,
       dp = 0;
     for (let iteration = 0; iteration < 100; iteration++) {
-      let p0 = 1,
-        p1 = x;
-      for (let j = 2; j <= m; j++)
-        [p0, p1] = [p1, ((2 * j - 1) * x * p1 - (j - 1) * p0) / j];
-      dp = (m * (x * p1 - p0)) / (x * x - 1);
-      const dx = p1 / dp;
-      x -= dx;
-      if (Math.abs(dx) < 1e-16) break;
+      p1 = 1;
+      p2 = 0;
+      for (let j = 1; j <= m; j++) {
+        const p3 = p2;
+        p2 = p1;
+        p1 = ((2 * j - 1 - z) * p2 - (j - 1) * p3) / j;
+      }
+      dp = (m * (p1 - p2)) / z;
+      const before = z;
+      z -= p1 / dp;
+      if (Math.abs(z - before) <= 1e-15 * Math.abs(z)) break;
     }
-    nodes.push((1 - x) / 2);
-    weights.push(1 / ((1 - x * x) * dp * dp));
+    nodes.push(z);
+    weights.push(-1 / (dp * m * p2));
   }
   return { nodes, weights };
 })();
@@ -1517,10 +1696,9 @@ const LEGENDRE = (() => {
  * One tied group's term of the exact marginal likelihood: the log of
  * ∫0^∞ e^-v Π (1 - exp(-a_i v)) dv, a_i = r_i / C0 with C0 the risk of
  * those at risk who did not fail then, with its gradient and information
- * in beta. The integrand is log-concave; it is integrated by
- * Gauss–Legendre over pieces that follow each factor's scale and the
- * width of the peak, in logs so that large groups do not underflow.
- * C2 holds the lower triangle of the second moments of the others.
+ * in beta, by Stata's 15-point Gauss–Laguerre rule, summed in logs so that
+ * large groups do not underflow. C2 holds the lower triangle of the
+ * second moments of the others.
  */
 function marginal(r, X, C0, C1, C2, k, todo) {
   const d = r.length,
@@ -1530,87 +1708,41 @@ function marginal(r, X, C0, C1, C2, k, todo) {
   const a = r.map((v) => v / C0),
     xbar = C1.map((v) => v / C0),
     u = X.map((x) => x.map((v, j) => v - xbar[j])),
-    phi = (v) => {
-      let s = -v;
+    logs = LAGUERRE.nodes.map((v, q) => {
+      let s = Math.log(LAGUERRE.weights[q]);
       for (const ai of a) s += Math.log(-Math.expm1(-ai * v));
       return s;
-    },
-    slope = (v) => {
-      let s = -1;
-      for (const ai of a) s += ai / Math.expm1(ai * v);
-      return s;
-    },
-    curve = (v) => {
-      let s = 0;
-      for (const ai of a) {
-        const e = Math.expm1(ai * v);
-        s -= (ai * ai * (e + 1)) / (e * e);
-      }
-      return s;
-    };
-  // The peak: phi' falls from +infinity to -1, so bisect for its zero.
-  let lo = 0,
-    hi = 1;
-  while (slope(hi) > 0) hi *= 2;
-  for (let it = 0; it < 200 && hi - lo > 1e-12 * hi; it++) {
-    const mid = (lo + hi) / 2;
-    if (slope(mid) > 0) lo = mid;
-    else hi = mid;
-  }
-  const mode = (lo + hi) / 2,
-    top = phi(mode),
-    sigma = 1 / Math.sqrt(-curve(mode));
-  let right = mode + sigma;
-  while (phi(right) > top - 60) right = mode + 2 * (right - mode);
-  const edges = new Set([0, right]);
-  const largest = Math.max(...a);
-  for (let v = 2 ** Math.floor(Math.log2(0.01 / largest)); v < right; v *= 2)
-    edges.add(v);
-  for (let j = -12; mode + j * sigma < right; j++)
-    if (mode + j * sigma > 0) edges.add(mode + j * sigma);
-  const cuts = [...edges].sort((x, y) => x - y);
+    }),
+    top = Math.max(...logs);
   let total = 0,
     weightC = 0;
   const first = new Array(k).fill(0),
     outer = Array.from({ length: k }, () => new Array(k).fill(0)),
     own = new Array(d).fill(0),
     s = new Array(k);
-  for (let e = 0; e + 1 < cuts.length; e++) {
-    const from = cuts[e],
-      span = cuts[e + 1] - from;
-    if (!(span > 0)) continue;
-    for (let q = 0; q < LEGENDRE.nodes.length; q++) {
-      const v = from + span * LEGENDRE.nodes[q];
-      let log = -v - top;
-      const c = new Array(d);
-      for (let i = 0; i < d; i++) {
-        const decay = Math.exp(-a[i] * v),
-          F = -Math.expm1(-a[i] * v);
-        log += Math.log(F);
-        c[i] = (v * decay) / F;
-      }
-      const P = span * LEGENDRE.weights[q] * Math.exp(log);
-      if (!(P > 0)) continue;
-      total += P;
-      s.fill(0);
-      let sumC = 0;
-      for (let i = 0; i < d; i++) {
-        const ca = c[i] * a[i];
-        sumC += ca;
-        for (let j = 0; j < k; j++) s[j] += ca * u[i][j];
-        if (todo >= 2) {
-          // (H/F - c^2) a^2 + c a, with H/F = -v c.
-          own[i] += P * ((-v * c[i] - c[i] * c[i]) * a[i] * a[i] + ca);
-        }
-      }
-      for (let j = 0; j < k; j++) first[j] += P * s[j];
+  LAGUERRE.nodes.forEach((v, q) => {
+    const P = Math.exp(logs[q] - top);
+    if (!(P > 0)) return;
+    const c = a.map((ai) => (v * Math.exp(-ai * v)) / -Math.expm1(-ai * v));
+    total += P;
+    s.fill(0);
+    let sumC = 0;
+    for (let i = 0; i < d; i++) {
+      const ca = c[i] * a[i];
+      sumC += ca;
+      for (let j = 0; j < k; j++) s[j] += ca * u[i][j];
       if (todo >= 2) {
-        weightC += P * sumC;
-        for (let j = 0; j < k; j++)
-          for (let m = 0; m <= j; m++) outer[j][m] += P * s[j] * s[m];
+        // (H/F - c^2) a^2 + c a, with H/F = -v c.
+        own[i] += P * ((-v * c[i] - c[i] * c[i]) * a[i] * a[i] + ca);
       }
     }
-  }
+    for (let j = 0; j < k; j++) first[j] += P * s[j];
+    if (todo >= 2) {
+      weightC += P * sumC;
+      for (let j = 0; j < k; j++)
+        for (let m = 0; m <= j; m++) outer[j][m] += P * s[j] * s[m];
+    }
+  });
   for (let j = 0; j < k; j++) gradient[j] = first[j] / total;
   if (todo >= 2) {
     for (let j = 0; j < k; j++)
@@ -1648,17 +1780,21 @@ function coxFit(T, T0, D, X, method) {
 
 /**
  * Newton's method as Stata's cox takes it: full steps, halved while the
- * likelihood falls, until g'inv(H)g is below 1e-5 and either the log
- * likelihood has settled (relative change below 1e-7) or the next step
- * would move no estimate by 1e-6 relatively; then the estimates are
- * refined by further steps, each of which "Refining estimates" logs
- * before it is taken.
+ * likelihood falls, until g'inv(H)g is below 1e-5 and the next step would
+ * move every estimate by less than 1e-4 of itself; then the estimates are
+ * refined by further steps, each of which "Refining estimates" logs before
+ * it is taken, until one moves them by less than that, and then silently
+ * until the steps no longer move them. Stata's cox ignores tolerance(),
+ * ltolerance() and nrtolerance(); this rule gives the number of iterations
+ * it logs for 48 fits of Breslow's, Efron's and the exact marginal
+ * likelihood on data of 40 to 500 records, recorded from Stata 19, where
+ * a relative change of 1e-6 in the estimates or 1e-7 in the log
+ * likelihood took one iteration more than Stata in 34 of them.
  */
 function coxNewton(evaluate, k) {
   const times = (m, v) => m.map((r) => r.reduce((t, x, j) => t + x * v[j], 0)),
-    reldif = (a, b) => Math.abs(a - b) / (Math.abs(b) + 1),
-    small = (beta, step, tolerance) =>
-      step.every((v, j) => Math.abs(v) / (Math.abs(beta[j]) + 1) < tolerance);
+    settled = (beta, step) =>
+      step.every((v, j) => !v || Math.abs(v) < 1e-4 * Math.abs(beta[j]));
   let beta = new Array(k).fill(0),
     current = evaluate(beta, 2),
     converged = false;
@@ -1668,11 +1804,7 @@ function coxNewton(evaluate, k) {
     const V = generalizedInverse(current.information),
       step = times(V, current.gradient),
       criterion = current.gradient.reduce((t, g, j) => t + g * step[j], 0);
-    if (
-      Math.abs(criterion) < 1e-5 &&
-      ((iteration > 0 && reldif(current.value, log[iteration - 1]) < 1e-7) ||
-        small(beta, step, 1e-6))
-    ) {
+    if (Math.abs(criterion) < 1e-5 && settled(beta, step)) {
       converged = true;
       break;
     }
@@ -1689,8 +1821,8 @@ function coxNewton(evaluate, k) {
     log.push(current.value);
     notes.push(halvings >= 6 ? "backed up" : "");
   }
-  // Refining: each step is logged before it is taken, until one moves no
-  // estimate by 1e-6 relatively; then steps until they no longer move them.
+  // Refining: each step is logged before it is taken, until one settles
+  // the estimates; then steps until they no longer move them.
   const refined = [];
   for (let refine = 0; refine < 20; refine++) {
     refined.push(current.value);
@@ -1698,7 +1830,7 @@ function coxNewton(evaluate, k) {
         generalizedInverse(current.information),
         current.gradient,
       ),
-      last = small(beta, step, 1e-6),
+      last = settled(beta, step),
       next = beta.map((b, j) => b + step[j]),
       at = evaluate(next, 2);
     if (at.value >= current.value - 1e-12 * Math.abs(current.value)) {
@@ -1740,7 +1872,7 @@ function stHeaderTable(ctx, e) {
     nobs = trimmed(e.N, "%10.0fc"),
     chi2 = trimmed(e.chi2, "%10.2f"),
     right = Math.max(nobs.length, chi2.length, 1, 6),
-    statistic = `LR chi2(${trimmed(e.df_m, "%4.0f")})`,
+    statistic = `${e.chi2type === "Wald" ? "Wald" : "LR"} chi2(${trimmed(e.df_m, "%4.0f")})`,
     widest = Math.max(13, statistic.length, 11),
     at = 79 - widest - 3 - right,
     p = trimmed(e.df_m > 0 ? chi2tail(e.df_m, e.chi2) : MISSING, "%10.4f"),
@@ -1773,10 +1905,12 @@ function stCounts(session, sample, T, T0, D) {
 
 function stcox(session, text, ctx) {
   const [head, tail] = splitAtComma(text);
-  if (!head.trim()) return stcoxReplay(session, tail ?? "", ctx);
+  // stcox, estimate fits the model with no covariates; stcox alone replays.
+  if (!head.trim() && !/(^|[\s,])esti(m(a(te?)?)?)?\b/.test(tail ?? ""))
+    return stcoxReplay(session, tail ?? "", ctx);
   const s = stSettings(session),
     parsed = session.parse(
-      "anything [if] [in] [, noHR Level(cilevel) noSHow noLOg BREslow EFRon EXACTM BASElevels ALLBASElevels | EXACTP Robust VCE(string) CLuster(string) STrata(varlist) TVC(string) TEXP(string) SHared(varname) OFFset(varname) ESTImate BASEHC(string) BASEChazard(string) BASESurv(string) MGale(string) ESR(string) SCHoenfeld(string) SCAledsch(string) NOHEADer]",
+      "[anything] [if] [in] [, noHR Level(cilevel) noSHow noLOg BREslow EFRon EXACTM BASElevels ALLBASElevels ESTImate | EXACTP Robust VCE(string) CLuster(string) STrata(varlist) TVC(string) TEXP(string) SHared(varname) OFFset(varname) BASEHC(string) BASEChazard(string) BASESurv(string) MGale(string) ESR(string) SCHoenfeld(string) SCAledsch(string) NOHEADer]",
       text,
     ),
     o = parsed.options,
@@ -1786,12 +1920,12 @@ function stcox(session, text, ctx) {
   const method = o.efron ? "efron" : o.exactm ? "marginal" : "breslow",
     { f, T, T0, D } = stFrame(session, parsed, false),
     // With no failures nothing can be estimated, and every covariate is
-    // omitted, as Stata omits them.
+    // shown omitted, as Stata shows them.
     none = !D.some((v) => v),
     fit = none
       ? {
-          theta: [],
-          V: [],
+          theta: f.active.map(() => 0),
+          V: f.active.map(() => f.active.map(() => 0)),
           ll: 0,
           ll0: 0,
           log: [0],
@@ -1801,13 +1935,27 @@ function stcox(session, text, ctx) {
         }
       : coxFit(T, T0, D, f.x, method),
     counts = stCounts(session, f.sample, T, T0, D),
-    k = none ? 0 : f.active.length,
-    chi2 = 2 * (fit.ll - fit.ll0),
-    names = f.columns.map((c) => c.name);
+    // Stata's title and e(ties) say "no ties" when no two failures share a
+    // time, whichever method was asked for; the methods then agree.
+    seen = new Set(),
+    tied = T.some((t, i) => D[i] && (seen.has(t) || !seen.add(t))),
+    ties = tied ? method : "none",
+    names = f.columns.map((c) => c.name),
+    placed = f.place(fit.theta, fit.V),
+    // The rank of the estimates is that of their variance: a coefficient
+    // the information cannot identify, as one that separates the failures
+    // from the rest, has none and adds no degree of freedom.
+    k = names.filter(
+      (_, j) => placed.estimable[j] && placed.V[j][j] !== 0,
+    ).length,
+    covariates = names.length > 0,
+    chi2 = Math.max(0, 2 * (fit.ll - fit.ll0));
   stHeader(ctx, s, o.show === false);
-  f.notes(ctx);
-  ctx.out("");
+  // The iteration log opens with a blank line, before the notes of
+  // omitted variables; without it the notes come first.
   if (o.log !== false) {
+    ctx.out("");
+    f.notes(ctx);
     fit.log.forEach((v, j) =>
       ctx.out(iterationLine(j, "Log likelihood", v, fit.notes[j])),
     );
@@ -1815,8 +1963,8 @@ function stcox(session, text, ctx) {
     (fit.refined ?? [fit.ll]).forEach((v, j) =>
       ctx.out(iterationLine(j, "Log likelihood", v)),
     );
-    ctx.out("");
-  }
+  } else f.notes(ctx);
+  ctx.out("");
   const model = {
     // estat names the model by e(cmd), which is cox.
     command: "cox",
@@ -1825,13 +1973,7 @@ function stcox(session, text, ctx) {
     dist: "z",
     depvar: "_t",
     names,
-    ...(none
-      ? {
-          b: names.map(() => 0),
-          V: names.map(() => names.map(() => 0)),
-          estimable: names.map(() => false),
-        }
-      : f.place(fit.theta, fit.V)),
+    ...placed,
     columns: f.columns,
     constant: false,
     N: f.sample.length,
@@ -1844,7 +1986,7 @@ function stcox(session, text, ctx) {
     level: o.level,
     eform: o.hr !== false ? "Haz. ratio" : null,
     survival: {
-      method: none ? "none" : method,
+      method: ties,
       T,
       T0,
       D,
@@ -1857,30 +1999,32 @@ function stcox(session, text, ctx) {
     },
   };
   session.estimates = model;
-  session.results.e = {
-    N: model.N,
-    ll_0: fit.ll0,
-    ll: fit.ll,
-    chi2,
-    r2_p: 1 - fit.ll / fit.ll0,
-    converged: fit.converged ? 1 : 0,
-    rank: k,
+  const e = { N: model.N, ll_0: fit.ll0, ll: fit.ll, chi2 };
+  // Stata leaves e(r2_p) out when the null log likelihood is zero, and
+  // e(rank) out when there are no covariates.
+  if (fit.ll0 !== 0) e.r2_p = 1 - fit.ll / fit.ll0;
+  e.converged = fit.converged ? 1 : 0;
+  if (covariates) e.rank = k;
+  Object.assign(e, {
     df_m: k,
     ...counts,
     cmdline: `stcox ${text.trim()}`,
     cmd2: "stcox",
+    marginsnotok:
+      "CSNell DEViance DFBeta ESR LDisplace LMax MGale SCAledsch SCHoenfeld SCores",
     footnote: "stcox_footnote",
     predict: "stcox_p",
     estat_cmd: "stcox_estat",
     vce: "oim",
     chi2type: "LR",
-    method: method === "marginal" ? "marginal" : method,
-    ties: method === "marginal" ? "marginal" : method,
+    // e(ties) comes before e(method) when there are none.
+    ...(tied ? { method, ties } : { ties, method }),
     t0: "_t0",
     depvar: "_t",
     cmd: "cox",
     properties: "b V",
-  };
+  });
+  session.results.e = e;
   coxTable(session, ctx, model, o);
   unconverged(fit);
 }
@@ -1892,20 +2036,31 @@ function coxTable(session, ctx, model, o) {
   ctx.out("");
   const level = o.level ?? model.level,
     hr = o.hr !== false;
+  // A coefficient held at zero with no variance is shown omitted, as
+  // _coef_table shows one.
   const f = {
       columns: model.columns,
       names: model.names,
-      at: model.names.map((_, j) => (model.estimable[j] ? j : -1)),
+      at: model.names.map((_, j) =>
+        model.estimable[j] && (model.b[j] !== 0 || model.V[j][j] !== 0)
+          ? j
+          : -1,
+      ),
     },
-    w = tableWidth(session, tableModel(f, baseLevelsAsked(o)), ["_t"]);
+    w = tableWidth(session, tableModel(f, baseLevelsAsked(o)), ["_t"]),
+    head = [];
   tableHead(
-    ctx,
+    { out: (line) => head.push(line) },
     "_t",
     level,
     hr ? "Haz. ratio" : "Coefficient",
     false,
     false,
     w,
+  );
+  // With no covariates the table is its heading alone.
+  (model.names.length ? head : head.slice(0, -1)).forEach((line) =>
+    ctx.out(line),
   );
   layoutRows(
     session,
@@ -2079,7 +2234,8 @@ function weibullConstant(L, L0, D) {
     tp = 0,
     converged = false;
   const log = [];
-  for (let i = 0; !converged && i <= 300; i++) {
+  // WeibCons allows 20 iterations after the first.
+  for (let i = 0; !converged && i <= 20; i++) {
     const before = ll;
     lnp += step;
     const p = Math.exp(lnp),
@@ -2124,9 +2280,9 @@ function weibullConstant(L, L0, D) {
  * A Weibull fit in centred time put back as Stata puts it: the constant
  * moved by p times the mean of ln t (AdjCons), or the whole equation
  * turned into the accelerated-time metric (Remetric), with the variance
- * carried by the Jacobian.
+ * carried by the Jacobian and the gradient by its inverse transpose.
  */
-function weibullMetric(theta, V, m, aft) {
+function weibullMetric(theta, V, m, aft, gradient) {
   const k = theta.length,
     cons = k - 2,
     lnp = theta[k - 1],
@@ -2153,10 +2309,28 @@ function weibullMetric(theta, V, m, aft) {
     out = JV.map((row) =>
       J.map((other) => row.reduce((t, x, j) => t + x * other[j], 0)),
     );
-  return { theta: b, V: out };
+  return { theta: b, V: out, gradient: solve(transpose(J), gradient) };
+}
+const transpose = (A) => A[0].map((_, c) => A.map((row) => row[c]));
+/** The solution of A x = y by elimination with partial pivoting. */
+function solve(A, y) {
+  const n = y.length,
+    M = A.map((row, r) => [...row, y[r]]);
+  for (let c = 0; c < n; c++) {
+    let best = c;
+    for (let r = c + 1; r < n; r++)
+      if (Math.abs(M[r][c]) > Math.abs(M[best][c])) best = r;
+    [M[c], M[best]] = [M[best], M[c]];
+    for (let r = 0; r < n; r++) {
+      if (r === c || !M[r][c]) continue;
+      const factor = M[r][c] / M[c][c];
+      for (let j = c; j <= n; j++) M[r][j] -= factor * M[c][j];
+    }
+  }
+  return M.map((row, r) => row[n] / row[r]);
 }
 
-function strFit(T, T0, D, X, dist, aft, start) {
+function strFit(T, T0, D, X, dist, aft, start, iterate = true) {
   const record = RECORD[dist](aft),
     k = start.length,
     ancillary = dist !== "exponential",
@@ -2189,7 +2363,20 @@ function strFit(T, T0, D, X, dist, aft, start) {
       for (let b = a + 1; b < k; b++) information[a][b] = information[b][a];
     return { value: value.value, gradient, information };
   };
-  return maximizeNR(evaluate, start);
+  if (!iterate) {
+    // Where the start is already the estimate: no step is taken.
+    const at = evaluate(start, 2);
+    return {
+      theta: start,
+      ll: at.value,
+      V: generalizedInverse(at.information),
+      log: [at.value],
+      notes: [""],
+      converged: true,
+      evaluate,
+    };
+  }
+  return { ...maximizeNR(evaluate, start), evaluate };
 }
 
 function streg(session, text, ctx) {
@@ -2251,14 +2438,27 @@ function streg(session, text, ctx) {
     lnRate = Math.log(counts.N_fail / counts.risk),
     base = aft ? -lnRate : lnRate,
     constantX = f.x.map(() => [1]);
-  if (!counts.N_fail) throw new StataError("no failures in the data", 2000);
+  if (!counts.N_fail) {
+    stHeader(ctx, s, o.show === false);
+    throw new StataError("no failures", 498);
+  }
   // The constant-only model: in closed form for the exponential, by
   // Newton steps from it for the Gompertz, and for the Weibull by
   // weibull_s.ado's steps in ln p alone, in time centred on the mean of
   // ln t, where the full model is fitted too and then put back.
-  let null0, fit, theta, V;
-  const zeros = new Array(kb - 1).fill(0);
-  if (dist === "weibull") {
+  let null0, fit, theta, V, gradient;
+  const zeros = new Array(kb - 1).fill(0),
+    // gompertz.ado fits a model with no covariates at once, from zero,
+    // and reports a Wald test of nothing; weibull.ado leaves the
+    // constant-only model as it is.
+    alone = !f.columns.length,
+    wald = alone && dist === "gompertz";
+  if (wald) {
+    null0 = null;
+    fit = strFit(T, T0, D, constantX, dist, aft, [0, 0]);
+    ({ theta, V } = fit);
+    gradient = fit.evaluate(theta, 1).gradient;
+  } else if (dist === "weibull") {
     const lnt = T.map((t) => Math.log(t)),
       total = quadSum();
     lnt.forEach((v) => total.add(v));
@@ -2266,8 +2466,40 @@ function streg(session, text, ctx) {
       L = lnt.map((v) => v - m),
       L0 = T0.map((t) => (t > 0 ? Math.log(t) - m : null));
     null0 = weibullConstant(L, L0, D);
-    fit = strFit(L, L0, D, f.x, "weibull", false, [...zeros, ...null0.theta]);
-    ({ theta, V } = weibullMetric(fit.theta, fit.V, m, aft));
+    // When WeibCons fails, weibull_s.ado fits the constant-only model again
+    // by ml from ml search's starting values, which are not computed here.
+    if (!null0.converged) {
+      stHeader(ctx, s, o.show === false);
+      if (o.log !== false) {
+        ctx.out("");
+        ctx.out("Fitting constant-only model:");
+        null0.log.forEach((v, j) =>
+          ctx.out(iterationLine(j, "Log likelihood", v)),
+        );
+      }
+      throw new StataError(
+        "convergence not achieved\nThe constant-only Weibull model did not converge in 20 iterations; Stata then searches for other starting values, which is not done here.",
+        430,
+      );
+    }
+    fit = strFit(
+      L,
+      L0,
+      D,
+      f.x,
+      "weibull",
+      false,
+      [...zeros, ...null0.theta],
+      !alone,
+    );
+    if (alone) fit.log = [(fit.ll = null0.ll)];
+    ({ theta, V, gradient } = weibullMetric(
+      fit.theta,
+      fit.V,
+      m,
+      aft,
+      fit.evaluate(fit.theta, 1).gradient,
+    ));
   } else {
     if (ancillary) null0 = strFit(T, T0, D, constantX, dist, aft, [base, 0]);
     else {
@@ -2284,11 +2516,19 @@ function streg(session, text, ctx) {
     }
     fit = strFit(T, T0, D, f.x, dist, aft, [...zeros, ...null0.theta]);
     ({ theta, V } = fit);
+    gradient = fit.evaluate(theta, 1).gradient;
   }
-  fit = { ...fit, theta, V };
+  fit = { ...fit, theta, V, gradient };
   const k = theta.length,
-    chi2 = 2 * (fit.ll - null0.ll),
-    p = chi2tail(kb - 1, chi2),
+    // The rank is that of the variance: a coefficient the information
+    // cannot identify, as one that separates the failures from the rest,
+    // has none, and the model's degrees of freedom are what remains after
+    // the constant and the ancillary parameter.
+    rank = V.filter((row, j) => row[j] !== 0).length,
+    dfModel = Math.max(0, rank - (ancillary ? 2 : 1)),
+    // Twice a difference of equal log likelihoods can round below zero.
+    chi2 = wald ? MISSING : Math.max(0, 2 * (fit.ll - null0.ll)),
+    p = dfModel > 0 ? chi2tail(dfModel, chi2) : MISSING,
     mainV = fit.V.slice(0, kb).map((r) => r.slice(0, kb)),
     names = [...f.columns.map((c) => c.name), "_cons"],
     aux = dist === "weibull" ? "ln_p" : dist === "gompertz" ? "gamma" : null,
@@ -2296,9 +2536,13 @@ function streg(session, text, ctx) {
     title = `${label} ${metric} regression`;
   stHeader(ctx, s, o.show === false);
   f.notes(ctx);
-  ctx.out("");
+  // Without a log, ml says first that convergence was not achieved.
+  if (o.log === false && !fit.converged) ctx.out("convergence not achieved");
+  // gompertz.ado's log of a model with no covariates follows the header
+  // without a blank line.
+  if (!wald || o.log === false) ctx.out("");
   if (o.log !== false) {
-    if (ancillary) {
+    if (ancillary && !wald) {
       ctx.out("Fitting constant-only model:");
       null0.log.forEach((v, j) =>
         ctx.out(iterationLine(j, "Log likelihood", v, null0.notes[j])),
@@ -2309,6 +2553,7 @@ function streg(session, text, ctx) {
     fit.log.forEach((v, j) =>
       ctx.out(iterationLine(j, "Log likelihood", v, fit.notes[j])),
     );
+    if (!fit.converged) ctx.out("convergence not achieved");
     ctx.out("");
   }
   const model = {
@@ -2322,10 +2567,10 @@ function streg(session, text, ctx) {
     columns: f.columns,
     constant: true,
     N: f.sample.length,
-    df_m: kb - 1,
-    rank: k,
+    df_m: dfModel,
+    rank,
     ll: fit.ll,
-    ll_0: null0.ll,
+    ll_0: null0?.ll ?? MISSING,
     vce: "oim",
     sample: f.sample,
     level: o.level,
@@ -2345,36 +2590,71 @@ function streg(session, text, ctx) {
       : {}),
   };
   session.estimates = model;
+  // e(b) as Stata holds it: every column, base levels included, and the
+  // ancillary parameter.
+  const space = coefficientSpace(model),
+    columns = space.entries.map(stripeName),
+    shownGradient = space.entries.map((entry) =>
+      entry.aux !== undefined
+        ? fit.gradient[k - 1]
+        : entry.index >= 0 && f.at[entry.index] >= 0
+          ? fit.gradient[f.at[entry.index]]
+          : 0,
+    ),
+    held = space.entries
+      .map((entry, j) =>
+        entry.index >= 0 && !model.estimable[entry.index] ? j : -1,
+      )
+      .filter((j) => j >= 0);
   const e = {
-    rank: k,
+    rank,
     N: model.N,
     ic: fit.log.length - 1,
-    k,
+    k: space.entries.length,
     k_eq: ancillary ? 2 : 1,
     k_dv: ancillary ? 1 : 2,
     converged: fit.converged ? 1 : 0,
-    rc: 0,
+    rc: fit.converged ? 0 : 430,
     ll: fit.ll,
     k_eq_model: 1,
-    ll_0: null0.ll,
   };
-  if (dist === "gompertz") e.rank0 = 2;
-  Object.assign(e, { df_m: kb - 1, chi2, p });
+  // Without the constant-only model there is no LR test to store.
+  if (wald) e.df_m = dfModel;
+  else {
+    e.ll_0 = null0.ll;
+    if (dist === "gompertz") e.rank0 = 2;
+    Object.assign(e, { df_m: dfModel, chi2, p });
+  }
   if (dist === "weibull") e.aux_p = Math.exp(fit.theta[k - 1]);
   if (ancillary) {
     e.k_aux = 1;
-    Object.assign(e, {
-      risk: counts.risk,
-      N_fail: counts.N_fail,
-      N_sub: counts.N_sub,
-    });
+    if (wald) e.gamma = fit.theta[k - 1];
+    Object.assign(
+      e,
+      wald
+        ? { N_sub: counts.N_sub, N_fail: counts.N_fail, risk: counts.risk }
+        : { risk: counts.risk, N_fail: counts.N_fail, N_sub: counts.N_sub },
+    );
   } else
     Object.assign(e, {
       N_sub: counts.N_sub,
       N_fail: counts.N_fail,
       risk: counts.risk,
     });
-  if (dist === "gompertz") e.gamma = fit.theta[k - 1];
+  if (dist === "gompertz" && !wald) e.gamma = fit.theta[k - 1];
+  // The macros in the order each of ereg, weibull and gompertz stores them.
+  const macros = {
+      cmd,
+      depvar: "_t",
+      stcurve: "stcurve",
+      dead: "_d",
+      frm2: aft ? "time" : "hazard",
+    },
+    order = {
+      exponential: ["cmd", "depvar", "stcurve", "dead", "frm2"],
+      weibull: ["cmd", "dead", "frm2", "stcurve"],
+      gompertz: ["frm2", "cmd", "stcurve", "dead"],
+    }[dist];
   Object.assign(e, {
     cmdline: `streg ${text.trim()}`,
     predict: "streg_p",
@@ -2382,16 +2662,48 @@ function streg(session, text, ctx) {
     estat_cmd: "streg_estat",
     cmd2: "streg",
     title,
-    cmd,
-    depvar: "_t",
-    stcurve: "stcurve",
-    dead: "_d",
-    frm2: aft ? "time" : "hazard",
-    t0: "_t0",
-    chi2type: "LR",
-    vce: "oim",
-    properties: "b V",
   });
+  for (const name of order) e[name] = macros[name];
+  Object.assign(e, {
+    t0: "_t0",
+    chi2type: wald ? "Wald" : "LR",
+    deriv_useminbound: "off",
+    opt: "moptimize",
+    vce: "oim",
+    // weibull_s.ado's evaluator for data that all enter at time zero, and
+    // its general one.
+    user:
+      dist === "exponential"
+        ? "ereg_lf"
+        : dist === "gompertz"
+          ? "gomp_lf"
+          : T0.every((t) => t === 0)
+            ? "weib_lf0"
+            : "weib_lf",
+    ml_method: "e2",
+    technique: "nr",
+    which: "max",
+  });
+  if (dist !== "exponential") e.depvar = "_t";
+  e.properties = "b V";
+  // A base level or an omitted variable is held at zero by a constraint.
+  if (held.length)
+    e["matrix:Cns"] = {
+      rowNames: held.map((_, r) => `r${r + 1}`),
+      colNames: [...columns, "_Cns:_r"],
+      values: held.map((j) => [...columns.map((_, c) => (c === j ? 1 : 0)), 0]),
+    };
+  // The first 20 log likelihoods of the full model's iterations.
+  e["matrix:ilog"] = {
+    rowNames: ["r1"],
+    colNames: Array.from({ length: 20 }, (_, c) => `c${c + 1}`),
+    values: [Array.from({ length: 20 }, (_, c) => fit.log[c] ?? 0)],
+  };
+  e["matrix:gradient"] = {
+    rowNames: ["r1"],
+    colNames: columns,
+    values: [shownGradient],
+  };
   session.results.e = e;
   stregTable(session, ctx, model, o);
   unconverged(fit);
@@ -2472,6 +2784,9 @@ function stregReplay(session, tail, ctx) {
     throw invalid("option nohr not allowed");
   ctx.out("");
   stregTable(session, ctx, model, o);
+  // A fit that ran out of iterations stops its replay as it stopped.
+  if (session.results.e?.rc === 430)
+    throw new StataError("convergence not achieved", 430);
 }
 
 // ----- after stcox and streg -----
@@ -2517,8 +2832,12 @@ function survivalPredict(session, text, ctx) {
     ctx.out("(option hr assumed; predicted hazard ratio)");
   }
   const data = session.data,
-    values = new Array(data.n).fill(MISSING);
+    values = new Array(data.n).fill(MISSING),
+    // streg's predictions (ereg_p, weibul_p, gomper_p) are made only where
+    // _st is 1; stcox's everywhere the covariates are.
+    st = cox ? null : data.get("_st")?.data;
   for (const i of session.rows(parsed, null)) {
+    if (st && st[i] !== 1) continue;
     const xb = linearAt(model, i, kind !== "hr");
     if (isMissing(xb)) continue;
     if (kind === "xb") values[i] = xb;
@@ -2536,8 +2855,9 @@ function survivalPredict(session, text, ctx) {
     }
   }
   const name = parsed.varlist?.[0] ?? parsed.newvarlist?.[0] ?? parsed.anything,
-    type = parsed.typename ?? data.defaultType,
-    result = data.generate(name, values, { type });
+    result = data.generate(name, values, {
+      type: parsed.typed?.[0] ? parsed.types[0] : undefined,
+    });
   if (result.missing)
     ctx.out(
       `(${result.missing} missing value${result.missing === 1 ? "" : "s"} generated)`,
@@ -2719,7 +3039,9 @@ function phtest(session, text, ctx) {
       (t, x, a) => t + x * gv.reduce((u, y, b) => u + scale * V[a][b] * y, 0),
       0,
     ),
-    df = k,
+    // The global test has the model's rank: none after a fit with no
+    // failures, where Stata shows chi2 and its p missing.
+    df = model.rank,
     p = chi2tail(df, chi2);
   if (detail) {
     ctx.out(

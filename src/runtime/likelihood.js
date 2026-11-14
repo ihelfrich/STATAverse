@@ -1562,15 +1562,19 @@ function poissonFit(x, y, lnFact, constant, w = null) {
 
 /**
  * A generalised inverse of a symmetric matrix, as Mata's invsym() gives:
- * columns are taken in order, one whose pivot is not positive is dropped,
- * and the rows and columns of dropped ones are zero.
+ * columns are taken in order of their diagonal, largest first (the first
+ * of equal ones first), one whose pivot falls to 1e-9 of its diagonal is
+ * dropped, and the rows and columns of dropped ones are zero. Installed
+ * Stata keeps (27, 27 \ 27, 27 + 2.8e-8) whole but drops the first column
+ * of (27, 27 \ 27, 27 + 2.7e-8), and of (27, 27 \ 27, 27) the second.
  */
 export function generalizedInverse(a) {
   const n = a.length,
     keep = [],
     // Rows of the Cholesky factor of the kept columns.
-    factor = [];
-  for (let j = 0; j < n; j++) {
+    factor = [],
+    order = [...Array(n).keys()].sort((i, j) => a[j][j] - a[i][i] || i - j);
+  for (const j of order) {
     const row = keep.map(() => 0);
     let pivot = a[j][j];
     keep.forEach((c, q) => {
@@ -1579,7 +1583,7 @@ export function generalizedInverse(a) {
       row[q] = v / factor[q][q];
       pivot -= row[q] * row[q];
     });
-    if (!(pivot > 1e-13 * Math.abs(a[j][j]))) continue;
+    if (!(pivot > 1e-9 * Math.abs(a[j][j]))) continue;
     row.push(Math.sqrt(pivot));
     keep.push(j);
     factor.push(row);

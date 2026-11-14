@@ -124879,6 +124879,3402 @@
       ]
     },
     {
+      "id": "survival-red-no-ties-and-ties",
+      "source": "set linesize 79\nclear\nset seed 505\nset obs 50\ngenerate x = invnormal(runiform())\ngenerate t = -ln(runiform())*exp(-.4*x)\ngenerate d = runiform() < .8\nstset t, failure(d)\nstcox x\nstcox x, efron\nstcox x, exactm\ndisplay \"`e(ties)' `e(method)'\"\nmatrix list e(b)\nestat phtest, detail\nreplace t = t[2] in 3\nreplace d = 0 in 2/3\nstcox x, nolog\ndisplay \"`e(ties)' `e(method)'\"\nreplace d = 1 in 2\nstcox x, efron nolog\ndisplay \"`e(ties)' `e(method)'\"\ngenerate t0 = t/2\nstset t, failure(d) enter(time t0)\nstcox x, exactm nolog\nestat phtest\nreplace t = t[5] in 6\nreplace d = 1 in 5/6\nstset t, failure(d)\nstcox x, nolog\ndisplay \"`e(ties)' `e(method)'\"\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 505", "lines": [] },
+        {
+          "command": "set obs 50",
+          "lines": ["Number of observations (_N) was 0, now 50."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate t = -ln(runiform())*exp(-.4*x)", "lines": [] },
+        { "command": "generate d = runiform() < .8", "lines": [] },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         50  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         50  observations remaining, representing",
+            "         35  failures in single-record/single-failure data",
+            "     70.837  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =  12.66329"
+          ]
+        },
+        {
+          "command": "stcox x",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -103.77028",
+            "Iteration 1:  Log likelihood = -100.03605",
+            "Iteration 2:  Log likelihood = -100.03602",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -100.03602",
+            "",
+            "Cox regression with no ties",
+            "",
+            "No. of subjects =      50                               Number of obs =     50",
+            "No. of failures =      35",
+            "Time at risk    = 70.8375",
+            "                                                        LR chi2(1)    =   7.47",
+            "Log likelihood = -100.03602                             Prob > chi2   = 0.0063",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.627102   .2913438     2.72   0.007     1.145517    2.311151",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox x, efron",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -103.77028",
+            "Iteration 1:  Log likelihood = -100.03605",
+            "Iteration 2:  Log likelihood = -100.03602",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -100.03602",
+            "",
+            "Cox regression with no ties",
+            "",
+            "No. of subjects =      50                               Number of obs =     50",
+            "No. of failures =      35",
+            "Time at risk    = 70.8375",
+            "                                                        LR chi2(1)    =   7.47",
+            "Log likelihood = -100.03602                             Prob > chi2   = 0.0063",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.627102   .2913438     2.72   0.007     1.145517    2.311151",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox x, exactm",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -103.77028",
+            "Iteration 1:  Log likelihood = -100.03605",
+            "Iteration 2:  Log likelihood = -100.03602",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -100.03602",
+            "",
+            "Cox regression with no ties",
+            "",
+            "No. of subjects =      50                               Number of obs =     50",
+            "No. of failures =      35",
+            "Time at risk    = 70.8375",
+            "                                                        LR chi2(1)    =   7.47",
+            "Log likelihood = -100.03602                             Prob > chi2   = 0.0063",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.627102   .2913438     2.72   0.007     1.145517    2.311151",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display \"`e(ties)' `e(method)'\"",
+          "lines": ["none marginal"]
+        },
+        {
+          "command": "matrix list e(b)",
+          "lines": ["symmetric e(b)[1,1]", "            x", "y1  .48680074"]
+        },
+        {
+          "command": "estat phtest, detail",
+          "lines": [
+            "Test of proportional-hazards assumption",
+            "",
+            "Time function: Analysis time",
+            "--------------------------------------------------------",
+            "             |        rho     chi2       df    Prob>chi2",
+            "-------------+------------------------------------------",
+            "           x |   -0.02194     0.01        1       0.9051",
+            "-------------+------------------------------------------",
+            " Global test |                0.01        1       0.9051",
+            "--------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "replace t = t[2] in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace d = 0 in 2/3",
+          "lines": ["(2 real changes made)"]
+        },
+        {
+          "command": "stcox x, nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Cox regression with no ties",
+            "",
+            "No. of subjects =      50                               Number of obs =     50",
+            "No. of failures =      35",
+            "Time at risk    = 70.8375",
+            "                                                        LR chi2(1)    =   7.47",
+            "Log likelihood = -100.03602                             Prob > chi2   = 0.0063",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.627102   .2913438     2.72   0.007     1.145517    2.311151",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display \"`e(ties)' `e(method)'\"",
+          "lines": ["none breslow"]
+        },
+        { "command": "replace d = 1 in 2", "lines": ["(1 real change made)"] },
+        {
+          "command": "stcox x, efron nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Cox regression with no ties",
+            "",
+            "No. of subjects =      50                               Number of obs =     50",
+            "No. of failures =      35",
+            "Time at risk    = 70.8375",
+            "                                                        LR chi2(1)    =   7.47",
+            "Log likelihood = -100.03602                             Prob > chi2   = 0.0063",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.627102   .2913438     2.72   0.007     1.145517    2.311151",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display \"`e(ties)' `e(method)'\"",
+          "lines": ["none efron"]
+        },
+        { "command": "generate t0 = t/2", "lines": [] },
+        {
+          "command": "stset t, failure(d) enter(time t0)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Enter on or after: time t0",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         50  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         50  observations remaining, representing",
+            "         34  failures in single-record/single-failure data",
+            "     29.353  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =  .0055944",
+            "                                          Last observed exit t =  5.439353"
+          ]
+        },
+        {
+          "command": "stcox x, exactm nolog",
+          "lines": [
+            "         Failure _d: d",
+            "   Analysis time _t: t",
+            "  Enter on or after: time t0",
+            "",
+            "Cox regression with no ties",
+            "",
+            "No. of subjects =      50                               Number of obs =     50",
+            "No. of failures =      34",
+            "Time at risk    = 29.3528",
+            "                                                        LR chi2(1)    =   0.77",
+            "Log likelihood = -68.560583                             Prob > chi2   = 0.3794",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    1.19626    .243421     0.88   0.379     .8028213    1.782512",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat phtest",
+          "lines": [
+            "Test of proportional-hazards assumption",
+            "",
+            "Time function: Analysis time",
+            "------------------------------------------------",
+            "             |     chi2       df       Prob>chi2",
+            "-------------+----------------------------------",
+            " Global test |     0.00        1          0.9723",
+            "------------------------------------------------"
+          ]
+        },
+        {
+          "command": "replace t = t[5] in 6",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace d = 1 in 5/6",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         50  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         50  observations remaining, representing",
+            "         35  failures in single-record/single-failure data",
+            "     58.286  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =  5.439353"
+          ]
+        },
+        {
+          "command": "stcox x, nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =      50                               Number of obs =     50",
+            "No. of failures =      35",
+            "Time at risk    = 58.2865",
+            "                                                        LR chi2(1)    =   5.86",
+            "Log likelihood = -102.19106                             Prob > chi2   = 0.0155",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.544647   .2785616     2.41   0.016     1.084735    2.199555",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display \"`e(ties)' `e(method)'\"",
+          "lines": ["breslow breslow"]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "survival-red-exactm-large-tie-groups",
+      "source": "set linesize 79\nclear\nset seed 909\nset obs 1000\ngenerate x = invnormal(runiform())\ngenerate z = runiform() < .5\ngenerate t = ceil(runiform()*3)\ngenerate d = runiform() < .7\nstset t, failure(d)\nstcox x z, exactm\ndisplay %12.0g e(ll) \" \" %12.0g e(ll_0)\nclear\nset seed 808\nset obs 60\ngenerate x = invnormal(runiform())\ngenerate t = ceil(runiform()*2)\ngenerate d = runiform() < .9\nstset t, failure(d)\nstcox x, exactm\nclear\nset seed 77\nset obs 200\ngenerate x = invnormal(runiform())\ngenerate g = runiform() < .4\ngenerate t = ceil(-ln(runiform())*4*exp(-.3*x))\ngenerate d = runiform() < .75\nstset t, failure(d)\nstcox x g, exactm\nlincom x\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 909", "lines": [] },
+        {
+          "command": "set obs 1000",
+          "lines": ["Number of observations (_N) was 0, now 1,000."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate z = runiform() < .5", "lines": [] },
+        { "command": "generate t = ceil(runiform()*3)", "lines": [] },
+        { "command": "generate d = runiform() < .7", "lines": [] },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "      1,000  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "      1,000  observations remaining, representing",
+            "        678  failures in single-record/single-failure data",
+            "      2,004  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =         3"
+          ]
+        },
+        {
+          "command": "stcox x z, exactm",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -1466.5746",
+            "Iteration 1:  Log likelihood = -1466.2444",
+            "Iteration 2:  Log likelihood = -1466.2444",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -1466.2444",
+            "",
+            "Cox regression with exact marginal likelihood method for ties",
+            "",
+            "No. of subjects = 1,000                                 Number of obs =  1,000",
+            "No. of failures =   678",
+            "Time at risk    = 2,004",
+            "                                                        LR chi2(2)    =   0.66",
+            "Log likelihood = -1466.2444                             Prob > chi2   = 0.7188",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.027366   .0392871     0.71   0.480     .9531793    1.107326",
+            "           z |    1.03305   .0797382     0.42   0.674      .888013    1.201774",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display %12.0g e(ll) \" \" %12.0g e(ll_0)",
+          "lines": ["-1466.244435 -1466.574605"]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 808", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate t = ceil(runiform()*2)", "lines": [] },
+        { "command": "generate d = runiform() < .9", "lines": [] },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         60  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         60  observations remaining, representing",
+            "         54  failures in single-record/single-failure data",
+            "         89  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =         2"
+          ]
+        },
+        {
+          "command": "stcox x, exactm",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -47.384099",
+            "Iteration 1:  Log likelihood = -47.306884",
+            "Iteration 2:  Log likelihood =  -47.30688",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood =  -47.30688",
+            "",
+            "Cox regression with exact marginal likelihood method for ties",
+            "",
+            "No. of subjects = 60                                    Number of obs =     60",
+            "No. of failures = 54",
+            "Time at risk    = 89",
+            "                                                        LR chi2(1)    =   0.15",
+            "Log likelihood = -47.30688                              Prob > chi2   = 0.6943",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9432123   .1407141    -0.39   0.695     .7040802    1.263563",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 77", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate g = runiform() < .4", "lines": [] },
+        {
+          "command": "generate t = ceil(-ln(runiform())*4*exp(-.3*x))",
+          "lines": []
+        },
+        { "command": "generate d = runiform() < .75", "lines": [] },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "        200  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "        200  observations remaining, representing",
+            "        149  failures in single-record/single-failure data",
+            "        842  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =        29"
+          ]
+        },
+        {
+          "command": "stcox x g, exactm",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -352.48012",
+            "Iteration 1:  Log likelihood = -348.99266",
+            "Iteration 2:  Log likelihood = -348.99069",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -348.99069",
+            "",
+            "Cox regression with exact marginal likelihood method for ties",
+            "",
+            "No. of subjects = 200                                   Number of obs =    200",
+            "No. of failures = 149",
+            "Time at risk    = 842",
+            "                                                        LR chi2(2)    =   6.98",
+            "Log likelihood = -348.99069                             Prob > chi2   = 0.0305",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.253579   .1078598     2.63   0.009     1.059042    1.483851",
+            "           g |   .9589781   .1646788    -0.24   0.807     .6849165    1.342702",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "lincom x",
+          "lines": [
+            " ( 1)  x = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .2260029   .0860415     2.63   0.009     .0573647    .3946411",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "survival-red-cox-convergence",
+      "source": "set linesize 79\nclear\nset seed 70\nset obs 200\ngenerate x = invnormal(runiform())\ngenerate g = runiform() < .4\ngenerate w = runiform()*3\ngenerate t = ceil(-ln(runiform())*2*exp(-.3*x+.2*g))\ngenerate d = runiform() < .75\nquietly stset t, failure(d)\nstcox x g w\nstcox x g w, efron\nstcox x g w, exactm\nclear\nset seed 71\nset obs 500\ngenerate x = invnormal(runiform())\ngenerate g = runiform() < .4\ngenerate w = runiform()*3\ngenerate t = ceil(-ln(runiform())*3*exp(-.3*x+.2*g))\ngenerate d = runiform() < .75\nquietly stset t, failure(d)\nstcox x g w\nstcox x g w, efron\nstcox x g w, exactm\nclear\nset seed 74\nset obs 40\ngenerate x = invnormal(runiform())\ngenerate g = runiform() < .4\ngenerate w = runiform()*3\ngenerate t = ceil(-ln(runiform())*6*exp(-.3*x+.2*g))\ngenerate d = runiform() < .75\nquietly stset t, failure(d)\nstcox x g w\nstcox x g w, efron\nstcox x g w, exactm\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 70", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate g = runiform() < .4", "lines": [] },
+        { "command": "generate w = runiform()*3", "lines": [] },
+        {
+          "command": "generate t = ceil(-ln(runiform())*2*exp(-.3*x+.2*g))",
+          "lines": []
+        },
+        { "command": "generate d = runiform() < .75", "lines": [] },
+        { "command": "quietly stset t, failure(d)", "lines": [] },
+        {
+          "command": "stcox x g w",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -696.27556",
+            "Iteration 1:  Log likelihood = -689.61611",
+            "Iteration 2:  Log likelihood = -689.61202",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -689.61202",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects = 200                                   Number of obs =    200",
+            "No. of failures = 154",
+            "Time at risk    = 551",
+            "                                                        LR chi2(3)    =  13.33",
+            "Log likelihood = -689.61202                             Prob > chi2   = 0.0040",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.316798    .118695     3.05   0.002     1.103552    1.571252",
+            "           g |   .8152203     .14184    -1.17   0.240     .5796617    1.146504",
+            "           w |   .9191918   .0812295    -0.95   0.340     .7730098    1.093018",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox x g w, efron",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -673.28773",
+            "Iteration 1:  Log likelihood = -664.08553",
+            "Iteration 2:  Log likelihood = -664.07491",
+            "Iteration 3:  Log likelihood = -664.07491",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -664.07491",
+            "",
+            "Cox regression with Efron method for ties",
+            "",
+            "No. of subjects = 200                                   Number of obs =    200",
+            "No. of failures = 154",
+            "Time at risk    = 551",
+            "                                                        LR chi2(3)    =  18.43",
+            "Log likelihood = -664.07491                             Prob > chi2   = 0.0004",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.389946   .1272628     3.60   0.000     1.161615    1.663158",
+            "           g |   .7838532    .136342    -1.40   0.161     .5574145    1.102278",
+            "           w |     .90914   .0798546    -1.08   0.278     .7653591    1.079932",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox x g w, exactm",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -301.86664",
+            "Iteration 1:  Log likelihood = -292.47886",
+            "Iteration 2:  Log likelihood = -292.46606",
+            "Iteration 3:  Log likelihood = -292.46606",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -292.46606",
+            "",
+            "Cox regression with exact marginal likelihood method for ties",
+            "",
+            "No. of subjects = 200                                   Number of obs =    200",
+            "No. of failures = 154",
+            "Time at risk    = 551",
+            "                                                        LR chi2(3)    =  18.80",
+            "Log likelihood = -292.46606                             Prob > chi2   = 0.0003",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.399236   .1295567     3.63   0.000     1.167018    1.677663",
+            "           g |   .7812707   .1366569    -1.41   0.158     .5545141    1.100754",
+            "           w |   .9073721   .0801556    -1.10   0.271     .7631182    1.078895",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 71", "lines": [] },
+        {
+          "command": "set obs 500",
+          "lines": ["Number of observations (_N) was 0, now 500."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate g = runiform() < .4", "lines": [] },
+        { "command": "generate w = runiform()*3", "lines": [] },
+        {
+          "command": "generate t = ceil(-ln(runiform())*3*exp(-.3*x+.2*g))",
+          "lines": []
+        },
+        { "command": "generate d = runiform() < .75", "lines": [] },
+        { "command": "quietly stset t, failure(d)", "lines": [] },
+        {
+          "command": "stcox x g w",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -2007.9262",
+            "Iteration 1:  Log likelihood = -1993.5369",
+            "Iteration 2:  Log likelihood = -1993.5288",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -1993.5288",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =   500                                 Number of obs =    500",
+            "No. of failures =   372",
+            "Time at risk    = 1,902",
+            "                                                        LR chi2(3)    =  28.79",
+            "Log likelihood = -1993.5288                             Prob > chi2   = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.251344   .0677106     4.14   0.000     1.125429    1.391347",
+            "           g |   .7678079   .0830491    -2.44   0.015     .6211311    .9491216",
+            "           w |   1.153423    .067996     2.42   0.015     1.027565    1.294697",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox x g w, efron",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -1968.1833",
+            "Iteration 1:  Log likelihood = -1950.2733",
+            "Iteration 2:  Log likelihood = -1950.2605",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -1950.2605",
+            "",
+            "Cox regression with Efron method for ties",
+            "",
+            "No. of subjects =   500                                 Number of obs =    500",
+            "No. of failures =   372",
+            "Time at risk    = 1,902",
+            "                                                        LR chi2(3)    =  35.85",
+            "Log likelihood = -1950.2605                             Prob > chi2   = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.283832   .0696498     4.61   0.000     1.154328    1.427865",
+            "           g |   .7423864   .0803295    -2.75   0.006     .6005183    .9177699",
+            "           w |   1.174063    .068976     2.73   0.006     1.046366    1.317345",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox x g w, exactm",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood =   -909.929",
+            "Iteration 1:  Log likelihood = -890.90696",
+            "Iteration 2:  Log likelihood = -890.89272",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -890.89272",
+            "",
+            "Cox regression with exact marginal likelihood method for ties",
+            "",
+            "No. of subjects =   500                                 Number of obs =    500",
+            "No. of failures =   372",
+            "Time at risk    = 1,902",
+            "                                                        LR chi2(3)    =  38.07",
+            "Log likelihood = -890.89272                             Prob > chi2   = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.295238   .0706549     4.74   0.000     1.163903    1.441393",
+            "           g |   .7375956    .079949    -2.81   0.005     .5964244    .9121814",
+            "           w |   1.182248   .0694781     2.85   0.004     1.053624    1.326575",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 74", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate g = runiform() < .4", "lines": [] },
+        { "command": "generate w = runiform()*3", "lines": [] },
+        {
+          "command": "generate t = ceil(-ln(runiform())*6*exp(-.3*x+.2*g))",
+          "lines": []
+        },
+        { "command": "generate d = runiform() < .75", "lines": [] },
+        { "command": "quietly stset t, failure(d)", "lines": [] },
+        {
+          "command": "stcox x g w",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -90.471239",
+            "Iteration 1:  Log likelihood = -89.246998",
+            "Iteration 2:  Log likelihood = -89.240442",
+            "Iteration 3:  Log likelihood = -89.240441",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -89.240441",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =  40                                   Number of obs =     40",
+            "No. of failures =  33",
+            "Time at risk    = 351",
+            "                                                        LR chi2(3)    =   2.46",
+            "Log likelihood = -89.240441                             Prob > chi2   = 0.4823",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    1.32119   .2569644     1.43   0.152     .9024251    1.934281",
+            "           g |   1.137003   .4576153     0.32   0.750     .5166238    2.502355",
+            "           w |   .7772107   .2194308    -0.89   0.372     .4469079    1.351635",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox x g w, efron",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -88.856229",
+            "Iteration 1:  Log likelihood = -87.452072",
+            "Iteration 2:  Log likelihood = -87.443762",
+            "Iteration 3:  Log likelihood = -87.443761",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -87.443761",
+            "",
+            "Cox regression with Efron method for ties",
+            "",
+            "No. of subjects =  40                                   Number of obs =     40",
+            "No. of failures =  33",
+            "Time at risk    = 351",
+            "                                                        LR chi2(3)    =   2.82",
+            "Log likelihood = -87.443761                             Prob > chi2   = 0.4194",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.350668   .2628336     1.54   0.122     .9223781    1.977828",
+            "           g |   1.149986   .4636252     0.35   0.729     .5218245    2.534315",
+            "           w |   .7600461   .2165601    -0.96   0.336     .4348173    1.328535",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox x g w, exactm",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -71.356521",
+            "Iteration 1:  Log likelihood = -69.939837",
+            "Iteration 2:  Log likelihood = -69.931479",
+            "Iteration 3:  Log likelihood = -69.931479",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -69.931479",
+            "",
+            "Cox regression with exact marginal likelihood method for ties",
+            "",
+            "No. of subjects =  40                                   Number of obs =     40",
+            "No. of failures =  33",
+            "Time at risk    = 351",
+            "                                                        LR chi2(3)    =   2.85",
+            "Log likelihood = -69.931479                             Prob > chi2   = 0.4153",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.353925   .2645345     1.55   0.121     .9231747    1.985662",
+            "           g |   1.153725   .4672899     0.35   0.724     .5216061     2.55189",
+            "           w |   .7572888   .2167185    -0.97   0.331     .4321827    1.326954",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "survival-red-separation-and-no-variance",
+      "source": "set linesize 79\nclear\nset seed 1111\nset obs 70\ngenerate x = invnormal(runiform())\ngenerate x2 = -x\ngenerate g = floor(runiform()*3)\ngenerate t = -ln(runiform())*10*exp(-.3*x)\ngenerate d = runiform() < .8\nreplace x = . in 3\ngenerate z = x > 0 if x < .\nreplace d = 1 if z == 1\nreplace d = 0 if z == 0\nstset t, failure(d)\ncapture noisily streg z, dist(exponential) nolog\ndisplay _rc\ndisplay e(converged) \" \" e(rank) \" \" e(df_m) \" \" e(ic) \" \" e(rc)\nmatrix list e(V)\ncapture noisily streg\ndisplay _rc\ncapture noisily streg z, dist(weibull) nolog\ndisplay _rc\nclear\nset seed 404\nset obs 30\ngenerate z = _n > 15\ngenerate t = cond(z, ceil(runiform()*5), 5 + ceil(runiform()*5))\ngenerate d = 1\ngenerate t2 = 3\ngenerate x = invnormal(runiform())\nstset t2, failure(d)\nstcox x, exactm\nmatrix list e(b)\nmatrix list e(V)\nlincom x\ndisplay e(rank) \" \" e(df_m) \" \" e(chi2)\nstcox x\nreplace d = 0\nstset t, failure(d)\nstcox x z, nolog\ndisplay \"`e(ties)' `e(method)' \" e(rank) \" \" e(df_m)\nmatrix list e(b)\nestat phtest\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 1111", "lines": [] },
+        {
+          "command": "set obs 70",
+          "lines": ["Number of observations (_N) was 0, now 70."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate x2 = -x", "lines": [] },
+        { "command": "generate g = floor(runiform()*3)", "lines": [] },
+        {
+          "command": "generate t = -ln(runiform())*10*exp(-.3*x)",
+          "lines": []
+        },
+        { "command": "generate d = runiform() < .8", "lines": [] },
+        {
+          "command": "replace x = . in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "generate z = x > 0 if x < .",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "replace d = 1 if z == 1",
+          "lines": ["(7 real changes made)"]
+        },
+        {
+          "command": "replace d = 0 if z == 0",
+          "lines": ["(31 real changes made)"]
+        },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         70  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         70  observations remaining, representing",
+            "         28  failures in single-record/single-failure data",
+            "    681.513  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =  57.20926"
+          ]
+        },
+        {
+          "command": "capture noisily streg z, dist(exponential) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "convergence not achieved",
+            "",
+            "Exponential PH regression",
+            "",
+            "No. of subjects =       69                              Number of obs =     69",
+            "No. of failures =       27",
+            "Time at risk    = 674.7427",
+            "                                                        LR chi2(0)    =  52.82",
+            "Log likelihood = -32.969645                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           z |   1.42e+12          .        .       .            .           .",
+            "       _cons |   7.52e-14   1.45e-14  -157.02   0.000     5.16e-14    1.10e-13",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard.",
+            "convergence not achieved"
+          ]
+        },
+        { "command": "display _rc", "lines": ["430"] },
+        {
+          "command": "display e(converged) \" \" e(rank) \" \" e(df_m) \" \" e(ic) \" \" e(rc)",
+          "lines": ["0 1 0 300 430"]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[2,2]",
+            "                 _t:        _t:",
+            "                  z      _cons",
+            "    _t:z          0",
+            "_t:_cons          0  .03703704"
+          ]
+        },
+        {
+          "command": "capture noisily streg",
+          "lines": [
+            "Exponential PH regression",
+            "",
+            "No. of subjects =       69                              Number of obs =     69",
+            "No. of failures =       27",
+            "Time at risk    = 674.7427",
+            "                                                        LR chi2(0)    =  52.82",
+            "Log likelihood = -32.969645                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           z |   1.42e+12          .        .       .            .           .",
+            "       _cons |   7.52e-14   1.45e-14  -157.02   0.000     5.16e-14    1.10e-13",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard.",
+            "convergence not achieved"
+          ]
+        },
+        { "command": "display _rc", "lines": ["430"] },
+        {
+          "command": "capture noisily streg z, dist(weibull) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Weibull PH regression",
+            "",
+            "No. of subjects =       69                              Number of obs =     69",
+            "No. of failures =       27",
+            "Time at risk    = 674.7427",
+            "                                                        LR chi2(1)    =  61.20",
+            "Log likelihood = -27.301558                             Prob > chi2   = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           z |   7.35e+08   2.38e+12     0.01   0.995            0           .",
+            "       _cons |   1.85e-11   5.97e-08    -0.01   0.994            0           .",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |   .6020912   .1578642     3.81   0.000     .2926831    .9114993",
+            "-------------+----------------------------------------------------------------",
+            "           p |   1.825933   .2882494                      1.340018     2.48805",
+            "         1/p |   .5476652   .0864567                      .4019212    .7462586",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 404", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate z = _n > 15", "lines": [] },
+        {
+          "command": "generate t = cond(z, ceil(runiform()*5), 5 + ceil(runiform()*5))",
+          "lines": []
+        },
+        { "command": "generate d = 1", "lines": [] },
+        { "command": "generate t2 = 3", "lines": [] },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        {
+          "command": "stset t2, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t2]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         30  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         30  observations remaining, representing",
+            "         30  failures in single-record/single-failure data",
+            "         90  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =         3"
+          ]
+        },
+        {
+          "command": "stcox x, exactm",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t2",
+            "",
+            "Iteration 0:  Log likelihood =          0",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood =          0",
+            "",
+            "Cox regression with exact marginal likelihood method for ties",
+            "",
+            "No. of subjects = 30                                    Number of obs =     30",
+            "No. of failures = 30",
+            "Time at risk    = 90",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = 0                                      Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |          1  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(b)",
+          "lines": ["symmetric e(b)[1,1]", "    x", "y1  0"]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": ["symmetric e(V)[1,1]", "   x", "x  0"]
+        },
+        {
+          "command": "lincom x",
+          "lines": [
+            " ( 1)  x = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |          0  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(rank) \" \" e(df_m) \" \" e(chi2)",
+          "lines": ["0 0 0"]
+        },
+        {
+          "command": "stcox x",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t2",
+            "",
+            "Iteration 0:  Log likelihood = -102.03592",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -102.03592",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects = 30                                    Number of obs =     30",
+            "No. of failures = 30",
+            "Time at risk    = 90",
+            "                                                        LR chi2(1)    =   0.00",
+            "Log likelihood = -102.03592                             Prob > chi2   = 1.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |          1   .1666696     0.00   1.000     .7213243    1.386339",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "replace d = 0", "lines": ["(30 real changes made)"] },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         30  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         30  observations remaining, representing",
+            "          0  failures in single-record/single-failure data",
+            "        166  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =        10"
+          ]
+        },
+        {
+          "command": "stcox x z, nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Cox regression with no ties",
+            "",
+            "No. of subjects =  30                                   Number of obs =     30",
+            "No. of failures =   0",
+            "Time at risk    = 166",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = 0                                      Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |          1  (omitted)",
+            "           z |          1  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display \"`e(ties)' `e(method)' \" e(rank) \" \" e(df_m)",
+          "lines": ["none breslow 0 0"]
+        },
+        {
+          "command": "matrix list e(b)",
+          "lines": ["e(b)[1,2]", "    x  z", "y1  0  0"]
+        },
+        {
+          "command": "estat phtest",
+          "lines": [
+            "Test of proportional-hazards assumption",
+            "",
+            "Time function: Analysis time",
+            "------------------------------------------------",
+            "             |     chi2       df       Prob>chi2",
+            "-------------+----------------------------------",
+            " Global test |        .        0              .",
+            "------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "survival-red-predict-st-sample-and-types",
+      "source": "set linesize 79\nclear\nset seed 1717\nset obs 60\ngenerate x = invnormal(runiform())\ngenerate g = floor(runiform()*3)\ngenerate t = ceil(-ln(runiform())*10)\ngenerate d = runiform() < .7\nreplace x = . in 2\nstset t if g < 2, failure(d)\nstreg x i.g, dist(weibull) nolog\npredict hw, hr\npredict xw, xb\npredict sw, stdp\nsummarize hw xw sw\nstcox x i.g, nolog\npredict double h2, hr\npredict double xbd, xb\npredict float xbf, xb\npredict sd2, stdp\ndescribe h2 xbd xbf sd2\nlist x g h2 xbd sd2 in 1/3\nsummarize h2 xbd sd2\nstreg x i.g, dist(weibull) nolog\npredict double hw2, hr\npredict double sw2, stdp\ndescribe hw2 sw2\nlist hw2 sw2 in 1/3\nstreg x, dist(exponential) nolog\npredict double xe, xb\nsummarize xe\nstreg x, dist(gompertz) nolog\npredict he, hr\nsummarize he\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 1717", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate g = floor(runiform()*3)", "lines": [] },
+        { "command": "generate t = ceil(-ln(runiform())*10)", "lines": [] },
+        { "command": "generate d = runiform() < .7", "lines": [] },
+        {
+          "command": "replace x = . in 2",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "stset t if g < 2, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "      Keep observations",
+            "                if exp: g < 2",
+            "",
+            "--------------------------------------------------------------------------",
+            "         60  total observations",
+            "         23  ignored at outset because of if exp",
+            "--------------------------------------------------------------------------",
+            "         37  observations remaining, representing",
+            "         28  failures in single-record/single-failure data",
+            "        436  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =        46"
+          ]
+        },
+        {
+          "command": "streg x i.g, dist(weibull) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Weibull PH regression",
+            "",
+            "No. of subjects =  37                                   Number of obs =     37",
+            "No. of failures =  28",
+            "Time at risk    = 436",
+            "                                                        LR chi2(2)    =   0.63",
+            "Log likelihood = -43.338301                             Prob > chi2   = 0.7288",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.116856   .2272309     0.54   0.587     .7495749    1.664099",
+            "         1.g |    .843423    .355169    -0.40   0.686     .3694884    1.925263",
+            "       _cons |   .0307348   .0185523    -5.77   0.000     .0094151    .1003314",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |   .2447316   .1491762     1.64   0.101    -.0476483    .5371115",
+            "-------------+----------------------------------------------------------------",
+            "           p |   1.277278   .1905395                      .9534691    1.711057",
+            "         1/p |   .7829146   .1167922                       .584434    1.048802",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "predict hw, hr",
+          "lines": ["(23 missing values generated)"]
+        },
+        {
+          "command": "predict xw, xb",
+          "lines": ["(23 missing values generated)"]
+        },
+        {
+          "command": "predict sw, stdp",
+          "lines": ["(23 missing values generated)"]
+        },
+        {
+          "command": "summarize hw xw sw",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          hw |         37    .9484197    .1494232   .6197918   1.214054",
+            "          xw |         37   -3.548364    .1672475  -3.960731  -3.288394",
+            "          sw |         37    .6632286    .0804659   .5842265   .8940796"
+          ]
+        },
+        {
+          "command": "stcox x i.g, nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =  37                                   Number of obs =     37",
+            "No. of failures =  28",
+            "Time at risk    = 436",
+            "                                                        LR chi2(2)    =   0.64",
+            "Log likelihood = -72.285221                             Prob > chi2   = 0.7258",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.125115   .2348874     0.56   0.572     .7472981    1.693948",
+            "         1.g |    .825115   .3723608    -0.43   0.670     .3407072     1.99824",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "predict double h2, hr",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double xbd, xb",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict float xbf, xb",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict sd2, stdp",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "describe h2 xbd xbf sd2",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "-------------------------------------------------------------------------------",
+            "h2              double  %10.0g                Predicted hazard ratio",
+            "xbd             double  %10.0g                Linear prediction",
+            "xbf             float   %9.0g                 Linear prediction",
+            "sd2             float   %9.0g                 S.E. of the prediction"
+          ]
+        },
+        {
+          "command": "list x g h2 xbd sd2 in 1/3",
+          "lines": [
+            "     +--------------------------------------------------+",
+            "     |        x   g          h2          xbd        sd2 |",
+            "     |--------------------------------------------------|",
+            "  1. | -1.28945   0   .85898184   -.15200749   .2691952 |",
+            "  2. |        .   2           .            .          . |",
+            "  3. | .6527519   0   1.0799881       .07695   .1362733 |",
+            "     +--------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "summarize h2 xbd sd2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          h2 |         59    .9787795    .1440294   .5940109   1.242969",
+            "         xbd |         59   -.0333461    .1603792  -.5208575   .2175029",
+            "         sd2 |         59    .2411368    .2001885   .0046356   .6633825"
+          ]
+        },
+        {
+          "command": "streg x i.g, dist(weibull) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Weibull PH regression",
+            "",
+            "No. of subjects =  37                                   Number of obs =     37",
+            "No. of failures =  28",
+            "Time at risk    = 436",
+            "                                                        LR chi2(2)    =   0.63",
+            "Log likelihood = -43.338301                             Prob > chi2   = 0.7288",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.116856   .2272309     0.54   0.587     .7495749    1.664099",
+            "         1.g |    .843423    .355169    -0.40   0.686     .3694884    1.925263",
+            "       _cons |   .0307348   .0185523    -5.77   0.000     .0094151    .1003314",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |   .2447316   .1491762     1.64   0.101    -.0476483    .5371115",
+            "-------------+----------------------------------------------------------------",
+            "           p |   1.277278   .1905395                      .9534691    1.711057",
+            "         1/p |   .7829146   .1167922                       .584434    1.048802",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "predict double hw2, hr",
+          "lines": ["(23 missing values generated)"]
+        },
+        {
+          "command": "predict double sw2, stdp",
+          "lines": ["(23 missing values generated)"]
+        },
+        {
+          "command": "describe hw2 sw2",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "-------------------------------------------------------------------------------",
+            "hw2             double  %10.0g                Predicted hazard ratio",
+            "sw2             double  %10.0g                S.E. of the prediction"
+          ]
+        },
+        {
+          "command": "list hw2 sw2 in 1/3",
+          "lines": [
+            "     +-----------------------+",
+            "     |       hw2         sw2 |",
+            "     |-----------------------|",
+            "  1. | .86718189   .71612743 |",
+            "  2. |         .           . |",
+            "  3. | 1.0748062   .58453334 |",
+            "     +-----------------------+"
+          ]
+        },
+        {
+          "command": "streg x, dist(exponential) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Exponential PH regression",
+            "",
+            "No. of subjects =  37                                   Number of obs =     37",
+            "No. of failures =  28",
+            "Time at risk    = 436",
+            "                                                        LR chi2(1)    =   0.16",
+            "Log likelihood = -44.639884                             Prob > chi2   = 0.6872",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.077431   .2001301     0.40   0.688     .7486537    1.550594",
+            "       _cons |   .0643786   .0121666   -14.51   0.000     .0444506    .0932409",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "predict double xe, xb",
+          "lines": ["(23 missing values generated)"]
+        },
+        {
+          "command": "summarize xe",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          xe |         37   -2.740928    .0899076  -2.950876  -2.604723"
+          ]
+        },
+        {
+          "command": "streg x, dist(gompertz) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Gompertz PH regression",
+            "",
+            "No. of subjects =  37                                   Number of obs =     37",
+            "No. of failures =  28",
+            "Time at risk    = 436",
+            "                                                        LR chi2(1)    =   0.85",
+            "Log likelihood = -43.121687                             Prob > chi2   = 0.3578",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.207928   .2516085     0.91   0.364     .8030408    1.816955",
+            "       _cons |   .0432549   .0135901   -10.00   0.000     .0233668    .0800705",
+            "-------------+----------------------------------------------------------------",
+            "      /gamma |   .0336023   .0186548     1.80   0.072    -.0029604     .070165",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "predict he, hr",
+          "lines": ["(23 missing values generated)"]
+        },
+        {
+          "command": "summarize he",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          he |         37    1.029913     .223246   .5906058   1.419323"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "survival-red-coefficient-equations",
+      "source": "set linesize 79\nclear\nset seed 505\nset obs 50\ngenerate x = invnormal(runiform())\ngenerate t = -ln(runiform())*exp(-.4*x)\ngenerate d = runiform() < .8\nregress t x\ncapture noisily display _b[_:x]\ncapture noisily display _b[t:x]\ncapture noisily display _b[foo:x]\ndisplay _rc\nlogit d x\ncapture noisily display _b[d:x]\ncapture noisily display _b[foo:x]\ncapture noisily display _b[/x]\nstset t, failure(d)\nstcox x\ncapture noisily display _b[_t:x]\ncapture noisily display _b[foo:x]\ncapture noisily display _b[x]\nstreg x, dist(weibull)\ncapture noisily display _b[_t:_cons]\ncapture noisily display _b[/ln_p]\ncapture noisily display _b[/:ln_p]\ncapture noisily display _se[/ln_p]\ncapture noisily display _b[ln_p]\ndisplay _rc\ncapture noisily display _b[/foo]\ndisplay _rc\ncapture noisily display _b[ln_p:_cons]\ndisplay _rc\ncapture noisily display [_t]_b[x]\ndisplay _b[/ln_p] + _b[x]\nstreg x, dist(gompertz) nolog\ncapture noisily display _b[/gamma]\ncapture noisily display _se[/gamma]\nstreg x, dist(exp) nolog\ncapture noisily display _b[/ln_p]\ndisplay _rc\ntobit t x, ll(0.1)\ncapture noisily display _b[/var(e.t)]\ncapture noisily display _b[foo:x]\ncapture noisily display _b[t:x]\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 505", "lines": [] },
+        {
+          "command": "set obs 50",
+          "lines": ["Number of observations (_N) was 0, now 50."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate t = -ln(runiform())*exp(-.4*x)", "lines": [] },
+        { "command": "generate d = runiform() < .8", "lines": [] },
+        {
+          "command": "regress t x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        50",
+            "-------------+----------------------------------   F(1, 48)        =     12.50",
+            "       Model |  39.4581936         1  39.4581936   Prob > F        =    0.0009",
+            "    Residual |  151.577231        48  3.15785899   R-squared       =    0.2065",
+            "-------------+----------------------------------   Adj R-squared   =    0.1900",
+            "       Total |  191.035425        49  3.89868214   Root MSE        =     1.777",
+            "",
+            "------------------------------------------------------------------------------",
+            "           t | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.9089096   .2571275    -3.53   0.001    -1.425899   -.3919202",
+            "       _cons |   1.172357   .2606477     4.50   0.000     .6482894    1.696424",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily display _b[_:x]",
+          "lines": ["-.9089096"]
+        },
+        {
+          "command": "capture noisily display _b[t:x]",
+          "lines": ["equation t not found"]
+        },
+        {
+          "command": "capture noisily display _b[foo:x]",
+          "lines": ["equation foo not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "logit d x",
+          "lines": [
+            "Iteration 0:  Log likelihood = -30.543215",
+            "Iteration 1:  Log likelihood = -30.540106",
+            "Iteration 2:  Log likelihood = -30.540106",
+            "",
+            "Logistic regression                                     Number of obs =     50",
+            "                                                        LR chi2(1)    =   0.01",
+            "                                                        Prob > chi2   = 0.9372",
+            "Log likelihood = -30.540106                             Pseudo R2     = 0.0001",
+            "",
+            "------------------------------------------------------------------------------",
+            "           d | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.0249063   .3159335    -0.08   0.937    -.6441246    .5943121",
+            "       _cons |   .8407195   .3193187     2.63   0.008     .2148663    1.466573",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily display _b[d:x]",
+          "lines": ["-.02490625"]
+        },
+        {
+          "command": "capture noisily display _b[foo:x]",
+          "lines": ["equation foo not found"]
+        },
+        {
+          "command": "capture noisily display _b[/x]",
+          "lines": ["[/x] not found"]
+        },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         50  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         50  observations remaining, representing",
+            "         35  failures in single-record/single-failure data",
+            "     70.837  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =  12.66329"
+          ]
+        },
+        {
+          "command": "stcox x",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -103.77028",
+            "Iteration 1:  Log likelihood = -100.03605",
+            "Iteration 2:  Log likelihood = -100.03602",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -100.03602",
+            "",
+            "Cox regression with no ties",
+            "",
+            "No. of subjects =      50                               Number of obs =     50",
+            "No. of failures =      35",
+            "Time at risk    = 70.8375",
+            "                                                        LR chi2(1)    =   7.47",
+            "Log likelihood = -100.03602                             Prob > chi2   = 0.0063",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.627102   .2913438     2.72   0.007     1.145517    2.311151",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily display _b[_t:x]",
+          "lines": ["equation _t not found"]
+        },
+        {
+          "command": "capture noisily display _b[foo:x]",
+          "lines": ["equation foo not found"]
+        },
+        { "command": "capture noisily display _b[x]", "lines": [".48680074"] },
+        {
+          "command": "streg x, dist(weibull)",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Fitting constant-only model:",
+            "Iteration 0:  Log likelihood = -71.233499",
+            "Iteration 1:  Log likelihood = -70.753543",
+            "Iteration 2:  Log likelihood = -70.753541",
+            "",
+            "Fitting full model:",
+            "Iteration 0:  Log likelihood = -70.753541",
+            "Iteration 1:  Log likelihood = -66.683966",
+            "Iteration 2:  Log likelihood = -66.325238",
+            "Iteration 3:  Log likelihood = -66.324471",
+            "Iteration 4:  Log likelihood = -66.324471",
+            "",
+            "Weibull PH regression",
+            "",
+            "No. of subjects =      50                               Number of obs =     50",
+            "No. of failures =      35",
+            "Time at risk    = 70.8375",
+            "                                                        LR chi2(1)    =   8.86",
+            "Log likelihood = -66.324471                             Prob > chi2   = 0.0029",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.612399     .25557     3.01   0.003     1.181829    2.199837",
+            "       _cons |   .6265542    .116812    -2.51   0.012     .4347749    .9029275",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |   .0523429   .1319076     0.40   0.692    -.2061913     .310877",
+            "-------------+----------------------------------------------------------------",
+            "           p |   1.053737   .1389959                      .8136774    1.364621",
+            "         1/p |   .9490034   .1251808                       .732804    1.228988",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "capture noisily display _b[_t:_cons]",
+          "lines": ["-.46751993"]
+        },
+        {
+          "command": "capture noisily display _b[/ln_p]",
+          "lines": [".05234288"]
+        },
+        {
+          "command": "capture noisily display _b[/:ln_p]",
+          "lines": [".05234288"]
+        },
+        {
+          "command": "capture noisily display _se[/ln_p]",
+          "lines": [".1319076"]
+        },
+        {
+          "command": "capture noisily display _b[ln_p]",
+          "lines": ["[ln_p] not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily display _b[/foo]",
+          "lines": ["[/foo] not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily display _b[ln_p:_cons]",
+          "lines": ["equation ln_p not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily display [_t]_b[x]",
+          "lines": [".47772328"]
+        },
+        { "command": "display _b[/ln_p] + _b[x]", "lines": [".53006616"] },
+        {
+          "command": "streg x, dist(gompertz) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Gompertz PH regression",
+            "",
+            "No. of subjects =      50                               Number of obs =     50",
+            "No. of failures =      35",
+            "Time at risk    = 70.8375",
+            "                                                        LR chi2(1)    =   7.90",
+            "Log likelihood = -66.370939                             Prob > chi2   = 0.0049",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.604646   .2688388     2.82   0.005     1.155502    2.228371",
+            "       _cons |   .6252153   .1294999    -2.27   0.023     .4166022    .9382914",
+            "-------------+----------------------------------------------------------------",
+            "      /gamma |    .022818   .0914732     0.25   0.803    -.1564661    .2021022",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "capture noisily display _b[/gamma]",
+          "lines": [".02281801"]
+        },
+        {
+          "command": "capture noisily display _se[/gamma]",
+          "lines": [".09147319"]
+        },
+        {
+          "command": "streg x, dist(exp) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Exponential PH regression",
+            "",
+            "No. of subjects =      50                               Number of obs =     50",
+            "No. of failures =      35",
+            "Time at risk    = 70.8375",
+            "                                                        LR chi2(1)    =   9.66",
+            "Log likelihood = -66.401114                             Prob > chi2   = 0.0019",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.572006   .2284556     3.11   0.002     1.182364    2.090053",
+            "       _cons |   .6426765   .1116492    -2.54   0.011     .4572115    .9033743",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "capture noisily display _b[/ln_p]",
+          "lines": ["[/ln_p] not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "tobit t x, ll(0.1)",
+          "lines": [
+            "Refining starting values:",
+            "",
+            "Grid node 0:  Log likelihood = -96.335697",
+            "",
+            "Fitting full model:",
+            "",
+            "Iteration 0:  Log likelihood = -96.335697",
+            "Iteration 1:  Log likelihood = -95.965886",
+            "Iteration 2:  Log likelihood = -95.960486",
+            "Iteration 3:  Log likelihood = -95.960476",
+            "",
+            "Tobit regression                                    Number of obs     =     50",
+            "                                                           Uncensored =     45",
+            "Limits: Lower = 0.10                                    Left-censored =      5",
+            "        Upper = +inf                                   Right-censored =      0",
+            "",
+            "                                                    LR chi2(1)        =  11.89",
+            "                                                    Prob > chi2       = 0.0006",
+            "Log likelihood = -95.960476                         Pseudo R2         = 0.0584",
+            "",
+            "------------------------------------------------------------------------------",
+            "           t | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.9910391   .2721291    -3.64   0.001    -1.537903   -.4441752",
+            "       _cons |   1.024531      .2794     3.67   0.001     .4630562    1.586007",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.t)|   3.470054   .7386139                      2.262396    5.322354",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily display _b[/var(e.t)]",
+          "lines": ["3.470054"]
+        },
+        {
+          "command": "capture noisily display _b[foo:x]",
+          "lines": ["equation foo not found"]
+        },
+        {
+          "command": "capture noisily display _b[t:x]",
+          "lines": ["-.99103907"]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "survival-red-streg-matrices",
+      "source": "set linesize 79\nclear\nset seed 1717\nset obs 60\ngenerate x = invnormal(runiform())\ngenerate g = floor(runiform()*3)\ngenerate t = ceil(-ln(runiform())*10)\ngenerate d = runiform() < .7\ngenerate c = 1\nreplace x = . in 2\nstset t if g < 2, failure(d)\nstreg x i.g, dist(weibull) nolog\nmatrix list e(Cns)\nmatrix list e(ilog)\ndisplay e(k) \" \" e(rank) \" \" e(df_m) \" `e(user)' `e(opt)' `e(ml_method)' `e(technique)' `e(which)' `e(deriv_useminbound)'\"\nstreg x i.g, dist(exponential) nolog\nmatrix list e(Cns)\nmatrix list e(ilog)\ndisplay e(k) \" \" e(rank) \" \" e(df_m) \" `e(user)'\"\nstreg x ib1.g, dist(gompertz) nolog\nmatrix list e(Cns)\ndisplay e(k) \" \" e(rank) \" \" e(df_m) \" `e(user)'\"\nstreg x ib1.g, dist(weibull) time nolog\nmatrix list e(Cns)\nstset t, failure(d)\nstreg i.g##c.x, dist(weibull) nolog\nmatrix list e(Cns)\nstreg x c, dist(exp) nolog\nmatrix list e(Cns)\nmatrix list e(b)\ngenerate t0 = cond(runiform() < .3, floor(runiform()*t), 0)\nstset t, failure(d) enter(time t0)\nstreg x, dist(weibull) nolog\ndisplay \"`e(user)'\"\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 1717", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate g = floor(runiform()*3)", "lines": [] },
+        { "command": "generate t = ceil(-ln(runiform())*10)", "lines": [] },
+        { "command": "generate d = runiform() < .7", "lines": [] },
+        { "command": "generate c = 1", "lines": [] },
+        {
+          "command": "replace x = . in 2",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "stset t if g < 2, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "      Keep observations",
+            "                if exp: g < 2",
+            "",
+            "--------------------------------------------------------------------------",
+            "         60  total observations",
+            "         23  ignored at outset because of if exp",
+            "--------------------------------------------------------------------------",
+            "         37  observations remaining, representing",
+            "         28  failures in single-record/single-failure data",
+            "        436  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =        46"
+          ]
+        },
+        {
+          "command": "streg x i.g, dist(weibull) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Weibull PH regression",
+            "",
+            "No. of subjects =  37                                   Number of obs =     37",
+            "No. of failures =  28",
+            "Time at risk    = 436",
+            "                                                        LR chi2(2)    =   0.63",
+            "Log likelihood = -43.338301                             Prob > chi2   = 0.7288",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.116856   .2272309     0.54   0.587     .7495749    1.664099",
+            "         1.g |    .843423    .355169    -0.40   0.686     .3694884    1.925263",
+            "       _cons |   .0307348   .0185523    -5.77   0.000     .0094151    .1003314",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |   .2447316   .1491762     1.64   0.101    -.0476483    .5371115",
+            "-------------+----------------------------------------------------------------",
+            "           p |   1.277278   .1905395                      .9534691    1.711057",
+            "         1/p |   .7829146   .1167922                       .584434    1.048802",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "matrix list e(Cns)",
+          "lines": [
+            "e(Cns)[1,6]",
+            "       _t:    _t:    _t:    _t:     /:  _Cns:",
+            "              0b.     1.",
+            "        x      g      g  _cons   ln_p     _r",
+            "r1      0      1      0      0      0      0"
+          ]
+        },
+        {
+          "command": "matrix list e(ilog)",
+          "lines": [
+            "e(ilog)[1,20]",
+            "            c1          c2          c3          c4          c5          c6",
+            "r1  -43.654696  -43.340203  -43.338301  -43.338301           0           0",
+            "",
+            "            c7          c8          c9         c10         c11         c12",
+            "r1           0           0           0           0           0           0",
+            "",
+            "           c13         c14         c15         c16         c17         c18",
+            "r1           0           0           0           0           0           0",
+            "",
+            "           c19         c20",
+            "r1           0           0"
+          ]
+        },
+        {
+          "command": "display e(k) \" \" e(rank) \" \" e(df_m) \" `e(user)' `e(opt)' `e(ml_method)' `e(technique)' `e(which)' `e(deriv_useminbound)'\"",
+          "lines": ["5 4 2 weib_lf0 moptimize e2 nr max off"]
+        },
+        {
+          "command": "streg x i.g, dist(exponential) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Exponential PH regression",
+            "",
+            "No. of subjects =  37                                   Number of obs =     37",
+            "No. of failures =  28",
+            "Time at risk    = 436",
+            "                                                        LR chi2(2)    =   0.34",
+            "Log likelihood = -44.551251                             Prob > chi2   = 0.8439",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.057332   .2030189     0.29   0.772     .7257244    1.540462",
+            "         1.g |   .8406877   .3496843    -0.42   0.677     .3720294    1.899731",
+            "       _cons |   .0682949   .0158202   -11.59   0.000     .0433722    .1075388",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "matrix list e(Cns)",
+          "lines": [
+            "e(Cns)[1,5]",
+            "       _t:    _t:    _t:    _t:  _Cns:",
+            "              0b.     1.",
+            "        x      g      g  _cons     _r",
+            "r1      0      1      0      0      0"
+          ]
+        },
+        {
+          "command": "matrix list e(ilog)",
+          "lines": [
+            "e(ilog)[1,20]",
+            "            c1          c2          c3          c4          c5          c6",
+            "r1  -44.720967  -44.551867  -44.551251  -44.551251           0           0",
+            "",
+            "            c7          c8          c9         c10         c11         c12",
+            "r1           0           0           0           0           0           0",
+            "",
+            "           c13         c14         c15         c16         c17         c18",
+            "r1           0           0           0           0           0           0",
+            "",
+            "           c19         c20",
+            "r1           0           0"
+          ]
+        },
+        {
+          "command": "display e(k) \" \" e(rank) \" \" e(df_m) \" `e(user)'\"",
+          "lines": ["4 3 2 ereg_lf"]
+        },
+        {
+          "command": "streg x ib1.g, dist(gompertz) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Gompertz PH regression",
+            "",
+            "No. of subjects =  37                                   Number of obs =     37",
+            "No. of failures =  28",
+            "Time at risk    = 436",
+            "                                                        LR chi2(2)    =   1.29",
+            "Log likelihood = -42.897368                             Prob > chi2   = 0.5236",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.173005   .2498286     0.75   0.454     .7726972    1.780697",
+            "         0.g |   1.330103   .5750303     0.66   0.509     .5700244    3.103679",
+            "       _cons |   .0347468    .016325    -7.15   0.000     .0138356    .0872633",
+            "-------------+----------------------------------------------------------------",
+            "      /gamma |   .0361072   .0193663     1.86   0.062      -.00185    .0740645",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "matrix list e(Cns)",
+          "lines": [
+            "e(Cns)[1,6]",
+            "       _t:    _t:    _t:    _t:     /:  _Cns:",
+            "               0.    1b.",
+            "        x      g      g  _cons  gamma     _r",
+            "r1      0      0      1      0      0      0"
+          ]
+        },
+        {
+          "command": "display e(k) \" \" e(rank) \" \" e(df_m) \" `e(user)'\"",
+          "lines": ["5 4 2 gomp_lf"]
+        },
+        {
+          "command": "streg x ib1.g, dist(weibull) time nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Weibull AFT regression",
+            "",
+            "No. of subjects =  37                                   Number of obs =     37",
+            "No. of failures =  28",
+            "Time at risk    = 436",
+            "                                                        LR chi2(2)    =   0.63",
+            "Log likelihood = -43.338301                             Prob > chi2   = 0.7288",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.0865256   .1571545    -0.55   0.582    -.3945427    .2214915",
+            "         0.g |    -.13332   .3300311    -0.40   0.686    -.7801689     .513529",
+            "       _cons |    2.85971   .2683476    10.66   0.000     2.333758    3.385661",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |   .2447316   .1491762     1.64   0.101    -.0476483    .5371115",
+            "-------------+----------------------------------------------------------------",
+            "           p |   1.277278   .1905395                      .9534691    1.711057",
+            "         1/p |   .7829146   .1167922                       .584434    1.048802",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(Cns)",
+          "lines": [
+            "e(Cns)[1,6]",
+            "       _t:    _t:    _t:    _t:     /:  _Cns:",
+            "               0.    1b.",
+            "        x      g      g  _cons   ln_p     _r",
+            "r1      0      0      1      0      0      0"
+          ]
+        },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         60  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         60  observations remaining, representing",
+            "         43  failures in single-record/single-failure data",
+            "        775  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =        46"
+          ]
+        },
+        {
+          "command": "streg i.g##c.x, dist(weibull) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Weibull PH regression",
+            "",
+            "No. of subjects =  59                                   Number of obs =     59",
+            "No. of failures =  43",
+            "Time at risk    = 762",
+            "                                                        LR chi2(5)    =   2.07",
+            "Log likelihood = -73.221494                             Prob > chi2   = 0.8393",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          1  |   .8628718    .358196    -0.36   0.722     .3824678    1.946694",
+            "          2  |   .6592358    .235596    -1.17   0.244     .3272205    1.328131",
+            "             |",
+            "           x |   1.039789    .254096     0.16   0.873     .6440725    1.678632",
+            "             |",
+            "       g#c.x |",
+            "          1  |   1.161109   .4662139     0.37   0.710     .5285607    2.550654",
+            "          2  |   .8789572   .3596278    -0.32   0.753     .3941815    1.959924",
+            "             |",
+            "       _cons |   .0385424   .0186648    -6.72   0.000     .0149187    .0995741",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |   .1845255   .1227538     1.50   0.133    -.0560675    .4251184",
+            "-------------+----------------------------------------------------------------",
+            "           p |   1.202648   .1476295                      .9454753    1.529772",
+            "         1/p |   .8314988   .1020696                      .6536924    1.057669",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "matrix list e(Cns)",
+          "lines": [
+            "e(Cns)[2,10]",
+            "       _t:    _t:    _t:    _t:    _t:    _t:    _t:    _t:     /:  _Cns:",
+            "       0b.     1.     2.         0b.g#   1.g#   2.g#",
+            "        g      g      g      x   co.x    c.x    c.x  _cons   ln_p     _r",
+            "r1      1      0      0      0      0      0      0      0      0      0",
+            "r2      0      0      0      0      1      0      0      0      0      0"
+          ]
+        },
+        {
+          "command": "streg x c, dist(exp) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "note: c omitted because of collinearity.",
+            "",
+            "Exponential PH regression",
+            "",
+            "No. of subjects =  59                                   Number of obs =     59",
+            "No. of failures =  43",
+            "Time at risk    = 762",
+            "                                                        LR chi2(1)    =   0.00",
+            "Log likelihood = -75.04808                              Prob > chi2   = 0.9742",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.005221   .1616622     0.03   0.974     .7334473    1.377697",
+            "           c |          1  (omitted)",
+            "       _cons |   .0564049   .0086397   -18.77   0.000     .0417768     .076155",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "matrix list e(Cns)",
+          "lines": [
+            "e(Cns)[1,4]",
+            "       _t:    _t:    _t:  _Cns:",
+            "               o.",
+            "        x      c  _cons     _r",
+            "r1      0      1      0      0"
+          ]
+        },
+        {
+          "command": "matrix list e(b)",
+          "lines": [
+            "e(b)[1,3]",
+            "            _t:         _t:         _t:",
+            "                         o.",
+            "             x           c       _cons",
+            "y1   .00520695           0  -2.8751992"
+          ]
+        },
+        {
+          "command": "generate t0 = cond(runiform() < .3, floor(runiform()*t), 0)",
+          "lines": []
+        },
+        {
+          "command": "stset t, failure(d) enter(time t0)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Enter on or after: time t0",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         60  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         60  observations remaining, representing",
+            "         43  failures in single-record/single-failure data",
+            "        621  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =        46"
+          ]
+        },
+        {
+          "command": "streg x, dist(weibull) nolog",
+          "lines": [
+            "         Failure _d: d",
+            "   Analysis time _t: t",
+            "  Enter on or after: time t0",
+            "",
+            "Weibull PH regression",
+            "",
+            "No. of subjects =  59                                   Number of obs =     59",
+            "No. of failures =  43",
+            "Time at risk    = 608",
+            "                                                        LR chi2(1)    =   0.04",
+            "Log likelihood = -64.935577                             Prob > chi2   = 0.8442",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9700283   .1500465    -0.20   0.844     .7163385    1.313562",
+            "       _cons |   .0501633   .0221908    -6.76   0.000     .0210785    .1193802",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |   .1094147   .1227475     0.89   0.373    -.1311659    .3499953",
+            "-------------+----------------------------------------------------------------",
+            "           p |   1.115625   .1369401                      .8770722    1.419061",
+            "         1/p |   .8963586   .1100257                      .7046914    1.140157",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        { "command": "display \"`e(user)'\"", "lines": ["weib_lf"] },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "survival-red-streg-no-covariates",
+      "source": "set linesize 79\nclear\nset seed 1717\nset obs 60\ngenerate x = invnormal(runiform())\ngenerate t = ceil(-ln(runiform())*10)\ngenerate d = runiform() < .7\ngenerate c = 1\ngenerate t0 = cond(runiform() < .3, floor(runiform()*t), 0)\nstset t, failure(d)\nstreg, dist(weibull)\ndisplay e(ic) \" \" e(df_m) \" \" e(chi2) \" \" e(p)\nmatrix list e(ilog)\nstreg, dist(gompertz)\ndisplay e(ic) \" \" e(df_m) \" `e(chi2type)'\"\nmatrix list e(ilog)\nstreg, dist(gompertz) nohr nolog\nstreg\nstreg, dist(exponential)\ndisplay e(ic)\nstreg c, dist(weibull)\ndisplay e(ic)\nstreg, dist(weibull) time\nstset t, failure(d) enter(time t0)\nstreg, dist(gompertz)\nstreg, dist(weibull)\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 1717", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate t = ceil(-ln(runiform())*10)", "lines": [] },
+        { "command": "generate d = runiform() < .7", "lines": [] },
+        { "command": "generate c = 1", "lines": [] },
+        {
+          "command": "generate t0 = cond(runiform() < .3, floor(runiform()*t), 0)",
+          "lines": []
+        },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         60  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         60  observations remaining, representing",
+            "         44  failures in single-record/single-failure data",
+            "        629  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =        37"
+          ]
+        },
+        {
+          "command": "streg, dist(weibull)",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Fitting constant-only model:",
+            "Iteration 0:  Log likelihood = -78.697897",
+            "Iteration 1:  Log likelihood = -78.406938",
+            "Iteration 2:  Log likelihood = -78.406705",
+            "Iteration 3:  Log likelihood = -78.406705",
+            "",
+            "Fitting full model:",
+            "Iteration 0:  Log likelihood = -78.406705",
+            "",
+            "Weibull PH regression",
+            "",
+            "No. of subjects =  60                                   Number of obs =     60",
+            "No. of failures =  44",
+            "Time at risk    = 629",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -78.406705                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t |     Hazard   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .0535818   .0209812    -7.47   0.000     .0248719    .1154317",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |   .0922913   .1183997     0.78   0.436    -.1397678    .3243505",
+            "-------------+----------------------------------------------------------------",
+            "           p |   1.096684   .1298471                      .8695601    1.383132",
+            "         1/p |   .9118395   .1079615                      .7229968    1.150007",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(ic) \" \" e(df_m) \" \" e(chi2) \" \" e(p)",
+          "lines": ["0 0 0 ."]
+        },
+        {
+          "command": "matrix list e(ilog)",
+          "lines": [
+            "e(ilog)[1,20]",
+            "            c1          c2          c3          c4          c5          c6",
+            "r1  -78.406705           0           0           0           0           0",
+            "",
+            "            c7          c8          c9         c10         c11         c12",
+            "r1           0           0           0           0           0           0",
+            "",
+            "           c13         c14         c15         c16         c17         c18",
+            "r1           0           0           0           0           0           0",
+            "",
+            "           c19         c20",
+            "r1           0           0"
+          ]
+        },
+        {
+          "command": "streg, dist(gompertz)",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "Iteration 0:  Log likelihood = -546.66047",
+            "Iteration 1:  Log likelihood = -78.622484",
+            "Iteration 2:  Log likelihood = -78.486083",
+            "Iteration 3:  Log likelihood = -78.485406",
+            "Iteration 4:  Log likelihood = -78.485406",
+            "",
+            "Gompertz PH regression",
+            "",
+            "No. of subjects =  60                                   Number of obs =     60",
+            "No. of failures =  44",
+            "Time at risk    = 629",
+            "                                                        Wald chi2(0)  =      .",
+            "Log likelihood = -78.485406                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t |     Hazard   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |    .062313   .0147145   -11.75   0.000     .0392263    .0989874",
+            "-------------+----------------------------------------------------------------",
+            "      /gamma |   .0116758   .0176148     0.66   0.507    -.0228486    .0462002",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(ic) \" \" e(df_m) \" `e(chi2type)'\"",
+          "lines": ["4 0 Wald"]
+        },
+        {
+          "command": "matrix list e(ilog)",
+          "lines": [
+            "e(ilog)[1,20]",
+            "            c1          c2          c3          c4          c5          c6",
+            "r1  -546.66047  -78.622484  -78.486083  -78.485406  -78.485406           0",
+            "",
+            "            c7          c8          c9         c10         c11         c12",
+            "r1           0           0           0           0           0           0",
+            "",
+            "           c13         c14         c15         c16         c17         c18",
+            "r1           0           0           0           0           0           0",
+            "",
+            "           c19         c20",
+            "r1           0           0"
+          ]
+        },
+        {
+          "command": "streg, dist(gompertz) nohr nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Gompertz PH regression",
+            "",
+            "No. of subjects =  60                                   Number of obs =     60",
+            "No. of failures =  44",
+            "Time at risk    = 629",
+            "                                                        Wald chi2(0)  =      .",
+            "Log likelihood = -78.485406                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |  -2.775585   .2361383   -11.75   0.000    -3.238408   -2.312763",
+            "-------------+----------------------------------------------------------------",
+            "      /gamma |   .0116758   .0176148     0.66   0.507    -.0228486    .0462002",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "streg",
+          "lines": [
+            "Gompertz PH regression",
+            "",
+            "No. of subjects =  60                                   Number of obs =     60",
+            "No. of failures =  44",
+            "Time at risk    = 629",
+            "                                                        Wald chi2(0)  =      .",
+            "Log likelihood = -78.485406                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t |     Hazard   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |    .062313   .0147145   -11.75   0.000     .0392263    .0989874",
+            "-------------+----------------------------------------------------------------",
+            "      /gamma |   .0116758   .0176148     0.66   0.507    -.0228486    .0462002",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "streg, dist(exponential)",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -78.697897",
+            "Iteration 1:  Log likelihood = -78.697897",
+            "",
+            "Exponential PH regression",
+            "",
+            "No. of subjects =  60                                   Number of obs =     60",
+            "No. of failures =  44",
+            "Time at risk    = 629",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -78.697897                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t |     Hazard   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .0699523   .0105457   -17.64   0.000     .0520569    .0939995",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display e(ic)", "lines": ["1"] },
+        {
+          "command": "streg c, dist(weibull)",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "note: c omitted because of collinearity.",
+            "",
+            "Fitting constant-only model:",
+            "Iteration 0:  Log likelihood = -78.697897",
+            "Iteration 1:  Log likelihood = -78.406938",
+            "Iteration 2:  Log likelihood = -78.406705",
+            "Iteration 3:  Log likelihood = -78.406705",
+            "",
+            "Fitting full model:",
+            "Iteration 0:  Log likelihood = -78.406705",
+            "Iteration 1:  Log likelihood = -78.406705",
+            "",
+            "Weibull PH regression",
+            "",
+            "No. of subjects =  60                                   Number of obs =     60",
+            "No. of failures =  44",
+            "Time at risk    = 629",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -78.406705                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           c |          1  (omitted)",
+            "       _cons |   .0535818   .0209812    -7.47   0.000     .0248719    .1154317",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |   .0922913   .1183997     0.78   0.436    -.1397678    .3243505",
+            "-------------+----------------------------------------------------------------",
+            "           p |   1.096684   .1298471                      .8695601    1.383132",
+            "         1/p |   .9118395   .1079615                      .7229968    1.150007",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        { "command": "display e(ic)", "lines": ["1"] },
+        {
+          "command": "streg, dist(weibull) time",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Fitting constant-only model:",
+            "Iteration 0:  Log likelihood = -78.697897",
+            "Iteration 1:  Log likelihood = -78.406938",
+            "Iteration 2:  Log likelihood = -78.406705",
+            "Iteration 3:  Log likelihood = -78.406705",
+            "",
+            "Fitting full model:",
+            "Iteration 0:  Log likelihood = -78.406705",
+            "",
+            "Weibull AFT regression",
+            "",
+            "No. of subjects =  60                                   Number of obs =     60",
+            "No. of failures =  44",
+            "Time at risk    = 629",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -78.406705                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |    2.66854   .1381336    19.32   0.000     2.397803    2.939276",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |   .0922913   .1183997     0.78   0.436    -.1397678    .3243505",
+            "-------------+----------------------------------------------------------------",
+            "           p |   1.096684   .1298471                      .8695601    1.383132",
+            "         1/p |   .9118395   .1079615                      .7229968    1.150007",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stset t, failure(d) enter(time t0)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Enter on or after: time t0",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         60  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         60  observations remaining, representing",
+            "         44  failures in single-record/single-failure data",
+            "        519  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =        37"
+          ]
+        },
+        {
+          "command": "streg, dist(gompertz)",
+          "lines": [
+            "         Failure _d: d",
+            "   Analysis time _t: t",
+            "  Enter on or after: time t0",
+            "Iteration 0:  Log likelihood = -436.66047",
+            "Iteration 1:  Log likelihood = -70.748508",
+            "Iteration 2:  Log likelihood = -70.138895",
+            "Iteration 3:  Log likelihood = -70.130373",
+            "Iteration 4:  Log likelihood = -70.130371",
+            "",
+            "Gompertz PH regression",
+            "",
+            "No. of subjects =  60                                   Number of obs =     60",
+            "No. of failures =  44",
+            "Time at risk    = 519",
+            "                                                        Wald chi2(0)  =      .",
+            "Log likelihood = -70.130371                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t |     Hazard   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .0779938    .018394   -10.82   0.000     .0491262    .1238246",
+            "-------------+----------------------------------------------------------------",
+            "      /gamma |   .0083252   .0175771     0.47   0.636    -.0261254    .0427757",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "streg, dist(weibull)",
+          "lines": [
+            "         Failure _d: d",
+            "   Analysis time _t: t",
+            "  Enter on or after: time t0",
+            "",
+            "Fitting constant-only model:",
+            "Iteration 0:  Log likelihood = -70.239892",
+            "Iteration 1:  Log likelihood = -70.061182",
+            "Iteration 2:  Log likelihood = -70.061101",
+            "Iteration 3:  Log likelihood = -70.061101",
+            "",
+            "Fitting full model:",
+            "Iteration 0:  Log likelihood = -70.061101",
+            "",
+            "Weibull PH regression",
+            "",
+            "No. of subjects =  60                                   Number of obs =     60",
+            "No. of failures =  44",
+            "Time at risk    = 519",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -70.061101                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t |     Hazard   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .0686681     .02691    -6.83   0.000     .0318554    .1480225",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |   .0730334   .1200497     0.61   0.543    -.1622596    .3083265",
+            "-------------+----------------------------------------------------------------",
+            "           p |   1.075766   .1291454                      .8502204    1.361145",
+            "         1/p |   .9295698   .1115946                      .7346754    1.176166",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "survival-red-stset-strings-and-notes",
+      "source": "set linesize 79\nclear\nset seed 101\nset obs 40\ngenerate t = ceil(runiform()*20)\ngenerate s = \"a\"\ncapture noisily stset t, failure(s)\ndisplay _rc\ncapture noisily stset t, failure(s==1)\ndisplay _rc\ncapture noisily stset t, failure(s==\"a\")\ndisplay _rc\ncapture noisily stset s\ndisplay _rc\nclear\nset seed 303\nset obs 80\ngenerate x1 = invnormal(runiform())\ngenerate x2 = 2*x1 + 1\ngenerate c = 3\ngenerate t = ceil(-ln(runiform())*10*exp(-.5*x1))\ngenerate d = runiform() < .7\nstset t, failure(d)\nstcox x1 x2\nstcox c x1\nstcox c\nstcox x1 x2, nolog\nstreg x1 x2, dist(weibull)\nstreg c x1, dist(exp) nolog\nclear\nset seed 2323\nset obs 40\ngenerate x = invnormal(runiform())\ngenerate t = ceil(-ln(runiform())*15)\ngenerate d = runiform() < .7\ngenerate c = 5\nstset t, failure(d)\nstreg c, dist(weibull) nolog\ndisplay e(chi2) \" \" e(df_m) \" \" e(p)\nstreg c, dist(exponential) nolog\nstreg c, dist(gompertz) nolog\nstcox c, nolog\ndisplay e(chi2) \" \" e(df_m) \" \" e(p)\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 101", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate t = ceil(runiform()*20)", "lines": [] },
+        { "command": "generate s = \"a\"", "lines": [] },
+        {
+          "command": "capture noisily stset t, failure(s)",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily stset t, failure(s==1)",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily stset t, failure(s==\"a\")",
+          "lines": ["invalid numlist has too few elements"]
+        },
+        { "command": "display _rc", "lines": ["122"] },
+        {
+          "command": "capture noisily stset s",
+          "lines": [
+            "string variables not allowed in varlist;",
+            "s is a string variable"
+          ]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 303", "lines": [] },
+        {
+          "command": "set obs 80",
+          "lines": ["Number of observations (_N) was 0, now 80."]
+        },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate x2 = 2*x1 + 1", "lines": [] },
+        { "command": "generate c = 3", "lines": [] },
+        {
+          "command": "generate t = ceil(-ln(runiform())*10*exp(-.5*x1))",
+          "lines": []
+        },
+        { "command": "generate d = runiform() < .7", "lines": [] },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         80  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         80  observations remaining, representing",
+            "         49  failures in single-record/single-failure data",
+            "        745  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =        45"
+          ]
+        },
+        {
+          "command": "stcox x1 x2",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "note: x2 omitted because of collinearity.",
+            "Iteration 0:  Log likelihood = -170.86771",
+            "Iteration 1:  Log likelihood =  -169.6268",
+            "Iteration 2:  Log likelihood = -169.62673",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -169.62673",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =  80                                   Number of obs =     80",
+            "No. of failures =  49",
+            "Time at risk    = 745",
+            "                                                        LR chi2(1)    =   2.48",
+            "Log likelihood = -169.62673                             Prob > chi2   = 0.1152",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |    1.30031   .2165427     1.58   0.115     .9381986    1.802182",
+            "          x2 |          1  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox c x1",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "note: c omitted because of collinearity.",
+            "Iteration 0:  Log likelihood = -170.86771",
+            "Iteration 1:  Log likelihood =  -169.6268",
+            "Iteration 2:  Log likelihood = -169.62673",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -169.62673",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =  80                                   Number of obs =     80",
+            "No. of failures =  49",
+            "Time at risk    = 745",
+            "                                                        LR chi2(1)    =   2.48",
+            "Log likelihood = -169.62673                             Prob > chi2   = 0.1152",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           c |          1  (omitted)",
+            "          x1 |    1.30031   .2165427     1.58   0.115     .9381986    1.802182",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox c",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "note: c omitted because of collinearity.",
+            "Iteration 0:  Log likelihood = -170.86771",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -170.86771",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =  80                                   Number of obs =     80",
+            "No. of failures =  49",
+            "Time at risk    = 745",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -170.86771                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           c |          1  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox x1 x2, nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "note: x2 omitted because of collinearity.",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =  80                                   Number of obs =     80",
+            "No. of failures =  49",
+            "Time at risk    = 745",
+            "                                                        LR chi2(1)    =   2.48",
+            "Log likelihood = -169.62673                             Prob > chi2   = 0.1152",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |    1.30031   .2165427     1.58   0.115     .9381986    1.802182",
+            "          x2 |          1  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "streg x1 x2, dist(weibull)",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "note: x2 omitted because of collinearity.",
+            "",
+            "Fitting constant-only model:",
+            "Iteration 0:  Log likelihood = -92.595873",
+            "Iteration 1:  Log likelihood = -91.787752",
+            "Iteration 2:  Log likelihood = -91.787037",
+            "Iteration 3:  Log likelihood = -91.787037",
+            "",
+            "Fitting full model:",
+            "Iteration 0:  Log likelihood = -91.787037",
+            "Iteration 1:  Log likelihood = -89.865821",
+            "Iteration 2:  Log likelihood = -89.826025",
+            "Iteration 3:  Log likelihood = -89.826009",
+            "Iteration 4:  Log likelihood = -89.826009",
+            "",
+            "Weibull PH regression",
+            "",
+            "No. of subjects =  80                                   Number of obs =     80",
+            "No. of failures =  49",
+            "Time at risk    = 745",
+            "                                                        LR chi2(1)    =   3.92",
+            "Log likelihood = -89.826009                             Prob > chi2   = 0.0477",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   1.387085     .22964     1.98   0.048     1.002725    1.918777",
+            "          x2 |          1  (omitted)",
+            "       _cons |   .0388863   .0147075    -8.59   0.000     .0185292    .0816085",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |   .1980493   .1089903     1.82   0.069    -.0155678    .4116664",
+            "-------------+----------------------------------------------------------------",
+            "           p |   1.219022   .1328616                      .9845528    1.509331",
+            "         1/p |   .8203294    .089408                      .6625453     1.01569",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "streg c x1, dist(exp) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "note: c omitted because of collinearity.",
+            "",
+            "Exponential PH regression",
+            "",
+            "No. of subjects =  80                                   Number of obs =     80",
+            "No. of failures =  49",
+            "Time at risk    = 745",
+            "                                                        LR chi2(1)    =   2.55",
+            "Log likelihood = -91.320608                             Prob > chi2   = 0.1103",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           c |          1  (omitted)",
+            "          x1 |   1.291197   .2067442     1.60   0.110     .9434078    1.767198",
+            "       _cons |   .0684185    .009791   -18.74   0.000     .0516848    .0905699",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2323", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate t = ceil(-ln(runiform())*15)", "lines": [] },
+        { "command": "generate d = runiform() < .7", "lines": [] },
+        { "command": "generate c = 5", "lines": [] },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         40  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         40  observations remaining, representing",
+            "         30  failures in single-record/single-failure data",
+            "        720  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =        94"
+          ]
+        },
+        {
+          "command": "streg c, dist(weibull) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "note: c omitted because of collinearity.",
+            "",
+            "Weibull PH regression",
+            "",
+            "No. of subjects =  40                                   Number of obs =     40",
+            "No. of failures =  30",
+            "Time at risk    = 720",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -52.793941                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           c |          1  (omitted)",
+            "       _cons |   .0309735   .0165631    -6.50   0.000     .0108595    .0883429",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |    .086021   .1385082     0.62   0.535    -.1854501    .3574921",
+            "-------------+----------------------------------------------------------------",
+            "           p |   1.089829   .1509503                      .8307303    1.429739",
+            "         1/p |    .917575   .1270917                      .6994282     1.20376",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "display e(chi2) \" \" e(df_m) \" \" e(p)",
+          "lines": ["0 0 ."]
+        },
+        {
+          "command": "streg c, dist(exponential) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "note: c omitted because of collinearity.",
+            "",
+            "Exponential PH regression",
+            "",
+            "No. of subjects =  40                                   Number of obs =     40",
+            "No. of failures =  30",
+            "Time at risk    = 720",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -52.977878                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           c |          1  (omitted)",
+            "       _cons |   .0416667   .0076073   -17.41   0.000     .0291327    .0595931",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "streg c, dist(gompertz) nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "note: c omitted because of collinearity.",
+            "",
+            "Gompertz PH regression",
+            "",
+            "No. of subjects =  40                                   Number of obs =     40",
+            "No. of failures =  30",
+            "Time at risk    = 720",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -52.977478                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           c |          1  (omitted)",
+            "       _cons |   .0418735   .0105879   -12.55   0.000       .02551    .0687337",
+            "-------------+----------------------------------------------------------------",
+            "      /gamma |  -.0002828   .0100153    -0.03   0.977    -.0199125    .0193469",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "stcox c, nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "note: c omitted because of collinearity.",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =  40                                   Number of obs =     40",
+            "No. of failures =  30",
+            "Time at risk    = 720",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -85.018721                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           c |          1  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(chi2) \" \" e(df_m) \" \" e(p)",
+          "lines": ["0 0 ."]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "survival-red-empty-samples-and-null-model",
+      "source": "set linesize 79\nclear\nset seed 1212\nset obs 45\ngenerate g = floor(runiform()*3)\ngenerate x = runiform()\ngenerate t = ceil(runiform()*15)\ngenerate d = runiform() < .6\nstset t, failure(d)\ncapture noisily stsum if g == 5\ndisplay _rc\ncapture noisily stsum if g == 5, by(g)\ndisplay _rc\ncapture noisily sts test g if x > 5\ndisplay _rc\ncapture noisily sts list if x > 5\ndisplay _rc\ncapture noisily sts list if x > 5, by(g)\ndisplay _rc\ncapture noisily sts graph if x > 5\ndisplay _rc\ncapture noisily stdescribe if x > 5\ndisplay _rc\ncapture noisily stcox g if x > 5\ndisplay _rc\ncapture noisily streg g if x > 5, dist(exp)\ndisplay _rc\ncapture noisily stcox g if d == 0\ndisplay _rc\ncapture noisily streg g if d == 0, dist(weibull)\ndisplay _rc\nclear\nset seed 1818\nset obs 90\ngenerate t = ceil(-ln(runiform())*12)\ngenerate d = runiform() < .7\ngenerate x = runiform()\nstset t, failure(d)\ncapture noisily stcox, estimate nolog\ndisplay _rc\ndisplay e(N) \" \" e(ll) \" \" e(ll_0) \" \" e(chi2) \" \" e(r2_p) \" \" e(df_m) \" `e(ties)'\"\nstcox, estimate\nstcox\nstcox x, nolog\nstcox, estimate efron\nstcox, estimate exactm nolog\ncapture noisily stcox, estimate nohr\npredict h, hr\nsummarize h\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 1212", "lines": [] },
+        {
+          "command": "set obs 45",
+          "lines": ["Number of observations (_N) was 0, now 45."]
+        },
+        { "command": "generate g = floor(runiform()*3)", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate t = ceil(runiform()*15)", "lines": [] },
+        { "command": "generate d = runiform() < .6", "lines": [] },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         45  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         45  observations remaining, representing",
+            "         25  failures in single-record/single-failure data",
+            "        330  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =        15"
+          ]
+        },
+        {
+          "command": "capture noisily stsum if g == 5",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily stsum if g == 5, by(g)",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily sts test g if x > 5",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily sts list if x > 5",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily sts list if x > 5, by(g)",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily sts graph if x > 5",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "no observations"
+          ]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily stdescribe if x > 5",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "                                   |-------------- Per subject --------------|",
+            "Category                   Total        Mean         Min     Median        Max",
+            "------------------------------------------------------------------------------",
+            "Number of subjects             0",
+            "Number of records              0           .           .          .          .",
+            "",
+            "Entry time (first)                         .           .          .          .",
+            "Exit time (final)                          .           .          .          .",
+            "",
+            "Subjects with gap              0",
+            "Time on gap                    0",
+            "Time at risk                   0           .           .          .          .",
+            "",
+            "Failures                       0           .           .          .          .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily stcox g if x > 5",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily streg g if x > 5, dist(exp)",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily stcox g if d == 0",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood =          0",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood =          0",
+            "",
+            "Cox regression with no ties",
+            "",
+            "No. of subjects =  20                                   Number of obs =     20",
+            "No. of failures =   0",
+            "Time at risk    = 131",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = 0                                      Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |          1  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily streg g if d == 0, dist(weibull)",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "no failures"
+          ]
+        },
+        { "command": "display _rc", "lines": ["498"] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 1818", "lines": [] },
+        {
+          "command": "set obs 90",
+          "lines": ["Number of observations (_N) was 0, now 90."]
+        },
+        { "command": "generate t = ceil(-ln(runiform())*12)", "lines": [] },
+        { "command": "generate d = runiform() < .7", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "         90  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "         90  observations remaining, representing",
+            "         66  failures in single-record/single-failure data",
+            "      1,270  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =       106"
+          ]
+        },
+        {
+          "command": "capture noisily stcox, estimate nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =    90                                 Number of obs =     90",
+            "No. of failures =    66",
+            "Time at risk    = 1,270",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -235.32237                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "display e(N) \" \" e(ll) \" \" e(ll_0) \" \" e(chi2) \" \" e(r2_p) \" \" e(df_m) \" `e(ties)'\"",
+          "lines": ["90 -235.32237 -235.32237 0 0 0 breslow"]
+        },
+        {
+          "command": "stcox, estimate",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -235.32237",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -235.32237",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =    90                                 Number of obs =     90",
+            "No. of failures =    66",
+            "Time at risk    = 1,270",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -235.32237                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox",
+          "lines": [
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =    90                                 Number of obs =     90",
+            "No. of failures =    66",
+            "Time at risk    = 1,270",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -235.32237                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox x, nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =    90                                 Number of obs =     90",
+            "No. of failures =    66",
+            "Time at risk    = 1,270",
+            "                                                        LR chi2(1)    =   0.47",
+            "Log likelihood = -235.08842                             Prob > chi2   = 0.4940",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .7655054   .3001022    -0.68   0.495     .3550181    1.650616",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox, estimate efron",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -233.79246",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -233.79246",
+            "",
+            "Cox regression with Efron method for ties",
+            "",
+            "No. of subjects =    90                                 Number of obs =     90",
+            "No. of failures =    66",
+            "Time at risk    = 1,270",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -233.79246                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "stcox, estimate exactm nolog",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Cox regression with exact marginal likelihood method for ties",
+            "",
+            "No. of subjects =    90                                 Number of obs =     90",
+            "No. of failures =    66",
+            "Time at risk    = 1,270",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -198.0999                              Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily stcox, estimate nohr",
+          "lines": [
+            "        Failure _d: d",
+            "  Analysis time _t: t",
+            "",
+            "Iteration 0:  Log likelihood = -235.32237",
+            "Refining estimates:",
+            "Iteration 0:  Log likelihood = -235.32237",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =    90                                 Number of obs =     90",
+            "No. of failures =    66",
+            "Time at risk    = 1,270",
+            "                                                        LR chi2(0)    =   0.00",
+            "Log likelihood = -235.32237                             Prob > chi2   =      .",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "predict h, hr", "lines": [] },
+        {
+          "command": "summarize h",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           h |         90           1           0          1          1"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "survival-red-sts-test-many-groups",
+      "source": "set linesize 79\nclear\nset seed 9\nset obs 400\ngenerate g = floor(runiform()*60)\ngenerate d = runiform() < .8\ngenerate t = ceil(runiform()*8)\ngenerate t0 = cond(runiform() < .4, floor(runiform()*t), 0)\nstset t, failure(d)\nquietly sts test g\ndisplay %9.4f r(chi2) \" \" r(df)\nquietly sts test g, wilcoxon\ndisplay %9.4f r(chi2) \" \" r(df)\nstset t, failure(d) enter(time t0)\nquietly sts test g\ndisplay %9.4f r(chi2) \" \" r(df)\nreplace t = -ln(runiform())*10\nstset t, failure(d)\nquietly sts test g\ndisplay %9.4f r(chi2) \" \" r(df)\nquietly sts test g, wilcoxon\ndisplay %9.4f r(chi2) \" \" r(df)\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        { "command": "generate g = floor(runiform()*60)", "lines": [] },
+        { "command": "generate d = runiform() < .8", "lines": [] },
+        { "command": "generate t = ceil(runiform()*8)", "lines": [] },
+        {
+          "command": "generate t0 = cond(runiform() < .4, floor(runiform()*t), 0)",
+          "lines": []
+        },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "        400  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "        400  observations remaining, representing",
+            "        328  failures in single-record/single-failure data",
+            "      1,851  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =         8"
+          ]
+        },
+        { "command": "quietly sts test g", "lines": [] },
+        {
+          "command": "display %9.4f r(chi2) \" \" r(df)",
+          "lines": ["  55.7007 59"]
+        },
+        { "command": "quietly sts test g, wilcoxon", "lines": [] },
+        {
+          "command": "display %9.4f r(chi2) \" \" r(df)",
+          "lines": ["  60.0965 59"]
+        },
+        {
+          "command": "stset t, failure(d) enter(time t0)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Enter on or after: time t0",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "        400  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "        400  observations remaining, representing",
+            "        328  failures in single-record/single-failure data",
+            "      1,566  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =         8"
+          ]
+        },
+        { "command": "quietly sts test g", "lines": [] },
+        {
+          "command": "display %9.4f r(chi2) \" \" r(df)",
+          "lines": ["  62.8159 59"]
+        },
+        {
+          "command": "replace t = -ln(runiform())*10",
+          "lines": ["(400 real changes made)"]
+        },
+        {
+          "command": "stset t, failure(d)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: d!=0 & d<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "        400  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "        400  observations remaining, representing",
+            "        328  failures in single-record/single-failure data",
+            "  3,942.906  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =    74.951"
+          ]
+        },
+        { "command": "quietly sts test g", "lines": [] },
+        {
+          "command": "display %9.4f r(chi2) \" \" r(df)",
+          "lines": ["  69.0001 59"]
+        },
+        { "command": "quietly sts test g, wilcoxon", "lines": [] },
+        {
+          "command": "display %9.4f r(chi2) \" \" r(df)",
+          "lines": ["  60.7193 59"]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

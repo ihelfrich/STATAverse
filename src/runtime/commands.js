@@ -11,7 +11,7 @@ import { macroWords, isMacroName } from "./macros.js";
 import { applyFormat, displayValue, parseFormat } from "./format.js";
 import { applySyntax, clauses, loneEquals, splitAtComma } from "./syntax.js";
 import { renderSmcl, stringEnd } from "./smcl.js";
-import { ESTIMATION_COMMANDS } from "./estimation.js";
+import { ESTIMATION_COMMANDS, coefficientSpace } from "./estimation.js";
 import { MODEL_COMMANDS } from "./models.js";
 import { PANEL_COMMANDS } from "./panel.js";
 import { UTILITY_COMMANDS } from "./utilities.js";
@@ -1348,8 +1348,13 @@ function returns(kind) {
       if (strings.length) {
         ctx.out("");
         ctx.out("macros:");
+        // A macro too long for the line is cut to end with "..", the line
+        // one short of the line size.
+        const room = (session.settings.linesize ?? 79) - 28;
         for (const [name, value] of strings)
-          ctx.out(`${label(name)} : "${value}"`);
+          ctx.out(
+            `${label(name)} : "${value.length > room ? `${value.slice(0, room - 2)}..` : value}"`,
+          );
       }
       // mean's and total's results, which keep no model.
       const tabled =
@@ -1357,13 +1362,27 @@ function returns(kind) {
           ? session.meanTotalResults
           : null;
       if (kind === "e" && (session.estimates || tabled)) {
+        // e(b) as matrix list shows it, ancillary parameters included; a
+        // model with no coefficients, as stcox, estimate fits, has none.
         const k = tabled
-          ? tabled.groups.length * tabled.variables.length
-          : session.estimates.names.length;
-        ctx.out("");
-        ctx.out("matrices:");
-        ctx.out(`${label("b")} :  1 x ${k}`);
-        ctx.out(`${label("V")} :  ${k} x ${k}`);
+            ? tabled.groups.length * tabled.variables.length
+            : coefficientSpace(session.estimates).entries.length,
+          // Other matrices the command stored in e(), as streg's e(ilog).
+          stored = entries.filter(
+            ([key, v]) => key.startsWith("matrix:") && v?.values,
+          );
+        if (k || stored.length) {
+          ctx.out("");
+          ctx.out("matrices:");
+        }
+        if (k) {
+          ctx.out(`${label("b")} :  1 x ${k}`);
+          ctx.out(`${label("V")} :  ${k} x ${k}`);
+        }
+        for (const [key, value] of stored)
+          ctx.out(
+            `${label(key.slice(7))} :  ${value.values.length} x ${value.values[0]?.length ?? 0}`,
+          );
         if (tabled) {
           if (!tabled.totals) ctx.out(`${label("sd")} :  1 x ${k}`);
           ctx.out(`${label("_N")} :  1 x ${k}`);

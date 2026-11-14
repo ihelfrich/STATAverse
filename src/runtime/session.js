@@ -26,7 +26,7 @@ import { changed, fold, markChanged } from "./data-commands.js";
 import { abbreviateName } from "./data-utilities.js";
 import { timeSeriesOperator } from "./panel.js";
 import { matrixAccess } from "./matrix.js";
-import { coefficientIndex, tableResults } from "./estimation.js";
+import { coefficientValue, tableResults } from "./estimation.js";
 import { echoOf } from "./echo.js";
 
 const MAX_STEPS = 200000;
@@ -330,9 +330,7 @@ export class Session {
         const model = this.estimates;
         // Without a model, Stata reports the name as not found.
         if (!model) throw new StataError(`[${name}] not found`, 111);
-        const at = coefficientIndex(model, name);
-        if (at < 0) throw new StataError(`[${name}] not found`, 111);
-        return kind === "_b" ? model.b[at] : Math.sqrt(model.V[at][at]);
+        return coefficientValue(model, kind, name);
       },
       series: (operator, order, name) =>
         timeSeriesOperator(this, operator, order, name),
