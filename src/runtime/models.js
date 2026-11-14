@@ -1632,6 +1632,9 @@ function testparm(session, text, ctx) {
 }
 function predict(session, text, ctx) {
   const model = estimates(session);
+  // Models with predictions of their own, such as xtlogit's pu0 and
+  // clogit's pc1, bring them.
+  if (model.predictor) return model.predictor(session, text, ctx);
   if (["ologit", "oprobit", "mlogit"].includes(model.kind))
     return outcomePredict(session, model, text, ctx);
   // nbreg, glm and cloglog predict a mean by default, as the family models

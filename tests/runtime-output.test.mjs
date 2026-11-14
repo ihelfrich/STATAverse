@@ -144,6 +144,16 @@ for (const c of fixture.cases)
             "redteam5b-estat-classification-gof",
             // margins after ologit takes its gradients by differencing.
             "models6-ordered-margins-factors",
+            // The nonlinear panel models integrate by quadrature or
+            // iterate GEE steps; their last digits follow the last step.
+            "xt-random-effects-binary",
+            "xt-random-effects-strong-panels",
+            "xt-random-effects-unbalanced-factors",
+            "xt-conditional-logit",
+            "xt-poisson-models",
+            "xt-population-averaged",
+            "xt-robust-variances",
+            "xt-replay-and-factor-margins",
           ].includes(c.id),
         )
       )

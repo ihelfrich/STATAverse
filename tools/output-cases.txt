@@ -17437,3 +17437,254 @@ quietly logit employed age i.educ c.age#i.female
 quietly estat summarize
 matrix list r(stats)
 set linesize 200
+=== xt-random-effects-binary
+clear
+set seed 12345
+set obs 300
+generate id = ceil(_n/6)
+generate t = _n - (id-1)*6
+generate x1 = invnormal(runiform())
+generate x2 = runiform() < 0.4
+bysort id: generate u0 = invnormal(runiform()) if _n==1
+by id: replace u0 = u0[1]
+generate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)
+xtset id t
+xtlogit y x1 x2, re
+display e(N_g) " " e(g_avg) " " e(n_quad) " " e(ll_c) " " e(chi2_c) " " e(rho) " " e(sigma_u)
+test x1 = x2
+lincom x1 + x2
+xtlogit y x1 x2, re or nolog
+xtlogit y x1 x2
+predict double xb1
+predict double p1, pu0
+predict double p2, pr
+predict double s1, stdp
+summarize xb1 p1 p2 s1
+margins
+margins, dydx(*)
+margins, predict(pu0)
+xtprobit y x1 x2, re
+predict double p3, pr
+summarize p3
+margins, dydx(*)
+xtprobit y x1 x2, re nolog intpoints(8)
+xtlogit y x1 x2, re nolog intmethod(ghermite)
+=== xt-random-effects-strong-panels
+clear
+set seed 2024
+set obs 400
+generate id = ceil(_n/4)
+generate t = _n - (id-1)*4
+generate x1 = invnormal(runiform())
+generate x2 = runiform()
+bysort id: generate u0 = 3*invnormal(runiform()) if _n==1
+by id: replace u0 = u0[1]
+generate yn = runiform() < invlogit(0.5*x1)
+generate ys = runiform() < invlogit(0.5*x1 + u0)
+xtset id t
+xtlogit yn x1 x2, re
+xtlogit ys x1 x2, re
+xtprobit ys x1 x2, re
+xtprobit yn x1 x2, re
+=== xt-random-effects-unbalanced-factors
+clear
+set seed 4242
+set obs 360
+generate id = ceil(_n/6)
+generate t = _n - (id-1)*6
+generate x1 = invnormal(runiform())
+generate x2 = runiform() < 0.4
+generate g = 1 + floor(3*runiform())
+bysort id: generate u0 = invnormal(runiform()) if _n==1
+by id: replace u0 = u0[1]
+generate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + .4*(g==2) + u0)
+replace x1 = . in 7
+drop if runiform() < .08
+xtset id t
+xtlogit y x1 i.g, re
+xtprobit y x1 i.g, re nolog
+margins
+margins, dydx(*)
+xtlogit y x1 x2, re noconstant nolog
+=== xt-conditional-logit
+clear
+set seed 4242
+set obs 360
+generate id = ceil(_n/6)
+generate t = _n - (id-1)*6
+generate x1 = invnormal(runiform())
+generate x2 = runiform() < 0.4
+bysort id: generate u0 = invnormal(runiform()) if _n==1
+by id: replace u0 = u0[1]
+bysort id: generate xc = 10*runiform() if _n==1
+by id: replace xc = xc[1]
+generate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)
+replace x1 = . in 7
+drop if runiform() < .08
+xtset id t
+xtlogit y x1 x2, fe
+xtlogit y x1 x2, fe or nolog
+xtlogit y x1 x2 xc, fe nolog
+predict double q1
+predict double q2, pu0
+predict double q3, xb
+predict double q4, stdp
+summarize q1 q2 q3 q4
+margins
+clogit y x1 x2 xc, group(id) or nolog
+clogit y x1, strata(id)
+display e(N) " " e(ll_0) " " e(r2_p) " " e(N_drop) " " e(N_group_drop)
+predict double q5
+summarize q5
+=== xt-poisson-models
+clear
+set seed 4242
+set obs 360
+generate id = ceil(_n/6)
+generate t = _n - (id-1)*6
+generate x1 = invnormal(runiform())
+generate x2 = runiform() < 0.4
+bysort id: generate u0 = invnormal(runiform()) if _n==1
+by id: replace u0 = u0[1]
+bysort id: generate xc = 10*runiform() if _n==1
+by id: replace xc = xc[1]
+generate ex = 1 + 2*runiform()
+generate c = floor(-ln(runiform())/(0.6*exp(.3*x1+.2*x2+.5*u0)))
+replace x1 = . in 7
+drop if runiform() < .08
+xtset id t
+xtpoisson c x1 x2
+display e(alpha) " " e(chi2_c) " " e(ll_c)
+xtpoisson c x1 x2, re irr nolog
+predict double n1, nu0
+predict double n3
+summarize n1 n3
+margins
+xtpoisson c x1 x2, re normal
+predict double n4, n
+predict double n5, stdp
+summarize n4 n5
+margins
+margins, dydx(*)
+margins, predict(nu0) dydx(x1)
+xtpoisson c x1 x2, re normal irr nolog
+xtpoisson c x1 x2, fe
+xtpoisson c x1 x2, fe irr nolog
+xtpoisson c x1 x2 xc, fe nolog
+predict double n6, nu0
+summarize n6
+xtpoisson c x1 x2, exposure(ex) re nolog
+predict double n7, iru0
+predict double n8, nu0
+summarize n7 n8
+=== xt-population-averaged
+clear
+set seed 4242
+set obs 360
+generate id = ceil(_n/6)
+generate t = _n - (id-1)*6
+generate x1 = invnormal(runiform())
+generate x2 = runiform() < 0.4
+bysort id: generate u0 = invnormal(runiform()) if _n==1
+by id: replace u0 = u0[1]
+generate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)
+generate c = floor(-ln(runiform())/(0.6*exp(.3*x1+.2*x2+.5*u0)))
+replace x1 = . in 7
+drop if runiform() < .08
+xtset id t
+xtlogit y x1 x2, pa
+predict double m1
+predict double m2, xb
+predict double m3, stdp
+summarize m1 m2 m3
+margins
+margins, dydx(x1)
+xtprobit y x1 x2, pa nolog
+xtpoisson c x1 x2, pa
+predict double m4
+summarize m4
+margins
+=== xt-nonlinear-refusals
+clear
+set seed 31
+set obs 120
+generate id = ceil(_n/4)
+generate t = _n - (id-1)*4
+generate x1 = invnormal(runiform())
+generate y = runiform() < invlogit(x1)
+generate c = floor(-ln(runiform())/0.7)
+generate yc = 1
+capture noisily xtlogit y x1
+capture noisily clogit y x1
+xtset id t
+capture noisily xtprobit y x1, fe
+capture noisily xtlogit y, fe
+capture noisily xtlogit yc x1, re
+capture noisily xtlogit y x1, re intpoints(2)
+generate cneg = c - 1
+capture noisily xtpoisson cneg x1
+capture noisily xtlogit y x1 [fw=c], re
+capture noisily xtpoisson c x1, re intpoints(8)
+xtpoisson c x1, fe nolog
+capture noisily predict double m7, n
+xtpoisson c x1, nolog
+capture noisily predict double m8, n
+=== xt-robust-variances
+clear
+set seed 12345
+set obs 300
+generate id = ceil(_n/6)
+generate t = _n - (id-1)*6
+generate x1 = invnormal(runiform())
+generate x2 = runiform() < 0.4
+bysort id: generate u0 = invnormal(runiform()) if _n==1
+by id: replace u0 = u0[1]
+generate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)
+generate c = floor(-ln(runiform())/(0.6*exp(.3*x1+.2*x2+.5*u0)))
+generate grp = ceil(id/5)
+xtset id t
+clogit y x1 x2, group(id) vce(robust)
+clogit y x1 x2, group(id) vce(cluster grp) nolog
+display e(N_clust) " " e(vce) " " e(vcetype)
+xtlogit y x1 x2, pa vce(robust)
+xtprobit y x1 x2, pa vce(robust) nolog
+xtpoisson c x1 x2, pa vce(robust) nolog
+xtpoisson c x1 x2, re vce(robust)
+xtpoisson c x1 x2, fe vce(robust)
+capture noisily xtlogit y x1 x2, fe vce(robust)
+=== xt-replay-and-factor-margins
+clear
+set seed 12345
+set obs 300
+generate id = ceil(_n/6)
+generate t = _n - (id-1)*6
+generate x1 = invnormal(runiform())
+generate x2 = runiform() < 0.4
+generate g = 1 + floor(3*runiform())
+bysort id: generate u0 = invnormal(runiform()) if _n==1
+by id: replace u0 = u0[1]
+generate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)
+generate c = floor(-ln(runiform())/(0.6*exp(.3*x1+.2*x2+.5*u0)))
+generate ex = runiform() - .1
+xtset id t
+quietly xtlogit y x1 x2 i.g, re
+xtlogit
+xtlogit, or level(90)
+estat ic
+estat vce
+testparm i.g
+margins g
+margins, at(x1=(0 1))
+margins, over(x2)
+quietly xtlogit y x1, re
+quietly clogit y x1 x2 i.g, group(id)
+clogit, or
+margins g
+quietly xtpoisson c x1 x2 i.g, fe
+xtpoisson, irr
+margins g
+quietly xtpoisson c x1 x2 i.g, re normal
+margins g
+margins, dydx(x1) at(x2=(0 1))
+capture noisily xtprobit
+capture noisily xtpoisson c x1, exposure(ex)

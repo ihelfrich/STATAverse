@@ -121739,6 +121739,2524 @@
       ]
     },
     {
+      "id": "xt-random-effects-binary",
+      "source": "clear\nset seed 12345\nset obs 300\ngenerate id = ceil(_n/6)\ngenerate t = _n - (id-1)*6\ngenerate x1 = invnormal(runiform())\ngenerate x2 = runiform() < 0.4\nbysort id: generate u0 = invnormal(runiform()) if _n==1\nby id: replace u0 = u0[1]\ngenerate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)\nxtset id t\nxtlogit y x1 x2, re\ndisplay e(N_g) \" \" e(g_avg) \" \" e(n_quad) \" \" e(ll_c) \" \" e(chi2_c) \" \" e(rho) \" \" e(sigma_u)\ntest x1 = x2\nlincom x1 + x2\nxtlogit y x1 x2, re or nolog\nxtlogit y x1 x2\npredict double xb1\npredict double p1, pu0\npredict double p2, pr\npredict double s1, stdp\nsummarize xb1 p1 p2 s1\nmargins\nmargins, dydx(*)\nmargins, predict(pu0)\nxtprobit y x1 x2, re\npredict double p3, pr\nsummarize p3\nmargins, dydx(*)\nxtprobit y x1 x2, re nolog intpoints(8)\nxtlogit y x1 x2, re nolog intmethod(ghermite)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate id = ceil(_n/6)", "lines": [] },
+        { "command": "generate t = _n - (id-1)*6", "lines": [] },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate x2 = runiform() < 0.4", "lines": [] },
+        {
+          "command": "bysort id: generate u0 = invnormal(runiform()) if _n==1",
+          "lines": ["(250 missing values generated)"]
+        },
+        {
+          "command": "by id: replace u0 = u0[1]",
+          "lines": ["(250 real changes made)"]
+        },
+        {
+          "command": "generate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)",
+          "lines": []
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 6",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtlogit y x1 x2, re",
+          "lines": [
+            "Fitting comparison model:",
+            "",
+            "Iteration 0:  Log likelihood = -203.75798",
+            "Iteration 1:  Log likelihood = -187.92567",
+            "Iteration 2:  Log likelihood = -187.87592",
+            "Iteration 3:  Log likelihood = -187.87591",
+            "",
+            "Fitting full model:",
+            "",
+            "tau =  0.0    Log likelihood = -187.87591",
+            "tau =  0.1    Log likelihood = -182.25905",
+            "tau =  0.2    Log likelihood = -177.35231",
+            "tau =  0.3    Log likelihood = -173.08302",
+            "tau =  0.4    Log likelihood = -169.41487",
+            "tau =  0.5    Log likelihood = -166.36419",
+            "tau =  0.6    Log likelihood =   -164.034",
+            "tau =  0.7    Log likelihood = -162.69709",
+            "tau =  0.8    Log likelihood = -162.99351",
+            "",
+            "Iteration 0:  Log likelihood =  -162.6904",
+            "Iteration 1:  Log likelihood = -158.08594",
+            "Iteration 2:  Log likelihood = -158.07059",
+            "Iteration 3:  Log likelihood = -158.07057",
+            "",
+            "Random-effects logistic regression                   Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     50",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      6",
+            "                                                                  avg =    6.0",
+            "                                                                  max =      6",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(2)     =  33.18",
+            "Log likelihood = -158.07057                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |     1.1373   .2093885     5.43   0.000     .7269064    1.547694",
+            "          x2 |  -1.240559   .3786191    -3.28   0.001    -1.982638   -.4984788",
+            "       _cons |  -.1360305   .3653299    -0.37   0.710    -.8520638    .5800029",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |   1.449962   .3664475                      .7317384    2.168186",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   2.064692   .3783006                      1.441767    2.956757",
+            "         rho |   .5644187   .0900912                      .3871972    .7265798",
+            "------------------------------------------------------------------------------",
+            "LR test of rho=0: chibar2(01) = 59.61                  Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "display e(N_g) \" \" e(g_avg) \" \" e(n_quad) \" \" e(ll_c) \" \" e(chi2_c) \" \" e(rho) \" \" e(sigma_u)",
+          "lines": ["50 6 12 -187.87591 59.610685 .56441867 2.0646921"]
+        },
+        {
+          "command": "test x1 = x2",
+          "lines": [
+            " ( 1)  [y]x1 - [y]x2 = 0",
+            "",
+            "           chi2(  1) =   24.71",
+            "         Prob > chi2 =    0.0000"
+          ]
+        },
+        {
+          "command": "lincom x1 + x2",
+          "lines": [
+            " ( 1)  [y]x1 + [y]x2 = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.1032583   .3815233    -0.27   0.787    -.8510303    .6445137",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtlogit y x1 x2, re or nolog",
+          "lines": [
+            "Random-effects logistic regression                   Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     50",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      6",
+            "                                                                  avg =    6.0",
+            "                                                                  max =      6",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(2)     =  33.18",
+            "Log likelihood = -158.07057                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   3.118338    .652944     5.43   0.000     2.068671    4.700618",
+            "          x2 |   .2892226   .1095052    -3.28   0.001     .1377055     .607454",
+            "       _cons |    .872816   .3188658    -0.37   0.710     .4265337    1.786044",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |   1.449962   .3664475                      .7317384    2.168186",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   2.064692   .3783006                      1.441767    2.956757",
+            "         rho |   .5644187   .0900912                      .3871972    .7265798",
+            "------------------------------------------------------------------------------",
+            "Note: Estimates are transformed only in the first equation to odds ratios.",
+            "Note: _cons estimates baseline odds (conditional on zero random effects).",
+            "LR test of rho=0: chibar2(01) = 59.61                  Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "xtlogit y x1 x2",
+          "lines": [
+            "Fitting comparison model:",
+            "",
+            "Iteration 0:  Log likelihood = -203.75798",
+            "Iteration 1:  Log likelihood = -187.92567",
+            "Iteration 2:  Log likelihood = -187.87592",
+            "Iteration 3:  Log likelihood = -187.87591",
+            "",
+            "Fitting full model:",
+            "",
+            "tau =  0.0    Log likelihood = -187.87591",
+            "tau =  0.1    Log likelihood = -182.25905",
+            "tau =  0.2    Log likelihood = -177.35231",
+            "tau =  0.3    Log likelihood = -173.08302",
+            "tau =  0.4    Log likelihood = -169.41487",
+            "tau =  0.5    Log likelihood = -166.36419",
+            "tau =  0.6    Log likelihood =   -164.034",
+            "tau =  0.7    Log likelihood = -162.69709",
+            "tau =  0.8    Log likelihood = -162.99351",
+            "",
+            "Iteration 0:  Log likelihood =  -162.6904",
+            "Iteration 1:  Log likelihood = -158.08594",
+            "Iteration 2:  Log likelihood = -158.07059",
+            "Iteration 3:  Log likelihood = -158.07057",
+            "",
+            "Random-effects logistic regression                   Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     50",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      6",
+            "                                                                  avg =    6.0",
+            "                                                                  max =      6",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(2)     =  33.18",
+            "Log likelihood = -158.07057                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |     1.1373   .2093885     5.43   0.000     .7269064    1.547694",
+            "          x2 |  -1.240559   .3786191    -3.28   0.001    -1.982638   -.4984788",
+            "       _cons |  -.1360305   .3653299    -0.37   0.710    -.8520638    .5800029",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |   1.449962   .3664475                      .7317384    2.168186",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   2.064692   .3783006                      1.441767    2.956757",
+            "         rho |   .5644187   .0900912                      .3871972    .7265798",
+            "------------------------------------------------------------------------------",
+            "LR test of rho=0: chibar2(01) = 59.61                  Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "predict double xb1",
+          "lines": ["(option xb assumed; linear prediction)"]
+        },
+        { "command": "predict double p1, pu0", "lines": [] },
+        {
+          "command": "predict double p2, pr",
+          "lines": ["(using 12 quadrature points)"]
+        },
+        { "command": "predict double s1, stdp", "lines": [] },
+        {
+          "command": "summarize xb1 p1 p2 s1",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "         xb1 |        300   -.6307361    1.316368  -4.449423   2.967742",
+            "          p1 |        300    .3816292    .2435602   .0115503   .9510953",
+            "          p2 |        300    .4160902    .1733945   .0519518    .863401",
+            "          s1 |        300    .4409518    .0720084   .3652871   .7876536"
+          ]
+        },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y=1), predict(pr)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .4160902   .0440172     9.45   0.000     .3298181    .5023623",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y=1), predict(pr)",
+            "dy/dx wrt:  x1 x2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .1475958    .020943     7.05   0.000     .1065482    .1886434",
+            "          x2 |  -.1609964   .0449269    -3.58   0.000    -.2490514   -.0729414",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, predict(pu0)",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y=1 | u_i=0), predict(pu0)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .3816292   .0602135     6.34   0.000      .263613    .4996454",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtprobit y x1 x2, re",
+          "lines": [
+            "Fitting comparison model:",
+            "",
+            "Iteration 0:  Log likelihood = -203.75798",
+            "Iteration 1:  Log likelihood = -187.87591",
+            "Iteration 2:  Log likelihood = -187.85761",
+            "Iteration 3:  Log likelihood = -187.85761",
+            "",
+            "Fitting full model:",
+            "",
+            "rho =  0.0    Log likelihood = -187.85761",
+            "rho =  0.1    Log likelihood = -175.87544",
+            "rho =  0.2    Log likelihood = -168.98223",
+            "rho =  0.3    Log likelihood = -164.91156",
+            "rho =  0.4    Log likelihood = -162.73104",
+            "rho =  0.5    Log likelihood = -162.03699",
+            "rho =  0.6    Log likelihood = -162.66832",
+            "",
+            "Iteration 0:  Log likelihood =  -162.0357",
+            "Iteration 1:  Log likelihood = -157.86458",
+            "Iteration 2:  Log likelihood = -157.82073",
+            "Iteration 3:  Log likelihood =  -157.8207",
+            "Iteration 4:  Log likelihood =  -157.8207",
+            "",
+            "Random-effects probit regression                     Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     50",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      6",
+            "                                                                  avg =    6.0",
+            "                                                                  max =      6",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(2)     =  36.60",
+            "Log likelihood = -157.8207                           Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |    .665792   .1176144     5.66   0.000     .4352721    .8963119",
+            "          x2 |   -.724388   .2157921    -3.36   0.001    -1.147333   -.3014433",
+            "       _cons |  -.0784486   .2116793    -0.37   0.711    -.4933324    .3364352",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |   .3623332   .3510305                     -.3256739     1.05034",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   1.198615   .2103752                      .8497297    1.690747",
+            "         rho |   .5896051   .0849392                      .4192936    .7408403",
+            "------------------------------------------------------------------------------",
+            "LR test of rho=0: chibar2(01) = 60.07                  Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "predict double p3, pr",
+          "lines": ["(using 12 quadrature points)"]
+        },
+        {
+          "command": "summarize p3",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          p3 |        300    .4157598    .1749231   .0477854   .8673059"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y=1), predict(pr)",
+            "dy/dx wrt:  x1 x2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .1490092   .0208728     7.14   0.000     .1080992    .1899193",
+            "          x2 |  -.1621235   .0446491    -3.63   0.000    -.2496341   -.0746129",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtprobit y x1 x2, re nolog intpoints(8)",
+          "lines": [
+            "Random-effects probit regression                     Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     50",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      6",
+            "                                                                  avg =    6.0",
+            "                                                                  max =      6",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =      8",
+            "",
+            "                                                     Wald chi2(2)     =  36.62",
+            "Log likelihood = -157.82202                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .6658487   .1175953     5.66   0.000     .4353662    .8963313",
+            "          x2 |  -.7244428   .2157893    -3.36   0.001    -1.147382   -.3015036",
+            "       _cons |  -.0785151   .2118939    -0.37   0.711    -.4938195    .3367894",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |   .3625586   .3505404                     -.3244881    1.049605",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |    1.19875   .2101052                      .8502337    1.690125",
+            "         rho |   .5896596   .0848172                      .4195824    .7406991",
+            "------------------------------------------------------------------------------",
+            "LR test of rho=0: chibar2(01) = 60.07                  Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "xtlogit y x1 x2, re nolog intmethod(ghermite)",
+          "lines": [
+            "Random-effects logistic regression                   Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     50",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      6",
+            "                                                                  avg =    6.0",
+            "                                                                  max =      6",
+            "",
+            "Integration method: ghermite                         Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(2)     =  33.27",
+            "Log likelihood = -158.23536                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   1.124298   .2075838     5.42   0.000     .7174415    1.531155",
+            "          x2 |  -1.215301   .3745114    -3.25   0.001    -1.949329   -.4812717",
+            "       _cons |  -.1361904   .3845136    -0.35   0.723    -.8898232    .6174424",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |   1.401087   .3559666                      .7034055    2.098769",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   2.014848   .3586093                      1.421486    2.855893",
+            "         rho |   .5523672   .0880155                      .3804963    .7125747",
+            "------------------------------------------------------------------------------",
+            "LR test of rho=0: chibar2(01) = 59.28                  Prob >= chibar2 = 0.000"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xt-random-effects-strong-panels",
+      "source": "clear\nset seed 2024\nset obs 400\ngenerate id = ceil(_n/4)\ngenerate t = _n - (id-1)*4\ngenerate x1 = invnormal(runiform())\ngenerate x2 = runiform()\nbysort id: generate u0 = 3*invnormal(runiform()) if _n==1\nby id: replace u0 = u0[1]\ngenerate yn = runiform() < invlogit(0.5*x1)\ngenerate ys = runiform() < invlogit(0.5*x1 + u0)\nxtset id t\nxtlogit yn x1 x2, re\nxtlogit ys x1 x2, re\nxtprobit ys x1 x2, re\nxtprobit yn x1 x2, re\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2024", "lines": [] },
+        {
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        { "command": "generate id = ceil(_n/4)", "lines": [] },
+        { "command": "generate t = _n - (id-1)*4", "lines": [] },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate x2 = runiform()", "lines": [] },
+        {
+          "command": "bysort id: generate u0 = 3*invnormal(runiform()) if _n==1",
+          "lines": ["(300 missing values generated)"]
+        },
+        {
+          "command": "by id: replace u0 = u0[1]",
+          "lines": ["(300 real changes made)"]
+        },
+        {
+          "command": "generate yn = runiform() < invlogit(0.5*x1)",
+          "lines": []
+        },
+        {
+          "command": "generate ys = runiform() < invlogit(0.5*x1 + u0)",
+          "lines": []
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 4",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtlogit yn x1 x2, re",
+          "lines": [
+            "Fitting comparison model:",
+            "",
+            "Iteration 0:  Log likelihood = -277.25387",
+            "Iteration 1:  Log likelihood = -256.18919",
+            "Iteration 2:  Log likelihood = -256.18783",
+            "Iteration 3:  Log likelihood = -256.18783",
+            "",
+            "Fitting full model:",
+            "",
+            "tau =  0.0    Log likelihood = -256.18783",
+            "tau =  0.1    Log likelihood = -255.79841",
+            "tau =  0.2    Log likelihood = -255.73942",
+            "tau =  0.3    Log likelihood = -256.09171",
+            "",
+            "Iteration 0:  Log likelihood = -255.73942",
+            "Iteration 1:  Log likelihood = -255.71532",
+            "Iteration 2:  Log likelihood = -255.71509",
+            "Iteration 3:  Log likelihood = -255.71509",
+            "",
+            "Random-effects logistic regression                   Number of obs    =    400",
+            "Group variable: id                                   Number of groups =    100",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    4.0",
+            "                                                                  max =      4",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(2)     =  33.79",
+            "Log likelihood = -255.71509                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          yn | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .7229552   .1255986     5.76   0.000     .4767864    .9691239",
+            "          x2 |  -.2430795   .3963322    -0.61   0.540    -1.019876    .5337173",
+            "       _cons |   .1180059   .2386091     0.49   0.621    -.3496594    .5856712",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |  -1.599482   1.170464                      -3.89355     .694585",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   .4494453   .2630298                      .1427337    1.415231",
+            "         rho |    .057849   .0637932                      .0061545    .3784194",
+            "------------------------------------------------------------------------------",
+            "LR test of rho=0: chibar2(01) = 0.95                   Prob >= chibar2 = 0.165"
+          ]
+        },
+        {
+          "command": "xtlogit ys x1 x2, re",
+          "lines": [
+            "Fitting comparison model:",
+            "",
+            "Iteration 0:  Log likelihood = -277.01382",
+            "Iteration 1:  Log likelihood = -275.44558",
+            "Iteration 2:  Log likelihood = -275.44542",
+            "Iteration 3:  Log likelihood = -275.44542",
+            "",
+            "Fitting full model:",
+            "",
+            "tau =  0.0    Log likelihood = -275.44542",
+            "tau =  0.1    Log likelihood = -267.57954",
+            "tau =  0.2    Log likelihood = -260.01432",
+            "tau =  0.3    Log likelihood = -252.69256",
+            "tau =  0.4    Log likelihood = -245.57067",
+            "tau =  0.5    Log likelihood = -238.62599",
+            "tau =  0.6    Log likelihood = -231.87691",
+            "tau =  0.7    Log likelihood = -225.44268",
+            "tau =  0.8    Log likelihood = -219.76386",
+            "",
+            "Iteration 0:  Log likelihood = -225.44108",
+            "Iteration 1:  Log likelihood = -213.92439",
+            "Iteration 2:  Log likelihood = -213.03721",
+            "Iteration 3:  Log likelihood = -213.02849",
+            "Iteration 4:  Log likelihood = -213.02847",
+            "Iteration 5:  Log likelihood = -213.02844",
+            "Iteration 6:  Log likelihood = -213.02844",
+            "",
+            "Random-effects logistic regression                   Number of obs    =    400",
+            "Group variable: id                                   Number of groups =    100",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    4.0",
+            "                                                                  max =      4",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(2)     =  12.41",
+            "Log likelihood = -213.02844                          Prob > chi2      = 0.0020",
+            "",
+            "------------------------------------------------------------------------------",
+            "          ys | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .6673408   .1901895     3.51   0.000     .2945761    1.040105",
+            "          x2 |   .4769926   .6438899     0.74   0.459    -.7850085    1.738994",
+            "       _cons |  -.4121736   .5013077    -0.82   0.411    -1.394719    .5703715",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |   2.322779   .3189033                       1.69774    2.947818",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   3.194368   .5093474                      2.337004    4.366269",
+            "         rho |   .7561951   .0587943                      .6240776    .8528298",
+            "------------------------------------------------------------------------------",
+            "LR test of rho=0: chibar2(01) = 124.83                 Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "xtprobit ys x1 x2, re",
+          "lines": [
+            "Fitting comparison model:",
+            "",
+            "Iteration 0:  Log likelihood = -277.01382",
+            "Iteration 1:  Log likelihood = -275.43868",
+            "Iteration 2:  Log likelihood =  -275.4384",
+            "Iteration 3:  Log likelihood =  -275.4384",
+            "",
+            "Fitting full model:",
+            "",
+            "rho =  0.0    Log likelihood =  -275.4384",
+            "rho =  0.1    Log likelihood = -258.10991",
+            "rho =  0.2    Log likelihood = -245.42837",
+            "rho =  0.3    Log likelihood = -235.80039",
+            "rho =  0.4    Log likelihood = -228.40347",
+            "rho =  0.5    Log likelihood = -222.81672",
+            "rho =  0.6    Log likelihood = -218.89586",
+            "rho =  0.7    Log likelihood = -216.81358",
+            "rho =  0.8    Log likelihood =  -217.8487",
+            "",
+            "Iteration 0:  Log likelihood = -216.74273",
+            "Iteration 1:  Log likelihood = -212.98464",
+            "Iteration 2:  Log likelihood = -212.97501",
+            "Iteration 3:  Log likelihood = -212.97501",
+            "",
+            "Random-effects probit regression                     Number of obs    =    400",
+            "Group variable: id                                   Number of groups =    100",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    4.0",
+            "                                                                  max =      4",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(2)     =  12.85",
+            "Log likelihood = -212.97501                          Prob > chi2      = 0.0016",
+            "",
+            "------------------------------------------------------------------------------",
+            "          ys | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .3851449   .1078377     3.57   0.000     .1737869    .5965028",
+            "          x2 |   .2595986   .3717682     0.70   0.485    -.4690538    .9882509",
+            "       _cons |  -.2245453   .2886036    -0.78   0.437    -.7901979    .3411073",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |   1.218204    .307174                      .6161542    1.820254",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |    1.83878   .2824126                      1.360806    2.484638",
+            "         rho |   .7717474   .0541097                      .6493434    .8605966",
+            "------------------------------------------------------------------------------",
+            "LR test of rho=0: chibar2(01) = 124.93                 Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "xtprobit yn x1 x2, re",
+          "lines": [
+            "Fitting comparison model:",
+            "",
+            "Iteration 0:  Log likelihood = -277.25387",
+            "Iteration 1:  Log likelihood =  -256.2294",
+            "Iteration 2:  Log likelihood = -256.21518",
+            "Iteration 3:  Log likelihood = -256.21518",
+            "",
+            "Fitting full model:",
+            "",
+            "rho =  0.0    Log likelihood = -256.21518",
+            "rho =  0.1    Log likelihood =  -255.8748",
+            "rho =  0.2    Log likelihood = -257.18125",
+            "",
+            "Iteration 0:  Log likelihood =  -255.8748",
+            "Iteration 1:  Log likelihood =  -255.7812",
+            "Iteration 2:  Log likelihood = -255.78069",
+            "Iteration 3:  Log likelihood = -255.78069",
+            "",
+            "Random-effects probit regression                     Number of obs    =    400",
+            "Group variable: id                                   Number of groups =    100",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    4.0",
+            "                                                                  max =      4",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(2)     =  36.64",
+            "Log likelihood = -255.78069                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          yn | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .4372603   .0729533     5.99   0.000     .2942744    .5802463",
+            "          x2 |  -.1549002   .2427049    -0.64   0.523    -.6305931    .3207927",
+            "       _cons |   .0770082   .1458228     0.53   0.597    -.2087992    .3628157",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |  -2.632079   1.198501                     -4.981097   -.2830613",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   .2681954   .1607161                      .0828645    .8680286",
+            "         rho |   .0671022   .0750255                      .0068197    .4297034",
+            "------------------------------------------------------------------------------",
+            "LR test of rho=0: chibar2(01) = 0.87                   Prob >= chibar2 = 0.176"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xt-random-effects-unbalanced-factors",
+      "source": "clear\nset seed 4242\nset obs 360\ngenerate id = ceil(_n/6)\ngenerate t = _n - (id-1)*6\ngenerate x1 = invnormal(runiform())\ngenerate x2 = runiform() < 0.4\ngenerate g = 1 + floor(3*runiform())\nbysort id: generate u0 = invnormal(runiform()) if _n==1\nby id: replace u0 = u0[1]\ngenerate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + .4*(g==2) + u0)\nreplace x1 = . in 7\ndrop if runiform() < .08\nxtset id t\nxtlogit y x1 i.g, re\nxtprobit y x1 i.g, re nolog\nmargins\nmargins, dydx(*)\nxtlogit y x1 x2, re noconstant nolog\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 360",
+          "lines": ["Number of observations (_N) was 0, now 360."]
+        },
+        { "command": "generate id = ceil(_n/6)", "lines": [] },
+        { "command": "generate t = _n - (id-1)*6", "lines": [] },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate x2 = runiform() < 0.4", "lines": [] },
+        { "command": "generate g = 1 + floor(3*runiform())", "lines": [] },
+        {
+          "command": "bysort id: generate u0 = invnormal(runiform()) if _n==1",
+          "lines": ["(300 missing values generated)"]
+        },
+        {
+          "command": "by id: replace u0 = u0[1]",
+          "lines": ["(300 real changes made)"]
+        },
+        {
+          "command": "generate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + .4*(g==2) + u0)",
+          "lines": []
+        },
+        {
+          "command": "replace x1 = . in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "drop if runiform() < .08",
+          "lines": ["(31 observations deleted)"]
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (unbalanced)",
+            " Time variable: t, 1 to 6, but with gaps",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtlogit y x1 i.g, re",
+          "lines": [
+            "Fitting comparison model:",
+            "",
+            "Iteration 0:  Log likelihood = -221.83345",
+            "Iteration 1:  Log likelihood =  -201.5083",
+            "Iteration 2:  Log likelihood = -201.42417",
+            "Iteration 3:  Log likelihood = -201.42416",
+            "",
+            "Fitting full model:",
+            "",
+            "tau =  0.0    Log likelihood = -201.42416",
+            "tau =  0.1    Log likelihood = -198.06243",
+            "tau =  0.2    Log likelihood = -195.15472",
+            "tau =  0.3    Log likelihood = -192.69495",
+            "tau =  0.4    Log likelihood =  -190.7105",
+            "tau =  0.5    Log likelihood = -189.28133",
+            "tau =  0.6    Log likelihood = -188.58315",
+            "tau =  0.7    Log likelihood = -188.99705",
+            "",
+            "Iteration 0:  Log likelihood =  -188.5832",
+            "Iteration 1:  Log likelihood = -187.86107",
+            "Iteration 2:  Log likelihood = -187.85991",
+            "Iteration 3:  Log likelihood = -187.85991",
+            "",
+            "Random-effects logistic regression                   Number of obs    =    328",
+            "Group variable: id                                   Number of groups =     60",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    5.5",
+            "                                                                  max =      6",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(3)     =  29.72",
+            "Log likelihood = -187.85991                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .9402326   .1755923     5.35   0.000      .596078    1.284387",
+            "             |",
+            "           g |",
+            "          2  |    .054608   .3662913     0.15   0.881    -.6633098    .7725258",
+            "          3  |  -.2362682   .3523231    -0.67   0.502    -.9268087    .4542723",
+            "             |",
+            "       _cons |  -.4845419   .2977118    -1.63   0.104    -1.068046    .0989624",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |   .6002998   .3905419                     -.1651482    1.365748",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   1.350061   .2636277                      .9207432    1.979559",
+            "         rho |   .3565092   .0895944                      .2048919    .5436139",
+            "------------------------------------------------------------------------------",
+            "LR test of rho=0: chibar2(01) = 27.13                  Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "xtprobit y x1 i.g, re nolog",
+          "lines": [
+            "Random-effects probit regression                     Number of obs    =    328",
+            "Group variable: id                                   Number of groups =     60",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    5.5",
+            "                                                                  max =      6",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(3)     =  32.09",
+            "Log likelihood = -187.84613                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .5561544    .100192     5.55   0.000     .3597818     .752527",
+            "             |",
+            "           g |",
+            "          2  |   .0399744   .2144274     0.19   0.852    -.3802956    .4602445",
+            "          3  |  -.1220747   .2079129    -0.59   0.557    -.5295766    .2854272",
+            "             |",
+            "       _cons |  -.2931443   .1749971    -1.68   0.094    -.6361324    .0498437",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |  -.4714085   .3761732                     -1.208694    .2658775",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   .7900143   .1485911                       .546431     1.14218",
+            "         rho |   .3842829   .0890062                      .2299321    .5660806",
+            "------------------------------------------------------------------------------",
+            "LR test of rho=0: chibar2(01) = 26.93                  Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                         Number of obs = 328",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y=1), predict(pr)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .4044254   .0367825    11.00   0.000     .3323331    .4765178",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 328",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y=1), predict(pr)",
+            "dy/dx wrt:  x1 2.g 3.g",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .1553852   .0240453     6.46   0.000     .1082573    .2025131",
+            "             |",
+            "           g |",
+            "          2  |   .0112765   .0604771     0.19   0.852    -.1072564    .1298095",
+            "          3  |  -.0339471   .0579686    -0.59   0.558    -.1475635    .0796692",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "xtlogit y x1 x2, re noconstant nolog",
+          "lines": [
+            "Random-effects logistic regression                   Number of obs    =    328",
+            "Group variable: id                                   Number of groups =     60",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    5.5",
+            "                                                                  max =      6",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(2)     =  38.36",
+            "Log likelihood = -183.94973                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .9638142    .177558     5.43   0.000     .6158068    1.311822",
+            "          x2 |  -1.048295   .2843093    -3.69   0.000    -1.605531   -.4910594",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |   .5587653   .3995913                     -.2244193     1.34195",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   1.322313   .2641924                      .8938568    1.956144",
+            "         rho |   .3470386   .0905485                      .1954047    .5377039",
+            "------------------------------------------------------------------------------",
+            "LR test of rho=0: chibar2(01) = 24.86                  Prob >= chibar2 = 0.000"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xt-conditional-logit",
+      "source": "clear\nset seed 4242\nset obs 360\ngenerate id = ceil(_n/6)\ngenerate t = _n - (id-1)*6\ngenerate x1 = invnormal(runiform())\ngenerate x2 = runiform() < 0.4\nbysort id: generate u0 = invnormal(runiform()) if _n==1\nby id: replace u0 = u0[1]\nbysort id: generate xc = 10*runiform() if _n==1\nby id: replace xc = xc[1]\ngenerate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)\nreplace x1 = . in 7\ndrop if runiform() < .08\nxtset id t\nxtlogit y x1 x2, fe\nxtlogit y x1 x2, fe or nolog\nxtlogit y x1 x2 xc, fe nolog\npredict double q1\npredict double q2, pu0\npredict double q3, xb\npredict double q4, stdp\nsummarize q1 q2 q3 q4\nmargins\nclogit y x1 x2 xc, group(id) or nolog\nclogit y x1, strata(id)\ndisplay e(N) \" \" e(ll_0) \" \" e(r2_p) \" \" e(N_drop) \" \" e(N_group_drop)\npredict double q5\nsummarize q5\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 360",
+          "lines": ["Number of observations (_N) was 0, now 360."]
+        },
+        { "command": "generate id = ceil(_n/6)", "lines": [] },
+        { "command": "generate t = _n - (id-1)*6", "lines": [] },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate x2 = runiform() < 0.4", "lines": [] },
+        {
+          "command": "bysort id: generate u0 = invnormal(runiform()) if _n==1",
+          "lines": ["(300 missing values generated)"]
+        },
+        {
+          "command": "by id: replace u0 = u0[1]",
+          "lines": ["(300 real changes made)"]
+        },
+        {
+          "command": "bysort id: generate xc = 10*runiform() if _n==1",
+          "lines": ["(300 missing values generated)"]
+        },
+        {
+          "command": "by id: replace xc = xc[1]",
+          "lines": ["(300 real changes made)"]
+        },
+        {
+          "command": "generate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)",
+          "lines": []
+        },
+        {
+          "command": "replace x1 = . in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "drop if runiform() < .08",
+          "lines": ["(27 observations deleted)"]
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (unbalanced)",
+            " Time variable: t, 1 to 6, but with gaps",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtlogit y x1 x2, fe",
+          "lines": [
+            "note: multiple positive outcomes within groups encountered.",
+            "note: 7 groups (32 obs) omitted because of all positive or",
+            "      all negative outcomes.",
+            "",
+            "Iteration 0:  Log likelihood = -104.98833",
+            "Iteration 1:  Log likelihood = -104.94827",
+            "Iteration 2:  Log likelihood = -104.94827",
+            "",
+            "Conditional fixed-effects logistic regression        Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     53",
+            "",
+            "                                                     Obs per group:",
+            "                                                                  min =      3",
+            "                                                                  avg =    5.7",
+            "                                                                  max =      6",
+            "",
+            "                                                     LR chi2(2)       =  43.81",
+            "Log likelihood = -104.94827                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .9568258   .1706279     5.61   0.000     .6224014     1.29125",
+            "          x2 |  -.5956888    .290026    -2.05   0.040    -1.164129   -.0272482",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtlogit y x1 x2, fe or nolog",
+          "lines": [
+            "note: multiple positive outcomes within groups encountered.",
+            "note: 7 groups (32 obs) omitted because of all positive or",
+            "      all negative outcomes.",
+            "",
+            "Conditional fixed-effects logistic regression        Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     53",
+            "",
+            "                                                     Obs per group:",
+            "                                                                  min =      3",
+            "                                                                  avg =    5.7",
+            "                                                                  max =      6",
+            "",
+            "                                                     LR chi2(2)       =  43.81",
+            "Log likelihood = -104.94827                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |    2.60342   .4442159     5.61   0.000     1.863397    3.637331",
+            "          x2 |   .5511828   .1598574    -2.05   0.040     .3121943    .9731197",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtlogit y x1 x2 xc, fe nolog",
+          "lines": [
+            "note: multiple positive outcomes within groups encountered.",
+            "note: 7 groups (32 obs) omitted because of all positive or",
+            "      all negative outcomes.",
+            "note: xc omitted because of no within-group variance.",
+            "",
+            "Conditional fixed-effects logistic regression        Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     53",
+            "",
+            "                                                     Obs per group:",
+            "                                                                  min =      3",
+            "                                                                  avg =    5.7",
+            "                                                                  max =      6",
+            "",
+            "                                                     LR chi2(2)       =  43.81",
+            "Log likelihood = -104.94827                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .9568258   .1706279     5.61   0.000     .6224014     1.29125",
+            "          x2 |  -.5956888    .290026    -2.05   0.040    -1.164129   -.0272482",
+            "          xc |          0  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "predict double q1",
+          "lines": [
+            "(option pc1 assumed; probability of success given one success within group)",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "predict double q2, pu0",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double q3, xb",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double q4, stdp",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "summarize q1 q2 q3 q4",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          q1 |        332    .1807229    .1541915   .0034727   .8098082",
+            "          q2 |        332    .4467337    .2037388   .0518644   .9490759",
+            "          q3 |        332   -.2496479    .9806325  -2.905866   2.925153",
+            "          q4 |        332    .2100557    .1272048    .002723    .528562"
+          ]
+        },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y|fixed effect is 0), predict(pu0)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .4436876   .0228512    19.42   0.000     .3989001    .4884752",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "clogit y x1 x2 xc, group(id) or nolog",
+          "lines": [
+            "note: multiple positive outcomes within groups encountered.",
+            "note: 7 groups (32 obs) omitted because of all positive or",
+            "      all negative outcomes.",
+            "note: xc omitted because of no within-group variance.",
+            "",
+            "Conditional (fixed-effects) logistic regression         Number of obs =    300",
+            "                                                        LR chi2(2)    =  43.81",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -104.94827                             Pseudo R2     = 0.1727",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |    2.60342   .4442159     5.61   0.000     1.863397    3.637331",
+            "          x2 |   .5511828   .1598574    -2.05   0.040     .3121943    .9731197",
+            "          xc |          1  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "clogit y x1, strata(id)",
+          "lines": [
+            "note: multiple positive outcomes within groups encountered.",
+            "note: 7 groups (32 obs) omitted because of all positive or",
+            "      all negative outcomes.",
+            "",
+            "Iteration 0:  Log likelihood =  -107.1042",
+            "Iteration 1:  Log likelihood = -107.10285",
+            "Iteration 2:  Log likelihood = -107.10285",
+            "",
+            "Conditional (fixed-effects) logistic regression         Number of obs =    300",
+            "                                                        LR chi2(1)    =  39.50",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -107.10285                             Pseudo R2     = 0.1557",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .9426518   .1693851     5.57   0.000     .6106632     1.27464",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(N) \" \" e(ll_0) \" \" e(r2_p) \" \" e(N_drop) \" \" e(N_group_drop)",
+          "lines": ["300 -126.85353 .15569678 32 7"]
+        },
+        {
+          "command": "predict double q5",
+          "lines": [
+            "(option pc1 assumed; probability of success given one success within group)",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "summarize q5",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          q5 |        332    .1807229     .147212   .0036306   .8032637"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xt-poisson-models",
+      "source": "clear\nset seed 4242\nset obs 360\ngenerate id = ceil(_n/6)\ngenerate t = _n - (id-1)*6\ngenerate x1 = invnormal(runiform())\ngenerate x2 = runiform() < 0.4\nbysort id: generate u0 = invnormal(runiform()) if _n==1\nby id: replace u0 = u0[1]\nbysort id: generate xc = 10*runiform() if _n==1\nby id: replace xc = xc[1]\ngenerate ex = 1 + 2*runiform()\ngenerate c = floor(-ln(runiform())/(0.6*exp(.3*x1+.2*x2+.5*u0)))\nreplace x1 = . in 7\ndrop if runiform() < .08\nxtset id t\nxtpoisson c x1 x2\ndisplay e(alpha) \" \" e(chi2_c) \" \" e(ll_c)\nxtpoisson c x1 x2, re irr nolog\npredict double n1, nu0\npredict double n3\nsummarize n1 n3\nmargins\nxtpoisson c x1 x2, re normal\npredict double n4, n\npredict double n5, stdp\nsummarize n4 n5\nmargins\nmargins, dydx(*)\nmargins, predict(nu0) dydx(x1)\nxtpoisson c x1 x2, re normal irr nolog\nxtpoisson c x1 x2, fe\nxtpoisson c x1 x2, fe irr nolog\nxtpoisson c x1 x2 xc, fe nolog\npredict double n6, nu0\nsummarize n6\nxtpoisson c x1 x2, exposure(ex) re nolog\npredict double n7, iru0\npredict double n8, nu0\nsummarize n7 n8\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 360",
+          "lines": ["Number of observations (_N) was 0, now 360."]
+        },
+        { "command": "generate id = ceil(_n/6)", "lines": [] },
+        { "command": "generate t = _n - (id-1)*6", "lines": [] },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate x2 = runiform() < 0.4", "lines": [] },
+        {
+          "command": "bysort id: generate u0 = invnormal(runiform()) if _n==1",
+          "lines": ["(300 missing values generated)"]
+        },
+        {
+          "command": "by id: replace u0 = u0[1]",
+          "lines": ["(300 real changes made)"]
+        },
+        {
+          "command": "bysort id: generate xc = 10*runiform() if _n==1",
+          "lines": ["(300 missing values generated)"]
+        },
+        {
+          "command": "by id: replace xc = xc[1]",
+          "lines": ["(300 real changes made)"]
+        },
+        { "command": "generate ex = 1 + 2*runiform()", "lines": [] },
+        {
+          "command": "generate c = floor(-ln(runiform())/(0.6*exp(.3*x1+.2*x2+.5*u0)))",
+          "lines": []
+        },
+        {
+          "command": "replace x1 = . in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "drop if runiform() < .08",
+          "lines": ["(28 observations deleted)"]
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (unbalanced)",
+            " Time variable: t, 1 to 6, but with gaps",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtpoisson c x1 x2",
+          "lines": [
+            "Fitting Poisson model:",
+            "",
+            "Iteration 0:  Log likelihood = -894.73962",
+            "Iteration 1:  Log likelihood = -894.73961",
+            "",
+            "Fitting full model:",
+            "",
+            "Iteration 0:  Log likelihood = -601.08837",
+            "Iteration 1:  Log likelihood = -598.52562",
+            "Iteration 2:  Log likelihood = -598.52412",
+            "Iteration 3:  Log likelihood = -598.52412",
+            "",
+            "Random-effects Poisson regression                    Number of obs    =    331",
+            "Group variable: id                                   Number of groups =     60",
+            "",
+            "Random effects u_i ~ Gamma                           Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    5.5",
+            "                                                                  max =      6",
+            "",
+            "                                                     Wald chi2(2)     =  28.44",
+            "Log likelihood = -598.52412                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   -.222418   .0466956    -4.76   0.000    -.3139397   -.1308962",
+            "          x2 |  -.2843993   .1003127    -2.84   0.005    -.4810085   -.0877901",
+            "       _cons |   .6013608   .1556653     3.86   0.000     .2962624    .9064593",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |   .2466521   .1879466                     -.1217165    .6150207",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   1.279734   .2405216                      .8853994    1.849695",
+            "------------------------------------------------------------------------------",
+            "LR test of alpha=0: chibar2(01) = 592.43               Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "display e(alpha) \" \" e(chi2_c) \" \" e(ll_c)",
+          "lines": ["1.2797339 592.43099 -894.73961"]
+        },
+        {
+          "command": "xtpoisson c x1 x2, re irr nolog",
+          "lines": [
+            "Random-effects Poisson regression                    Number of obs    =    331",
+            "Group variable: id                                   Number of groups =     60",
+            "",
+            "Random effects u_i ~ Gamma                           Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    5.5",
+            "                                                                  max =      6",
+            "",
+            "                                                     Wald chi2(2)     =  28.44",
+            "Log likelihood = -598.52412                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c |        IRR   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .8005807   .0373836    -4.76   0.000     .7305631    .8773088",
+            "          x2 |   .7524661   .0754819    -2.84   0.005     .6181597    .9159531",
+            "       _cons |     1.8246    .284027     3.86   0.000     1.344823    2.475542",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |   .2466521   .1879466                     -.1217165    .6150207",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   1.279734   .2405216                      .8853994    1.849695",
+            "------------------------------------------------------------------------------",
+            "Note: Estimates are transformed only in the first equation to incidence-rate ratios.",
+            "Note: _cons estimates baseline incidence rate (conditional on zero random effects).",
+            "LR test of alpha=0: chibar2(01) = 592.43               Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "predict double n1, nu0",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double n3",
+          "lines": [
+            "(option xb assumed; linear prediction)",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "summarize n1 n3",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          n1 |        331    1.680823    .4140395   .8170495   3.392998",
+            "          n3 |        331    .4892997    .2462028  -.2020556   1.221714"
+          ]
+        },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                         Number of obs = 331",
+            "Model VCE: OIM",
+            "",
+            "Expression: Linear prediction, predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .4892997   .1523338     3.21   0.001     .1907309    .7878685",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtpoisson c x1 x2, re normal",
+          "lines": [
+            "Fitting comparison Poisson model:",
+            "",
+            "Iteration 0:  Log likelihood = -894.73962",
+            "Iteration 1:  Log likelihood = -894.73961",
+            "",
+            "Fitting full model:",
+            "",
+            "tau =  0.0    Log likelihood = -894.73961",
+            "tau =  0.1    Log likelihood = -679.87259",
+            "tau =  0.2    Log likelihood = -637.77557",
+            "tau =  0.3    Log likelihood = -618.27693",
+            "tau =  0.4    Log likelihood = -613.47747",
+            "tau =  0.5    Log likelihood = -608.38583",
+            "tau =  0.6    Log likelihood = -613.08781",
+            "",
+            "Iteration 0:  Log likelihood = -605.59912",
+            "Iteration 1:  Log likelihood = -597.22465",
+            "Iteration 2:  Log likelihood = -593.14765",
+            "Iteration 3:  Log likelihood =  -593.0752",
+            "Iteration 4:  Log likelihood = -593.07507",
+            "Iteration 5:  Log likelihood = -593.07507",
+            "",
+            "Random-effects Poisson regression                    Number of obs    =    331",
+            "Group variable: id                                   Number of groups =     60",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    5.5",
+            "                                                                  max =      6",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(2)     =  31.13",
+            "Log likelihood = -593.07507                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.2345268   .0467737    -5.01   0.000    -.3262016    -.142852",
+            "          x2 |  -.2933115   .1006375    -2.91   0.004    -.4905574   -.0960656",
+            "       _cons |  -.0671884   .1671385    -0.40   0.688    -.3947737     .260397",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |   .2255368   .2322558                     -.2296762    .6807499",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   1.119373   .1299904                      .8915105    1.405474",
+            "------------------------------------------------------------------------------",
+            "LR test of sigma_u=0: chibar2(01) = 603.33             Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "predict double n4, n",
+          "lines": ["(1 missing values generated)"]
+        },
+        {
+          "command": "predict double n5, stdp",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "summarize n4 n5",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          n4 |        331    1.610568    .4161624   .7548202   3.365025",
+            "          n5 |        331    .1766061    .0089854   .1670646   .2231674"
+          ]
+        },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                         Number of obs = 331",
+            "Model VCE: OIM",
+            "",
+            "Expression: Marginal predicted mean (c), predict(n)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   1.610568   .3115316     5.17   0.000     .9999776    2.221159",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 331",
+            "Model VCE: OIM",
+            "",
+            "Expression: Marginal predicted mean (c), predict(n)",
+            "dy/dx wrt:  x1 x2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.3777215   .1051565    -3.59   0.000    -.5838243   -.1716186",
+            "          x2 |  -.4723982   .1857844    -2.54   0.011    -.8365289   -.1082674",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, predict(nu0) dydx(x1)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 331",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted number of events (assuming u_i=0), predict(nu0)",
+            "dy/dx wrt:  x1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.2018772   .0522203    -3.87   0.000    -.3042271   -.0995273",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtpoisson c x1 x2, re normal irr nolog",
+          "lines": [
+            "Random-effects Poisson regression                    Number of obs    =    331",
+            "Group variable: id                                   Number of groups =     60",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    5.5",
+            "                                                                  max =      6",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(2)     =  31.13",
+            "Log likelihood = -593.07507                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c |        IRR   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |    .790945   .0369954    -5.01   0.000     .7216597    .8668823",
+            "          x2 |   .7457898   .0750544    -2.91   0.004      .612285    .9084044",
+            "       _cons |   .9350191   .1562777    -0.40   0.688     .6738325    1.297445",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |   .2255368   .2322558                     -.2296762    .6807499",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   1.119373   .1299904                      .8915105    1.405474",
+            "------------------------------------------------------------------------------",
+            "Note: Estimates are transformed only in the first equation to incidence-rate ratios.",
+            "Note: _cons estimates baseline incidence rate (conditional on zero random effects).",
+            "LR test of sigma_u=0: chibar2(01) = 603.33             Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "xtpoisson c x1 x2, fe",
+          "lines": [
+            "note: 5 groups (27 obs) dropped because of all zero outcomes",
+            "",
+            "Iteration 0:  Log likelihood = -418.25625",
+            "Iteration 1:  Log likelihood = -403.32022",
+            "Iteration 2:  Log likelihood = -403.30895",
+            "Iteration 3:  Log likelihood = -403.30895",
+            "",
+            "Conditional fixed-effects Poisson regression         Number of obs    =    304",
+            "Group variable: id                                   Number of groups =     55",
+            "",
+            "                                                     Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    5.5",
+            "                                                                  max =      6",
+            "",
+            "                                                     Wald chi2(2)     =  29.70",
+            "Log likelihood = -403.30895                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.2318402   .0470021    -4.93   0.000    -.3239626   -.1397178",
+            "          x2 |  -.2835064   .1015219    -2.79   0.005    -.4824858   -.0845271",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtpoisson c x1 x2, fe irr nolog",
+          "lines": [
+            "note: 5 groups (27 obs) dropped because of all zero outcomes",
+            "",
+            "Conditional fixed-effects Poisson regression         Number of obs    =    304",
+            "Group variable: id                                   Number of groups =     55",
+            "",
+            "                                                     Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    5.5",
+            "                                                                  max =      6",
+            "",
+            "                                                     Wald chi2(2)     =  29.70",
+            "Log likelihood = -403.30895                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c |        IRR   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .7930729   .0372761    -4.93   0.000     .7232773    .8696036",
+            "          x2 |   .7531383   .0764601    -2.79   0.005     .6172472    .9189468",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtpoisson c x1 x2 xc, fe nolog",
+          "lines": [
+            "note: 5 groups (27 obs) dropped because of all zero outcomes",
+            "note: xc dropped because it is constant within group",
+            "",
+            "Conditional fixed-effects Poisson regression         Number of obs    =    304",
+            "Group variable: id                                   Number of groups =     55",
+            "",
+            "                                                     Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    5.5",
+            "                                                                  max =      6",
+            "",
+            "                                                     Wald chi2(2)     =  29.70",
+            "Log likelihood = -403.30895                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.2318402   .0470021    -4.93   0.000    -.3239626   -.1397178",
+            "          x2 |  -.2835064   .1015219    -2.79   0.005    -.4824858   -.0845271",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "predict double n6, nu0",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "summarize n6",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          n6 |        331    .9230684    .2344041   .4384496   1.909102"
+          ]
+        },
+        {
+          "command": "xtpoisson c x1 x2, exposure(ex) re nolog",
+          "lines": [
+            "Random-effects Poisson regression                    Number of obs    =    331",
+            "Group variable: id                                   Number of groups =     60",
+            "",
+            "Random effects u_i ~ Gamma                           Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    5.5",
+            "                                                                  max =      6",
+            "",
+            "                                                     Wald chi2(2)     =  34.22",
+            "Log likelihood = -617.10365                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.2359006   .0466202    -5.06   0.000    -.3272745   -.1445267",
+            "          x2 |  -.3478329   .1018812    -3.41   0.001    -.5475163   -.1481494",
+            "       _cons |   -.040242   .1563492    -0.26   0.797    -.3466808    .2661969",
+            "      ln(ex) |          1  (exposure)",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |   .2494792   .1879771                     -.1189492    .6179077",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   1.283357   .2412418                      .8878529    1.855043",
+            "------------------------------------------------------------------------------",
+            "LR test of alpha=0: chibar2(01) = 589.56               Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "predict double n7, iru0",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double n8, nu0",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "summarize n7 n8",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          n7 |        331    .8693567    .2370247   .3911931   1.854687",
+            "          n8 |        331    1.701873    .7132618   .5066993   4.558756"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xt-population-averaged",
+      "source": "clear\nset seed 4242\nset obs 360\ngenerate id = ceil(_n/6)\ngenerate t = _n - (id-1)*6\ngenerate x1 = invnormal(runiform())\ngenerate x2 = runiform() < 0.4\nbysort id: generate u0 = invnormal(runiform()) if _n==1\nby id: replace u0 = u0[1]\ngenerate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)\ngenerate c = floor(-ln(runiform())/(0.6*exp(.3*x1+.2*x2+.5*u0)))\nreplace x1 = . in 7\ndrop if runiform() < .08\nxtset id t\nxtlogit y x1 x2, pa\npredict double m1\npredict double m2, xb\npredict double m3, stdp\nsummarize m1 m2 m3\nmargins\nmargins, dydx(x1)\nxtprobit y x1 x2, pa nolog\nxtpoisson c x1 x2, pa\npredict double m4\nsummarize m4\nmargins\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 360",
+          "lines": ["Number of observations (_N) was 0, now 360."]
+        },
+        { "command": "generate id = ceil(_n/6)", "lines": [] },
+        { "command": "generate t = _n - (id-1)*6", "lines": [] },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate x2 = runiform() < 0.4", "lines": [] },
+        {
+          "command": "bysort id: generate u0 = invnormal(runiform()) if _n==1",
+          "lines": ["(300 missing values generated)"]
+        },
+        {
+          "command": "by id: replace u0 = u0[1]",
+          "lines": ["(300 real changes made)"]
+        },
+        {
+          "command": "generate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)",
+          "lines": []
+        },
+        {
+          "command": "generate c = floor(-ln(runiform())/(0.6*exp(.3*x1+.2*x2+.5*u0)))",
+          "lines": []
+        },
+        {
+          "command": "replace x1 = . in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "drop if runiform() < .08",
+          "lines": ["(31 observations deleted)"]
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (unbalanced)",
+            " Time variable: t, 1 to 6, but with gaps",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtlogit y x1 x2, pa",
+          "lines": [
+            "Iteration 1:  Tolerance = .01974932",
+            "Iteration 2:  Tolerance = .00014042",
+            "Iteration 3:  Tolerance = 7.912e-07",
+            "",
+            "GEE population-averaged model                        Number of obs    =    328",
+            "Group variable: id                                   Number of groups =     60",
+            "Family: Binomial                                     Obs per group:",
+            "Link:   Logit                                                     min =      4",
+            "Correlation: exchangeable                                         avg =    5.5",
+            "                                                                  max =      6",
+            "                                                     Wald chi2(2)     =  28.04",
+            "Scale parameter = 1                                  Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .6229927   .1246212     5.00   0.000     .3787395    .8672458",
+            "          x2 |  -.4579436   .2324272    -1.97   0.049    -.9134925   -.0023947",
+            "       _cons |  -.1170149   .1731628    -0.68   0.499    -.4564078    .2223781",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "predict double m1",
+          "lines": [
+            "(option mu assumed; Pr(y != 0))",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "predict double m2, xb",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double m3, stdp",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "summarize m1 m2 m3",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          m1 |        328    .4297246    .1452639   .1111426   .8566282",
+            "          m2 |        328   -.3084677    .6459711  -2.079123   1.787563",
+            "          m3 |        328    .2203325    .0431054   .1731134   .4146267"
+          ]
+        },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                         Number of obs = 328",
+            "Model VCE: Conventional",
+            "",
+            "Expression: Pr(y != 0), predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .4297246   .0339297    12.67   0.000     .3632237    .4962255",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(x1)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 328",
+            "Model VCE: Conventional",
+            "",
+            "Expression: Pr(y != 0), predict()",
+            "dy/dx wrt:  x1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .1395654   .0240746     5.80   0.000       .09238    .1867507",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtprobit y x1 x2, pa nolog",
+          "lines": [
+            "GEE population-averaged model                        Number of obs    =    328",
+            "Group variable: id                                   Number of groups =     60",
+            "Family: Binomial                                     Obs per group:",
+            "Link:   Probit                                                    min =      4",
+            "Correlation: exchangeable                                         avg =    5.5",
+            "                                                                  max =      6",
+            "                                                     Wald chi2(2)     =  29.77",
+            "Scale parameter = 1                                  Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .3813918   .0741772     5.14   0.000     .2360071    .5267765",
+            "          x2 |  -.2738153   .1418482    -1.93   0.054    -.5518328    .0042021",
+            "       _cons |   -.073949   .1067801    -0.69   0.489    -.2832342    .1353361",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtpoisson c x1 x2, pa",
+          "lines": [
+            "Iteration 1:  Tolerance = .02483961",
+            "Iteration 2:  Tolerance = .00044657",
+            "Iteration 3:  Tolerance = .00004077",
+            "Iteration 4:  Tolerance = 1.960e-06",
+            "Iteration 5:  Tolerance = 1.072e-07",
+            "",
+            "GEE population-averaged model                        Number of obs    =    328",
+            "Group variable: id                                   Number of groups =     60",
+            "Family: Poisson                                      Obs per group:",
+            "Link:   Log                                                       min =      4",
+            "Correlation: exchangeable                                         avg =    5.5",
+            "                                                                  max =      6",
+            "                                                     Wald chi2(2)     =  58.55",
+            "Scale parameter = 1                                  Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.3405245   .0474205    -7.18   0.000    -.4334669   -.2475821",
+            "          x2 |  -.2797526    .096173    -2.91   0.004    -.4682481    -.091257",
+            "       _cons |   .3368803   .0731486     4.61   0.000     .1935117    .4802489",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "predict double m4",
+          "lines": [
+            "(option mu assumed; Exponentiated linear prediction)",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "summarize m4",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          m4 |        328    1.349904    .4845009   .4737791   3.620629"
+          ]
+        },
+        {
+          "command": "margins",
+          "lines": [
+            "Predictive margins                                         Number of obs = 328",
+            "Model VCE: Conventional",
+            "",
+            "Expression: Exponentiated linear prediction, predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   1.349904   .0866651    15.58   0.000     1.180044    1.519765",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xt-nonlinear-refusals",
+      "source": "clear\nset seed 31\nset obs 120\ngenerate id = ceil(_n/4)\ngenerate t = _n - (id-1)*4\ngenerate x1 = invnormal(runiform())\ngenerate y = runiform() < invlogit(x1)\ngenerate c = floor(-ln(runiform())/0.7)\ngenerate yc = 1\ncapture noisily xtlogit y x1\ncapture noisily clogit y x1\nxtset id t\ncapture noisily xtprobit y x1, fe\ncapture noisily xtlogit y, fe\ncapture noisily xtlogit yc x1, re\ncapture noisily xtlogit y x1, re intpoints(2)\ngenerate cneg = c - 1\ncapture noisily xtpoisson cneg x1\ncapture noisily xtlogit y x1 [fw=c], re\ncapture noisily xtpoisson c x1, re intpoints(8)\nxtpoisson c x1, fe nolog\ncapture noisily predict double m7, n\nxtpoisson c x1, nolog\ncapture noisily predict double m8, n\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 31", "lines": [] },
+        {
+          "command": "set obs 120",
+          "lines": ["Number of observations (_N) was 0, now 120."]
+        },
+        { "command": "generate id = ceil(_n/4)", "lines": [] },
+        { "command": "generate t = _n - (id-1)*4", "lines": [] },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate y = runiform() < invlogit(x1)", "lines": [] },
+        { "command": "generate c = floor(-ln(runiform())/0.7)", "lines": [] },
+        { "command": "generate yc = 1", "lines": [] },
+        {
+          "command": "capture noisily xtlogit y x1",
+          "lines": ["must specify panelvar; use xtset"]
+        },
+        {
+          "command": "capture noisily clogit y x1",
+          "lines": ["group() required"]
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 4",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "capture noisily xtprobit y x1, fe",
+          "lines": ["fixed-effects model not available"]
+        },
+        {
+          "command": "capture noisily xtlogit y, fe",
+          "lines": ["too few variables specified"]
+        },
+        {
+          "command": "capture noisily xtlogit yc x1, re",
+          "lines": [
+            "outcome does not vary; remember:",
+            "                                  0 = negative outcome,",
+            "        all other nonmissing values = positive outcome"
+          ]
+        },
+        {
+          "command": "capture noisily xtlogit y x1, re intpoints(2)",
+          "lines": ["number of quadrature points must be between 4 and 195"]
+        },
+        { "command": "generate cneg = c - 1", "lines": [] },
+        {
+          "command": "capture noisily xtpoisson cneg x1",
+          "lines": ["cneg must be greater than or equal to zero"]
+        },
+        {
+          "command": "capture noisily xtlogit y x1 [fw=c], re",
+          "lines": ["fweights not allowed with fixed- or random-effects models"]
+        },
+        {
+          "command": "capture noisily xtpoisson c x1, re intpoints(8)",
+          "lines": ["intpoints(8) requires option normal"]
+        },
+        {
+          "command": "xtpoisson c x1, fe nolog",
+          "lines": [
+            "note: 4 groups (16 obs) dropped because of all zero outcomes",
+            "",
+            "Conditional fixed-effects Poisson regression         Number of obs    =    104",
+            "Group variable: id                                   Number of groups =     26",
+            "",
+            "                                                     Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    4.0",
+            "                                                                  max =      4",
+            "",
+            "                                                     Wald chi2(1)     =   1.02",
+            "Log likelihood = -81.427601                          Prob > chi2      = 0.3133",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.1328579   .1317675    -1.01   0.313    -.3911175    .1254017",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily predict double m7, n",
+          "lines": [
+            "option n not allowed",
+            "marginal predictions allowed only after xtpoisson, re normal"
+          ]
+        },
+        {
+          "command": "xtpoisson c x1, nolog",
+          "lines": [
+            "Random-effects Poisson regression                    Number of obs    =    120",
+            "Group variable: id                                   Number of groups =     30",
+            "",
+            "Random effects u_i ~ Gamma                           Obs per group:",
+            "                                                                  min =      4",
+            "                                                                  avg =    4.0",
+            "                                                                  max =      4",
+            "",
+            "                                                     Wald chi2(1)     =   0.69",
+            "Log likelihood = -146.53461                          Prob > chi2      = 0.4074",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.1064292   .1284749    -0.83   0.407    -.3582353     .145377",
+            "       _cons |  -.3069583   .1561476    -1.97   0.049     -.613002   -.0009145",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -.9460793   .5098196                     -1.945307    .0531488",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   .3882603   .1979427                      .1429433    1.054587",
+            "------------------------------------------------------------------------------",
+            "LR test of alpha=0: chibar2(01) = 10.87                Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "capture noisily predict double m8, n",
+          "lines": [
+            "option n not allowed",
+            "marginal predictions allowed only after xtpoisson, re normal"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xt-robust-variances",
+      "source": "clear\nset seed 12345\nset obs 300\ngenerate id = ceil(_n/6)\ngenerate t = _n - (id-1)*6\ngenerate x1 = invnormal(runiform())\ngenerate x2 = runiform() < 0.4\nbysort id: generate u0 = invnormal(runiform()) if _n==1\nby id: replace u0 = u0[1]\ngenerate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)\ngenerate c = floor(-ln(runiform())/(0.6*exp(.3*x1+.2*x2+.5*u0)))\ngenerate grp = ceil(id/5)\nxtset id t\nclogit y x1 x2, group(id) vce(robust)\nclogit y x1 x2, group(id) vce(cluster grp) nolog\ndisplay e(N_clust) \" \" e(vce) \" \" e(vcetype)\nxtlogit y x1 x2, pa vce(robust)\nxtprobit y x1 x2, pa vce(robust) nolog\nxtpoisson c x1 x2, pa vce(robust) nolog\nxtpoisson c x1 x2, re vce(robust)\nxtpoisson c x1 x2, fe vce(robust)\ncapture noisily xtlogit y x1 x2, fe vce(robust)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate id = ceil(_n/6)", "lines": [] },
+        { "command": "generate t = _n - (id-1)*6", "lines": [] },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate x2 = runiform() < 0.4", "lines": [] },
+        {
+          "command": "bysort id: generate u0 = invnormal(runiform()) if _n==1",
+          "lines": ["(250 missing values generated)"]
+        },
+        {
+          "command": "by id: replace u0 = u0[1]",
+          "lines": ["(250 real changes made)"]
+        },
+        {
+          "command": "generate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)",
+          "lines": []
+        },
+        {
+          "command": "generate c = floor(-ln(runiform())/(0.6*exp(.3*x1+.2*x2+.5*u0)))",
+          "lines": []
+        },
+        { "command": "generate grp = ceil(id/5)", "lines": [] },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 6",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "clogit y x1 x2, group(id) vce(robust)",
+          "lines": [
+            "note: multiple positive outcomes within groups encountered.",
+            "note: 12 groups (72 obs) omitted because of all positive or",
+            "      all negative outcomes.",
+            "",
+            "Iteration 0:  Log pseudolikelihood = -65.838066",
+            "Iteration 1:  Log pseudolikelihood = -62.555695",
+            "Iteration 2:  Log pseudolikelihood = -62.544327",
+            "Iteration 3:  Log pseudolikelihood = -62.544323",
+            "",
+            "Conditional (fixed-effects) logistic regression         Number of obs =    228",
+            "                                                        Wald chi2(2)  =  52.22",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log pseudolikelihood = -62.544323                       Pseudo R2     = 0.2885",
+            "",
+            "                                     (Std. err. adjusted for clustering on id)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   1.174319    .172874     6.79   0.000     .8354924    1.513146",
+            "          x2 |  -1.382502   .3679095    -3.76   0.000    -2.103591   -.6614124",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "clogit y x1 x2, group(id) vce(cluster grp) nolog",
+          "lines": [
+            "note: multiple positive outcomes within groups encountered.",
+            "note: 12 groups (72 obs) omitted because of all positive or",
+            "      all negative outcomes.",
+            "",
+            "Conditional (fixed-effects) logistic regression         Number of obs =    228",
+            "                                                        Wald chi2(2)  =  69.33",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log pseudolikelihood = -62.544323                       Pseudo R2     = 0.2885",
+            "",
+            "                                   (Std. err. adjusted for 10 clusters in grp)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   1.174319   .1431173     8.21   0.000     .8938143    1.454824",
+            "          x2 |  -1.382502   .3234226    -4.27   0.000    -2.016398   -.7486052",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(N_clust) \" \" e(vce) \" \" e(vcetype)",
+          "lines": ["10 cluster Robust"]
+        },
+        {
+          "command": "xtlogit y x1 x2, pa vce(robust)",
+          "lines": [
+            "Iteration 1:  Tolerance = .10493442",
+            "Iteration 2:  Tolerance = .00668035",
+            "Iteration 3:  Tolerance = .00018209",
+            "Iteration 4:  Tolerance = 7.287e-06",
+            "Iteration 5:  Tolerance = 2.944e-07",
+            "",
+            "GEE population-averaged model                        Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     50",
+            "Family: Binomial                                     Obs per group:",
+            "Link:   Logit                                                     min =      6",
+            "Correlation: exchangeable                                         avg =    6.0",
+            "                                                                  max =      6",
+            "                                                     Wald chi2(2)     =  48.63",
+            "Scale parameter = 1                                  Prob > chi2      = 0.0000",
+            "",
+            "                                     (Std. err. adjusted for clustering on id)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .6959532   .1140684     6.10   0.000     .4723832    .9195231",
+            "          x2 |  -.7721808   .2029707    -3.80   0.000    -1.169996   -.3743654",
+            "       _cons |  -.1086773   .2237003    -0.49   0.627    -.5471217    .3297672",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtprobit y x1 x2, pa vce(robust) nolog",
+          "lines": [
+            "GEE population-averaged model                        Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     50",
+            "Family: Binomial                                     Obs per group:",
+            "Link:   Probit                                                    min =      6",
+            "Correlation: exchangeable                                         avg =    6.0",
+            "                                                                  max =      6",
+            "                                                     Wald chi2(2)     =  53.45",
+            "Scale parameter = 1                                  Prob > chi2      = 0.0000",
+            "",
+            "                                     (Std. err. adjusted for clustering on id)",
+            "------------------------------------------------------------------------------",
+            "             |             Semirobust",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .4245206   .0665862     6.38   0.000      .294014    .5550272",
+            "          x2 |  -.4635905   .1219515    -3.80   0.000    -.7026109     -.22457",
+            "       _cons |  -.0598042   .1371396    -0.44   0.663    -.3285929    .2089845",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtpoisson c x1 x2, pa vce(robust) nolog",
+          "lines": [
+            "GEE population-averaged model                        Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     50",
+            "Family: Poisson                                      Obs per group:",
+            "Link:   Log                                                       min =      6",
+            "Correlation: exchangeable                                         avg =    6.0",
+            "                                                                  max =      6",
+            "                                                     Wald chi2(2)     =  19.13",
+            "Scale parameter = 1                                  Prob > chi2      = 0.0001",
+            "",
+            "                                     (Std. err. adjusted for clustering on id)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           c | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.3702091   .1059926    -3.49   0.000    -.5779509   -.1624673",
+            "          x2 |  -.4417763   .1840836    -2.40   0.016    -.8025735    -.080979",
+            "       _cons |   .3010942   .1638936     1.84   0.066    -.0201314    .6223198",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtpoisson c x1 x2, re vce(robust)",
+          "lines": [
+            "Fitting Poisson model:",
+            "",
+            "Iteration 0:  Log pseudolikelihood = -569.19809",
+            "Iteration 1:  Log pseudolikelihood = -569.19808",
+            "",
+            "Fitting full model:",
+            "",
+            "Iteration 0:  Log pseudolikelihood = -467.31197",
+            "Iteration 1:  Log pseudolikelihood = -465.59358",
+            "Iteration 2:  Log pseudolikelihood = -465.59222",
+            "Iteration 3:  Log pseudolikelihood = -465.59222",
+            "",
+            "Random-effects Poisson regression                    Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     50",
+            "",
+            "Random effects u_i ~ Gamma                           Obs per group:",
+            "                                                                  min =      6",
+            "                                                                  avg =    6.0",
+            "                                                                  max =      6",
+            "",
+            "                                                     Wald chi2(2)     =  18.80",
+            "Log pseudolikelihood = -465.59222                    Prob > chi2      = 0.0001",
+            "",
+            "                                     (Std. err. adjusted for clustering on id)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           c | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.3872771   .1082048    -3.58   0.000    -.5993547   -.1751995",
+            "          x2 |  -.3961687   .1989779    -1.99   0.046    -.7861582   -.0061791",
+            "       _cons |   .2910616   .1541217     1.89   0.059    -.0110114    .5931347",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -.1071356   1.269064                     -2.594456    2.380184",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   .8984038   1.140132                      .0746865     10.8069",
+            "------------------------------------------------------------------------------",
+            "LR test of alpha=0: chibar2(01) = 207.21               Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "xtpoisson c x1 x2, fe vce(robust)",
+          "lines": [
+            "note: 4 groups (24 obs) dropped because of all zero outcomes",
+            "",
+            "Iteration 0:  Log pseudolikelihood = -340.04219",
+            "Iteration 1:  Log pseudolikelihood = -312.38345",
+            "Iteration 2:  Log pseudolikelihood = -312.37456",
+            "Iteration 3:  Log pseudolikelihood = -312.37456",
+            "",
+            "Conditional fixed-effects Poisson regression         Number of obs    =    276",
+            "Group variable: id                                   Number of groups =     46",
+            "",
+            "                                                     Obs per group:",
+            "                                                                  min =      6",
+            "                                                                  avg =    6.0",
+            "                                                                  max =      6",
+            "",
+            "                                                     Wald chi2(2)     =  16.58",
+            "Log pseudolikelihood = -312.37456                    Prob > chi2      = 0.0003",
+            "",
+            "                                     (Std. err. adjusted for clustering on id)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           c | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.3968847   .1076149    -3.69   0.000    -.6078061   -.1859633",
+            "          x2 |  -.3674661    .203667    -1.80   0.071     -.766646    .0317138",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily xtlogit y x1 x2, fe vce(robust)",
+          "lines": ["vcetype robust not allowed"]
+        }
+      ]
+    },
+    {
+      "id": "xt-replay-and-factor-margins",
+      "source": "clear\nset seed 12345\nset obs 300\ngenerate id = ceil(_n/6)\ngenerate t = _n - (id-1)*6\ngenerate x1 = invnormal(runiform())\ngenerate x2 = runiform() < 0.4\ngenerate g = 1 + floor(3*runiform())\nbysort id: generate u0 = invnormal(runiform()) if _n==1\nby id: replace u0 = u0[1]\ngenerate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)\ngenerate c = floor(-ln(runiform())/(0.6*exp(.3*x1+.2*x2+.5*u0)))\ngenerate ex = runiform() - .1\nxtset id t\nquietly xtlogit y x1 x2 i.g, re\nxtlogit\nxtlogit, or level(90)\nestat ic\nestat vce\ntestparm i.g\nmargins g\nmargins, at(x1=(0 1))\nmargins, over(x2)\nquietly xtlogit y x1, re\nquietly clogit y x1 x2 i.g, group(id)\nclogit, or\nmargins g\nquietly xtpoisson c x1 x2 i.g, fe\nxtpoisson, irr\nmargins g\nquietly xtpoisson c x1 x2 i.g, re normal\nmargins g\nmargins, dydx(x1) at(x2=(0 1))\ncapture noisily xtprobit\ncapture noisily xtpoisson c x1, exposure(ex)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate id = ceil(_n/6)", "lines": [] },
+        { "command": "generate t = _n - (id-1)*6", "lines": [] },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate x2 = runiform() < 0.4", "lines": [] },
+        { "command": "generate g = 1 + floor(3*runiform())", "lines": [] },
+        {
+          "command": "bysort id: generate u0 = invnormal(runiform()) if _n==1",
+          "lines": ["(250 missing values generated)"]
+        },
+        {
+          "command": "by id: replace u0 = u0[1]",
+          "lines": ["(250 real changes made)"]
+        },
+        {
+          "command": "generate y = runiform() < invlogit(-0.3 + 0.8*x1 - 0.5*x2 + u0)",
+          "lines": []
+        },
+        {
+          "command": "generate c = floor(-ln(runiform())/(0.6*exp(.3*x1+.2*x2+.5*u0)))",
+          "lines": []
+        },
+        { "command": "generate ex = runiform() - .1", "lines": [] },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 6",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "quietly xtlogit y x1 x2 i.g, re", "lines": [] },
+        {
+          "command": "xtlogit",
+          "lines": [
+            "Random-effects logistic regression                   Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     50",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      6",
+            "                                                                  avg =    6.0",
+            "                                                                  max =      6",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(4)     =  32.30",
+            "Log likelihood = -166.17594                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   1.037798   .1908138     5.44   0.000     .6638097    1.411786",
+            "          x2 |  -.5974528   .3229613    -1.85   0.064    -1.230445    .0355397",
+            "             |",
+            "           g |",
+            "          2  |   .0226134   .3993494     0.06   0.955    -.7600971    .8053238",
+            "          3  |  -.0468576   .3845525    -0.12   0.903    -.8005667    .7068514",
+            "             |",
+            "       _cons |  -.3858115   .3495087    -1.10   0.270    -1.070836    .2992129",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |    .657775   .4124208                     -.1505548    1.466105",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   1.389422   .2865132                      .9274861    2.081424",
+            "         rho |   .3698006   .0961139                      .2072795    .5683831",
+            "------------------------------------------------------------------------------",
+            "LR test of rho=0: chibar2(01) = 26.71                  Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "xtlogit, or level(90)",
+          "lines": [
+            "Random-effects logistic regression                   Number of obs    =    300",
+            "Group variable: id                                   Number of groups =     50",
+            "",
+            "Random effects u_i ~ Gaussian                        Obs per group:",
+            "                                                                  min =      6",
+            "                                                                  avg =    6.0",
+            "                                                                  max =      6",
+            "",
+            "Integration method: mvaghermite                      Integration pts. =     12",
+            "",
+            "                                                     Wald chi2(4)     =  32.30",
+            "Log likelihood = -166.17594                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Odds ratio   Std. err.      z    P>|z|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   2.822993    .538666     5.44   0.000     2.062538    3.863828",
+            "          x2 |   .5502113    .177697    -1.85   0.064     .3234609    .9359167",
+            "             |",
+            "           g |",
+            "          2  |   1.022871   .4084829     0.06   0.955     .5303289    1.972861",
+            "          3  |   .9542233   .3669489    -0.12   0.903      .506926    1.796203",
+            "             |",
+            "       _cons |   .6798987   .2376305    -1.10   0.270     .3826242    1.208136",
+            "-------------+----------------------------------------------------------------",
+            "    /lnsig2u |    .657775   .4124208                     -.0205968    1.336147",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |   1.389422   .2865132                      .9897545    1.950476",
+            "         rho |   .3698006   .0961139                      .2294456    .5362611",
+            "------------------------------------------------------------------------------",
+            "Note: Estimates are transformed only in the first equation to odds ratios.",
+            "Note: _cons estimates baseline odds (conditional on zero random effects).",
+            "LR test of rho=0: chibar2(01) = 26.71                  Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "estat ic",
+          "lines": [
+            "Akaike's information criterion and Bayesian information criterion",
+            "",
+            "-----------------------------------------------------------------------------",
+            "       Model |          N   ll(null)  ll(model)      df        AIC        BIC",
+            "-------------+---------------------------------------------------------------",
+            "           . |        300          .  -166.1759       6   344.3519   366.5746",
+            "-----------------------------------------------------------------------------",
+            "Note: BIC uses N = number of observations. See [R] IC note."
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of xtlogit model",
+            "",
+            "             | y                                                          | /",
+            "             |                                  2.          3.            |",
+            "        e(V) |         x1          x2           g           g       _cons |    lnsig2u",
+            "-------------+------------------------------------------------------------+-----------",
+            "y            |                                                            |",
+            "          x1 |  .03640989                                                 |",
+            "          x2 |  -.0043321   .10430401                                     |",
+            "         2.g | -.00360546   .00372691   .15947995                         |",
+            "         3.g | -.01176382   .00013082   .06903936   .14788063             |",
+            "       _cons | -3.676e-06  -.04141235  -.06914437  -.06815131   .12215631 |",
+            "-------------+------------------------------------------------------------+-----------",
+            "/            |                                                            |",
+            "     lnsig2u |   .0262932   .00164667   .00604518  -.00522432  -.01950377 |  .17009089"
+          ]
+        },
+        {
+          "command": "testparm i.g",
+          "lines": [
+            " ( 1)  [y]2.g = 0",
+            " ( 2)  [y]3.g = 0",
+            "",
+            "           chi2(  2) =    0.03",
+            "         Prob > chi2 =    0.9849"
+          ]
+        },
+        {
+          "command": "margins g",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y=1), predict(pr)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          1  |   .3999295    .050501     7.92   0.000     .3009492    .4989097",
+            "          2  |   .4034685   .0562558     7.17   0.000     .2932091    .5137279",
+            "          3  |   .3926247   .0520405     7.54   0.000     .2906272    .4946222",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, at(x1=(0 1))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y=1), predict(pr)",
+            "1._at: x1 = 0",
+            "2._at: x1 = 1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         _at |",
+            "          1  |   .3863393   .0432584     8.93   0.000     .3015544    .4711243",
+            "          2  |   .5722626   .0526182    10.88   0.000     .4691329    .6753924",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, over(x2)",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y=1), predict(pr)",
+            "Over:       x2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x2 |",
+            "          0  |   .4324815    .044348     9.75   0.000      .345561     .519402",
+            "          1  |   .3491917   .0485654     7.19   0.000     .2540053    .4443781",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly xtlogit y x1, re", "lines": [] },
+        { "command": "quietly clogit y x1 x2 i.g, group(id)", "lines": [] },
+        {
+          "command": "clogit, or",
+          "lines": [
+            "Conditional (fixed-effects) logistic regression         Number of obs =    234",
+            "                                                        LR chi2(4)    =  37.41",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -75.753311                             Pseudo R2     = 0.1980",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   2.919033   .6309314     4.96   0.000     1.910983    4.458832",
+            "          x2 |   .6985781   .2380937    -1.05   0.293     .3581816    1.362469",
+            "             |",
+            "           g |",
+            "          2  |   1.103782   .4775569     0.23   0.819     .4727231    2.577271",
+            "          3  |   .8776079   .3661201    -0.31   0.754      .387433    1.987945",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins g",
+          "lines": [
+            "Predictive margins                                         Number of obs = 234",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y|fixed effect is 0), predict(pu0)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          1  |   .4784323   .0275421    17.37   0.000     .4244508    .5324137",
+            "          2  |   .4981212   .0916737     5.43   0.000      .318444    .6777983",
+            "          3  |   .4525284   .0850664     5.32   0.000     .2858013    .6192555",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly xtpoisson c x1 x2 i.g, fe", "lines": [] },
+        {
+          "command": "xtpoisson, irr",
+          "lines": [
+            "Conditional fixed-effects Poisson regression         Number of obs    =    288",
+            "Group variable: id                                   Number of groups =     48",
+            "",
+            "                                                     Obs per group:",
+            "                                                                  min =      6",
+            "                                                                  avg =    6.0",
+            "                                                                  max =      6",
+            "",
+            "                                                     Wald chi2(4)     = 100.07",
+            "Log likelihood = -388.53337                          Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c |        IRR   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .6408013     .03606    -7.91   0.000     .5738832    .7155224",
+            "          x2 |   .6792371   .0754764    -3.48   0.000     .5463066    .8445131",
+            "             |",
+            "           g |",
+            "          2  |   .5668515   .0789374    -4.08   0.000      .431454     .744739",
+            "          3  |   .8961943   .1152228    -0.85   0.394     .6965689    1.153029",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins g",
+          "lines": [
+            "Predictive margins                                         Number of obs = 288",
+            "Model VCE: OIM",
+            "",
+            "Expression: Linear prediction, predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          1  |  -.1580498   .0463635    -3.41   0.001    -.2489205   -.0671791",
+            "          2  |  -.7257077   .1466945    -4.95   0.000    -1.013224   -.4381918",
+            "          3  |  -.2676478   .1402505    -1.91   0.056    -.5425338    .0072381",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly xtpoisson c x1 x2 i.g, re normal", "lines": [] },
+        {
+          "command": "margins g",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Marginal predicted mean (c), predict(n)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          1  |   1.842084   .2590362     7.11   0.000     1.334383    2.349786",
+            "          2  |   1.074188    .170767     6.29   0.000     .7394908    1.408885",
+            "          3  |   1.628609    .248796     6.55   0.000     1.140978     2.11624",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(x1) at(x2=(0 1))",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Marginal predicted mean (c), predict(n)",
+            "dy/dx wrt:  x1",
+            "1._at: x2 = 0",
+            "2._at: x2 = 1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "x1           |",
+            "         _at |",
+            "          1  |  -.7953112   .1421426    -5.60   0.000    -1.073906   -.5167167",
+            "          2  |   -.543961   .1085505    -5.01   0.000     -.756716   -.3312059",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily xtprobit",
+          "lines": ["last estimates not found"]
+        },
+        {
+          "command": "capture noisily xtpoisson c x1, exposure(ex)",
+          "lines": ["exposure() must be greater than zero"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

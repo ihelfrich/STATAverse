@@ -14,6 +14,7 @@ import { renderSmcl, stringEnd } from "./smcl.js";
 import { ESTIMATION_COMMANDS } from "./estimation.js";
 import { MODEL_COMMANDS } from "./models.js";
 import { PANEL_COMMANDS } from "./panel.js";
+import { XT_MODEL_COMMANDS } from "./xt-models.js";
 import { UTILITY_COMMANDS } from "./utilities.js";
 import { EVERYDAY_COMMANDS, labelSubcommand } from "./everyday.js";
 import { MORE_ESTIMATORS } from "./more-estimators.js";
@@ -2339,6 +2340,7 @@ export const COMMANDS = [
   ...MODEL_COMMANDS,
   ...SVY_COMMANDS,
   ...PANEL_COMMANDS,
+  ...XT_MODEL_COMMANDS,
   ...UTILITY_COMMANDS,
   ...EVERYDAY_COMMANDS,
   ...MORE_ESTIMATORS,
