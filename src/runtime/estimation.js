@@ -7,6 +7,7 @@ import { leverageStatistic } from "./diagnostics.js";
 import { StataError } from "./errors.js";
 import { compileExpression } from "./expression.js";
 import { applyFormat, parseFormat } from "./format.js";
+import { FUNCTIONS } from "./functions.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
 import { count, labelled, moments, percentile, present } from "./reports.js";
@@ -1124,8 +1125,128 @@ const omittedName = (name) =>
             : `o.${part}`,
     )
     .join("#");
+/**
+ * One term of a coefficient's name: a level of a factor, as 2.reg or 1b.reg,
+ * or a continuous variable, as x, c.x or o.x.
+ */
+const termOf = (part) => {
+  const level = /^(\d+)([bon]*)\.(.+)$/i.exec(part);
+  if (level)
+    return {
+      level: Number(level[1]),
+      variable: level[3],
+      base: /b/i.test(level[2]),
+    };
+  return { level: null, variable: part.replace(/^(?:c|co|o)\./i, "") };
+};
+/** The terms of an interaction in an order that does not depend on how
+ * they were written. */
+const termKey = (terms) =>
+  terms
+    .map((t) =>
+      t.level === null ? `c.${t.variable}` : `${Number(t.level)}.${t.variable}`,
+    )
+    .sort()
+    .join("#");
 const shown = (e) =>
   `${e.equation === null ? "" : `[${e.equation}]`}${e.omitted ? omittedName(e.name) : e.name}`;
+
+/**
+ * The variables of a model's coefficients. test and lincom unabbreviate a
+ * name against these, not against the variables of the data, so exper
+ * means experience when only experience is in the model.
+ */
+const modelVariables = (space) =>
+  [
+    ...new Set(
+      space.entries.flatMap((e) =>
+        e.name.split("#").map((part) => termOf(part).variable),
+      ),
+    ),
+  ].filter((v) => isName(v));
+function unabbreviateIn(variables, name) {
+  if (variables.includes(name)) return name;
+  const found = variables.filter((v) => v.startsWith(name));
+  if (found.length > 1)
+    throw new StataError(`${name} ambiguous abbreviation`, 111);
+  return found[0] ?? null;
+}
+
+/**
+ * A coefficient written in factor-variable notation, read into its terms: a
+ * level, as 2.reg, 2b.reg (the base), 2o.reg (omitted), 2bn.reg or i2.reg,
+ * or a continuous variable, as x, c.x, o.x or co.x. A term whose variable
+ * is none of the model's is { missing: name }. abbreviated says whether a
+ * variable was abbreviated. Stata refuses other operators and an
+ * interaction of a factor with itself.
+ */
+function readTerms(variables, token) {
+  let abbreviated = false;
+  const terms = token.split("#").map((part) => {
+    const [, op = "", name = ""] =
+      /^(?:([A-Za-z0-9]+)\.)?(.+)$/.exec(part) ?? [];
+    if (!/^[A-Za-z_]\w*$/.test(name)) return { lost: true, missing: part };
+    const level = /^i?(\d+)(b|o|bn)?$/i.exec(op);
+    if (!level && !/^(c|co|o)?$/i.test(op))
+      throw new StataError(`${op}:  operator invalid`, 198);
+    const variable = name === "_cons" ? name : unabbreviateIn(variables, name);
+    if (variable === null) return { lost: true, missing: name };
+    if (variable !== name) abbreviated = true;
+    const flags = (level?.[2] ?? "").toLowerCase();
+    return level
+      ? {
+          level: Number(level[1]),
+          variable,
+          base: flags === "b",
+          omitted: flags === "o",
+          flags,
+        }
+      : { level: null, variable, op: op.toLowerCase() || "c" };
+  });
+  if (terms.every((t) => !t.lost)) {
+    const factors = terms
+      .filter((t) => t.level !== null)
+      .map((t) => t.variable);
+    if (new Set(factors).size < factors.length)
+      throw new StataError(
+        "interaction with duplicate factor variables not allowed",
+        198,
+      );
+  }
+  return { terms, abbreviated };
+}
+
+/**
+ * The positions of the coefficients whose terms are the wanted ones in some
+ * order. A level written with b must be the base, and, unless omitted is
+ * false, a factor level alone written with o must be the base or omitted:
+ * 2o.reg names [3]2o.reg after mlogit, but not regress's 2.reg. Inside an
+ * interaction an o changes nothing.
+ */
+function matching(space, wanted, omitted = true) {
+  const key = termKey(wanted);
+  return space.entries.flatMap((e, k) => {
+    const have = e.name.split("#").map(termOf);
+    if (termKey(have) !== key) return [];
+    const based = wanted.every(
+      (t) =>
+        !t.base ||
+        have.some(
+          (h) => h.base && h.level === t.level && h.variable === t.variable,
+        ),
+    );
+    if (!based) return [];
+    if (
+      omitted &&
+      wanted.length === 1 &&
+      wanted[0].omitted &&
+      !e.omitted &&
+      !have[0].base
+    )
+      return [];
+    return [k];
+  });
+}
 
 /**
  * The equation [text] names: its name, #n for the nth equation, or after
@@ -1152,85 +1273,98 @@ export function equationOf(model, space, text) {
 /**
  * The position in the coefficient space of name, in the given equation or,
  * without one, in the first equation that has it. A factor level may be
- * written with or without its b or o, an interaction of two terms in either
- * order, and a variable abbreviated as in a varlist. -1 when nothing
+ * written with or without its b, as 2bn.reg or i2.reg, an interaction in
+ * any order, c.x for x, and a variable abbreviated against the variables
+ * of the model; tobit's var(e.wage) may be var(e.wag). -1 when nothing
  * matches and fail is false; Stata brackets a name it cannot find in an
  * equation or written _b[name].
+ *
+ * In test's list (list true) an abbreviation that fits more than one
+ * coefficient of the model, as 2.re does in each equation of mlogit, is
+ * ambiguous, and 2o.reg may name 2.reg in an equation when some equation
+ * has 2o.reg.
  */
 export function findCoefficient(
   model,
   space,
   equation,
   name,
-  session,
-  fail = true,
-  bracket = equation !== null,
+  { fail = true, bracket = equation !== null, list = false } = {},
 ) {
   const eq = equation === null ? null : equationOf(model, space, equation),
-    plain = (n) => {
-      // A factor's b, o or n, an omitted o., and c. on a variable alone
-      // (c.x is x) leave the coefficient as it is; an interaction is
-      // written with its factors first.
-      const parts = n
-        .trim()
-        .replace(/(\d+)[bon]+\./g, "$1.")
-        .replace(/(^|#)c?o\./g, (all, before) =>
-          all.includes("c") ? `${before}c.` : before,
-        )
-        .split("#");
-      if (parts.length === 1) return parts[0].replace(/^c\./, "");
-      return [
-        ...parts.filter((p) => !/^c\./.test(p)),
-        ...parts.filter((p) => /^c\./.test(p)),
-      ].join("#");
-    },
+    text = name.trim(),
     within = (e) => eq === null || e.equation === eq,
-    search = (wanted) => {
-      let at = space.entries.findIndex((e) => within(e) && e.name === wanted);
-      if (at < 0)
-        at = space.entries.findIndex(
-          (e) => within(e) && plain(e.name) === plain(wanted),
-        );
-      const parts = wanted.split("#");
-      if (at < 0 && parts.length === 2)
-        at = space.entries.findIndex(
-          (e) =>
-            within(e) && plain(e.name) === plain(`${parts[1]}#${parts[0]}`),
-        );
-      return at;
-    };
-  let at = search(name.trim());
-  if (at < 0 && session && isName(plain(name))) {
-    let full = null;
+    missing = () =>
+      new StataError(
+        bracket ? `[${text}] not found` : `${text} not found`,
+        111,
+      );
+  let at = space.entries.findIndex(
+    (e) =>
+      within(e) &&
+      (e.name === text || (e.omitted && omittedName(e.name) === text)),
+  );
+  const call = /^(\w+)\(\s*e\.(\w+)\s*\)$/.exec(text);
+  if (at < 0 && call)
+    at = space.entries.findIndex((e) => {
+      const have = /^(\w+)\(e\.(\w+)\)$/.exec(e.name);
+      return within(e) && have?.[1] === call[1] && have[2].startsWith(call[2]);
+    });
+  else if (at < 0 && /^[\w.#]+$/.test(text)) {
+    let read;
     try {
-      full = resolveVariable(plain(name), session.data.names);
+      read = readTerms(modelVariables(space), text);
     } catch (error) {
-      if (/ambiguous/.test(error.message)) throw error;
+      if (!bracket || /ambiguous|duplicate/.test(error.message)) throw error;
+      read = null;
     }
-    if (full !== null) {
-      at = search(full);
-      // A variable of the data that is not in the model.
-      if (at < 0 && (fail || !bracket))
-        throw new StataError(`${full} not found`, 111);
+    if (read && !read.terms.some((t) => t.lost)) {
+      let found = matching(space, read.terms, !list);
+      // In the list, 2o.reg is found when some equation has it so.
+      if (list && read.terms.length === 1 && read.terms[0].omitted)
+        found = matching(space, read.terms).length
+          ? matching(space, read.terms, false)
+          : [];
+      if (list && read.abbreviated && found.length > 1)
+        throw new StataError(`${text} ambiguous abbreviation`, 111);
+      at = found.find((k) => within(space.entries[k])) ?? -1;
     }
   }
-  if (at < 0 && fail)
-    throw new StataError(
-      bracket ? `[${name.trim()}] not found` : `${name.trim()} not found`,
-      111,
-    );
+  if (at < 0 && fail) throw missing();
   return at;
 }
+
+/**
+ * The text an e(), r() or c() result or a scalar() puts in an expression: a
+ * number, __m for a missing value, or for a string a name it is kept under
+ * in strings.
+ */
+function literal(value, strings) {
+  if (typeof value === "string") {
+    const name = `__s${strings.size}`;
+    strings.set(name, value);
+    return name;
+  }
+  if (value === undefined || isMissing(value)) return "__m";
+  return value < 0 ? `(${value})` : String(value);
+}
+/** Whether name( calls a function Stata knows. */
+const known = (name) =>
+  Object.hasOwn(FUNCTIONS, name) ||
+  ["sum", "string", "strofreal"].includes(name);
 
 /**
  * Reads a linear expression in the coefficients, such as "x1 - x2",
  * "2*[union]x1 + _cons" or "[/]cut1 - [/]cut2", into weights over the
  * coefficient space and a constant, by evaluating it with each coefficient
  * set to one in turn. The coefficients may be written _b[name], [eq]name,
- * /name for a cut point, or by name. An expression that is not linear, or
- * divides by zero, is "not possible with test", r(131).
+ * /name for a cut point, or by name; _se[name], scalars and e(), r(), c()
+ * and scalar() are constants. A result that is missing, as r(mean) is once
+ * test or lincom has cleared r(), makes a weight or the constant missing.
+ * An expression that is not linear, divides by zero or calls a function is
+ * "not possible with test", r(131).
  */
-export function linear(model, text, session, equation = null) {
+export function linear(model, text, session) {
   const space = coefficientSpace(model),
     place = (k) => `__c${k}`,
     // What each placeholder was written as, for a message.
@@ -1245,49 +1379,73 @@ export function linear(model, text, session, equation = null) {
     // name that is not found.
     findWith = (equation, name, paren) => {
       if (paren) {
-        const at = findCoefficient(
-          model,
-          space,
-          equation,
-          `${name}${paren}`,
-          session,
-          false,
-        );
+        const at = findCoefficient(model, space, equation, `${name}${paren}`, {
+          fail: false,
+        });
         if (at >= 0) return placed(at, `${name}${paren}`);
         equationOf(model, space, equation);
         throw new StataError(`[${name}${paren}] not found`, 111);
       }
-      return placed(
-        findCoefficient(model, space, equation, name, session),
-        name,
-      );
+      return placed(findCoefficient(model, space, equation, name), name);
     },
-    slash = space.entries.some((e) => e.equation === "/");
+    slash = space.entries.some((e) => e.equation === "/"),
+    // _se[name] is a constant, the coefficient's standard error.
+    value = (kind, k) =>
+      /se/.test(kind) ? `(${Math.sqrt(space.V[k][k])})` : place(k);
+  // Stata reads 2.reg##1.female as a name its matrices cannot hold.
+  const crossed = /[\w.#]*##[\w.#]*/.exec(text);
+  if (crossed)
+    throw new StataError(`invalid matrix stripe;\n${crossed[0]}`, 198);
+  // Spaces may stand around # and after a level's dot: 1.female # c.x, 2. reg.
+  let source = text
+    .replace(/\s*#\s*/g, "#")
+    .replace(/(?<![\w.])(\d+[A-Za-z]*)\s*\.\s*(?=[A-Za-z_])/g, "$1.");
   // _b[name], _b[eq:name], _b[[eq]name], _b[/name] for a parameter of the
   // equation "/", and [eq]_b[name], which names the equation outside. A
   // name alone is a coefficient of the main equations, never of "/".
-  let source = text.replace(
-    /(?:\[\s*([^\]]*?)\s*\]\s*)?_(?:b|coef)\[\s*([^\]]+?)\s*\](\s*\()?/g,
-    (all, outside, inner, call) => {
+  source = source.replace(
+    /(?:\[\s*([^\]]*?)\s*\]\s*)?(_(?:b|coef|se))\[\s*((?:\[[^\]]*\])?[^\]]+?)\s*\](\s*\()?/g,
+    (all, outside, kind, inner, call) => {
       if (call) throw new StataError("invalid syntax", 198);
       if (outside !== undefined)
-        return place(findCoefficient(model, space, outside, inner, session));
-      const qualified =
-        /^\[\s*([^\]]*?)\s*\]\s*(.+)$/.exec(inner) ??
-        /^([^:]+):(.+)$/.exec(inner);
-      if (qualified)
-        return place(
-          findCoefficient(model, space, qualified[1], qualified[2], session),
-        );
+        return value(kind, findCoefficient(model, space, outside, inner));
+      const bracketed = /^\[\s*([^\]]*?)\s*\]\s*(.+)$/.exec(inner),
+        colon = /^([^:]+):(.+)$/.exec(inner);
+      if (bracketed) {
+        let at;
+        try {
+          at = findCoefficient(model, space, bracketed[1], bracketed[2], {
+            fail: false,
+          });
+        } catch (error) {
+          if (error.code !== 303) throw error;
+          at = -1;
+        }
+        if (at < 0) throw new StataError(`[${inner}] not found`, 111);
+        return value(kind, at);
+      }
+      if (colon) {
+        // eq:name names an equation it cannot find without brackets.
+        try {
+          equationOf(model, space, colon[1]);
+        } catch (error) {
+          if (error.code !== 303) throw error;
+          throw new StataError(`equation ${colon[1].trim()} not found`, 111);
+        }
+        return value(kind, findCoefficient(model, space, colon[1], colon[2]));
+      }
       const ancillary = /^\/\s*(.+)$/.exec(inner),
         at = ancillary
           ? slash
-            ? findCoefficient(model, space, "/", ancillary[1], session, false)
+            ? findCoefficient(model, space, "/", ancillary[1], { fail: false })
             : -1
-          : findCoefficient(model, space, null, inner, session, false, true);
+          : findCoefficient(model, space, null, inner, {
+              fail: false,
+              bracket: true,
+            });
       if (at < 0 || (!ancillary && space.entries[at].equation === "/"))
         throw new StataError(`[${inner}] not found`, 111);
-      return place(at);
+      return value(kind, at);
     },
   );
   source = source.replace(
@@ -1309,111 +1467,148 @@ export function linear(model, text, session, equation = null) {
       111,
     );
   }
-  // Each spelling of each factor-variable coefficient, longest first so
-  // that 1.female#c.x is replaced before 1.female. A bare name means the
-  // first equation that has it.
-  const spellings = new Map(),
-    within = equation === null ? null : equationOf(model, space, equation),
-    spell = (form, k) => {
-      const before = spellings.get(form);
-      if (
-        before === undefined ||
-        (within !== null &&
-          space.entries[before].equation !== within &&
-          space.entries[k].equation === within)
-      )
-        spellings.set(form, k);
-    };
-  space.entries.forEach((e, k) => {
-    // A variable may be written c.x.
-    if (!/\d+[bon]*\.|#/.test(e.name)) {
-      if (e.name !== "_cons") spell(`c.${e.name}`, k);
-      return;
-    }
-    const forms = new Set([
-      e.name,
-      e.name.replace(/(\d+)[bon]+\./g, "$1.").replace(/(^|#)co\./g, "$1c."),
-    ]);
-    // Two terms in either order, and the continuous variables of an
-    // interaction first, as they may have been typed: c.x#1.a#1.b.
-    for (const form of [...forms]) {
-      const parts = form.split("#"),
-        continuous = parts.filter((p) => /^c\./.test(p));
-      if (parts.length === 2) forms.add(`${parts[1]}#${parts[0]}`);
-      if (continuous.length && continuous.length < parts.length)
-        forms.add(
-          [...continuous, ...parts.filter((p) => !/^c\./.test(p))].join("#"),
-        );
-    }
-    for (const form of forms) spell(form, k);
-  });
-  for (const [form, k] of [...spellings].sort(
-    (a, b) => b[0].length - a[0].length,
-  )) {
-    const escaped = form.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    source = source.replace(
-      new RegExp(`(?<![\\w.#])${escaped}(?![\\w.#])`, "g"),
-      place(k),
-    );
-  }
-  // What is still written as a level or an interaction names no coefficient
-  // of this model, and Stata says so rather than reading a number.
-  const unknown =
-    /(?<![\w.#])((?:\d+[bon]*|c)\.[A-Za-z_]\w*(?:#(?:(?:\d+[bon]*|c)\.)?[A-Za-z_]\w*)*)/.exec(
-      source,
-    );
-  if (unknown) throw new StataError(`${unknown[1]} not found`, 111);
-  // An omitted coefficient may be written o.name; any other name is a
-  // coefficient, perhaps abbreviated, or is left for the expression parser
-  // (a scalar, or an error of its own).
+  // Results and scalars are constants: e(N), r(mean), c(pi), scalar(s).
+  const scalars = session?.scalars ?? new Map(),
+    strings = new Map();
   source = source.replace(
-    /(?<![\w.#])(o\.)?([A-Za-z_]\w*)(?![\w.#(])/g,
-    (all, omitted, name) => {
-      if (/^__c\d+$/.test(name)) return all;
-      const at = findCoefficient(
-        model,
-        space,
-        equation,
-        `${omitted ?? ""}${name}`,
-        session,
-        !!omitted,
-        false,
-      );
-      return at >= 0 ? place(at) : all;
+    /(?<![\w.#])(e|r|c|scalar)\s*\(\s*([A-Za-z_]\w*)\s*\)/g,
+    (all, kind, name) => {
+      if (kind === "scalar") {
+        if (!scalars.has(name)) throw new StataError(`${name} not found`, 111);
+        return literal(scalars.get(name), strings);
+      }
+      if (kind === "c") {
+        const shownValue = session?.scope().system(name);
+        if (shownValue === undefined)
+          throw new StataError(`c(${name}) undefined`, 133);
+        return literal(shownValue, strings);
+      }
+      return literal(session?.results[kind]?.[name], strings);
     },
   );
-  const used = [...new Set(source.match(/__c\d+/g) ?? [])].map((p) =>
+  // Every other coefficient is written as a name, perhaps abbreviated, or
+  // in factor-variable notation: a level, a level with its b, an
+  // interaction of terms in any order, c.x for x.
+  const variables = modelVariables(space),
+    unabbreviate = (name) => unabbreviateIn(variables, name),
+    exact = (name) => space.entries.findIndex((e) => e.name === name);
+  source = source.replace(
+    /(?<![\w.#])((?:[A-Za-z0-9]+\.)?[A-Za-z_]\w*(?:#(?:[A-Za-z0-9]+\.)?[A-Za-z_]\w*)*)(?![\w.#])(\s*\()?/g,
+    (token, name, call) => {
+      if (/^__[cms]\d*$/.test(name)) return token;
+      if (call) {
+        // A function Stata does not know, as education(2) or var(e.wage).
+        if (!/[.#]/.test(name) && !known(name))
+          throw new StataError(`unknown function ${name}()`, 133);
+        return token;
+      }
+      if (!/[.#]/.test(token)) {
+        const at = exact(token);
+        if (at >= 0) return placed(at, token);
+        const full = unabbreviate(token);
+        if (full === null) {
+          // A name that is no variable of the model nor a scalar.
+          if (!token.startsWith("_") && !scalars.has(token))
+            throw new StataError(`${token} not found`, 111);
+          return token;
+        }
+        const k = exact(full);
+        if (k < 0) throw new StataError(`regressor ${full} not found`, 111);
+        return placed(k, token);
+      }
+      // A time-series operator, which these models do not take.
+      if (token.split("#").some((p) => /^[LFDS][A-Za-z0-9]*\./i.test(p))) {
+        const at = exact(token);
+        if (at < 0) throw new StataError(`regressor ${token} not found`, 111);
+        return placed(at, token);
+      }
+      const { terms: wanted } = readTerms(variables, token),
+        lost = wanted.find((t) => t.lost);
+      if (lost) throw new StataError(`variable ${lost.missing} not found`, 111);
+      const at = matching(space, wanted)[0] ?? -1;
+      if (at >= 0) return placed(at, token);
+      // Stata names what it cannot find in its own notation: the levels
+      // first, as I2.reg or I2B.reg, then the continuous terms, as C.x; a
+      // continuous variable alone by its name.
+      if (wanted.length === 1 && wanted[0].level === null)
+        throw new StataError(`regressor ${wanted[0].variable} not found`, 111);
+      const levels = wanted
+          .filter((t) => t.level !== null)
+          .map(
+            (t) =>
+              `I${t.level}${t.flags === "bn" ? "" : t.flags.toUpperCase()}.${t.variable}`,
+          ),
+        others = wanted
+          .filter((t) => t.level === null)
+          .map((t) => `${t.op.toUpperCase()}.${t.variable}`);
+      throw new StataError(
+        `regressor ${[...levels, ...others].join("#")} not found`,
+        111,
+      );
+    },
+  );
+  const impossible = () => new StataError("not possible with test", 131),
+    used = [...new Set(source.match(/__c\d+/g) ?? [])].map((p) =>
       Number(p.slice(3)),
     ),
-    impossible = () => new StataError("not possible with test", 131),
-    evaluate = (values) => {
-      const compiled = compileExpression(source, {
-        scalars: new Map(used.map((k) => [place(k), values[k] ?? 0])),
-      });
-      if (compiled.type !== "numeric")
-        throw new StataError("type mismatch", 109);
+    // A missing result or scalar is a symbol: a weight or the constant
+    // that depends on it is missing.
+    lost = [...scalars]
+      .filter(([, v]) => typeof v === "number" && isMissing(v))
+      .map(([name]) => name),
+    symbols = /__m/.test(source) || lost.length ? [1.2345678, 2.7182818] : [0],
+    names = new Map([
+      ...scalars,
+      ...strings,
+      ["__m", 0],
+      ...used.map((k) => [place(k), 0]),
+    ]),
+    compiled = compileExpression(source, { scalars: names });
+  if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
+  // Stata's test takes no function, not even of a constant, as ln(2).
+  if (/[A-Za-z_]\w*\s*\(/.test(source)) throw impossible();
+  const run = (values, symbol) => {
+      for (const k of used) names.set(place(k), values[k] ?? 0);
+      for (const name of [...lost, "__m"]) names.set(name, symbol);
       const result = compiled.evaluate(0, { start: 0, count: 0, sums: [] });
       if (isMissing(result) || !Number.isFinite(result)) throw impossible();
       return result;
     },
-    constant = evaluate([]),
-    weights = space.entries.map(() => 0);
+    agree = (values) =>
+      values.every(
+        (v) => Math.abs(v - values[0]) <= 1e-9 * Math.max(1, Math.abs(v)),
+      )
+        ? values[0]
+        : MISSING,
+    base = symbols.map((symbol) => run({}, symbol)),
+    constant = agree(base),
+    weights = space.entries.map(() => 0),
+    [first] = symbols;
   for (const k of used) {
-    const at = (value) => evaluate({ [k]: value }) - constant,
+    const at = (value, n = 0) => run({ [k]: value }, symbols[n]) - base[n],
       one = at(1);
     if (Math.abs(at(2) - 2 * one) > 1e-9 * Math.max(1, Math.abs(one)))
       throw impossible();
-    weights[k] = one;
+    weights[k] = agree(symbols.map((_, n) => at(1, n)));
   }
   // A product of two coefficients is linear in each alone, but not in both.
   if (used.length > 1) {
     const point = Object.fromEntries(used.map((k, n) => [k, 1 + 0.37 * n])),
-      expected = used.reduce((t, k) => t + weights[k] * point[k], 0),
-      found = evaluate(point) - constant;
+      slope = (k) => run({ [k]: 1 }, first) - base[0],
+      expected = used.reduce((t, k) => t + slope(k) * point[k], 0),
+      found = run(point, first) - base[0];
     if (Math.abs(found - expected) > 1e-9 * Math.max(1, Math.abs(expected)))
       throw impossible();
   }
-  return { weights, constant, text: describeLinear(space, weights, constant) };
+  // Rounding error, as in _se[_cons] + x, is not a weight of 1.0000000000000002.
+  const clean = (v) => (isMissing(v) ? v : Number(v.toPrecision(15)) + 0),
+    tidy = weights.map(clean),
+    fixed = clean(constant);
+  return {
+    weights: tidy,
+    constant: fixed,
+    text: describeLinear(space, tidy, fixed),
+  };
 }
 
 /**
@@ -1450,7 +1645,7 @@ export function describeLinear(space, weights, constant) {
       ? ` ${w < 0 ? "-" : "+"} ${size}${name}`
       : `${w < 0 ? "- " : ""}${size}${name}`;
   });
-  return `${text}${text ? " " : ""}= ${g(-constant + 0)}`;
+  return `${text}${text ? " " : ""}= ${isMissing(constant) ? "." : g(-constant + 0)}`;
 }
 const constraintLine = (k, text) =>
   ` (${String(k + 1).padStart(2)}) ${text.startsWith("=") ? "" : " "}${text}`;
@@ -1622,22 +1817,14 @@ function listCoefficient(model, space, equation, token, session, tag) {
       .length > 1
   )
     throw new StataError(`${name} ambiguous abbreviation`, 111);
-  const at = findCoefficient(
-    model,
-    space,
-    equation,
-    name,
-    session,
-    false,
-    true,
-  );
-  // A base level is named only as it is: 1b.female is not 1.female.
-  const based = name.match(/\d+b\.[A-Za-z_]\w*/g) ?? [];
-  if (
-    at < 0 ||
-    based.some((part) => !space.entries[at].name.split("#").includes(part))
-  )
-    throw missing();
+  if (name.includes("##"))
+    throw new StataError(`invalid matrix stripe;\n${name}`, 198);
+  const at = findCoefficient(model, space, equation, name, {
+    fail: false,
+    bracket: true,
+    list: true,
+  });
+  if (at < 0) throw missing();
   return at;
 }
 
@@ -1714,7 +1901,7 @@ function listConstraints(model, space, spec, session) {
     whole = (token) => /^\[([^\]]*)\]$/.exec(token);
   for (let k = 0; k < tokens.length; k++) {
     let token = tokens[k];
-    const call = /^(_b|_coef)\[/.exec(token);
+    const call = /^(_b|_coef|_se)\[/.exec(token);
     if (call) throw new StataError(`${call[1]} not found`, 111);
     // An operator is not a name: education*2 is education, then "*".
     const operator = /^([^*+\-^&|<>!~=,]*)([*+\-^&|<>!~=,])/.exec(token);
@@ -1815,11 +2002,22 @@ function equationTest(model, space, session, match, equal) {
       throw new StataError(`[:${rest.replace(/\s+/g, "")}] not found`, 111);
     if (sides.some((side) => /[\w.\])]\s+[\w.[(]/.test(side.trim())))
       throw new StataError("=exp required", 100);
+    // [eq] belongs to the first name only: [2]: x = 2.reg is
+    // [2]x = 2.reg, and 2.reg is a coefficient of the first equation.
+    const [, sign, rest] = /^\s*([+-]?\s*)([\s\S]*)$/.exec(sides[0]),
+      name = /^[A-Za-z0-9_][\w.#]*(?![\w.#[(])/.exec(rest)?.[0],
+      lost = () =>
+        new StataError(
+          `[:${name ?? rest.trim().split(/\s/)[0]}] not found`,
+          111,
+        );
+    if (!name || /^\d+$/.test(name)) throw lost();
+    if (findCoefficient(model, space, match[1], name, { fail: false }) < 0)
+      throw lost();
+    const left = `${sign}[${match[1]}]${rest}`;
     return sides
       .slice(1)
-      .map((side) =>
-        linear(model, `(${sides[0]}) - (${side})`, session, match[1]),
-      );
+      .map((side) => linear(model, `(${left}) - (${side})`, session));
   }
   const tokens = list?.trim().split(/\s+/).filter(Boolean);
   if (tokens && !tokens.length)
@@ -1955,16 +2153,22 @@ export function waldTest(session, model, fresh, tail, ctx) {
     ctx.out("");
     return;
   }
-  const difference = constraints.map(
-      (c) => c.weights.reduce((t, w, k) => t + w * space.b[k], 0) + c.constant,
+  // A missing weight, as r(mean) gives once test has cleared r(), leaves
+  // its constraint nothing to test, so it is dropped; a missing constant
+  // leaves the test missing.
+  const known = constraints.map((c) =>
+      c.weights.map((w) => (isMissing(w) ? 0 : w)),
     ),
-    middle = constraints.map((a) =>
-      constraints.map((b) =>
-        a.weights.reduce(
+    difference = constraints.map((c, n) =>
+      isMissing(c.constant) || c.weights.some((w) => isMissing(w))
+        ? MISSING
+        : known[n].reduce((t, w, k) => t + w * space.b[k], 0) + c.constant,
+    ),
+    middle = known.map((a) =>
+      known.map((b) =>
+        a.reduce(
           (t, wa, i) =>
-            t +
-            (wa &&
-              wa * b.weights.reduce((u, wb, j) => u + space.V[i][j] * wb, 0)),
+            t + (wa && wa * b.reduce((u, wb, j) => u + space.V[i][j] * wb, 0)),
           0,
         ),
       ),
@@ -1978,6 +2182,8 @@ export function waldTest(session, model, fresh, tail, ctx) {
     wald = (rows) => {
       const q = rows.length;
       if (!q) return [MISSING, MISSING, 0];
+      if (rows.some((k) => isMissing(difference[k])))
+        return [MISSING, MISSING, q];
       const inverse = invertSymmetric(
         rows.map((i) => rows.map((j) => middle[i][j])),
       );
@@ -2140,6 +2346,12 @@ export function lincom(session, text, ctx) {
     space = coefficientSpace(model),
     constraint = linear(model, head.trim(), session),
     { weights, constant } = constraint;
+  // Stata cannot post a combination with a missing weight or constant.
+  if (isMissing(constant) || weights.some((w) => isMissing(w))) {
+    ctx.out("");
+    ctx.out(constraintLine(0, constraint.text));
+    throw new StataError("estimates post: matrix has missing values", 504);
+  }
   // lincom tests its expression quietly, which makes it the test that test
   // replays or accumulates to.
   model.testConstraints = [constraint];
