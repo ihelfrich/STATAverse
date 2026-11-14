@@ -12,6 +12,7 @@ import { parseNumlist } from "./numlist.js";
 import { expandVarlist } from "./varlist.js";
 import { applyFormat, parseFormat, stringOf } from "./format.js";
 import {
+  MISSING,
   byteLength,
   coerce,
   defaultFormat,
@@ -328,8 +329,19 @@ export class Session {
       matrix: matrixAccess(this),
       coefficient: (kind, name) => {
         const model = this.estimates;
-        // Without a model, Stata reports the name as not found.
-        if (!model) throw new StataError(`[${name}] not found`, 111);
+        // Without a model, e(b) and e(V) may still be there, as after a
+        // bootstrap of statistics; otherwise the name is not found.
+        if (!model) {
+          const b = this.results.e?.["matrix:b"],
+            V = this.results.e?.["matrix:V"],
+            at = b ? b.colNames.indexOf(name) : -1;
+          if (at < 0) throw new StataError(`[${name}] not found`, 111);
+          return kind === "_b"
+            ? b.values[0][at]
+            : V
+              ? Math.sqrt(V.values[at][at])
+              : MISSING;
+        }
         const at = coefficientIndex(model, name);
         if (at < 0) throw new StataError(`[${name}] not found`, 111);
         return kind === "_b" ? model.b[at] : Math.sqrt(model.V[at][at]);

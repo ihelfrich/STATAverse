@@ -16,7 +16,7 @@ import {
   tableWidth,
   termRows,
 } from "./estimation.js";
-import { count } from "./reports.js";
+import { count, percentile } from "./reports.js";
 import { clauses, splitAtComma } from "./syntax.js";
 import { fileName, settle } from "./data-commands.js";
 import { findFile } from "./files.js";
@@ -31,11 +31,15 @@ const uniform = (session) =>
 
 /** Replaces the data with the listed observations, repeats allowed. */
 function takeRows(data, index) {
-  for (const v of data.variables)
-    v.data = isStringType(v.type)
-      ? index.map((i) => v.data[i])
-      : Float64Array.from(index, (i) => v.data[i]);
-  data.n = index.length;
+  // Plain loops: a jackknife takes the rows once per replicate.
+  const m = index.length;
+  for (const v of data.variables) {
+    const from = v.data,
+      to = isStringType(v.type) ? new Array(m) : new Float64Array(m);
+    for (let k = 0; k < m; k++) to[k] = from[index[k]];
+    v.data = to;
+  }
+  data.n = m;
   data.sortedBy = [];
 }
 
@@ -334,7 +338,7 @@ function arrange(session, strataNames, clusterNames) {
     clusters = clusterNames.length
       ? Array.from({ length: data.n }, (_, i) => key(cAfter, i))
       : null;
-  return { strata, clusters, nstrata: stratum };
+  return { strata, clusters, nstrata: stratum, order };
 }
 
 function bsample(session, text, ctx) {
@@ -415,23 +419,33 @@ function dotsEvery(options) {
       "only one of options dots() or nodots is allowed",
       198,
     );
-  const every = Number(options.dots.trim());
-  if (!Number.isInteger(every) || every < 0)
-    throw new StataError("option dots() incorrectly specified", 198);
+  const given = options.dots.trim(),
+    every = Number(given);
+  if (!/^\d+$/.test(given) || !Number.isInteger(every))
+    throw new StataError(
+      `invalid dots() option;\n${given} found where non-negative integer expected`,
+      198,
+    );
   return every;
 }
 
-/** seed(#): set seed #, refused for a seed's state string. */
+/**
+ * seed(#): set seed #. As set seed reads a number, a fraction is cut to its
+ * whole part and a sign dropped; a seed's state string is refused.
+ */
 function applySeed(session, text) {
   if (text === undefined) return;
-  const seed = Number(text.trim());
-  if (!/^\s*\d+\s*$/.test(text))
+  const given = text.trim();
+  if (/^X/.test(given))
     throw new StataError(
-      `seed(${text.trim()}) is not available in the browser yet`,
+      `seed(${given.slice(0, 12)}...) is not available in the browser yet`,
       198,
       "Give seed() a whole number, or type set seed # before the command.",
     );
-  if (!(seed >= 0 && seed <= 2147483647))
+  if (!/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(given))
+    throw new StataError(`'${given}' found where integer < 2^31 expected`, 198);
+  const seed = Math.trunc(Math.abs(Number(given)));
+  if (!(seed <= 2147483647))
     throw new StataError("seed must be between 0 and 2,147,483,647", 198);
   session.settings.seed = seed;
   session.state.seed = seed;
@@ -609,17 +623,27 @@ function prefixParts(session, text, stem, declaration) {
 }
 /**
  * The line of dots: a mark for every `every` replications and for the
- * last, the count in place of the mark at each tenth, x where one failed.
+ * last, the count in place of the mark at each tenth, and where one failed
+ * its mark: x for an error (or a statistic missing or rejected), n for a
+ * jackknife replicate whose sample size was not one fewer. A legend of the
+ * marks shown follows.
  */
-const dots = (session, ctx, title, total, failed, every = 1) => {
-  const width = session.settings.linesize ?? 80;
+const MARKS = {
+  x: (prefix, name) => `x: Error occurred when ${prefix} executed ${name}.`,
+  n: () =>
+    "n: Sample size for the replicate did not equal the expected sample size.",
+};
+const dots = (session, ctx, title, total, failed, every = 1, legend = null) => {
+  const width = session.settings.linesize ?? 80,
+    seen = new Set();
   let line = `${title} (${count(total)}): `,
-    bad = false;
+    bad = null;
   for (let k = 1; k <= total; k++) {
-    if (failed.has(k)) bad = true;
+    if (failed.has(k)) bad ??= failed.get(k);
     if (k % every !== 0 && k !== total) continue;
-    const mark = bad ? "x" : k % (10 * every) === 0 ? String(k) : ".";
-    bad = false;
+    const mark = bad ?? (k % (10 * every) === 0 ? String(k) : ".");
+    if (bad) seen.add(bad);
+    bad = null;
     if (line.length + mark.length > width) {
       ctx.out(line);
       line = "";
@@ -627,13 +651,27 @@ const dots = (session, ctx, title, total, failed, every = 1) => {
     line += mark;
   }
   ctx.out(`${line} done`);
+  if (legend)
+    for (const mark of Object.keys(MARKS))
+      if (seen.has(mark)) ctx.out(MARKS[mark](legend.prefix, legend.name));
 };
-/** Wraps a note to the line size, later lines indented under the first. */
+/** The note under a table when some replicates gave no statistics. */
+function incomplete(ctx, failed, prefix) {
+  if (!failed.size) return;
+  ctx.out(
+    `Note: One or more parameters could not be estimated in ${count(failed.size)} ${prefix} replicate${failed.size === 1 ? "" : "s"};`,
+  );
+  ctx.out("      standard-error estimates include only complete replications.");
+}
+/**
+ * Wraps a note as Stata wraps a paragraph, two columns short of the line
+ * size, later lines indented under the first.
+ */
 function wrapped(session, ctx, text, indent) {
   const width = session.settings.linesize ?? 80;
   let line = "";
   for (const word of text.split(" ")) {
-    if (line && line.length + 1 + word.length > width - 1) {
+    if (line && line.length + 1 + word.length > width - 2) {
       ctx.out(line);
       line = " ".repeat(indent) + word;
     } else line = line ? `${line} ${word}` : word;
@@ -641,14 +679,8 @@ function wrapped(session, ctx, text, indent) {
   ctx.out(line);
 }
 
-/** Runs the command and returns the statistics, or null if it fails. */
-function evaluate(session, ctx, parts) {
-  try {
-    session.runLine(`quietly ${parts.command}`, ctx.frame, []);
-  } catch (error) {
-    if (error instanceof StataError) return null;
-    throw error;
-  }
+/** The statistics of the run just made, or null if one is missing. */
+function statistics(session, parts) {
   if (parts.coefficients) {
     const model = session.estimates;
     if (!model) throw new StataError("last estimates not found", 301);
@@ -659,25 +691,122 @@ function evaluate(session, ctx, parts) {
     ? null
     : values;
 }
-// Stata keeps the replicates in single precision, which shows in about the
-// seventh digit of the standard errors.
-const stored = (parts, values) => (values ? values.map(Math.fround) : values);
+/**
+ * Runs the command on a sample and returns the statistics, or null if it
+ * fails or reject() rejects them.
+ */
+function evaluate(session, ctx, parts, command = parts.command) {
+  try {
+    session.runLine(`quietly ${command}`, ctx.frame, []);
+  } catch (error) {
+    if (error instanceof StataError) return null;
+    throw error;
+  }
+  const values = statistics(session, parts);
+  return values && parts.reject && rejected(session, parts.reject)
+    ? null
+    : values;
+}
+/** reject(exp) is true, as assert reads it: anything but zero. */
+function rejected(session, expression) {
+  let value;
+  try {
+    value = session.scalar(expression);
+  } catch (error) {
+    if (!(error instanceof StataError)) throw error;
+    throw new StataError(`reject() incorrectly specified: ${expression}`, 198);
+  }
+  if (typeof value !== "number")
+    throw new StataError(`reject() incorrectly specified: ${expression}`, 198);
+  return value !== 0;
+}
+/**
+ * The run on the whole sample. Its failure stops the prefix with the
+ * command's message and, as Stata adds, which prefix ran it; a statistic
+ * missing there stops it too. "(running ... on estimation sample)" comes
+ * first, unless the dots are off.
+ */
+function observe(session, ctx, parts, command, prefix, quiet) {
+  const name = commandName(parts.command),
+    running = () => {
+      if (!quiet) ctx.out(`(running ${name} on estimation sample)`);
+    };
+  // The prefix clears e() first, so that e(N) is a count of this run.
+  session.estimates = null;
+  session.results.e = {};
+  try {
+    session.runLine(`quietly ${command}`, ctx.frame, []);
+  } catch (error) {
+    if (!(error instanceof StataError)) throw error;
+    // jackknife reads over() before it runs the command.
+    if (prefix === "jackknife" && /invalid over\(\) option/.test(error.message))
+      throw error;
+    running();
+    throw new StataError(
+      `${error.message}\nan error occurred when ${prefix} executed ${name}`,
+      error.code,
+      error.hint,
+    );
+  }
+  running();
+  if (!parts.coefficients)
+    for (const item of parts.items) {
+      const value = session.scalar(item.expression);
+      if (typeof value !== "number" || isMissing(value))
+        throw new StataError(
+          prefix === "bootstrap"
+            ? `'${item.expression}' evaluated to missing in full sample`
+            : `statistic ${item.expression} evaluated to missing in full sample`,
+          322,
+        );
+    }
+  const values = statistics(session, parts);
+  if (parts.reject && rejected(session, parts.reject))
+    throw new StataError(
+      `${prefix} rejected results from ${name} while using the entire dataset`,
+      9,
+    );
+  return values;
+}
+/**
+ * The if and in of the command a prefix runs: the rows they select, and
+ * the command without them, which the prefix runs on those rows.
+ */
+function commandSample(session, command) {
+  const [head, options] = splitAtComma(command),
+    all = clauses(head),
+    found = all.filter((c) => c.kind === "if" || c.kind === "in");
+  if (!found.length) return { rows: null, stripped: command };
+  const end = (c) => all.find((d) => d.at > c.at)?.at ?? head.length;
+  let kept = head;
+  for (const c of [...found].reverse())
+    kept = kept.slice(0, c.at) + kept.slice(end(c));
+  const qualifiers = found.map((c) => head.slice(c.at, end(c))).join(" "),
+    parsed = session.parse("[if] [in]", ` ${qualifiers}`);
+  return {
+    rows: session.rows(parsed, null),
+    stripped: `${kept.trim()}${options === null ? "" : `, ${options.trim()}`}`,
+  };
+}
+// Stata keeps the replicates in single precision unless saving() asks for
+// double, which shows in about the seventh digit of the standard errors.
+const stored = (values, double) =>
+  values && !double ? values.map(Math.fround) : values;
 const commandName = (command) => /^\s*(\w+)/.exec(command)?.[1] ?? "";
 
 /** The header a refitted regress prints under bootstrap or jackknife. */
 function modelHeader(ctx, model, reps, test, nstrata = 0) {
-  const side = (label, value) => `${label.padEnd(14)}=${value.padStart(7)}`,
-    four = (value) => applyFormat(value, "%6.4f").trim(),
-    lines = [
-      side("Number of obs", count(model.N)),
-      side("Replications", count(reps)),
-      side(test.label, applyFormat(test.value, "%7.2f").trim()),
-      side(test.pLabel, four(test.p)),
+  const four = (value) => applyFormat(value, "%6.4f").trim(),
+    pairs = [
+      ["Number of obs", count(model.N)],
+      ["Replications", count(reps)],
+      [test.label, applyFormat(test.value, "%7.2f").trim()],
+      [test.pLabel, four(test.p)],
       ...(model.command === "regress"
         ? [
-            side("R-squared", four(model.r2)),
-            side("Adj R-squared", four(model.r2_a)),
-            side("Root MSE", four(model.rmse)),
+            ["R-squared", four(model.r2)],
+            ["Adj R-squared", four(model.r2_a)],
+            ["Root MSE", four(model.rmse)],
           ]
         : []),
     ];
@@ -685,8 +814,20 @@ function modelHeader(ctx, model, reps, test, nstrata = 0) {
   // sampling weights it is a pseudolikelihood, and poisson then has no
   // pseudo R2: the line takes the place of the p-value's.
   const likelihood = model.r2_p !== undefined && model.ll !== undefined,
-    last = likelihood && isMissing(model.r2_p) ? lines.pop() : null,
+    last = likelihood && isMissing(model.r2_p) ? pairs.pop() : null,
     log = `${model.wtype === "pweight" ? "Log pseudolikelihood" : "Log likelihood"} = ${g(model.ll, "%10.0g")}`;
+  if (likelihood && !last) pairs.push(["Pseudo R2", four(model.r2_p)]);
+  // The numbers keep a blank after the =: a negative one (Adj R-squared
+  // = -0.0017) widens their column, and the column moves left.
+  const digits = Math.max(
+      7,
+      ...pairs.map(([, value]) =>
+        value.startsWith("-") ? value.length + 1 : 0,
+      ),
+    ),
+    at = 63 - digits,
+    side = ([label, value]) => `${label.padEnd(14)}=${value.padStart(digits)}`,
+    lines = pairs.slice(0, likelihood && !last ? -1 : undefined).map(side);
   // With strata the title stands alone, their number beside the first
   // line.
   const heading = model.title ?? "Linear regression";
@@ -696,12 +837,11 @@ function modelHeader(ctx, model, reps, test, nstrata = 0) {
   }
   lines.forEach((line, k) =>
     ctx.out(
-      `${(k ? "" : nstrata ? `Number of strata = ${count(nstrata)}` : heading).padEnd(56)}${line}`,
+      `${(k ? "" : nstrata ? `Number of strata = ${count(nstrata)}` : heading).padEnd(at)}${line}`,
     ),
   );
-  if (last) ctx.out(`${log.padEnd(56)}${last}`);
-  else if (likelihood)
-    ctx.out(`${log.padEnd(56)}${side("Pseudo R2", four(model.r2_p))}`);
+  if (last) ctx.out(`${log.padEnd(at)}${side(last)}`);
+  else if (likelihood) ctx.out(`${log.padEnd(at)}${side(pairs.at(-1))}`);
   ctx.out("");
 }
 
@@ -724,22 +864,34 @@ function columns(session, model) {
     depvar: abbreviate(model.depvar, w).padStart(w),
   };
 }
-function resultsHeader(ctx, title, n, reps, parts, extra = [], nstrata = 0) {
-  // The two numbers are right-aligned together.
-  const width = Math.max(count(n).length, count(reps).length);
-  if (nstrata) {
-    ctx.out(title);
+/**
+ * The header of a table of statistics: the title (or the number of strata)
+ * and the counts, right-aligned together so that they end in column 78;
+ * then the command and the statistics' legend. noheader and nolegend leave
+ * out either part.
+ */
+function resultsHeader(ctx, title, n, reps, command, items, layout = {}) {
+  const { nstrata = 0, header = true, legend = true } = layout,
+    width = Math.max(count(n).length, count(reps).length),
+    obs = `Number of obs = ${count(n).padStart(width)}`,
+    at = 78 - obs.length;
+  if (header) {
+    if (nstrata) {
+      ctx.out(title);
+      ctx.out("");
+    }
+    ctx.out(
+      `${(nstrata ? `Number of strata = ${count(nstrata)}` : title).padEnd(at)}${obs}`,
+    );
+    ctx.out(`${" ".repeat(at)}Replications  = ${count(reps).padStart(width)}`);
     ctx.out("");
   }
-  ctx.out(
-    `${(nstrata ? `Number of strata = ${count(nstrata)}` : title).padEnd(60)}Number of obs = ${count(n).padStart(width)}`,
-  );
-  ctx.out(`${" ".repeat(60)}Replications  = ${count(reps).padStart(width)}`);
-  ctx.out("");
-  ctx.out(`      Command: ${parts.command.replace(/ {2,}/g, " ")}`);
-  for (const item of [...parts.items, ...extra])
-    ctx.out(`${item.name.padStart(13)}: ${item.expression}`);
-  ctx.out("");
+  if (legend) {
+    ctx.out(`      Command: ${command.replace(/ {2,}/g, " ")}`);
+    for (const item of items)
+      ctx.out(`${abbreviate(item.name, 12).padStart(13)}: ${item.expression}`);
+    ctx.out("");
+  }
 }
 const tableRow = (label, b, se, statistic, p, low, high) =>
   `${label}|${g(b).padStart(11)}${g(se).padStart(11)}${applyFormat(statistic, "%9.2f")}${applyFormat(p, "%8.3f")}${g(low).padStart(13)}${g(high).padStart(12)}`;
@@ -766,12 +918,14 @@ const coefficientHead = (eform, word) =>
   eform ? word(eform[1]).padStart(10).padEnd(11) : word("Coefficient");
 
 /** The covariance of the replicate statistics about their mean. */
-function covariance(replicates, scale) {
+function covariance(replicates, scale, center = null) {
   const k = replicates[0].length,
-    mean = Array.from(
-      { length: k },
-      (_, j) => replicates.reduce((t, r) => t + r[j], 0) / replicates.length,
-    );
+    mean =
+      center ??
+      Array.from(
+        { length: k },
+        (_, j) => replicates.reduce((t, r) => t + r[j], 0) / replicates.length,
+      );
   return Array.from({ length: k }, (_, a) =>
     Array.from(
       { length: k },
@@ -798,12 +952,101 @@ function wald(model) {
   };
 }
 
+/**
+ * What bootstrap keeps beside e(b) and e(V), as _bs_sum.ado computes it
+ * from the replicates: their mean, number, bias and standard deviation,
+ * the median bias z0, and the normal, percentile and bias-corrected
+ * intervals, each a matrix named by the statistics.
+ */
+function bootstrapMatrices(names, observed, replicates, level) {
+  const k = names.length,
+    zalpha = invnormal((100 + level) / 200),
+    row = (values) => ({ rowNames: ["y1"], colNames: names, values: [values] }),
+    pair = (low, high) => ({
+      rowNames: ["ll", "ul"],
+      colNames: names,
+      values: [low, high],
+    }),
+    stats = Array.from({ length: k }, (_, j) => {
+      const x = replicates.map((r) => r[j]),
+        n = x.length,
+        mean = x.reduce((t, v) => t + v, 0) / n,
+        sd = Math.sqrt(x.reduce((t, v) => t + (v - mean) ** 2, 0) / (n - 1)),
+        sorted = [...x].sort((a, b) => a - b),
+        b = observed[j],
+        below = x.filter((v) => v <= b).length,
+        // _pctile takes percentiles strictly between 0 and 100.
+        pctile = (p) => (p > 0 && p < 100 ? percentile(sorted, p) : MISSING);
+      let z0 = MISSING,
+        bc = [MISSING, MISSING];
+      if (below > 0 && below < n) {
+        z0 = invnormal(below / n);
+        bc = [
+          pctile(100 * normal(2 * z0 - zalpha)),
+          pctile(100 * normal(2 * z0 + zalpha)),
+        ];
+      }
+      return {
+        n,
+        mean,
+        sd,
+        bias: mean - b,
+        z0,
+        normal: [b - zalpha * sd, b + zalpha * sd],
+        percentile: [
+          percentile(sorted, (100 - level) / 2),
+          percentile(sorted, (100 + level) / 2),
+        ],
+        bc,
+      };
+    }),
+    each = (f) => stats.map(f);
+  return {
+    b_bs: row(each((s) => s.mean)),
+    reps: row(each((s) => s.n)),
+    bias: row(each((s) => s.bias)),
+    z0: row(each((s) => s.z0)),
+    se: row(each((s) => s.sd)),
+    ci_normal: pair(
+      each((s) => s.normal[0]),
+      each((s) => s.normal[1]),
+    ),
+    ci_percentile: pair(
+      each((s) => s.percentile[0]),
+      each((s) => s.percentile[1]),
+    ),
+    ci_bc: pair(
+      each((s) => s.bc[0]),
+      each((s) => s.bc[1]),
+    ),
+  };
+}
+/** Matrices as e() holds them: "matrix:name" keys. */
+const asResults = (matrices) =>
+  Object.fromEntries(
+    Object.entries(matrices).map(([name, value]) => [`matrix:${name}`, value]),
+  );
+
+/** reject(exp) or reject(if exp), as _prefix_reject reads it. */
+const rejection = (text) =>
+  text === undefined ? null : text.trim().replace(/^if\s+/, "") || null;
+
+/** The heading of the error column: Bootstrap, or Bstrap * with mse. */
+const errorHead = (prefix, mse) =>
+  prefix === "bootstrap"
+    ? mse
+      ? "Bstrap *"
+      : "Bootstrap                         Normal-based"
+    : mse
+      ? "Jknife *"
+      : "Jackknife";
+
 function bootstrap(session, text, ctx) {
   const parts = prefixParts(
       session,
       text,
       "_bs_",
-      "Reps(integer 50) Level(cilevel) NODOTS DOTS(string) noHEader SEED(string) SAving(string) STRata(varlist) CLuster(varlist) IDcluster(string) SIze(string) | BCA",
+      "Reps(integer 50) Level(cilevel) NODOTS DOTS(string) noHEader noLEGend noTABle SEED(string) SAving(string) STRata(varlist) CLuster(varlist) IDcluster(string) SIze(string) MSE REJect(string) noDROP FORCE GRoup(string) | BCA",
     ),
     options = parts.options,
     { reps, level } = options,
@@ -814,7 +1057,10 @@ function bootstrap(session, text, ctx) {
     quiet = every === 0,
     strataNames = options.strata ?? [],
     clusterNames = options.cluster ?? [],
-    idcluster = options.idcluster?.trim();
+    idcluster = options.idcluster?.trim(),
+    nodrop = options.drop === false,
+    mse = !!options.mse;
+  parts.reject = rejection(options.reject);
   if (reps < 2)
     throw new StataError(
       "option reps() requires an integer greater than 1",
@@ -822,12 +1068,21 @@ function bootstrap(session, text, ctx) {
     );
   if (idcluster && !clusterNames.length)
     throw new StataError("option idcluster() requires option cluster()", 198);
+  if (options.group !== undefined && !idcluster)
+    throw new StataError("option group() requires option idcluster()", 198);
+  if (options.group !== undefined)
+    throw new StataError(
+      "option group() is not available in the browser yet",
+      198,
+      "Resample the clusters with cluster() and idcluster(); the groups within them keep their own identifiers.",
+    );
   if (idcluster && !isName(idcluster))
     throw new StataError(`${idcluster} invalid name`, 198);
   // Stata resamples observations, which a weight would stand in for.
   if (clauses(splitAtComma(parts.command)[0]).some((c) => c.kind === "weight"))
     throw new StataError("weights not allowed with bootstrap estimation", 101);
-  const saving = savingTarget(session, options.saving);
+  const saving = savingTarget(session, options.saving),
+    double = saving?.type === "double";
   // idcluster() names the clusters of the data in memory too, as
   // egen group() numbers them, when it is a new variable.
   if (idcluster && !data.has(idcluster))
@@ -836,48 +1091,46 @@ function bootstrap(session, text, ctx) {
       ctx.frame,
       [],
     );
-  const observed = evaluate(session, ctx, parts);
-  if (!observed)
-    throw new StataError(
-      `${name} did not run on the data, or a statistic is missing`,
-      198,
-    );
-  const model = session.estimates !== before ? session.estimates : null,
-    kept = { e: { ...session.results.e }, r: { ...session.results.r } },
-    snapshot = data.snapshot();
-  if (parts.coefficients && !model)
-    throw new StataError("expression list required", 198);
-  if (!quiet) ctx.out(`(running ${name} on estimation sample)`);
-  if (saving) {
-    try {
-      saving.check();
-    } catch (error) {
-      session.estimates = model ?? before;
-      throw error;
-    }
-  }
-  applySeed(session, options.seed);
-  if (!model) {
-    ctx.out("");
-    wrapped(
-      session,
-      ctx,
-      `warning: ${name} does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data, drop any observations that are to be excluded, and rerun bootstrap.`,
-      9,
-    );
-  }
-  saving?.note(ctx);
-  const title = `Bootstrap replications (${count(reps)}): `,
+  // The if and in of the command choose the observations resampled, and
+  // the command runs on them without its if and in; nodrop keeps every
+  // observation and the command as typed.
+  const sample = nodrop
+      ? { rows: null, stripped: parts.command }
+      : commandSample(session, parts.command),
+    command = sample.stripped,
+    snapshot = data.snapshot(),
+    title = `Bootstrap replications (${count(reps)}): `,
     replicates = [],
     all = [],
-    failed = new Set();
-  let n,
+    failed = new Map();
+  let observed,
+    model = null,
+    kept = null,
+    n,
     nstrata = 0,
     nclust = 0,
     size = null;
   try {
+    if (sample.rows) takeRows(data, sample.rows);
+    observed = observe(session, ctx, parts, command, "bootstrap", quiet);
+    model = session.estimates;
+    kept = { e: { ...session.results.e }, r: { ...session.results.r } };
+    if (parts.coefficients && !model)
+      throw new StataError("expression list required", 198);
+    saving?.check();
+    applySeed(session, options.seed);
+    if (!model && !nodrop) {
+      ctx.out("");
+      wrapped(
+        session,
+        ctx,
+        `warning: ${name} does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data, drop any observations that are to be excluded, and rerun bootstrap.`,
+        9,
+      );
+    }
+    saving?.note(ctx);
     // An estimation command is resampled within its estimation sample.
-    if (model?.sample)
+    if (model?.sample && !nodrop)
       takeRows(
         data,
         [...new Set(model.sample)].sort((a, b) => a - b),
@@ -920,7 +1173,8 @@ function bootstrap(session, text, ctx) {
           );
       }
     }
-    ctx.out("");
+    // A blank line before the dots, or else before the header.
+    if (!quiet || options.header !== false) ctx.out("");
     const base = data.snapshot();
     for (let rep = 1; rep <= reps; rep++) {
       let drawn;
@@ -938,24 +1192,33 @@ function bootstrap(session, text, ctx) {
       }
       takeRows(data, drawn.rows);
       if (idcluster) setClusterIds(data, idcluster, drawn.ids);
-      const values = stored(parts, evaluate(session, ctx, parts));
+      const values = stored(evaluate(session, ctx, parts, command), double);
       all.push(values);
       if (values) replicates.push(values);
-      else failed.add(rep);
+      else failed.set(rep, "x");
       data.restore(base);
     }
   } finally {
     data.restore(snapshot);
     session.estimates = model ?? before;
-    session.results.e = kept.e;
-    session.results.r = kept.r;
+    if (kept) {
+      session.results.e = kept.e;
+      session.results.r = kept.r;
+    }
+    // e(sample) names the rows of the data in memory.
+    if (model?.sample && sample.rows)
+      model.sample = model.sample.map((i) => sample.rows[i]);
   }
   if (replicates.length < 2)
     throw new StataError(
       "insufficient observations to compute bootstrap standard errors\nno results will be saved",
       2000,
     );
-  const V = covariance(replicates, 1 / (replicates.length - 1)),
+  // mse: the replicates' spread about the observed value, over their
+  // number.
+  const V = mse
+      ? covariance(replicates, 1 / replicates.length, observed)
+      : covariance(replicates, 1 / (replicates.length - 1)),
     critical = invnormal(1 - (1 - level / 100) / 2),
     eform = parts.coefficients ? model.eform : null,
     row = (label, k) => {
@@ -972,7 +1235,10 @@ function bootstrap(session, text, ctx) {
       );
     };
   if (!quiet) {
-    dots(session, ctx, "Bootstrap replications", reps, failed, every);
+    dots(session, ctx, "Bootstrap replications", reps, failed, every, {
+      prefix: "bootstrap",
+      name,
+    });
     ctx.out("");
   }
   if (saving)
@@ -993,11 +1259,20 @@ function bootstrap(session, text, ctx) {
       ...(clusterNames.length
         ? { clustvar: clusterNames.join(" "), cluster: clusterNames.join(" ") }
         : {}),
+    },
+    names = parts.coefficients
+      ? model.names
+      : parts.items.map((item) => item.name),
+    extras = asResults(bootstrapMatrices(names, observed, replicates, level)),
+    shown = {
+      header: options.header !== false,
+      legend: options.legend !== false,
+      table: options.table !== false,
     };
   if (parts.coefficients) {
     model.V = V;
     model.vce = "bootstrap";
-    model.vcetype = "Bootstrap";
+    model.vcetype = mse ? "Bstrap *" : "Bootstrap";
     model.dist = "z";
     const test = wald(model),
       p = chi2tail(test.df, test.value);
@@ -1007,8 +1282,25 @@ function bootstrap(session, text, ctx) {
       ...designResults,
       chi2: test.value,
       p,
+      level,
+      bs_version: 3,
+      k_eq: 1,
+      k_exp: 0,
+      k_eexp: model.names.length,
+      k_extra: 0,
+      cmdline: `bootstrap ${text.trim()}`,
+      chi2type: "Wald",
+      cmdname: name,
+      prefix: "bootstrap",
+      ...Object.fromEntries(
+        model.names.map((coef, k) => [`exp${k + 1}`, `_b[${coef}]`]),
+      ),
+      command: command.replace(/ {2,}/g, " "),
+      vcetype: mse ? "Bstrap *" : "Bootstrap",
+      ...(mse ? { mse: "mse" } : {}),
       vce: "bootstrap",
       ...designMacros,
+      ...extras,
     });
     delete session.results.e.F;
     delete session.results.e.df_r;
@@ -1020,27 +1312,33 @@ function bootstrap(session, text, ctx) {
         se: model.b.map((_, k) => Math.sqrt(V[k][k])),
         critical,
         note: design.cluster,
+        nstrata: design.nstrata,
+        mse,
       });
+      incomplete(ctx, failed, "bootstrap");
       ctx.out("");
       return;
     }
-    modelHeader(
-      ctx,
-      model,
-      replicates.length,
-      {
-        label: `Wald chi2(${test.df})`,
-        value: test.value,
-        pLabel: "Prob > chi2",
-        p,
-      },
-      design.nstrata,
-    );
+    if (shown.header)
+      modelHeader(
+        ctx,
+        // nodrop resamples every observation, which the header counts.
+        nodrop ? { ...model, N: n } : model,
+        replicates.length,
+        {
+          label: `Wald chi2(${test.df})`,
+          value: test.value,
+          pLabel: "Prob > chi2",
+          p,
+        },
+        design.nstrata,
+      );
+    if (!shown.table) return;
     const table = columns(session, model);
     if (design.cluster) ctx.out(design.cluster.padStart(table.rule.length));
     ctx.out(table.rule);
     ctx.out(
-      `${" ".repeat(table.w + 1)}|   Observed   Bootstrap                         Normal-based`,
+      `${" ".repeat(table.w + 1)}|   Observed   ${errorHead("bootstrap", mse)}`,
     );
     ctx.out(
       `${table.depvar} | ${coefficientHead(eform, (v) => v.toLowerCase())}  std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
@@ -1056,30 +1354,33 @@ function bootstrap(session, text, ctx) {
     ).forEach(ctx.out);
     ctx.out(table.rule);
     if (eform && model.constant) ctx.out(eform[2]);
+    incomplete(ctx, failed, "bootstrap");
   } else {
     resultsHeader(
       ctx,
       "Bootstrap results",
       n,
       replicates.length,
-      parts,
-      [],
-      design.nstrata,
+      command,
+      parts.items,
+      { nstrata: design.nstrata, ...shown },
     );
-    if (design.cluster) ctx.out(design.cluster.padStart(RULE.length));
-    ctx.out(RULE);
-    ctx.out(
-      "             |   Observed   Bootstrap                         Normal-based",
-    );
-    ctx.out(
-      `             | coefficient  std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
-    );
-    ctx.out(SPLIT);
-    parts.items.forEach((item, k) =>
-      ctx.out(row(`${item.name.padStart(12)} `, k)),
-    );
-    ctx.out(RULE);
-    // e() holds the bootstrap's own results, as Stata's does.
+    if (shown.table) {
+      if (design.cluster) ctx.out(design.cluster.padStart(RULE.length));
+      ctx.out(RULE);
+      ctx.out(`             |   Observed   ${errorHead("bootstrap", mse)}`);
+      ctx.out(
+        `             | coefficient  std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
+      );
+      ctx.out(SPLIT);
+      parts.items.forEach((item, k) =>
+        ctx.out(row(`${abbreviate(item.name, 12).padStart(12)} `, k)),
+      );
+      ctx.out(RULE);
+      incomplete(ctx, failed, "bootstrap");
+    }
+    // e() holds the bootstrap's own results, as Stata's does: e(b) and
+    // e(V) of the statistics, and the matrices bstat reports.
     session.estimates = null;
     session.results.e = {
       level,
@@ -1102,14 +1403,19 @@ function bootstrap(session, text, ctx) {
       ...Object.fromEntries(
         parts.items.map((item, k) => [`exp${k + 1}`, item.expression]),
       ),
-      command: parts.command.replace(/ {2,}/g, " "),
+      command: command.replace(/ {2,}/g, " "),
       ...(strataNames.length ? { strata: strataNames.join(" ") } : {}),
       ...(clusterNames.length
         ? { clustvar: clusterNames.join(" "), cluster: clusterNames.join(" ") }
         : {}),
-      vcetype: "Bootstrap",
+      vcetype: mse ? "Bstrap *" : "Bootstrap",
       vce: "bootstrap",
+      ...(mse ? { mse: "mse" } : {}),
       properties: "b V",
+      "matrix:b": { rowNames: ["y1"], colNames: names, values: [observed] },
+      "matrix:V": { rowNames: names, colNames: names, values: V },
+      ...extras,
+      "function:sample": true,
     };
   }
   ctx.out("");
@@ -1120,7 +1426,7 @@ function jackknife(session, text, ctx) {
       session,
       text,
       "_jk_",
-      "Level(cilevel) NODOTS DOTS(string) noHEader CLuster(varlist) IDcluster(string) SAving(string) | RCLass ECLass N(string) MSE KEEP STRata(varlist)",
+      "Level(cilevel) NODOTS DOTS(string) noHEader noLEGend noTABle CLuster(varlist) IDcluster(string) SAving(string) MSE KEEP RCLass ECLass N(string) REJect(string) noDROP FORCE",
     ),
     options = parts.options,
     level = options.level,
@@ -1130,42 +1436,92 @@ function jackknife(session, text, ctx) {
     every = dotsEvery(options),
     quiet = every === 0,
     clusterNames = options.cluster ?? [],
-    saving = savingTarget(session, options.saving),
-    observed = evaluate(session, ctx, parts);
-  if (!observed)
-    throw new StataError(
-      `${name} did not run on the data, or a statistic is missing`,
-      198,
-    );
-  const model = session.estimates !== before ? session.estimates : null,
-    kept = { e: { ...session.results.e }, r: { ...session.results.r } },
-    snapshot = data.snapshot();
-  if (parts.coefficients && !model)
-    throw new StataError("expression list required", 198);
-  // Stata leaves out a frequency-weighted observation one unit at a time
-  // and scales importance-weighted replicates; neither is done here.
-  if (model?.wtype === "fweight" || model?.wtype === "iweight")
-    throw new StataError(
-      `jackknife with ${model.wtype}s is not available yet; pweights are`,
-      198,
-    );
-  if (!quiet) ctx.out(`(running ${name} on estimation sample)`);
-  if (options.idcluster !== undefined && !clusterNames.length)
-    throw new StataError(
-      "option idcluster() requires the cluster() option",
-      198,
-    );
-  saving?.check();
-  const replicates = [],
+    nodrop = options.drop === false,
+    mse = !!options.mse,
+    given = [
+      options.eclass && "eclass",
+      options.rclass && "rclass",
+      options.n !== undefined && "n()",
+    ].filter(Boolean);
+  if (given.length > 1)
+    throw new StataError(`options ${given.join(" ")} may not be combined`, 198);
+  parts.reject = rejection(options.reject);
+  const saving = savingTarget(session, options.saving),
+    double = saving?.type === "double",
+    // jackknife shows the command as typed, but runs it, as bootstrap
+    // does, on the observations its if and in select.
+    sample = nodrop
+      ? { rows: null, stripped: parts.command }
+      : commandSample(session, parts.command),
+    command = sample.stripped,
+    snapshot = data.snapshot(),
+    replicates = [],
     all = [],
-    failed = new Set();
-  let n, groups;
+    failed = new Map();
+  let observed,
+    model = null,
+    kept = null,
+    nfunction = null,
+    origin = null,
+    n,
+    groups;
   try {
-    if (model?.sample)
-      takeRows(
-        data,
-        [...new Set(model.sample)].sort((a, b) => a - b),
+    if (sample.rows) takeRows(data, sample.rows);
+    observed = observe(session, ctx, parts, command, "jackknife", quiet);
+    model = session.estimates;
+    kept = { e: { ...session.results.e }, r: { ...session.results.r } };
+    if (parts.coefficients && !model)
+      throw new StataError("expression list required", 198);
+    // Stata leaves out a frequency-weighted observation one unit at a time
+    // and scales importance-weighted replicates; neither is done here.
+    if (model?.wtype === "fweight" || model?.wtype === "iweight")
+      throw new StataError(
+        `jackknife with ${model.wtype}s is not available yet; pweights are`,
+        198,
       );
+    if (options.idcluster !== undefined && !clusterNames.length)
+      throw new StataError(
+        "option idcluster() requires the cluster() option",
+        198,
+      );
+    if (options.keep && parts.coefficients)
+      throw new StataError(
+        "option keep is not available in the browser yet for coefficients",
+        198,
+        "Name the statistics, as in jackknife b=_b[x], keep: ..., to keep their pseudovalues.",
+      );
+    if (options.keep)
+      for (const item of parts.items)
+        if (data.has(item.name))
+          throw new StataError(`variable ${item.name} already defined`, 110);
+    saving?.check();
+    // n(): the number of observations a run uses, r(N) or e(N) unless
+    // given; a replicate that does not use one fewer is set aside.
+    nfunction =
+      options.n?.trim() ||
+      (options.eclass
+        ? "e(N)"
+        : options.rclass
+          ? "r(N)"
+          : model
+            ? "e(N)"
+            : "r(N)");
+    const full = Math.trunc(session.scalar(nfunction)),
+      asked = given.length > 0;
+    // Without n(), rclass or eclass, a command that leaves no count is not
+    // checked.
+    if (asked && (isMissing(full) || full === 0))
+      throw new StataError(
+        `number of obs ${nfunction} evaluated to ${isMissing(full) ? "missing" : "zero"} in full sample`,
+        322,
+      );
+    // origin: the row of the data in memory each row used comes from.
+    origin = sample.rows ?? Array.from({ length: data.n }, (_, i) => i);
+    if (model?.sample && !nodrop) {
+      const used = [...new Set(model.sample)].sort((a, b) => a - b);
+      takeRows(data, used);
+      origin = used.map((i) => origin[i]);
+    }
     n = data.n;
     if (clusterNames.length) {
       // One replication leaves out each cluster, in their sorted order.
@@ -1181,7 +1537,8 @@ function jackknife(session, text, ctx) {
             459,
           );
       }
-      const { clusters } = arrange(session, [], clusterNames);
+      const { clusters, order } = arrange(session, [], clusterNames);
+      origin = order.map((i) => origin[i]);
       groups = runs(
         clusters.map((key, i) => ({ key, i })),
         (row) => row.key,
@@ -1189,23 +1546,54 @@ function jackknife(session, text, ctx) {
       if (groups.length <= 2)
         throw new StataError("jackknife requires more than 2 clusters", 459);
     } else groups = Array.from({ length: n }, (_, i) => new Set([i]));
-    const base = data.snapshot();
+    const base = data.snapshot(),
+      groupOf = new Int32Array(n);
+    groups.forEach((left, k) => left.forEach((i) => (groupOf[i] = k)));
     groups.forEach((left, k) => {
-      takeRows(
-        data,
-        Array.from({ length: n }, (_, i) => i).filter((i) => !left.has(i)),
-      );
-      const values = stored(parts, evaluate(session, ctx, parts));
+      const kept = new Int32Array(n - left.size);
+      for (let i = 0, at = 0; i < n; i++) if (groupOf[i] !== k) kept[at++] = i;
+      takeRows(data, kept);
+      let values = stored(evaluate(session, ctx, parts, command), double);
+      if (
+        values &&
+        (asked || !isMissing(full)) &&
+        Math.trunc(session.scalar(nfunction)) !== full - left.size
+      ) {
+        values = null;
+        failed.set(k + 1, "n");
+      }
       all.push(values);
       if (values) replicates.push(values);
-      else failed.add(k + 1);
+      else if (!failed.has(k + 1)) failed.set(k + 1, "x");
       data.restore(base);
     });
+    // keep: each observation's pseudovalues, n b - (n - 1) b(-i), in
+    // variables named for the statistics.
+    if (options.keep) {
+      // n counts the replicates that gave statistics.
+      const G = all.filter(Boolean).length,
+        rowsOf = groups.map((left) => [...left]);
+      parts.items.forEach((item, j) => {
+        const values = new Array(n).fill(MISSING);
+        // A cluster's pseudovalue is kept in its first observation.
+        all.forEach((r, k) => {
+          if (!r) return;
+          values[Math.min(...rowsOf[k])] = Math.fround(
+            G * observed[j] - (G - 1) * r[j],
+          );
+        });
+        item.pseudo = values;
+      });
+    }
   } finally {
     data.restore(snapshot);
     session.estimates = model ?? before;
-    session.results.e = kept.e;
-    session.results.r = kept.r;
+    if (kept) {
+      session.results.e = kept.e;
+      session.results.r = kept.r;
+    }
+    if (model?.sample && sample.rows)
+      model.sample = model.sample.map((i) => sample.rows[i]);
   }
   const used = replicates.length;
   if (used < 2)
@@ -1214,7 +1602,9 @@ function jackknife(session, text, ctx) {
       2000,
     );
   saving?.note(ctx);
-  const V = covariance(replicates, (used - 1) / used),
+  // mse: the spread about the observed value rather than the replicates'
+  // mean.
+  const V = covariance(replicates, (used - 1) / used, mse ? observed : null),
     df = used - 1,
     critical = invttail(df, (1 - level / 100) / 2),
     eform = parts.coefficients ? model.eform : null,
@@ -1233,10 +1623,18 @@ function jackknife(session, text, ctx) {
         critical,
         eform,
       );
+    },
+    shown = {
+      header: options.header !== false,
+      legend: options.legend !== false,
+      table: options.table !== false,
     };
   if (!quiet) {
     ctx.out("");
-    dots(session, ctx, "Jackknife replications", groups.length, failed, every);
+    dots(session, ctx, "Jackknife replications", groups.length, failed, every, {
+      prefix: "jackknife",
+      name,
+    });
   }
   ctx.out("");
   if (saving)
@@ -1244,11 +1642,21 @@ function jackknife(session, text, ctx) {
   const designResults = clusterNames.length ? { N_clust: groups.length } : {},
     designMacros = clusterNames.length
       ? { clustvar: clusterNames.join(" "), cluster: clusterNames.join(" ") }
-      : {};
+      : {},
+    names = parts.coefficients
+      ? model.names
+      : parts.items.map((item) => item.name),
+    jackknifeMean = {
+      rowNames: ["y1"],
+      colNames: names,
+      values: [
+        names.map((_, j) => replicates.reduce((t, r) => t + r[j], 0) / used),
+      ],
+    };
   if (parts.coefficients) {
     model.V = V;
     model.vce = "jackknife";
-    model.vcetype = "Jackknife";
+    model.vcetype = mse ? "Jknife *" : "Jackknife";
     model.dist = "t";
     model.df_r = df;
     const test = wald(model),
@@ -1261,8 +1669,23 @@ function jackknife(session, text, ctx) {
       F,
       p,
       df_r: df,
+      k_eq: 1,
+      k_exp: 0,
+      k_eexp: model.names.length,
+      k_extra: 0,
+      cmdline: `jackknife ${text.trim()}`,
+      cmdname: name,
+      prefix: "jackknife",
+      nfunction,
+      command: parts.command.replace(/ {2,}/g, " "),
+      ...Object.fromEntries(
+        model.names.map((coef, k) => [`exp${k + 1}`, `_b[${coef}]`]),
+      ),
+      vcetype: mse ? "Jknife *" : "Jackknife",
+      ...(mse ? { mse: "mse" } : {}),
       vce: "jackknife",
       ...designMacros,
+      "matrix:b_jk": jackknifeMean,
     });
     if (model.resampledDisplay) {
       model.resampledDisplay(ctx, level, {
@@ -1271,20 +1694,26 @@ function jackknife(session, text, ctx) {
         se: model.b.map((_, k) => Math.sqrt(V[k][k])),
         critical,
         note: clusterNote,
+        mse,
       });
+      incomplete(ctx, failed, "jackknife");
       ctx.out("");
       return;
     }
-    modelHeader(ctx, model, used, {
-      label: `F(${test.df}, ${df})`,
-      value: F,
-      pLabel: "Prob > F",
-      p,
-    });
+    if (shown.header)
+      modelHeader(ctx, model, used, {
+        label: `F(${test.df}, ${df})`,
+        value: F,
+        pLabel: "Prob > F",
+        p,
+      });
+    if (!shown.table) return;
     const table = columns(session, model);
     if (clusterNote) ctx.out(clusterNote.padStart(table.rule.length));
     ctx.out(table.rule);
-    ctx.out(`${" ".repeat(table.w + 1)}|              Jackknife`);
+    ctx.out(
+      `${" ".repeat(table.w + 1)}|              ${errorHead("jackknife", mse)}`,
+    );
     ctx.out(
       `${table.depvar} | ${coefficientHead(eform, (v) => v)}  std. err.      t    P>|t|     [${g(level)}% conf. interval]`,
     );
@@ -1299,21 +1728,78 @@ function jackknife(session, text, ctx) {
     ).forEach(ctx.out);
     ctx.out(table.rule);
     if (eform && model.constant) ctx.out(eform[2]);
+    incomplete(ctx, failed, "jackknife");
   } else {
-    resultsHeader(ctx, "Jackknife results", n, used, parts, [
-      { name: "n()", expression: "r(N)" },
-    ]);
-    if (clusterNote) ctx.out(clusterNote.padStart(RULE.length));
-    ctx.out(RULE);
-    ctx.out("             |              Jackknife");
-    ctx.out(
-      `             | Coefficient  std. err.      t    P>|t|     [${g(level)}% conf. interval]`,
+    resultsHeader(
+      ctx,
+      "Jackknife results",
+      n,
+      used,
+      parts.command,
+      [...parts.items, { name: "n()", expression: nfunction }],
+      shown,
     );
-    ctx.out(SPLIT);
-    parts.items.forEach((item, k) =>
-      ctx.out(row(`${item.name.padStart(12)} `, k)),
-    );
-    ctx.out(RULE);
+    if (shown.table) {
+      if (clusterNote) ctx.out(clusterNote.padStart(RULE.length));
+      ctx.out(RULE);
+      ctx.out(`             |              ${errorHead("jackknife", mse)}`);
+      ctx.out(
+        `             | Coefficient  std. err.      t    P>|t|     [${g(level)}% conf. interval]`,
+      );
+      ctx.out(SPLIT);
+      parts.items.forEach((item, k) =>
+        ctx.out(row(`${abbreviate(item.name, 12).padStart(12)} `, k)),
+      );
+      ctx.out(RULE);
+      incomplete(ctx, failed, "jackknife");
+    }
+    // keep: the pseudovalues join the data, in the rows that were used.
+    if (options.keep)
+      parts.items.forEach((item) => {
+        const values = new Array(data.n).fill(MISSING);
+        item.pseudo.forEach((v, i) => {
+          values[origin[i]] = v;
+        });
+        data.generate(item.name, values, { type: "float" });
+        data.get(item.name).label = `pseudovalues: ${item.expression}`.slice(
+          0,
+          80,
+        );
+      });
+    // e() holds the jackknife's own results, as Stata's does.
+    session.estimates = null;
+    session.results.e = {
+      df_r: df,
+      N_reps: used,
+      N_misreps: failed.size,
+      ...designResults,
+      rank: parts.items.length,
+      k_eq: 1,
+      k_exp: parts.items.length,
+      k_eexp: 0,
+      k_extra: 0,
+      singleton: MISSING,
+      N: n,
+      cmdline: `jackknife ${text.trim()}`,
+      cmd: "jackknife",
+      prefix: "jackknife",
+      cmdname: name,
+      nfunction,
+      command: parts.command.replace(/ {2,}/g, " "),
+      ...Object.fromEntries(
+        parts.items.map((item, k) => [`exp${k + 1}`, item.expression]),
+      ),
+      title: "Jackknife results",
+      ...designMacros,
+      vcetype: mse ? "Jknife *" : "Jackknife",
+      ...(mse ? { mse: "mse" } : {}),
+      vce: "jackknife",
+      properties: "b V",
+      "matrix:b": { rowNames: ["y1"], colNames: names, values: [observed] },
+      "matrix:V": { rowNames: names, colNames: names, values: V },
+      "matrix:b_jk": jackknifeMean,
+      "function:sample": true,
+    };
   }
   ctx.out("");
 }
@@ -1398,14 +1884,48 @@ export function resamplingVce(session, command, text, vce, ctx) {
     );
   if (!m) return false;
   const prefix = m[1].startsWith("b") ? "bootstrap" : "jackknife",
-    stripped = text.replace(/\bvce\s*\((?:[^()]|\([^()]*\))*\)/, ""),
-    output = [];
-  session.runLine(
-    `${prefix}${m[2].trim() ? ", " + m[2].trim() : ""}: ${command} ${stripped.replace(/,\s*$/, "")}`,
-    ctx.frame,
-    output,
+    output = [],
+    prefixOptions = m[2].trim() ? [m[2].trim()] : [];
+  let [head, rest] = splitAtComma(
+    text.replace(/\bvce\s*\((?:[^()]|\([^()]*\))*\)/, ""),
   );
-  for (const line of output.at(-1)?.lines ?? []) ctx.out(line);
+  // nodots and dots() among the command's options are the prefix's.
+  if (rest !== null)
+    rest = rest.replace(
+      /(^|\s)(nodots|dots\s*\([^()]*\))(?=\s|$)/g,
+      (_, b, o) => {
+        prefixOptions.push(o);
+        return b;
+      },
+    );
+  const stripped = rest?.trim()
+    ? `${head.trim()}, ${rest.trim()}`
+    : head.trim();
+  // The prefix's lines are shown even when it stops with an error, whose
+  // message the command itself reports.
+  let failure = null;
+  try {
+    session.runLine(
+      `${prefix}${prefixOptions.length ? ", " + prefixOptions.join(" ") : ""}: ${command} ${stripped}`,
+      ctx.frame,
+      output,
+    );
+  } catch (error) {
+    failure = error;
+  }
+  let lines = (output.at(-1)?.lines ?? []).flatMap((line) =>
+    String(line).split("\n"),
+  );
+  if (failure instanceof StataError) {
+    const at = lines.lastIndexOf(`r(${failure.code});`);
+    if (at >= 0)
+      lines = lines.slice(
+        0,
+        Math.max(0, at - failure.message.split("\n").length),
+      );
+  }
+  lines.forEach((line) => ctx.out(line));
+  if (failure) throw failure;
   return true;
 }
 

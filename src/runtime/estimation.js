@@ -744,8 +744,10 @@ function tableBlocks(session, model) {
       block.term.components.length === 1 &&
       block.term.components[0].factor &&
       block.shown.length === 1;
+    // ratio and its kin head even one group of over() by its name.
     block.alone =
       one &&
+      !model.headedFactors &&
       !session.data.valueLabels?.has(
         block.term.components[0].variable.valueLabel,
       );
@@ -906,17 +908,21 @@ export function abbreviate(name, width) {
  * Without a width, nothing is abbreviated.
  */
 export function brokenName(name, w, abbreviated = true) {
-  const parts = name.split("#"),
+  // Each piece but the last keeps the # (or the @ of c.y@1.g) that ends it.
+  const parts = name.split(/(?<=[#@])/),
     units = [];
-  parts.forEach((part, k) => {
+  parts.forEach((piece, k) => {
     const final = k === parts.length - 1,
+      sep = final ? "" : piece.slice(-1),
+      part = final ? piece : piece.slice(0, -1),
       last = units.at(-1);
     if (
       last &&
       !last.fixed &&
-      `${last.text}#${part}`.length <= (final ? w : w - 1)
+      `${last.text}${last.sep}${part}`.length <= (final ? w : w - 1)
     ) {
-      last.text = `${last.text}#${part}`;
+      last.text = `${last.text}${last.sep}${part}`;
+      last.sep = sep;
       return;
     }
     // A continuous piece keeps its c. only when it fits with the # that
@@ -924,16 +930,18 @@ export function brokenName(name, w, abbreviated = true) {
     if (abbreviated && part.length > (final ? w : w - 1) && /^c\../.test(part))
       units.push(
         { text: "c.", fixed: true, bare: true },
-        { text: abbreviate(part.slice(2), w), fixed: true },
+        { text: abbreviate(part.slice(2), w), fixed: true, sep },
       );
     else if (abbreviated && part.length > w)
-      units.push({ text: abbreviate(part, w), fixed: true });
-    else units.push({ text: part });
+      units.push({ text: abbreviate(part, w), fixed: true, sep });
+    else units.push({ text: part, sep });
   });
   const before = units.slice(0, -1);
   return {
     lines: before.map((u) =>
-      u.bare ? `${u.text.padStart(w)} |` : `${`${u.text}#`.padStart(w + 1)}|`,
+      u.bare
+        ? `${u.text.padStart(w)} |`
+        : `${`${u.text}${u.sep}`.padStart(w + 1)}|`,
     ),
     last: units.at(-1).text,
     widest: Math.max(

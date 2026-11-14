@@ -247,3 +247,150 @@ generate zero = 0
   assert.equal(constant.rc, 2000);
   assert.ok(constant.lines.includes("no observations"));
 });
+
+// Second round of the seventh pass. The values were recorded from Stata 19
+// (version 17, set processors 1) in batch mode, with matrix list's
+// format(%21.17g) and list after format %21.17g.
+const FAILED = `set seed 77
+set obs 30
+generate y = runiform()
+generate x = 1 + runiform()
+replace y = . in 4
+`;
+
+test("bootstrap of statistics keeps e(b), e(V) and bstat's matrices", () => {
+  const { session } = run(
+      `${FAILED}set seed 5\nbootstrap m=r(mean) s=r(sd), reps(20) nodots: summarize y`,
+    ),
+    e = session.results.e,
+    row = (name) => e[`matrix:${name}`].values[0],
+    pair = (name) => e[`matrix:${name}`].values;
+  assert.deepEqual(e["matrix:b"].colNames, ["m", "s"]);
+  close(row("b")[0], 0.43552713622820788);
+  close(row("b")[1], 0.22880125154239689);
+  close(e["matrix:V"].values[0][0], 0.0023466659386255943);
+  close(e["matrix:V"].values[1][0], -0.000139647992855076);
+  close(e["matrix:V"].values[1][1], 0.0005628418854955048);
+  close(row("b_bs")[0], 0.44351173937320709);
+  close(row("b_bs")[1], 0.22381081879138948);
+  close(row("bias")[0], 0.0079846031449992139);
+  close(row("bias")[1], -0.004990432751007412);
+  close(row("z0")[0], -0.38532046640756762);
+  close(row("z0")[1], 0.25334710313579978);
+  close(row("se")[0], 0.048442398151057664);
+  close(row("se")[1], 0.023724288935508792);
+  assert.deepEqual(row("reps"), [20, 20]);
+  close(pair("ci_normal")[0][0], 0.34058178052738519);
+  close(pair("ci_normal")[1][1], 0.2753000034148162);
+  close(pair("ci_percentile")[0][0], 0.33119556307792664);
+  close(pair("ci_percentile")[1][0], 0.5173724889755249);
+  close(pair("ci_percentile")[0][1], 0.18750299513339996);
+  close(pair("ci_bc")[0][1], 0.18954437971115112);
+  close(pair("ci_bc")[1][0], 0.49311822652816772);
+  close(pair("ci_bc")[1][1], 0.26636317372322083);
+  // _b[] and _se[] read them, as matrix list does.
+  close(session.scalar("_b[m]"), 0.43552713622820788);
+  close(session.scalar("_se[s]"), Math.sqrt(0.0005628418854955048));
+});
+
+test("saving(, double) keeps and uses the replicates in double", () => {
+  const { session } = run(`set seed 405
+set obs 30
+generate y = runiform()
+set seed 9
+bootstrap m=r(mean), reps(12) saving(p7dbl2, replace double) nodots: summarize y
+use p7dbl2, clear`);
+  const m = session.data.get("m");
+  assert.equal(m.type, "double");
+  // Stata 19: list in 1/3 with format m %20.0g.
+  close(m.data[0], 0.603190764784812927, 1e-15);
+  close(m.data[1], 0.493050182610750176, 1e-15);
+  close(m.data[2], 0.516860839972893449, 1e-15);
+});
+
+test("jackknife keep stores a cluster's pseudovalues in its first row", () => {
+  const { session } = run(`${FAILED}generate s = mod(_n, 4)
+jackknife m=r(mean) v=r(Var), keep cluster(s) nodots: summarize y if x > 1.2`),
+    m = session.data.get("m").data,
+    v = session.data.get("v").data;
+  close(m[0], 0.42772045731544495, 1e-15);
+  close(m[1], 0.43343552947044373, 1e-15);
+  close(m[2], 0.39349427819252014, 1e-15);
+  close(v[0], 0.044909827411174774, 1e-15);
+  close(v[2], 0.05673450231552124, 1e-15);
+  // Cluster 0 lost its replicate (r(N) did not fall by its size); the
+  // later rows of a cluster are missing.
+  for (const i of [3, 4, 5]) assert.ok(m[i] > 1e300);
+});
+
+test("ratio's variance and rank as Stata keeps them", () => {
+  const { session } = run(
+      `${FAILED}generate s = mod(_n, 4)\nratio y/x, over(s)`,
+    ),
+    V = session.estimates.V;
+  close(V[0][0], 0.0023076931816884754);
+  close(V[1][1], 0.0036268850970012931);
+  close(V[3][3], 0.0054707899167096563);
+  assert.equal(V[1][0], 0);
+  assert.equal(session.results.e.rank, 4);
+  // A group of one observation: zero in e(V), left out of the rank.
+  const one = run(`set seed 501
+set obs 12
+generate g = cond(_n == 1, 1, cond(_n <= 6, 2, 3))
+generate y = 2 + runiform()
+generate x = 1 + runiform()
+ratio y/x, over(g)`).session;
+  assert.equal(one.estimates.V[0][0], 0);
+  assert.equal(one.results.e.rank, 2);
+  assert.deepEqual(one.results.e["matrix:error"].colNames, ["c1", "c2", "c3"]);
+});
+
+test("the prefixes refuse what Stata refuses, with its messages", () => {
+  const base = `set obs 30\ngenerate y = runiform()\ngenerate w = 1\n`,
+    rc = (line) => run(`${base}${line}`).last;
+  const seed = rc("bootstrap m=r(mean), reps(5) seed(abc) nodots: summarize y");
+  assert.equal(seed.rc, 198);
+  assert.ok(seed.lines.includes("'abc' found where integer < 2^31 expected"));
+  const group = rc("bootstrap m=r(mean), reps(5) group(w) nodots: summarize y");
+  assert.ok(group.lines.includes("option group() requires option idcluster()"));
+  const strata = rc("jackknife m=r(mean), strata(w) nodots: summarize y");
+  assert.ok(strata.lines.includes("option strata() not allowed"));
+  const missing = rc("bootstrap m=r(nosuch), nodots: summarize y");
+  assert.equal(missing.rc, 322);
+  const combined = rc("jackknife m=r(mean), eclass rclass nodots: summarize y");
+  assert.ok(
+    combined.lines.includes("options eclass rclass may not be combined"),
+  );
+  const predicted = run(
+    `${base}generate x = 1 + runiform()\nratio y/x\npredict p`,
+  ).last;
+  assert.equal(predicted.rc, 301);
+  assert.ok(predicted.lines.includes("predict is not allowed after ratio"));
+});
+
+test("resampling stays quick at 10,000 observations", () => {
+  const session = new Session();
+  session.run(`set seed 801
+set obs 10000
+generate s = 1 + mod(_n, 4)
+generate id = ceil(_n/10)
+generate y = invnormal(runiform())
+generate x = runiform()`);
+  // A jackknife of 1,000 clusters runs ratio 1,000 times; it is allowed
+  // more while other test files share the machine.
+  for (const [line, limit] of [
+    [
+      "bootstrap m=r(mean), reps(30) strata(s) cluster(id) nodots: summarize y",
+      2000,
+    ],
+    ["bootstrap, reps(30) nodots: ratio y/x, over(s)", 2000],
+    ["jackknife, cluster(id) nodots: ratio y/x, over(s)", 4000],
+  ]) {
+    const start = Date.now();
+    session.run(line);
+    assert.ok(
+      Date.now() - start < limit,
+      `${line} took ${Date.now() - start} ms`,
+    );
+  }
+});

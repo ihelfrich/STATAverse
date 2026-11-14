@@ -1847,8 +1847,8 @@ export function wrapLine(line, linesize) {
 
 /**
  * Runs a reporting command once per by-group, under Stata's group heading.
- * As in Stata's by, a group with no observations, r(2000), is not an
- * error: its message is shown and the next group runs.
+ * As in Stata's by, a group with no observations, r(2000), or too few,
+ * r(2001), is not an error: its message is shown and the next group runs.
  */
 export const perGroup = (run) => (session, text, ctx) => {
   if (!ctx.by) return run(session, text, ctx);
@@ -1877,7 +1877,8 @@ export const perGroup = (run) => (session, text, ctx) => {
     try {
       run(session, text, { ...ctx, group });
     } catch (error) {
-      if (!(error instanceof StataError && error.code === 2000)) throw error;
+      if (!(error instanceof StataError && [2000, 2001].includes(error.code)))
+        throw error;
       ctx.out(error.message);
       ctx.out("");
     }

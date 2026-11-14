@@ -21,7 +21,7 @@ import {
   isStringType,
   padDisplay,
 } from "./values.js";
-import { hooks, tableWidth, termRows } from "./estimation.js";
+import { abbreviate, hooks, tableWidth, termRows } from "./estimation.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const scope = (ctx) => (ctx?.group ? { groups: [ctx.group] } : null);
@@ -1208,10 +1208,29 @@ function ratio(session, text, ctx) {
   let cluster = null;
   const vce = (options.vce ?? "").trim();
   if (vce) {
-    const m = /^(?:cl(?:u(?:s(?:t(?:er?)?)?)?)?)\s+(\S+)\s*$/.exec(vce);
-    if (m) cluster = data.get(session.varlist(m[1])[0]);
-    else if (!/^lin(?:e(?:a(?:r(?:i(?:z(?:ed?)?)?)?)?)?)?$/.test(vce))
-      // Stata's ratio has no other variance.
+    const m = /^cl(?:u(?:s(?:t(?:er?)?)?)?)?(?![\w])([^,]*)(,[\s\S]*)?$/.exec(
+      vce,
+    );
+    if (m) {
+      // vce(cluster clustvar), one variable and no options.
+      const names = m[1].trim() ? session.varlist(m[1]) : [];
+      if (!names.length)
+        throw new StataError(
+          "option vce(cluster clustvar) incorrectly specified",
+          198,
+        );
+      if (names.length > 1)
+        throw new StataError("multiway cluster VCE not allowed", 198);
+      const extra = (m[2] ?? ",").slice(1).trim();
+      if (extra)
+        throw new StataError(
+          `option ${extra.split(/\s+/)[0].replace(/\(.*$/, "()")} not allowed`,
+          198,
+        );
+      cluster = data.get(names[0]);
+    } else if (!/^linear(?:i(?:z(?:ed?)?)?)?$/.test(vce))
+      // Stata's ratio has no other variance; vce(lin) is too short a word
+      // for linearized.
       throw new StataError(
         `vcetype ${vce.split(/[\s,]+/)[0]} not allowed`,
         198,
@@ -1222,23 +1241,34 @@ function ratio(session, text, ctx) {
     options.over === undefined ? [null, null] : splitAtComma(options.over);
   if (overOptions !== null && !/^\s*(nol(a(b(el?)?)?)?)?\s*$/.test(overOptions))
     throw new StataError("invalid over() option", 198);
-  const over = overText?.trim()
-    ? session.varlist(overText).map((name) => data.get(name))
-    : [];
+  let over = [];
+  try {
+    if (overText?.trim())
+      over = session.varlist(overText).map((name) => data.get(name));
+  } catch (error) {
+    if (!(error instanceof StataError)) throw error;
+    throw new StataError(
+      `${error.message}\ninvalid over() option`,
+      error.code,
+      error.hint,
+    );
+  }
   for (const v of over)
     if (isStringType(v.type))
       throw new StataError(
         `string variables not allowed in varlist;\n${v.name} is a string variable\ninvalid over() option`,
         109,
       );
-  const needed = [...new Set(ratios.flatMap((r) => [r.y, r.x]))],
-    absent = (v, i) =>
-      isStringType(v.type) ? v.data[i] === "" : isMissing(v.data[i]),
-    candidates = selected(session, parsed, ctx).filter(
-      (i) =>
-        needed.every((v) => !absent(v, i)) &&
-        over.every((v) => !absent(v, i)) &&
-        (!cluster || !absent(cluster, i)),
+  // Rows with every variable present; the types are read once.
+  const checked = [
+      ...new Set([
+        ...ratios.flatMap((r) => [r.y, r.x]),
+        ...over,
+        ...(cluster ? [cluster] : []),
+      ]),
+    ].map((v) => ({ data: v.data, text: isStringType(v.type) })),
+    candidates = selected(session, parsed, ctx).filter((i) =>
+      checked.every((c) => (c.text ? c.data[i] !== "" : !isMissing(c.data[i]))),
     ),
     { rows, weights } = weightedRows(session, parsed, candidates, {
       expand: false,
@@ -1253,10 +1283,20 @@ function ratio(session, text, ctx) {
       ? rows.reduce((t, i) => t + w(i), 0)
       : rows.length;
   // The groups of over(), in order of the first variable, then the next.
-  const tuples = new Map();
+  // Each row's group is found once; the sums below take the rows in order,
+  // one pass for all the ratios.
+  const keyOf =
+      over.length === 1
+        ? (i) => over[0].data[i]
+        : (i) => JSON.stringify(over.map((v) => v.data[i])),
+    tuples = new Map();
   for (const i of rows) {
-    const tuple = over.map((v) => v.data[i]);
-    tuples.set(JSON.stringify(tuple), tuple);
+    const key = keyOf(i);
+    if (!tuples.has(key))
+      tuples.set(
+        key,
+        over.map((v) => v.data[i]),
+      );
   }
   const groups = over.length
       ? [...tuples.values()].sort((a, b) => {
@@ -1265,47 +1305,85 @@ function ratio(session, text, ctx) {
           return 0;
         })
       : [null],
-    inGroup = (tuple, i) =>
-      tuple === null || over.every((v, k) => v.data[i] === tuple[k]),
+    G = groups.length,
+    R = ratios.length,
+    position = new Map(
+      over.length
+        ? groups.map((tuple, g) => [
+            over.length === 1 ? tuple[0] : JSON.stringify(tuple),
+            g,
+          ])
+        : [],
+    ),
+    groupOf = new Int32Array(data.n);
+  if (over.length) for (const i of rows) groupOf[i] = position.get(keyOf(i));
+  // A variable of over() with one level among the groups has no base.
+  const several = over.map(
+      (_, k) => new Set(groups.map((tuple) => tuple[k])).size > 1,
+    ),
     firstLevels = over.map((_, k) =>
       groups.reduce((t, tuple) => (tuple[k] < t ? tuple[k] : t), groups[0][k]),
     ),
-    items = [];
-  for (const r of ratios)
-    for (const tuple of groups) {
-      let top = 0,
-        bottom = 0,
-        n = 0;
-      for (const i of rows)
-        if (inGroup(tuple, i)) {
-          top += w(i) * r.y.data[i];
-          bottom += w(i) * r.x.data[i];
-          n += type === "fweight" || type === "iweight" ? w(i) : 1;
-        }
-      const value = top / bottom;
-      items.push({ ratio: r, tuple, value, bottom, n });
+    counted = type === "fweight" || type === "iweight",
+    top = new Float64Array(R * G),
+    bottoms = new Float64Array(R * G),
+    counts = new Float64Array(R * G),
+    sizes = new Int32Array(R * G);
+  for (const i of rows) {
+    const g = groupOf[i],
+      wi = w(i);
+    for (let r = 0; r < R; r++) {
+      const a = r * G + g;
+      top[a] += wi * ratios[r].y.data[i];
+      bottoms[a] += wi * ratios[r].x.data[i];
+      counts[a] += counted ? wi : 1;
+      sizes[a]++;
     }
-  // Scores, summed within clusters when there are clusters.
-  const units = new Map();
-  if (cluster)
-    for (const i of rows) {
-      const key = cluster.data[i];
-      if (!units.has(key)) units.set(key, new Array(items.length).fill(0));
-      const sums = units.get(key);
-      items.forEach((item, a) => {
-        if (inGroup(item.tuple, i))
-          sums[a] +=
-            (w(i) *
-              (item.ratio.y.data[i] - item.value * item.ratio.x.data[i])) /
-            item.bottom;
+  }
+  // items: each ratio in each group, the ratios' order first.
+  const items = [];
+  ratios.forEach((r, ri) =>
+    groups.forEach((tuple, g) => {
+      const a = ri * G + g;
+      items.push({
+        ratio: r,
+        tuple,
+        value: top[a] / bottoms[a],
+        bottom: bottoms[a],
+        n: counts[a],
+        size: sizes[a],
       });
-    }
+    }),
+  );
   const k = items.length,
     V = Array.from({ length: k }, () => new Array(k).fill(0)),
-    residual = (item, i) =>
-      (item.ratio.y.data[i] - item.value * item.ratio.x.data[i]) / item.bottom;
+    // An observation's score for each ratio of its group.
+    scores = (i, g, out) => {
+      for (let r = 0; r < R; r++) {
+        const item = items[r * G + g];
+        out[r] =
+          (item.ratio.y.data[i] - item.value * item.ratio.x.data[i]) /
+          item.bottom;
+      }
+    },
+    score = new Float64Array(R);
   let unitCount;
   if (cluster) {
+    // Scores summed within clusters.
+    const units = new Map();
+    for (const i of rows) {
+      const key = cluster.data[i],
+        g = groupOf[i],
+        wi = w(i);
+      if (!units.has(key)) units.set(key, new Float64Array(k));
+      const sums = units.get(key);
+      for (let r = 0; r < R; r++) {
+        const item = items[r * G + g];
+        sums[r * G + g] +=
+          (wi * (item.ratio.y.data[i] - item.value * item.ratio.x.data[i])) /
+          item.bottom;
+      }
+    }
     unitCount = units.size;
     for (const sums of units.values())
       for (let a = 0; a < k; a++)
@@ -1320,23 +1398,34 @@ function ratio(session, text, ctx) {
     // importance) weight counts the observation that many times; a
     // sampling weight scales its score.
     unitCount = N;
-    const factor = (i) =>
-      type === "fweight" || type === "iweight" ? w(i) : w(i) ** 2;
-    for (let a = 0; a < k; a++)
-      for (let b = a; b < k; b++) {
-        const ta = items[a].tuple,
-          tb = items[b].tuple;
-        if (ta !== tb) continue;
-        let sum = 0;
-        for (const i of rows)
-          if (inGroup(ta, i))
-            sum += factor(i) * residual(items[a], i) * residual(items[b], i);
-        // Sampling weights are linearized over the whole sample, the
-        // groups as subpopulations.
-        const n = type === "pweight" ? N : items[a].n;
-        V[a][b] = V[b][a] = (n / (n - 1)) * sum;
-      }
+    const sums = new Float64Array(G * R * R);
+    for (const i of rows) {
+      const g = groupOf[i],
+        wi = w(i),
+        factor = counted ? wi : wi ** 2;
+      scores(i, g, score);
+      for (let r1 = 0; r1 < R; r1++)
+        for (let r2 = r1; r2 < R; r2++)
+          sums[(g * R + r1) * R + r2] += factor * score[r1] * score[r2];
+    }
+    for (let g = 0; g < G; g++)
+      for (let r1 = 0; r1 < R; r1++)
+        for (let r2 = r1; r2 < R; r2++) {
+          const a = r1 * G + g,
+            b = r2 * G + g,
+            // Sampling weights are linearized over the whole sample, the
+            // groups as subpopulations.
+            n = type === "pweight" ? N : items[a].n;
+          V[a][b] = V[b][a] = (n / (n - 1)) * sums[(g * R + r1) * R + r2];
+        }
   }
+  // A group of one observation has no variance: Stata shows its standard
+  // error as missing, keeps zeros in e(V) and leaves it out of the rank.
+  const unknown = items.map((item) => item.size === 1);
+  unknown.forEach((none, a) => {
+    if (!none) return;
+    for (let b = 0; b < k; b++) V[a][b] = V[b][a] = 0;
+  });
   const df = unitCount - 1,
     // The table's columns, named as e(b) names them.
     terms = new Map(),
@@ -1350,7 +1439,7 @@ function ratio(session, text, ctx) {
         return {
           name: item.ratio.name,
           shown: item.ratio.name,
-          term: termOf(item.ratio.name, () => ({
+          term: termOf(item.ratio, () => ({
             variable: { name: item.ratio.name },
             components: [],
           })),
@@ -1359,12 +1448,13 @@ function ratio(session, text, ctx) {
         item.tuple
           .map(
             (level, n) =>
-              `${level}${marked && level === firstLevels[n] ? "bn" : ""}.${over[n].name}`,
+              `${level}${marked && level === firstLevels[n] && several[n] ? "bn" : ""}.${over[n].name}`,
           )
           .join("#");
       return {
         name: `c.${item.ratio.name}@${at(false)}`,
         shown: `c.${item.ratio.name}@${at(true)}`,
+        // Ratios of one name share a header, as Stata's table gives them.
         term: termOf(item.ratio.name, () => ({
           components: over.map((variable) => ({ variable, factor: true })),
           header: `c.${item.ratio.name}@${overName}`,
@@ -1377,6 +1467,8 @@ function ratio(session, text, ctx) {
       names: columns.map((c) => c.name),
       columns,
       estimable: columns.map(() => true),
+      // One group of over() is still headed by its name.
+      headedFactors: true,
     },
     b = items.map((item) => item.value),
     se = items.map((_, a) => Math.sqrt(V[a][a]));
@@ -1384,10 +1476,17 @@ function ratio(session, text, ctx) {
   // those prefixes show ratio's table: { method, reps, se, critical }.
   const display = (out, level, shownOptions = {}, resampled = null) => {
     const shape = { floor: 79, breakPad: 2 },
-      wStub = tableWidth(session, table, [], 50, shape),
+      // The legend's table has a coefficient table's first column, which
+      // the header follows.
+      wStub = shownOptions.coeflegend
+        ? tableWidth(session, table, [], 66)
+        : tableWidth(session, table, [], 50, shape),
       width = wStub + 50,
-      headerWidth =
-        tableWidth(session, table, [], 50, { ...shape, needed: true }) + 50,
+      // The legend's header is as wide as at the narrowest line, whatever
+      // the line size.
+      headerWidth = shownOptions.coeflegend
+        ? 62
+        : tableWidth(session, table, [], 50, { ...shape, needed: true }) + 50,
       critical = resampled
         ? resampled.critical
         : invttail(df, (1 - level / 100) / 2),
@@ -1399,8 +1498,17 @@ function ratio(session, text, ctx) {
     // After a prefix the blank line is the prefix's.
     if (!resampled) out.out("");
     if (!shownOptions.noheader && shownOptions.header !== false) {
+      // With strata the title stands alone, their number beside the count.
+      const strata = resampled?.nstrata
+        ? `Number of strata = ${count(resampled.nstrata)}`
+        : null;
+      if (strata) {
+        out.out(title);
+        out.out("");
+      }
+      const left = strata ?? title;
       out.out(
-        `${title}${`Number of obs = ${shownN.padStart(digits)}`.padStart(headerWidth - title.length)}`,
+        `${left}${`Number of obs = ${shownN.padStart(digits)}`.padStart(headerWidth - left.length)}`,
       );
       if (resampled)
         out.out(
@@ -1410,8 +1518,11 @@ function ratio(session, text, ctx) {
         );
       out.out("");
       if (shownOptions.legend !== false) {
+        // Names abbreviated as Stata's legend abbreviates them.
         for (const r of ratios)
-          out.out(`${r.name.padStart(13)}: ${r.y.name}/${r.x.name}`);
+          out.out(
+            `${abbreviate(r.name, 12).padStart(13)}: ${abbreviate(r.y.name, 23)}/${abbreviate(r.x.name, 23)}`,
+          );
         out.out("");
       }
     }
@@ -1441,13 +1552,15 @@ function ratio(session, text, ctx) {
     out.out(rule);
     const pad = " ".repeat(wStub + 1);
     if (resampled?.method === "bootstrap") {
-      out.out(`${pad}|   Observed   Bootstrap         Normal-based`);
+      out.out(
+        `${pad}|   Observed   ${resampled.mse ? "Bstrap *" : "Bootstrap         Normal-based"}`,
+      );
       out.out(
         `${pad}|      ratio   std. err.     [${g(level)}% conf. interval]`,
       );
     } else {
       out.out(
-        `${pad}|${resampled ? "              Jackknife" : cluster ? "               Robust" : "             Linearized"}`,
+        `${pad}|${resampled ? `              ${resampled.mse ? "Jknife *" : "Jackknife"}` : cluster ? "               Robust" : "             Linearized"}`,
       );
       out.out(
         `${pad}|      Ratio   std. err.     [${g(level)}% conf. interval]`,
@@ -1469,8 +1582,14 @@ function ratio(session, text, ctx) {
         // is omitted from e(V).
         if (!items[a].bottom)
           return `${".".padStart(11)}  (denominator estimate equals zero)`;
-        if (!(s > 0)) return `${format(b[a]).padStart(11)}  (omitted)`;
-        return `${format(b[a]).padStart(11)}${format(s).padStart(11)}${format(low).padStart(14)}${format(high).padStart(12)}`;
+        // A ratio of zero without variance is omitted from e(V).
+        if (!b[a] && !s && !unknown[a])
+          return `${format(b[a]).padStart(11)}  (omitted)`;
+        // Without a variance the error and interval are missing; with a
+        // variance of zero the interval is.
+        const known = !unknown[a] && s >= 0,
+          interval = known && s > 0;
+        return `${format(b[a]).padStart(11)}${(known ? format(s) : ".").padStart(11)}${(interval ? format(low) : ".").padStart(14)}${(interval ? format(high) : ".").padStart(12)}`;
       },
       wStub,
     ).forEach(out.out);
@@ -1505,6 +1624,8 @@ function ratio(session, text, ctx) {
     level,
     replayedBy: ["ratio"],
     eMatrices: ["_N", "error"],
+    // Stata refuses predict after ratio.
+    noPredict: true,
     ratioDisplay: (out, shownLevel, shownOptions) =>
       display(out, shownLevel ?? level, shownOptions),
     resampledDisplay: (out, shownLevel, resampled) =>
@@ -1516,7 +1637,7 @@ function ratio(session, text, ctx) {
     N_over: groups.length,
     N,
     k_eq: 1,
-    rank: k,
+    rank: k - unknown.filter(Boolean).length,
     cmdline: `ratio ${text.trim()}`,
     cmd: "ratio",
     vce: cluster ? "cluster" : "linearized",
@@ -1534,9 +1655,10 @@ function ratio(session, text, ctx) {
       colNames: table.names,
       values: [items.map((item) => item.n)],
     },
+    // Stata names e(error)'s columns c1, c2, ...
     "matrix:error": {
       rowNames: ["r1"],
-      colNames: table.names,
+      colNames: items.map((_, a) => `c${a + 1}`),
       values: [items.map(() => 0)],
     },
     ...(type ? { wtype: type, wexp: `= ${parsed.weight.exp}` } : {}),

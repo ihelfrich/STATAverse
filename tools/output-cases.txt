@@ -17862,3 +17862,216 @@ ratio y/x, vce(jackknife) over(h)
 set seed 1
 bootstrap, reps(10) cluster(id) nodots: ratio (a: y/x) (b: x/y)
 capture noisily ratio y/x, vce(robust)
+=== ratio-shared-names-and-single-observations
+clear
+set seed 502
+set obs 12
+generate y = 2 + runiform()
+generate x = 1 + runiform()
+ratio (r: y/x) (r: x/y)
+matrix list e(b)
+ratio (r: y/x) (r: x/y), coeflegend
+generate g = cond(_n == 1, 1, cond(_n <= 6, 2, 3))
+ratio (r: y/x) (r: x/y), over(g)
+ratio y/x, over(g)
+matrix list e(V)
+matrix list e(error)
+ereturn list
+ratio y/x [pw=g], over(g)
+ratio y/x in 1/1
+matrix list e(V)
+generate w = 1 + mod(_n, 3)
+ratio y/x [fw=w] in 1/1
+ratio y/x if g == 1, over(g)
+ratio y/x if g == 1, over(g) coeflegend
+capture noisily predict p
+=== ratio-legend-abbreviations
+clear
+set seed 304
+set obs 30
+generate a_very_long_numerator_name = 10*runiform()
+generate another_long_denominator = 1 + runiform()
+generate abcdefghijklmnopqrstuvw = 1 + runiform()
+generate abcdefghijklmnopqrstuvwx = 1 + runiform()
+generate byte grp = 1 + floor(runiform()*2)
+generate y = runiform()
+generate x = 1 + runiform()
+ratio a_very_long_numerator_name/another_long_denominator, over(grp)
+ratio (longname_ratio_label: a_very_long_numerator_name/another_long_denominator)
+ratio a_very_long_numerator_name/another_long_denominator, over(grp) coeflegend
+ratio (abcdefghijklm: y/x)
+ratio abcdefghijklmnopqrstuvw/abcdefghijklmnopqrstuvwx
+ratio y/abcdefghijklmnopqrstuvwx
+ratio (longname_ratio_label: y/x), coeflegend
+ratio (longname_ratio_label: y/x) (r: x/y), over(grp) coeflegend
+=== ratio-vce-parsing-and-estat-vce
+clear
+set seed 307
+set obs 30
+generate g = mod(_n, 3)
+generate y = 3 + runiform()
+generate x = 1 + runiform()
+generate cl = ceil(_n/3)
+capture noisily ratio y/x, vce(lin)
+ratio y/x, vce(linear)
+capture noisily ratio y/x, vce(cluster)
+capture noisily ratio y/x, vce(cluster cl cl)
+capture noisily ratio y/x, vce(cluster cl, foo)
+capture noisily ratio y/x, over(nosuch)
+capture noisily ratio y/x, vce(bootstrap) foo
+capture noisily ratio y/x, vce(jackknife) over(nosuch)
+set seed 3
+capture noisily ratio y/x, vce(bootstrap, reps(5)) nodots over(nosuch)
+ratio y/x, vce(jackknife, mse) nodots
+ratio y/x, over(g)
+estat vce
+ratio (r1: y/x) (r2: x/y), over(g)
+estat vce
+=== kendall-by-too-few
+clear
+set obs 7
+generate g = cond(_n <= 1, 1, cond(_n <= 5, 2, 3))
+generate x = _n^2
+generate y = mod(_n, 3)
+bysort g: ktau y x
+display "reached"
+bysort g: correlate y x
+display "reached"
+=== resampling-header-alignment
+clear
+set seed 801
+set obs 1200
+generate s = 1 + mod(_n, 4)
+generate y = invnormal(runiform())
+set seed 1
+bootstrap m=r(mean), reps(5) strata(s) nodots: summarize y
+set seed 1
+bootstrap m=r(mean), reps(5) nodots: summarize y in 1/8
+set seed 1
+bootstrap, reps(5) strata(s) nodots: ratio y/s
+clear
+set seed 410
+set obs 20
+generate y = runiform()
+generate x = runiform()
+set seed 2
+bootstrap, reps(10) nodots: regress y x
+jackknife, nodots: regress y x
+=== resampling-saving-double
+clear
+set seed 405
+set obs 30
+generate y = runiform()
+set seed 9
+bootstrap m=r(mean), reps(12) saving(p7dbl2, replace double) nodots: summarize y
+preserve
+use p7dbl2, clear
+describe m
+format m %20.0g
+list in 1/3
+restore
+jackknife m=r(mean) s=r(sd), saving(p7dbl4, replace double) nodots: summarize y
+=== resampling-command-if-in
+clear
+set seed 402
+set obs 30
+generate y = runiform()
+generate nc = ceil(_n/3)
+replace nc = . in 1/2
+set seed 7
+bootstrap m=r(mean), reps(12) cluster(nc) nodots: summarize y if nc < .
+jackknife m=r(mean), cluster(nc) nodots: summarize y if nc < .
+clear
+set seed 403
+set obs 40
+generate y = runiform()
+generate x = y + runiform()
+generate s = mod(_n, 3)
+set seed 8
+bootstrap m=r(mean), reps(10) nodots: summarize y in 1/20
+jackknife m=r(mean), nodots: summarize y in 1/8
+jackknife, nodots: regress y x in 1/8
+set seed 8
+bootstrap m=r(mean), reps(10) cluster(s) nodots: summarize y in 5/40
+jackknife m=r(mean), cluster(s) nodots: summarize y if x > .3
+set seed 8
+bootstrap m=r(mean), reps(10) nodots: summarize y if x > .5 in 3/30
+set seed 8
+bootstrap, reps(10) nodots: regress y x in 3/30
+set seed 5
+bootstrap m=r(mean), nodrop reps(5) nodots: summarize y in 1/20
+=== resampling-options-stata-accepts
+clear
+set seed 77
+set obs 30
+generate y = runiform()
+generate w = 1
+generate x = 1 + runiform()
+set seed 3
+bootstrap m=r(mean), reps(5) mse nodots: summarize y
+set seed 3
+bootstrap m=r(mean), reps(5) reject(r(mean) > .55) nodots: summarize y
+set seed 3
+bootstrap m=r(mean), reps(5) nodrop nodots: summarize y
+set seed 3
+bootstrap m=r(mean), reps(5) notable nodots: summarize y
+set seed 3
+bootstrap m=r(mean), reps(5) noheader nolegend nodots: summarize y
+set seed 3
+bootstrap m=r(mean), reps(5) force nodots: summarize y
+bootstrap m=r(mean), reps(5) seed(-3) nodots: summarize y
+bootstrap m=r(mean), reps(5) seed(1.5) nodots: summarize y
+capture noisily bootstrap m=r(mean), reps(5) seed(abc) nodots: summarize y
+capture noisily bootstrap m=r(mean), reps(5) group(w) nodots: summarize y
+capture noisily bootstrap m=r(mean), reps(4) dots(-1): summarize y
+capture noisily jackknife m=r(mean), strata(w) nodots: summarize y
+jackknife m=r(mean), mse nodots: summarize y
+ereturn list
+jackknife m=r(mean), notable nodots: summarize y
+jackknife m=r(mean), noheader nolegend nodots: summarize y
+jackknife m=r(mean), rclass nodots: summarize y
+jackknife m=r(mean), n(r(N)) nodots: summarize y
+capture noisily jackknife m=r(mean), eclass nodots: summarize y
+capture noisily jackknife m=r(mean), eclass rclass nodots: summarize y
+jackknife m=r(mean) sd=r(sd), keep nodots: summarize y
+describe
+list in 1/3
+=== resampling-failures-and-results
+clear
+set seed 77
+set obs 30
+generate y = runiform()
+generate x = 1 + runiform()
+capture noisily bootstrap m=r(mean), nodots: summarize nosuch
+capture noisily jackknife m=r(mean), nodots: summarize nosuch
+capture noisily bootstrap m=r(nosuch), nodots: summarize y
+capture noisily jackknife m=r(nosuch), nodots: summarize y
+capture noisily jackknife, nodots: ratio y/x, foo
+replace y = . in 4
+jackknife m=r(mean), nodots: summarize y
+generate s = mod(_n, 4)
+jackknife m=r(mean) v=r(Var), keep cluster(s) nodots: summarize y if x > 1.2
+list y x s m v in 1/6
+set seed 5
+bootstrap m=r(mean), reps(5) reject(r(mean) > .45): summarize y
+jackknife m=r(mean), reject(r(mean) > .48): summarize y
+capture noisily bootstrap m=r(mean), reps(5) reject(r(mean) > .1): summarize y
+set seed 5
+bootstrap m=r(mean) s=r(sd), reps(20) nodots: summarize y
+matrix list e(b)
+matrix list e(V)
+matrix list e(b_bs)
+matrix list e(bias)
+matrix list e(z0)
+matrix list e(se)
+matrix list e(ci_normal)
+matrix list e(ci_percentile)
+matrix list e(ci_bc)
+display _b[m]
+display _se[s]
+set seed 5
+bootstrap, mse reps(5) nodots: regress y x
+set seed 5
+bootstrap, reps(5) notable nodots: regress y x
+set seed 5
+bootstrap, reps(5) noheader nodots: regress y x

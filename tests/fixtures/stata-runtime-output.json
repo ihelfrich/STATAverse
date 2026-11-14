@@ -124947,6 +124947,1750 @@
       ]
     },
     {
+      "id": "ratio-shared-names-and-single-observations",
+      "source": "clear\nset seed 502\nset obs 12\ngenerate y = 2 + runiform()\ngenerate x = 1 + runiform()\nratio (r: y/x) (r: x/y)\nmatrix list e(b)\nratio (r: y/x) (r: x/y), coeflegend\ngenerate g = cond(_n == 1, 1, cond(_n <= 6, 2, 3))\nratio (r: y/x) (r: x/y), over(g)\nratio y/x, over(g)\nmatrix list e(V)\nmatrix list e(error)\nereturn list\nratio y/x [pw=g], over(g)\nratio y/x in 1/1\nmatrix list e(V)\ngenerate w = 1 + mod(_n, 3)\nratio y/x [fw=w] in 1/1\nratio y/x if g == 1, over(g)\nratio y/x if g == 1, over(g) coeflegend\ncapture noisily predict p\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 502", "lines": [] },
+        {
+          "command": "set obs 12",
+          "lines": ["Number of observations (_N) was 0, now 12."]
+        },
+        { "command": "generate y = 2 + runiform()", "lines": [] },
+        { "command": "generate x = 1 + runiform()", "lines": [] },
+        {
+          "command": "ratio (r: y/x) (r: x/y)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 12",
+            "",
+            "            r: y/x",
+            "            r: x/y",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           r |   1.556558   .0919258      1.354231    1.758886",
+            "           r |    .642443   .0379408      .5589358    .7259501",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(b)",
+          "lines": [
+            "e(b)[1,2]",
+            "            r          r",
+            "y1  1.5565584  .64244296"
+          ]
+        },
+        {
+          "command": "ratio (r: y/x) (r: x/y), coeflegend",
+          "lines": [
+            "Ratio estimation                            Number of obs = 12",
+            "",
+            "            r: y/x",
+            "            r: x/y",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |      Ratio   Legend",
+            "-------------+----------------------------------------------------------------",
+            "           r |   1.556558  _b[r]",
+            "           r |    .642443  _b[r]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "generate g = cond(_n == 1, 1, cond(_n <= 6, 2, 3))",
+          "lines": []
+        },
+        {
+          "command": "ratio (r: y/x) (r: x/y), over(g)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 12",
+            "",
+            "            r: y/x",
+            "            r: x/y",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "       c.r@g |",
+            "          1  |   1.834694          .             .           .",
+            "          2  |    1.40695   .1215813      1.139351    1.674549",
+            "          3  |   1.636214   .1412027      1.325429       1.947",
+            "          1  |   .5450501          .             .           .",
+            "          2  |   .7107574     .06142      .5755729    .8459419",
+            "          3  |   .6111668   .0527427      .4950809    .7272528",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/x, over(g)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 12",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "c._ratio_1@g |",
+            "          1  |   1.834694          .             .           .",
+            "          2  |    1.40695   .1215813      1.139351    1.674549",
+            "          3  |   1.636214   .1412027      1.325429       1.947",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[3,3]",
+            "            c._ratio_1@  c._ratio_1@  c._ratio_1@",
+            "                   1.g          2.g          3.g",
+            "c._ratio_1@",
+            "      1.g            0",
+            "c._ratio_1@",
+            "      2.g            0    .01478202",
+            "c._ratio_1@",
+            "      3.g            0            0     .0199382"
+          ]
+        },
+        {
+          "command": "matrix list e(error)",
+          "lines": ["e(error)[1,3]", "    c1  c2  c3", "r1   0   0   0"]
+        },
+        {
+          "command": "ereturn list",
+          "lines": [
+            "scalars:",
+            "               e(df_r) =  11",
+            "             e(N_over) =  3",
+            "                  e(N) =  12",
+            "               e(k_eq) =  1",
+            "               e(rank) =  2",
+            "",
+            "macros:",
+            "            e(cmdline) : \"ratio y/x, over(g)\"",
+            "                e(cmd) : \"ratio\"",
+            "                e(vce) : \"linearized\"",
+            "            e(vcetype) : \"Linearized\"",
+            "              e(title) : \"Ratio estimation\"",
+            "           e(namelist) : \"_ratio_1\"",
+            "          e(estat_cmd) : \"estat_vce_only\"",
+            "            e(varlist) : \"y x\"",
+            "       e(marginsnotok) : \"_ALL\"",
+            "               e(over) : \"g\"",
+            "         e(properties) : \"b V\"",
+            "",
+            "matrices:",
+            "                  e(b) :  1 x 3",
+            "                  e(V) :  3 x 3",
+            "                 e(_N) :  1 x 3",
+            "              e(error) :  1 x 3",
+            "",
+            "functions:",
+            "             e(sample)"
+          ]
+        },
+        {
+          "command": "ratio y/x [pw=g], over(g)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 12",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "c._ratio_1@g |",
+            "          1  |   1.834694          .             .           .",
+            "          2  |    1.40695   .1135811      1.156959     1.65694",
+            "          3  |   1.636214   .1346315      1.339893    1.932536",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/x in 1/1",
+          "lines": [
+            "Ratio estimation                             Number of obs = 1",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   1.834694          .             .           .",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[1,1]",
+            "          _ratio_1",
+            "_ratio_1         0"
+          ]
+        },
+        { "command": "generate w = 1 + mod(_n, 3)", "lines": [] },
+        {
+          "command": "ratio y/x [fw=w] in 1/1",
+          "lines": [
+            "Ratio estimation                             Number of obs = 2",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   1.834694          .             .           .",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/x if g == 1, over(g)",
+          "lines": [
+            "Ratio estimation                             Number of obs = 1",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "c._ratio_1@g |",
+            "          1  |   1.834694          .             .           .",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/x if g == 1, over(g) coeflegend",
+          "lines": [
+            "Ratio estimation                             Number of obs = 1",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |      Ratio   Legend",
+            "-------------+----------------------------------------------------------------",
+            "c._ratio_1@g |",
+            "          1  |   1.834694  _b[c._ratio_1@1.g]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily predict p",
+          "lines": ["predict is not allowed after ratio"]
+        }
+      ]
+    },
+    {
+      "id": "ratio-legend-abbreviations",
+      "source": "clear\nset seed 304\nset obs 30\ngenerate a_very_long_numerator_name = 10*runiform()\ngenerate another_long_denominator = 1 + runiform()\ngenerate abcdefghijklmnopqrstuvw = 1 + runiform()\ngenerate abcdefghijklmnopqrstuvwx = 1 + runiform()\ngenerate byte grp = 1 + floor(runiform()*2)\ngenerate y = runiform()\ngenerate x = 1 + runiform()\nratio a_very_long_numerator_name/another_long_denominator, over(grp)\nratio (longname_ratio_label: a_very_long_numerator_name/another_long_denominator)\nratio a_very_long_numerator_name/another_long_denominator, over(grp) coeflegend\nratio (abcdefghijklm: y/x)\nratio abcdefghijklmnopqrstuvw/abcdefghijklmnopqrstuvwx\nratio y/abcdefghijklmnopqrstuvwx\nratio (longname_ratio_label: y/x), coeflegend\nratio (longname_ratio_label: y/x) (r: x/y), over(grp) coeflegend\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 304", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        {
+          "command": "generate a_very_long_numerator_name = 10*runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate another_long_denominator = 1 + runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate abcdefghijklmnopqrstuvw = 1 + runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate abcdefghijklmnopqrstuvwx = 1 + runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate byte grp = 1 + floor(runiform()*2)",
+          "lines": []
+        },
+        { "command": "generate y = runiform()", "lines": [] },
+        { "command": "generate x = 1 + runiform()", "lines": [] },
+        {
+          "command": "ratio a_very_long_numerator_name/another_long_denominator, over(grp)",
+          "lines": [
+            "Ratio estimation                              Number of obs = 30",
+            "",
+            "     _ratio_1: a_very_long_numerator~e/another_long_denomina~r",
+            "",
+            "----------------------------------------------------------------",
+            "               |             Linearized",
+            "               |      Ratio   std. err.     [95% conf. interval]",
+            "---------------+------------------------------------------------",
+            "c._ratio_1@grp |",
+            "            1  |   2.812852   .6569375      1.469264     4.15644",
+            "            2  |   2.686497   .4773963      1.710112    3.662882",
+            "----------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio (longname_ratio_label: a_very_long_numerator_name/another_long_denominator)",
+          "lines": [
+            "Ratio estimation                                    Number of obs = 30",
+            "",
+            " longname_r~l: a_very_long_numerator~e/another_long_denomina~r",
+            "",
+            "----------------------------------------------------------------------",
+            "                     |             Linearized",
+            "                     |      Ratio   std. err.     [95% conf. interval]",
+            "---------------------+------------------------------------------------",
+            "longname_ratio_label |   2.745649   .3916113      1.944713    3.546584",
+            "----------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio a_very_long_numerator_name/another_long_denominator, over(grp) coeflegend",
+          "lines": [
+            "Ratio estimation                            Number of obs = 30",
+            "",
+            "     _ratio_1: a_very_long_numerator~e/another_long_denomina~r",
+            "",
+            "--------------------------------------------------------------------------------",
+            "               |      Ratio   Legend",
+            "---------------+----------------------------------------------------------------",
+            "c._ratio_1@grp |",
+            "            1  |   2.812852  _b[c._ratio_1@1bn.grp]",
+            "            2  |   2.686497  _b[c._ratio_1@2.grp]",
+            "--------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio (abcdefghijklm: y/x)",
+          "lines": [
+            "Ratio estimation                             Number of obs = 30",
+            "",
+            " abcdefghij~m: y/x",
+            "",
+            "---------------------------------------------------------------",
+            "              |             Linearized",
+            "              |      Ratio   std. err.     [95% conf. interval]",
+            "--------------+------------------------------------------------",
+            "abcdefghijklm |   .3176098   .0375726      .2407652    .3944544",
+            "---------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio abcdefghijklmnopqrstuvw/abcdefghijklmnopqrstuvwx",
+          "lines": [
+            "Ratio estimation                            Number of obs = 30",
+            "",
+            "     _ratio_1: abcdefghijklmnopqrstuvw/abcdefghijklmnopqrstu~x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   .8733267   .0402112      .7910855    .9555679",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/abcdefghijklmnopqrstuvwx",
+          "lines": [
+            "Ratio estimation                            Number of obs = 30",
+            "",
+            "     _ratio_1: y/abcdefghijklmnopqrstu~x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   .3059466   .0366551      .2309786    .3809146",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio (longname_ratio_label: y/x), coeflegend",
+          "lines": [
+            "Ratio estimation                            Number of obs = 30",
+            "",
+            " longname_r~l: y/x",
+            "",
+            "--------------------------------------------------------------------------------------",
+            "                     |      Ratio   Legend",
+            "---------------------+----------------------------------------------------------------",
+            "longname_ratio_label |   .3176098  _b[longname_ratio_label]",
+            "--------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio (longname_ratio_label: y/x) (r: x/y), over(grp) coeflegend",
+          "lines": [
+            "Ratio estimation                            Number of obs = 30",
+            "",
+            " longname_r~l: y/x",
+            "            r: x/y",
+            "",
+            "--------------------------------------------------------------------------------------------",
+            "                           |      Ratio   Legend",
+            "---------------------------+----------------------------------------------------------------",
+            "c.longname_ratio_label@grp |",
+            "                        1  |   .2663501  _b[c.longname_ratio_label@1bn.grp]",
+            "                        2  |   .3693046  _b[c.longname_ratio_label@2.grp]",
+            "                           |",
+            "                   c.r@grp |",
+            "                        1  |   3.754457  _b[c.r@1bn.grp]",
+            "                        2  |   2.707792  _b[c.r@2.grp]",
+            "--------------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ratio-vce-parsing-and-estat-vce",
+      "source": "clear\nset seed 307\nset obs 30\ngenerate g = mod(_n, 3)\ngenerate y = 3 + runiform()\ngenerate x = 1 + runiform()\ngenerate cl = ceil(_n/3)\ncapture noisily ratio y/x, vce(lin)\nratio y/x, vce(linear)\ncapture noisily ratio y/x, vce(cluster)\ncapture noisily ratio y/x, vce(cluster cl cl)\ncapture noisily ratio y/x, vce(cluster cl, foo)\ncapture noisily ratio y/x, over(nosuch)\ncapture noisily ratio y/x, vce(bootstrap) foo\ncapture noisily ratio y/x, vce(jackknife) over(nosuch)\nset seed 3\ncapture noisily ratio y/x, vce(bootstrap, reps(5)) nodots over(nosuch)\nratio y/x, vce(jackknife, mse) nodots\nratio y/x, over(g)\nestat vce\nratio (r1: y/x) (r2: x/y), over(g)\nestat vce\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 307", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate g = mod(_n, 3)", "lines": [] },
+        { "command": "generate y = 3 + runiform()", "lines": [] },
+        { "command": "generate x = 1 + runiform()", "lines": [] },
+        { "command": "generate cl = ceil(_n/3)", "lines": [] },
+        {
+          "command": "capture noisily ratio y/x, vce(lin)",
+          "lines": ["vcetype lin not allowed"]
+        },
+        {
+          "command": "ratio y/x, vce(linear)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 30",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   2.268308   .0832199      2.098104    2.438512",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily ratio y/x, vce(cluster)",
+          "lines": ["option vce(cluster clustvar) incorrectly specified"]
+        },
+        {
+          "command": "capture noisily ratio y/x, vce(cluster cl cl)",
+          "lines": ["multiway cluster VCE not allowed"]
+        },
+        {
+          "command": "capture noisily ratio y/x, vce(cluster cl, foo)",
+          "lines": ["option foo not allowed"]
+        },
+        {
+          "command": "capture noisily ratio y/x, over(nosuch)",
+          "lines": ["variable nosuch not found", "invalid over() option"]
+        },
+        {
+          "command": "capture noisily ratio y/x, vce(bootstrap) foo",
+          "lines": [
+            "(running ratio on estimation sample)",
+            "option foo not allowed",
+            "an error occurred when bootstrap executed ratio"
+          ]
+        },
+        {
+          "command": "capture noisily ratio y/x, vce(jackknife) over(nosuch)",
+          "lines": ["variable nosuch not found", "invalid over() option"]
+        },
+        { "command": "set seed 3", "lines": [] },
+        {
+          "command": "capture noisily ratio y/x, vce(bootstrap, reps(5)) nodots over(nosuch)",
+          "lines": [
+            "variable nosuch not found",
+            "invalid over() option",
+            "an error occurred when bootstrap executed ratio"
+          ]
+        },
+        {
+          "command": "ratio y/x, vce(jackknife, mse) nodots",
+          "lines": [
+            "Ratio estimation                            Number of obs = 30",
+            "                                            Replications  = 30",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |              Jknife *",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |   2.268308   .0832429      2.098057    2.438559",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ratio y/x, over(g)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 30",
+            "",
+            "     _ratio_1: y/x",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "c._ratio_1@g |",
+            "          0  |   2.092068   .1288009      1.828641    2.355496",
+            "          1  |   2.662466   .1381134      2.379992     2.94494",
+            "          2  |   2.108513   .1051401      1.893477    2.323548",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of ratio model",
+            "",
+            "             | c._ratio_1@ c._ratio_1@ c._ratio_1@",
+            "        e(V) |        0.g         1.g         2.g",
+            "-------------+-----------------------------------",
+            "  c._ratio_1@|",
+            "         0.g |  .01658968",
+            "  c._ratio_1@|",
+            "         1.g |          0   .01907531",
+            "  c._ratio_1@|",
+            "         2.g |          0           0   .01105445"
+          ]
+        },
+        {
+          "command": "ratio (r1: y/x) (r2: x/y), over(g)",
+          "lines": [
+            "Ratio estimation                            Number of obs = 30",
+            "",
+            "           r1: y/x",
+            "           r2: x/y",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |      Ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      c.r1@g |",
+            "          0  |   2.092068   .1288009      1.828641    2.355496",
+            "          1  |   2.662466   .1381134      2.379992     2.94494",
+            "          2  |   2.108513   .1051401      1.893477    2.323548",
+            "             |",
+            "      c.r2@g |",
+            "          0  |   .4779959   .0294285       .417808    .5381839",
+            "          1  |   .3755916   .0194835      .3357433    .4154399",
+            "          2  |    .474268   .0236492         .4259    .5226359",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of ratio model",
+            "",
+            "             |       c.r1@       c.r1@       c.r1@       c.r2@       c.r2@       c.r2@",
+            "        e(V) |        0.g         1.g         2.g         0.g         1.g         2.g",
+            "-------------+-----------------------------------------------------------------------",
+            "    c.r1@0.g |  .01658968",
+            "    c.r1@1.g |          0   .01907531",
+            "    c.r1@2.g |          0           0   .01105445",
+            "    c.r2@0.g | -.00379041           0           0   .00086603",
+            "    c.r2@1.g |          0  -.00269094           0           0   .00037961",
+            "    c.r2@2.g |          0           0  -.00248648           0           0   .00055928"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kendall-by-too-few",
+      "source": "clear\nset obs 7\ngenerate g = cond(_n <= 1, 1, cond(_n <= 5, 2, 3))\ngenerate x = _n^2\ngenerate y = mod(_n, 3)\nbysort g: ktau y x\ndisplay \"reached\"\nbysort g: correlate y x\ndisplay \"reached\"\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 7",
+          "lines": ["Number of observations (_N) was 0, now 7."]
+        },
+        {
+          "command": "generate g = cond(_n <= 1, 1, cond(_n <= 5, 2, 3))",
+          "lines": []
+        },
+        { "command": "generate x = _n^2", "lines": [] },
+        { "command": "generate y = mod(_n, 3)", "lines": [] },
+        {
+          "command": "bysort g: ktau y x",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "insufficient observations",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 2",
+            "",
+            "  Number of obs =       4",
+            "Kendall's tau-a =       0.1667",
+            "Kendall's tau-b =       0.1826",
+            "Kendall's score =       1",
+            "    SE of score =       2.769   (corrected for ties)",
+            "",
+            "Test of H0: y and x are independent",
+            "     Prob > |z| =       1.0000  (continuity corrected)",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 3",
+            "insufficient observations"
+          ]
+        },
+        { "command": "display \"reached\"", "lines": ["reached"] },
+        {
+          "command": "bysort g: correlate y x",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "insufficient observations",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 2",
+            "(obs=4)",
+            "",
+            "             |        y        x",
+            "-------------+------------------",
+            "           y |   1.0000",
+            "           x |   0.2484   1.0000",
+            "",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 3",
+            "(obs=2)",
+            "",
+            "             |        y        x",
+            "-------------+------------------",
+            "           y |   1.0000",
+            "           x |   1.0000   1.0000"
+          ]
+        },
+        { "command": "display \"reached\"", "lines": ["reached"] }
+      ]
+    },
+    {
+      "id": "resampling-header-alignment",
+      "source": "clear\nset seed 801\nset obs 1200\ngenerate s = 1 + mod(_n, 4)\ngenerate y = invnormal(runiform())\nset seed 1\nbootstrap m=r(mean), reps(5) strata(s) nodots: summarize y\nset seed 1\nbootstrap m=r(mean), reps(5) nodots: summarize y in 1/8\nset seed 1\nbootstrap, reps(5) strata(s) nodots: ratio y/s\nclear\nset seed 410\nset obs 20\ngenerate y = runiform()\ngenerate x = runiform()\nset seed 2\nbootstrap, reps(10) nodots: regress y x\njackknife, nodots: regress y x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 801", "lines": [] },
+        {
+          "command": "set obs 1200",
+          "lines": ["Number of observations (_N) was 0, now 1,200."]
+        },
+        { "command": "generate s = 1 + mod(_n, 4)", "lines": [] },
+        { "command": "generate y = invnormal(runiform())", "lines": [] },
+        { "command": "set seed 1", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(5) strata(s) nodots: summarize y",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results",
+            "",
+            "Number of strata = 4                                     Number of obs = 1,200",
+            "                                                         Replications  =     5",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |  -.0209923   .0282863    -0.74   0.458    -.0764325    .0344479",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 1", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(5) nodots: summarize y in 1/8",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                            Number of obs = 8",
+            "                                                             Replications  = 5",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .3840152   .2483063     1.55   0.122    -.1026562    .8706866",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 1", "lines": [] },
+        {
+          "command": "bootstrap, reps(5) strata(s) nodots: ratio y/s",
+          "lines": [
+            "Ratio estimation",
+            "",
+            "Number of strata = 4                     Number of obs = 1,200",
+            "                                         Replications  =     5",
+            "",
+            "     _ratio_1: y/s",
+            "",
+            "--------------------------------------------------------------",
+            "             |   Observed   Bootstrap         Normal-based",
+            "             |      ratio   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "    _ratio_1 |  -.0083969   .0113145      -.030573    .0137792",
+            "--------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 410", "lines": [] },
+        {
+          "command": "set obs 20",
+          "lines": ["Number of observations (_N) was 0, now 20."]
+        },
+        { "command": "generate y = runiform()", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "set seed 2", "lines": [] },
+        {
+          "command": "bootstrap, reps(10) nodots: regress y x",
+          "lines": [
+            "Linear regression                                      Number of obs =      20",
+            "                                                       Replications  =      10",
+            "                                                       Wald chi2(1)  =    1.18",
+            "                                                       Prob > chi2   =  0.2774",
+            "                                                       R-squared     =  0.0510",
+            "                                                       Adj R-squared = -0.0017",
+            "                                                       Root MSE      =  0.2861",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.2006898   .1847841    -1.09   0.277    -.5628599    .1614804",
+            "       _cons |    .514738   .0779814     6.60   0.000     .3618972    .6675788",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife, nodots: regress y x",
+          "lines": [
+            "Linear regression                                      Number of obs =      20",
+            "                                                       Replications  =      20",
+            "                                                       F(1, 19)      =    0.99",
+            "                                                       Prob > F      =  0.3324",
+            "                                                       R-squared     =  0.0510",
+            "                                                       Adj R-squared = -0.0017",
+            "                                                       Root MSE      =  0.2861",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.2006898   .2017703    -0.99   0.332    -.6229998    .2216202",
+            "       _cons |    .514738   .1144299     4.50   0.000     .2752334    .7542426",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resampling-saving-double",
+      "source": "clear\nset seed 405\nset obs 30\ngenerate y = runiform()\nset seed 9\nbootstrap m=r(mean), reps(12) saving(p7dbl2, replace double) nodots: summarize y\npreserve\nuse p7dbl2, clear\ndescribe m\nformat m %20.0g\nlist in 1/3\nrestore\njackknife m=r(mean) s=r(sd), saving(p7dbl4, replace double) nodots: summarize y\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 405", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate y = runiform()", "lines": [] },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(12) saving(p7dbl2, replace double) nodots: summarize y",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "(file p7dbl2.dta not found)",
+            "",
+            "Bootstrap results                                           Number of obs = 30",
+            "                                                            Replications  = 12",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .5181143   .0617117     8.40   0.000     .3971615    .6390671",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "preserve", "lines": [] },
+        { "command": "use p7dbl2, clear", "lines": ["(bootstrap: summarize)"] },
+        {
+          "command": "describe m",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "m               double  %10.0g                r(mean)"
+          ]
+        },
+        { "command": "format m %20.0g", "lines": [] },
+        {
+          "command": "list in 1/3",
+          "lines": [
+            "     +---------------------+",
+            "     |                   m |",
+            "     |---------------------|",
+            "  1. | .603190764784812927 |",
+            "  2. | .493050182610750176 |",
+            "  3. | .516860839972893449 |",
+            "     +---------------------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        {
+          "command": "jackknife m=r(mean) s=r(sd), saving(p7dbl4, replace double) nodots: summarize y",
+          "lines": [
+            "(file p7dbl4.dta not found)",
+            "",
+            "Jackknife results                                           Number of obs = 30",
+            "                                                            Replications  = 30",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "            s: r(sd)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .5181143   .0527753     9.82   0.000     .4101768    .6260519",
+            "           s |   .2890621   .0243399    11.88   0.000     .2392815    .3388427",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resampling-command-if-in",
+      "source": "clear\nset seed 402\nset obs 30\ngenerate y = runiform()\ngenerate nc = ceil(_n/3)\nreplace nc = . in 1/2\nset seed 7\nbootstrap m=r(mean), reps(12) cluster(nc) nodots: summarize y if nc < .\njackknife m=r(mean), cluster(nc) nodots: summarize y if nc < .\nclear\nset seed 403\nset obs 40\ngenerate y = runiform()\ngenerate x = y + runiform()\ngenerate s = mod(_n, 3)\nset seed 8\nbootstrap m=r(mean), reps(10) nodots: summarize y in 1/20\njackknife m=r(mean), nodots: summarize y in 1/8\njackknife, nodots: regress y x in 1/8\nset seed 8\nbootstrap m=r(mean), reps(10) cluster(s) nodots: summarize y in 5/40\njackknife m=r(mean), cluster(s) nodots: summarize y if x > .3\nset seed 8\nbootstrap m=r(mean), reps(10) nodots: summarize y if x > .5 in 3/30\nset seed 8\nbootstrap, reps(10) nodots: regress y x in 3/30\nset seed 5\nbootstrap m=r(mean), nodrop reps(5) nodots: summarize y in 1/20\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 402", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate y = runiform()", "lines": [] },
+        { "command": "generate nc = ceil(_n/3)", "lines": [] },
+        {
+          "command": "replace nc = . in 1/2",
+          "lines": ["(2 real changes made, 2 to missing)"]
+        },
+        { "command": "set seed 7", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(12) cluster(nc) nodots: summarize y if nc < .",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                           Number of obs = 28",
+            "                                                            Replications  = 12",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "                                     (Replications based on 10 clusters in nc)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .5726775   .0781577     7.33   0.000     .4194912    .7258638",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife m=r(mean), cluster(nc) nodots: summarize y if nc < .",
+          "lines": [
+            "Jackknife results                                           Number of obs = 28",
+            "                                                            Replications  = 10",
+            "",
+            "      Command: summarize y if nc < .",
+            "            m: r(mean)",
+            "          n(): r(N)",
+            "",
+            "                                     (Replications based on 10 clusters in nc)",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .5726775   .0699461     8.19   0.000     .4144484    .7309066",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 403", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate y = runiform()", "lines": [] },
+        { "command": "generate x = y + runiform()", "lines": [] },
+        { "command": "generate s = mod(_n, 3)", "lines": [] },
+        { "command": "set seed 8", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(10) nodots: summarize y in 1/20",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                           Number of obs = 20",
+            "                                                            Replications  = 10",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4091965   .0604819     6.77   0.000     .2906541    .5277389",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife m=r(mean), nodots: summarize y in 1/8",
+          "lines": [
+            "Jackknife results                                            Number of obs = 8",
+            "                                                             Replications  = 8",
+            "",
+            "      Command: summarize y in 1/8",
+            "            m: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |    .448103   .1270066     3.53   0.010     .1477801    .7484259",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife, nodots: regress y x in 1/8",
+          "lines": [
+            "Linear regression                                       Number of obs =      8",
+            "                                                        Replications  =      8",
+            "                                                        F(1, 7)       =  52.36",
+            "                                                        Prob > F      = 0.0002",
+            "                                                        R-squared     = 0.9009",
+            "                                                        Adj R-squared = 0.8844",
+            "                                                        Root MSE      = 0.1221",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .7842135   .1083712     7.24   0.000     .5279563    1.040471",
+            "       _cons |  -.2081633   .1059717    -1.96   0.090    -.4587466    .0424199",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 8", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(10) cluster(s) nodots: summarize y in 5/40",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                           Number of obs = 36",
+            "                                                            Replications  = 10",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "                                       (Replications based on 3 clusters in s)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .5085676   .0360016    14.13   0.000     .4380058    .5791294",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife m=r(mean), cluster(s) nodots: summarize y if x > .3",
+          "lines": [
+            "Jackknife results                                           Number of obs = 39",
+            "                                                            Replications  =  3",
+            "",
+            "      Command: summarize y if x > .3",
+            "            m: r(mean)",
+            "          n(): r(N)",
+            "",
+            "                                       (Replications based on 3 clusters in s)",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .5117161   .0560475     9.13   0.012     .2705634    .7528689",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 8", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(10) nodots: summarize y if x > .5 in 3/30",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                           Number of obs = 25",
+            "                                                            Replications  = 10",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |    .519281   .0521732     9.95   0.000     .4170234    .6215386",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 8", "lines": [] },
+        {
+          "command": "bootstrap, reps(10) nodots: regress y x in 3/30",
+          "lines": [
+            "Linear regression                                       Number of obs =     28",
+            "                                                        Replications  =     10",
+            "                                                        Wald chi2(1)  =  28.86",
+            "                                                        Prob > chi2   = 0.0000",
+            "                                                        R-squared     = 0.3454",
+            "                                                        Adj R-squared = 0.3203",
+            "                                                        Root MSE      = 0.2348",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .4672098   .0869667     5.37   0.000     .2967581    .6376614",
+            "       _cons |  -.0002755   .0834523    -0.00   0.997     -.163839     .163288",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 5", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), nodrop reps(5) nodots: summarize y in 1/20",
+          "lines": [
+            "Bootstrap results                                           Number of obs = 40",
+            "                                                            Replications  =  5",
+            "",
+            "      Command: summarize y in 1/20",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4091965   .0414574     9.87   0.000     .3279415    .4904516",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resampling-options-stata-accepts",
+      "source": "clear\nset seed 77\nset obs 30\ngenerate y = runiform()\ngenerate w = 1\ngenerate x = 1 + runiform()\nset seed 3\nbootstrap m=r(mean), reps(5) mse nodots: summarize y\nset seed 3\nbootstrap m=r(mean), reps(5) reject(r(mean) > .55) nodots: summarize y\nset seed 3\nbootstrap m=r(mean), reps(5) nodrop nodots: summarize y\nset seed 3\nbootstrap m=r(mean), reps(5) notable nodots: summarize y\nset seed 3\nbootstrap m=r(mean), reps(5) noheader nolegend nodots: summarize y\nset seed 3\nbootstrap m=r(mean), reps(5) force nodots: summarize y\nbootstrap m=r(mean), reps(5) seed(-3) nodots: summarize y\nbootstrap m=r(mean), reps(5) seed(1.5) nodots: summarize y\ncapture noisily bootstrap m=r(mean), reps(5) seed(abc) nodots: summarize y\ncapture noisily bootstrap m=r(mean), reps(5) group(w) nodots: summarize y\ncapture noisily bootstrap m=r(mean), reps(4) dots(-1): summarize y\ncapture noisily jackknife m=r(mean), strata(w) nodots: summarize y\njackknife m=r(mean), mse nodots: summarize y\nereturn list\njackknife m=r(mean), notable nodots: summarize y\njackknife m=r(mean), noheader nolegend nodots: summarize y\njackknife m=r(mean), rclass nodots: summarize y\njackknife m=r(mean), n(r(N)) nodots: summarize y\ncapture noisily jackknife m=r(mean), eclass nodots: summarize y\ncapture noisily jackknife m=r(mean), eclass rclass nodots: summarize y\njackknife m=r(mean) sd=r(sd), keep nodots: summarize y\ndescribe\nlist in 1/3\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 77", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate y = runiform()", "lines": [] },
+        { "command": "generate w = 1", "lines": [] },
+        { "command": "generate x = 1 + runiform()", "lines": [] },
+        { "command": "set seed 3", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(5) mse nodots: summarize y",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                           Number of obs = 30",
+            "                                                            Replications  =  5",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bstrap *",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4541962   .0243019    18.69   0.000     .4065653    .5018271",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 3", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(5) reject(r(mean) > .55) nodots: summarize y",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                           Number of obs = 30",
+            "                                                            Replications  =  5",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4541962   .0114687    39.60   0.000      .431718    .4766744",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 3", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(5) nodrop nodots: summarize y",
+          "lines": [
+            "Bootstrap results                                           Number of obs = 30",
+            "                                                            Replications  =  5",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4541962   .0114687    39.60   0.000      .431718    .4766744",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 3", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(5) notable nodots: summarize y",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                           Number of obs = 30",
+            "                                                            Replications  =  5",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)"
+          ]
+        },
+        { "command": "set seed 3", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(5) noheader nolegend nodots: summarize y",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4541962   .0114687    39.60   0.000      .431718    .4766744",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 3", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(5) force nodots: summarize y",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                           Number of obs = 30",
+            "                                                            Replications  =  5",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4541962   .0114687    39.60   0.000      .431718    .4766744",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bootstrap m=r(mean), reps(5) seed(-3) nodots: summarize y",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                           Number of obs = 30",
+            "                                                            Replications  =  5",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4541962   .0114687    39.60   0.000      .431718    .4766744",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bootstrap m=r(mean), reps(5) seed(1.5) nodots: summarize y",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                           Number of obs = 30",
+            "                                                            Replications  =  5",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4541962    .039178    11.59   0.000     .3774088    .5309836",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily bootstrap m=r(mean), reps(5) seed(abc) nodots: summarize y",
+          "lines": ["'abc' found where integer < 2^31 expected"]
+        },
+        {
+          "command": "capture noisily bootstrap m=r(mean), reps(5) group(w) nodots: summarize y",
+          "lines": ["option group() requires option idcluster()"]
+        },
+        {
+          "command": "capture noisily bootstrap m=r(mean), reps(4) dots(-1): summarize y",
+          "lines": [
+            "invalid dots() option;",
+            "-1 found where non-negative integer expected"
+          ]
+        },
+        {
+          "command": "capture noisily jackknife m=r(mean), strata(w) nodots: summarize y",
+          "lines": ["option strata() not allowed"]
+        },
+        {
+          "command": "jackknife m=r(mean), mse nodots: summarize y",
+          "lines": [
+            "Jackknife results                                           Number of obs = 30",
+            "                                                            Replications  = 30",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jknife *",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4541962   .0450928    10.07   0.000      .361971    .5464214",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ereturn list",
+          "lines": [
+            "scalars:",
+            "               e(df_r) =  29",
+            "             e(N_reps) =  30",
+            "          e(N_misreps) =  0",
+            "               e(rank) =  1",
+            "               e(k_eq) =  1",
+            "              e(k_exp) =  1",
+            "             e(k_eexp) =  0",
+            "            e(k_extra) =  0",
+            "          e(singleton) =  .",
+            "                  e(N) =  30",
+            "",
+            "macros:",
+            "            e(cmdline) : \"jackknife m=r(mean), mse nodots: summarize y\"",
+            "                e(cmd) : \"jackknife\"",
+            "             e(prefix) : \"jackknife\"",
+            "            e(cmdname) : \"summarize\"",
+            "          e(nfunction) : \"r(N)\"",
+            "            e(command) : \"summarize y\"",
+            "               e(exp1) : \"r(mean)\"",
+            "              e(title) : \"Jackknife results\"",
+            "            e(vcetype) : \"Jknife *\"",
+            "                e(mse) : \"mse\"",
+            "                e(vce) : \"jackknife\"",
+            "         e(properties) : \"b V\"",
+            "",
+            "matrices:",
+            "                  e(b) :  1 x 1",
+            "                  e(V) :  1 x 1",
+            "               e(b_jk) :  1 x 1",
+            "",
+            "functions:",
+            "             e(sample)"
+          ]
+        },
+        {
+          "command": "jackknife m=r(mean), notable nodots: summarize y",
+          "lines": [
+            "Jackknife results                                           Number of obs = 30",
+            "                                                            Replications  = 30",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "          n(): r(N)"
+          ]
+        },
+        {
+          "command": "jackknife m=r(mean), noheader nolegend nodots: summarize y",
+          "lines": [
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4541962   .0450928    10.07   0.000      .361971    .5464214",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife m=r(mean), rclass nodots: summarize y",
+          "lines": [
+            "Jackknife results                                           Number of obs = 30",
+            "                                                            Replications  = 30",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4541962   .0450928    10.07   0.000      .361971    .5464214",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife m=r(mean), n(r(N)) nodots: summarize y",
+          "lines": [
+            "Jackknife results                                           Number of obs = 30",
+            "                                                            Replications  = 30",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4541962   .0450928    10.07   0.000      .361971    .5464214",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily jackknife m=r(mean), eclass nodots: summarize y",
+          "lines": ["number of obs e(N) evaluated to missing in full sample"]
+        },
+        {
+          "command": "capture noisily jackknife m=r(mean), eclass rclass nodots: summarize y",
+          "lines": ["options eclass rclass may not be combined"]
+        },
+        {
+          "command": "jackknife m=r(mean) sd=r(sd), keep nodots: summarize y",
+          "lines": [
+            "Jackknife results                                           Number of obs = 30",
+            "                                                            Replications  = 30",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "           sd: r(sd)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4541962   .0450928    10.07   0.000      .361971    .5464214",
+            "          sd |   .2469835   .0274597     8.99   0.000      .190822     .303145",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:            30",
+            "    Variables:             5",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "y               float   %9.0g",
+            "w               float   %9.0g",
+            "x               float   %9.0g",
+            "m               float   %9.0g                 pseudovalues: r(mean)",
+            "sd              float   %9.0g                 pseudovalues: r(sd)",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list in 1/3",
+          "lines": [
+            "     +-----------------------------------------------+",
+            "     |        y   w          x          m         sd |",
+            "     |-----------------------------------------------|",
+            "  1. | .2357211   1   1.813083   .2357211   .2226533 |",
+            "  2. | .4936275   1   1.741239   .4936272   .1235175 |",
+            "  3. | .1939401   1   1.484536   .1939398   .2660218 |",
+            "     +-----------------------------------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resampling-failures-and-results",
+      "source": "clear\nset seed 77\nset obs 30\ngenerate y = runiform()\ngenerate x = 1 + runiform()\ncapture noisily bootstrap m=r(mean), nodots: summarize nosuch\ncapture noisily jackknife m=r(mean), nodots: summarize nosuch\ncapture noisily bootstrap m=r(nosuch), nodots: summarize y\ncapture noisily jackknife m=r(nosuch), nodots: summarize y\ncapture noisily jackknife, nodots: ratio y/x, foo\nreplace y = . in 4\njackknife m=r(mean), nodots: summarize y\ngenerate s = mod(_n, 4)\njackknife m=r(mean) v=r(Var), keep cluster(s) nodots: summarize y if x > 1.2\nlist y x s m v in 1/6\nset seed 5\nbootstrap m=r(mean), reps(5) reject(r(mean) > .45): summarize y\njackknife m=r(mean), reject(r(mean) > .48): summarize y\ncapture noisily bootstrap m=r(mean), reps(5) reject(r(mean) > .1): summarize y\nset seed 5\nbootstrap m=r(mean) s=r(sd), reps(20) nodots: summarize y\nmatrix list e(b)\nmatrix list e(V)\nmatrix list e(b_bs)\nmatrix list e(bias)\nmatrix list e(z0)\nmatrix list e(se)\nmatrix list e(ci_normal)\nmatrix list e(ci_percentile)\nmatrix list e(ci_bc)\ndisplay _b[m]\ndisplay _se[s]\nset seed 5\nbootstrap, mse reps(5) nodots: regress y x\nset seed 5\nbootstrap, reps(5) notable nodots: regress y x\nset seed 5\nbootstrap, reps(5) noheader nodots: regress y x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 77", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate y = runiform()", "lines": [] },
+        { "command": "generate x = 1 + runiform()", "lines": [] },
+        {
+          "command": "capture noisily bootstrap m=r(mean), nodots: summarize nosuch",
+          "lines": [
+            "variable nosuch not found",
+            "an error occurred when bootstrap executed summarize"
+          ]
+        },
+        {
+          "command": "capture noisily jackknife m=r(mean), nodots: summarize nosuch",
+          "lines": [
+            "variable nosuch not found",
+            "an error occurred when jackknife executed summarize"
+          ]
+        },
+        {
+          "command": "capture noisily bootstrap m=r(nosuch), nodots: summarize y",
+          "lines": ["'r(nosuch)' evaluated to missing in full sample"]
+        },
+        {
+          "command": "capture noisily jackknife m=r(nosuch), nodots: summarize y",
+          "lines": ["statistic r(nosuch) evaluated to missing in full sample"]
+        },
+        {
+          "command": "capture noisily jackknife, nodots: ratio y/x, foo",
+          "lines": [
+            "option foo not allowed",
+            "an error occurred when jackknife executed ratio"
+          ]
+        },
+        {
+          "command": "replace y = . in 4",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "jackknife m=r(mean), nodots: summarize y",
+          "lines": [
+            "Jackknife results                                           Number of obs = 30",
+            "                                                            Replications  = 29",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4355271   .0424873    10.25   0.000     .3484958    .5225585",
+            "------------------------------------------------------------------------------",
+            "Note: One or more parameters could not be estimated in 1 jackknife replicate;",
+            "      standard-error estimates include only complete replications."
+          ]
+        },
+        { "command": "generate s = mod(_n, 4)", "lines": [] },
+        {
+          "command": "jackknife m=r(mean) v=r(Var), keep cluster(s) nodots: summarize y if x > 1.2",
+          "lines": [
+            "Jackknife results                                           Number of obs = 26",
+            "                                                            Replications  =  3",
+            "",
+            "      Command: summarize y if x > 1.2",
+            "            m: r(mean)",
+            "            v: r(Var)",
+            "          n(): r(N)",
+            "",
+            "                                       (Replications based on 4 clusters in s)",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4050871   .0124708    32.48   0.001     .3514293    .4587448",
+            "           v |   .0522346   .0037547    13.91   0.005     .0360793      .06839",
+            "------------------------------------------------------------------------------",
+            "Note: One or more parameters could not be estimated in 1 jackknife replicate;",
+            "      standard-error estimates include only complete replications."
+          ]
+        },
+        {
+          "command": "list y x s m v in 1/6",
+          "lines": [
+            "     +-----------------------------------------------+",
+            "     |        y          x   s          m          v |",
+            "     |-----------------------------------------------|",
+            "  1. | .2357211   1.813083   1   .4277205   .0449098 |",
+            "  2. | .4936275   1.741239   2   .4334355   .0555142 |",
+            "  3. | .1939401   1.484536   3   .3934943   .0567345 |",
+            "  4. |        .    1.61431   0          .          . |",
+            "  5. | .5957154    1.67141   1          .          . |",
+            "     |-----------------------------------------------|",
+            "  6. | .4972583   1.039364   2          .          . |",
+            "     +-----------------------------------------------+"
+          ]
+        },
+        { "command": "set seed 5", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(5) reject(r(mean) > .45): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (5): .xxx. done",
+            "x: Error occurred when bootstrap executed summarize.",
+            "",
+            "Bootstrap results                                           Number of obs = 30",
+            "                                                            Replications  =  2",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4355271   .0220897    19.72   0.000     .3922322    .4788221",
+            "------------------------------------------------------------------------------",
+            "Note: One or more parameters could not be estimated in 3 bootstrap replicates;",
+            "      standard-error estimates include only complete replications."
+          ]
+        },
+        {
+          "command": "jackknife m=r(mean), reject(r(mean) > .48): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "Jackknife replications (30): ...n.....10.........20.........30 done",
+            "n: Sample size for the replicate did not equal the expected sample size.",
+            "",
+            "Jackknife results                                           Number of obs = 30",
+            "                                                            Replications  = 29",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4355271   .0424873    10.25   0.000     .3484958    .5225585",
+            "------------------------------------------------------------------------------",
+            "Note: One or more parameters could not be estimated in 1 jackknife replicate;",
+            "      standard-error estimates include only complete replications."
+          ]
+        },
+        {
+          "command": "capture noisily bootstrap m=r(mean), reps(5) reject(r(mean) > .1): summarize y",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "bootstrap rejected results from summarize while using the entire dataset"
+          ]
+        },
+        { "command": "set seed 5", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean) s=r(sd), reps(20) nodots: summarize y",
+          "lines": [
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap results                                           Number of obs = 30",
+            "                                                            Replications  = 20",
+            "",
+            "      Command: summarize y",
+            "            m: r(mean)",
+            "            s: r(sd)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .4355271   .0484424     8.99   0.000     .3405818    .5304725",
+            "           s |   .2288013   .0237243     9.64   0.000     .1823025       .2753",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(b)",
+          "lines": [
+            "e(b)[1,2]",
+            "            m          s",
+            "y1  .43552714  .22880125"
+          ]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[2,2]",
+            "            m           s",
+            "m   .00234667",
+            "s  -.00013965   .00056284"
+          ]
+        },
+        {
+          "command": "matrix list e(b_bs)",
+          "lines": [
+            "e(b_bs)[1,2]",
+            "            m          s",
+            "y1  .44351174  .22381082"
+          ]
+        },
+        {
+          "command": "matrix list e(bias)",
+          "lines": [
+            "e(bias)[1,2]",
+            "             m           s",
+            "y1    .0079846  -.00499043"
+          ]
+        },
+        {
+          "command": "matrix list e(z0)",
+          "lines": [
+            "e(z0)[1,2]",
+            "             m           s",
+            "y1  -.38532047    .2533471"
+          ]
+        },
+        {
+          "command": "matrix list e(se)",
+          "lines": [
+            "e(se)[1,2]",
+            "            m          s",
+            "y1   .0484424  .02372429"
+          ]
+        },
+        {
+          "command": "matrix list e(ci_normal)",
+          "lines": [
+            "e(ci_normal)[2,2]",
+            "            m          s",
+            "ll  .34058178   .1823025",
+            "ul  .53047249      .2753"
+          ]
+        },
+        {
+          "command": "matrix list e(ci_percentile)",
+          "lines": [
+            "e(ci_percentile)[2,2]",
+            "            m          s",
+            "ll  .33119556    .187503",
+            "ul  .51737249  .26636317"
+          ]
+        },
+        {
+          "command": "matrix list e(ci_bc)",
+          "lines": [
+            "e(ci_bc)[2,2]",
+            "            m          s",
+            "ll  .33119556  .18954438",
+            "ul  .49311823  .26636317"
+          ]
+        },
+        { "command": "display _b[m]", "lines": [".43552714"] },
+        { "command": "display _se[s]", "lines": [".02372429"] },
+        { "command": "set seed 5", "lines": [] },
+        {
+          "command": "bootstrap, mse reps(5) nodots: regress y x",
+          "lines": [
+            "Linear regression                                       Number of obs =     29",
+            "                                                        Replications  =      5",
+            "                                                        Wald chi2(1)  =   3.56",
+            "                                                        Prob > chi2   = 0.0591",
+            "                                                        R-squared     = 0.0596",
+            "                                                        Adj R-squared = 0.0247",
+            "                                                        Root MSE      = 0.2260",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bstrap *",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.2146407    .113701    -1.89   0.059    -.4374907    .0082092",
+            "       _cons |   .7663464   .1765263     4.34   0.000     .4203612    1.112332",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set seed 5", "lines": [] },
+        {
+          "command": "bootstrap, reps(5) notable nodots: regress y x",
+          "lines": [
+            "Linear regression                                       Number of obs =     29",
+            "                                                        Replications  =      5",
+            "                                                        Wald chi2(1)  =   3.40",
+            "                                                        Prob > chi2   = 0.0653",
+            "                                                        R-squared     = 0.0596",
+            "                                                        Adj R-squared = 0.0247",
+            "                                                        Root MSE      = 0.2260"
+          ]
+        },
+        { "command": "set seed 5", "lines": [] },
+        {
+          "command": "bootstrap, reps(5) noheader nodots: regress y x",
+          "lines": [
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.2146407   .1164397    -1.84   0.065    -.4428584    .0135769",
+            "       _cons |   .7663464    .182173     4.21   0.000     .4092939    1.123399",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

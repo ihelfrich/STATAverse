@@ -1632,6 +1632,8 @@ function testparm(session, text, ctx) {
 }
 function predict(session, text, ctx) {
   const model = estimates(session);
+  if (model.noPredict)
+    throw new StataError(`predict is not allowed after ${model.command}`, 301);
   if (["ologit", "oprobit", "mlogit"].includes(model.kind))
     return outcomePredict(session, model, text, ctx);
   // nbreg, glm and cloglog predict a mean by default, as the family models

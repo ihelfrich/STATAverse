@@ -317,11 +317,14 @@ function vce(session, model, text, ctx) {
         format,
       ).trim();
     },
-    // 2.g as 2. above g, c.x#c.x as c.x# above c.x, o.x as o. above x.
+    // 2.g as 2. above g, c.x#c.x as c.x# above c.x, o.x as o. above x,
+    // and a statistic over groups, c.y@1.g, as c.y@ above 1.g.
     split = (name) => {
       const cut = name.includes("#")
         ? name.lastIndexOf("#") + 1
-        : (/^(\d+[bno]*|c?o)\./.exec(name)?.[0].length ?? 0);
+        : name.includes("@")
+          ? name.lastIndexOf("@") + 1
+          : (/^(\d+[bno]*|c?o)\./.exec(name)?.[0].length ?? 0);
       return [name.slice(0, cut), abbreviate(name.slice(cut), width)];
     },
     heads = shown.map((s) => split(s.name)),
@@ -380,13 +383,16 @@ function vce(session, model, text, ctx) {
         equation = shown[r].equation;
         ctx.out(`${equationOf(r).padEnd(13)}|${blank()}`);
       }
-      // An interaction too long for the stub is split after its last #,
-      // the first part on a line of its own.
+      // An interaction too long for the stub is split after its last #
+      // (a statistic over groups after its @), the first part on a line of
+      // its own.
       const name = shown[r].name,
         cut =
           name.length > 12 && name.includes("#")
             ? name.lastIndexOf("#") + 1
-            : 0;
+            : name.length > 12 && name.includes("@")
+              ? name.lastIndexOf("@") + 1
+              : 0;
       if (cut)
         ctx.out(
           `${abbreviate(name.slice(0, cut), 13).padStart(13)}|${blank()}`.trimEnd(),
