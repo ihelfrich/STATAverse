@@ -15,7 +15,7 @@ import { regressDiagnostic } from "./diagnostics.js";
 import { meanEstat } from "./tables.js";
 import { StataError } from "./errors.js";
 import { abbreviateAmong, applyFormat } from "./format.js";
-import { chi2tail } from "./distributions.js";
+import { chi2tail, lngamma } from "./distributions.js";
 import { invnormal, normal } from "./functions.js";
 import { count } from "./reports.js";
 import { linkOf } from "./margins.js";
@@ -45,6 +45,8 @@ import {
   unitConstraint,
 } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
+import { renderSmcl } from "./smcl.js";
+import { MORE_FUNCTIONS } from "./functions-more.js";
 import { isOperated, tsTerms } from "./timeseries.js";
 import { unchangedBy } from "./data-commands.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
@@ -61,6 +63,8 @@ const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const density = (z) => Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
 
 function lnfactorial(n) {
+  // An outcome that is not a count takes lngamma, as Stata does.
+  if (!Number.isInteger(n)) return lngamma(n + 1);
   // Counts of millions would take millions of steps on every evaluation
   // of the likelihood; Stirling's series is exact to double precision.
   if (n > 1000) {
@@ -176,10 +180,15 @@ function zTable(session, model, level, transform, named = true) {
       session,
       model,
       (k) => {
+        // A variance that is not a number (one cluster) leaves the
+        // standard error and all that follows it missing.
         const b = model.b[k],
-          se = Math.sqrt(model.V[k][k]),
-          z = b / se;
-        return `${g(show(b)).padStart(11)}${g(transform ? Math.exp(b) * se : se).padStart(11)}${zColumn(z)}${applyFormat(2 * normal(-Math.abs(z)), "%8.3f")}${g(show(b - critical * se)).padStart(13)}${g(show(b + critical * se)).padStart(12)}`;
+          root = Math.sqrt(model.V[k][k]),
+          known = Number.isFinite(root),
+          se = known ? root : MISSING,
+          z = known ? b / se : MISSING,
+          bound = (sign) => (known ? show(b + sign * critical * se) : MISSING);
+        return `${g(show(b)).padStart(11)}${g(known && transform ? Math.exp(b) * se : se).padStart(11)}${zColumn(z)}${applyFormat(known ? 2 * normal(-Math.abs(z)) : MISSING, "%8.3f")}${g(bound(-1)).padStart(13)}${g(bound(1)).padStart(12)}`;
       },
       w,
       // A coefficient fixed at zero is an odds ratio (or rate ratio) of one.
@@ -538,11 +547,27 @@ function maximumLikelihood(kind) {
         n = sample.length;
         recheckCollinearity(columns, sample, constant);
       }
-    } else if (y.some((v) => v < 0 || !Number.isInteger(v)))
+    } else if (y.some((v) => v < 0))
       throw new StataError(
-        `${dependent.name} must be a nonnegative count`,
+        `${dependent.name} must be greater than or equal to zero`,
         459,
       );
+    // An outcome that is not a count is fitted all the same, as an
+    // exponential-mean model; poisson.ado's note reads vce() alone.
+    else if (y.some((v) => !Number.isInteger(v)))
+      renderSmcl(
+        `{p 0 6 2}note: noncount dependent variable encountered; ${
+          /^(r(o(b(u(st?)?)?)?)?|cl(u(s(t(er?)?)?)?)?)$/.test(
+            (options.vce ?? "").trim().split(/[\s,]+/)[0],
+          )
+            ? "results correspond to an exponential-mean model rather than a poisson model."
+            : "if you are fitting an exponential-mean model, consider using robust standard errors."
+        } {p_end}`,
+        session.settings.linesize,
+      )
+        .split("\n")
+        .filter((line) => line.trim())
+        .forEach((line) => ctx.out(line));
     // Every weight multiplies its observation's contribution to the
     // likelihood, its score and its information. A frequency weight stands
     // for that many identical observations, so they count that many times
@@ -2156,6 +2181,8 @@ function predict(session, text, ctx) {
   if (model.predictor) return model.predictor(session, text, ctx);
   if (["ologit", "oprobit", "mlogit"].includes(model.kind))
     return outcomePredict(session, model, text, ctx);
+  if (model.kind === "poisson" || model.kind === "nbreg")
+    return countPredict(session, model, text, ctx);
   // nbreg, glm and cloglog predict a mean by default, as the family models
   // do; what they call it differs.
   const family =
@@ -2189,10 +2216,34 @@ function predict(session, text, ctx) {
         ? " DEViance"
         : "",
     parsed = session.parse(
-      `newvarname [if] [in] [, XB ${{ pr: "Pr", n: "N", mu: "MU" }[key]} STDP${patternStats}${family.binary ? " ASIF | RULEs" : ""}]`,
+      `newvarname [if] [in] [, XB ${{ pr: "Pr", n: "N", mu: "MU" }[key]} STDP SCores${patternStats}${family.binary ? " ASIF | RULEs" : ""}]`,
       text,
-    ),
-    statistic = [
+    );
+  // The equation score, d lnL / d xb: logit's and probit's own, which
+  // win over any other statistic, and cloglog's from ml score, which
+  // takes no other.
+  if (parsed.options.scores) {
+    if (model.kind === "cloglog") {
+      const other = ["xb", key, "stdp"].find((name) => parsed.options[name]);
+      if (other) throw new StataError(`option ${other} not allowed`, 198);
+    }
+    return generateScores(session, model, parsed, ctx, [
+      (y, xb) => {
+        if (model.kind === "logit") {
+          const p = 1 / (1 + Math.exp(-xb));
+          return y !== 0 ? 1 - p : -p;
+        }
+        if (model.kind === "probit")
+          return y !== 0
+            ? density(xb) / normal(xb)
+            : -density(xb) / normal(-xb);
+        if (isMissing(y)) return MISSING;
+        const e = Math.exp(xb);
+        return y !== 0 ? (e * Math.exp(-e)) / -Math.expm1(-e) : -e;
+      },
+    ]);
+  }
+  const statistic = [
       "residuals",
       "deviance",
       "hat",
@@ -2340,6 +2391,395 @@ function predict(session, text, ctx) {
     ctx.out(
       `(${linear ? String(made.missing) : count(made.missing)} missing value${plural ? "s" : ""} generated)`,
     );
+}
+
+/** The row of the model and its index at observation i, or null. */
+function indexAt(model, i) {
+  if (
+    model.columns.some((c) =>
+      (c.term.variables ?? [c.term.variable ?? c.term.factor]).some((v) =>
+        isMissing(v.data[i]),
+      ),
+    )
+  )
+    return null;
+  const row = model.names.map((name, k) =>
+    name === "_cons" ? 1 : model.columns[k].value(i),
+  );
+  return { row, xb: row.reduce((t, v, k) => t + v * model.b[k], 0) };
+}
+
+/**
+ * Makes the new variable k of parsed from values, with its label, and
+ * returns how many values are missing.
+ */
+function makePrediction(session, parsed, k, values, label) {
+  const data = session.data,
+    sorted = [...data.sortedBy],
+    made = data.generate(parsed.varlist[k], values, {
+      type: parsed.typed?.[k] ? parsed.types[k] : undefined,
+    });
+  data.sortedBy = sorted;
+  data.get(parsed.varlist[k]).label = label;
+  return made.missing;
+}
+
+const missingNote = (ctx, missing, plural = false) => {
+  if (missing)
+    ctx.out(
+      `(${count(missing)} missing value${missing === 1 && !plural ? "" : "s"} generated)`,
+    );
+};
+
+/**
+ * Whether ml score makes a score at observation i: it evaluates the fit's
+ * weight expression again and leaves out an observation whose weight is
+ * missing or zero, in or out of the estimation sample.
+ */
+export function scoreWeighted(session, model) {
+  if (!model.wexp) return () => true;
+  const weight = evaluateAll(
+    session.compile(model.wexp.replace(/^\s*=\s*/, "")),
+    session.data.n,
+  );
+  return (i) => !isMissing(weight[i]) && weight[i] !== 0;
+}
+
+/**
+ * The equation scores, d lnL / d xb and (after nbreg) d lnL / d lnalpha,
+ * one variable each: equations[k](y, xb) for observations whose
+ * regressors are all there. ml score, which makes them after poisson,
+ * nbreg and cloglog, always says "values".
+ */
+function generateScores(session, model, parsed, ctx, equations) {
+  const data = session.data,
+    outcome = data.get(model.depvar).data,
+    columns = parsed.varlist.map(() => new Array(data.n).fill(MISSING)),
+    // ml score leaves out an observation whose weight is missing or zero;
+    // logit's and probit's own scores do not.
+    weighted = ["logit", "probit"].includes(model.kind)
+      ? () => true
+      : scoreWeighted(session, model);
+  session.select(parsed, null, (i) => {
+    const at = indexAt(model, i);
+    if (!at || !weighted(i)) return;
+    columns.forEach((values, k) => {
+      const v = equations[k](outcome[i], at.xb);
+      values[i] = Number.isFinite(v) ? v : MISSING;
+    });
+  });
+  const labels =
+      model.kind === "nbreg"
+        ? [
+            `equation-level score for [${model.depvar}] from nbreg`,
+            "equation-level score for /lnalpha from nbreg",
+          ]
+        : [`equation-level score from ${model.command}`],
+    missing = columns.map((values, k) =>
+      makePrediction(session, parsed, k, values, labels[k]),
+    );
+  missingNote(ctx, missing[0], !["logit", "probit"].includes(model.kind));
+}
+
+/**
+ * predict after poisson and nbreg, as poisso_p makes it: n (the default),
+ * ir, the probability of a count pr(n) or of a range pr(a,b), xb, stdp
+ * and the equation scores. Neither model takes an offset here, so n and
+ * ir agree and nooffset changes nothing.
+ */
+function countPredict(session, model, text, ctx) {
+  const nb = model.kind === "nbreg",
+    parsed = session.parse(
+      "newvarlist [if] [in] [, N IR Pr(string) XB STDP SCores noOFFset]",
+      text,
+    ),
+    options = parsed.options,
+    pr = options.pr?.trim() ? options.pr.trim() : "",
+    asked = [
+      ["n", options.n],
+      ["ir", options.ir],
+      ["pr()", pr],
+    ].filter(([, on]) => on);
+  if (options.scores) {
+    const other = [["xb", options.xb], ["stdp", options.stdp], ...asked].find(
+      ([, on]) => on,
+    );
+    if (other) throw new StataError(`option ${other[0]} not allowed`, 198);
+    if (parsed.varlist.length > (nb ? 2 : 1))
+      throw new StataError(
+        nb
+          ? `too many variables specified\n${renderSmcl(
+              "{p 4 4 2}The current estimation results for nbreg have 2 equations so you must specify 2 new variables, or you can use the equation() option and specify one variable at a time.{p_end}",
+              session.settings.linesize,
+            )
+              .split("\n")
+              .filter((line) => line.trim())
+              .join("\n")}`
+          : "too many variables specified",
+        103,
+      );
+    const alpha = model.alpha,
+      lnalpha = Math.log(alpha),
+      m = 1 / alpha,
+      digamma = MORE_FUNCTIONS.digamma.fn;
+    return generateScores(session, model, parsed, ctx, [
+      (y, xb) => {
+        if (isMissing(y)) return MISSING;
+        const mu = Math.exp(xb);
+        return !nb || lnalpha < -20
+          ? y - mu
+          : (y - mu) / (1 + Math.exp(xb + lnalpha));
+      },
+      (y, xb) => {
+        if (isMissing(y)) return MISSING;
+        if (lnalpha < -20) return 0;
+        const mu = Math.exp(xb),
+          p = 1 / (1 + Math.exp(xb + lnalpha));
+        return m * (digamma(m) - digamma(y + m) - Math.log(p)) + p * (y - mu);
+      },
+    ]);
+  }
+  if (parsed.varlist.length > 1)
+    throw new StataError("too many variables specified", 103);
+  // _pred_se takes xb and stdp itself, and then nothing else.
+  if (options.xb && options.stdp)
+    throw new StataError("only one statistic may be specified", 198);
+  if ((options.xb || options.stdp) && asked.length)
+    throw new StataError(`option ${asked[0][0]} not allowed`, 198);
+  if (options.n && options.ir) throw new StataError("invalid syntax", 198);
+  if (pr && asked.length > 1)
+    throw new StataError(
+      `only one of options ${asked[0][0]} or pr(${pr}) is allowed`,
+      198,
+    );
+  const data = session.data,
+    values = new Array(data.n).fill(MISSING);
+  if (options.xb || options.stdp) {
+    session.select(parsed, null, (i) => {
+      const at = indexAt(model, i);
+      if (at)
+        values[i] = options.xb ? at.xb : Math.sqrt(quadratic(at.row, model.V));
+    });
+    missingNote(
+      ctx,
+      makePrediction(
+        session,
+        parsed,
+        0,
+        values,
+        options.xb ? "Linear prediction" : "S.E. of the prediction",
+      ),
+    );
+    return;
+  }
+  if (!pr) {
+    if (!options.n && !options.ir)
+      ctx.out("(option n assumed; predicted number of events)");
+    session.select(parsed, null, (i) => {
+      const at = indexAt(model, i);
+      if (at) values[i] = Math.exp(at.xb);
+    });
+    missingNote(
+      ctx,
+      makePrediction(
+        session,
+        parsed,
+        0,
+        values,
+        options.ir ? "Predicted incidence rate" : "Predicted number of events",
+      ),
+    );
+    return;
+  }
+  countProbability(session, model, parsed, ctx, pr, nb);
+}
+
+/**
+ * pr(n) and pr(a,b) after poisson and nbreg, as tpredict_p2 makes them.
+ * Each bound is a count or a variable holding counts (b may be missing,
+ * for no upper bound); a variable's noninteger values give missing
+ * probabilities, and Stata says what it found in each variable.
+ */
+function countProbability(session, model, parsed, ctx, text, nb) {
+  const data = session.data,
+    depvar = model.depvar,
+    tokens = text.match(/[^\s,]+|,/g) ?? [],
+    // A bound: a number, missing, or a numeric variable.
+    bound = (token) => {
+      if (token === ".") return { missing: true, text: "." };
+      if (/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(token))
+        return { number: Number(token), text: token };
+      try {
+        const variable = data.get(session.varlist(token)[0]);
+        // A string variable is a variable to tpredict_p2, and a type
+        // mismatch where it is used.
+        if (/^str/.test(variable.type))
+          return { string: true, text: variable.name };
+        return { variable, text: variable.name };
+      } catch (error) {
+        if (!(error instanceof StataError)) throw error;
+      }
+      return { other: true, text: token };
+    },
+    valueOf = (b, i) =>
+      b.variable ? b.variable.data[i] : b.missing ? MISSING : b.number,
+    // nbreg_p's negative binomial: m = 1/alpha, alpha no smaller than
+    // exp(-20), and p = 1/(1 + mu/m).
+    m = nb ? Math.exp(-Math.max(Math.log(model.alpha), -20)) : 0,
+    F = MORE_FUNCTIONS,
+    // Each distribution function at mean mu, missing where mu or the
+    // count is.
+    call = (poisson, negative) => (mu, k) => {
+      if ([mu, k].some((v) => isMissing(v) || !Number.isFinite(v)))
+        return MISSING;
+      const v = nb ? negative.fn(m, k, 1 / (1 + mu / m)) : poisson.fn(mu, k);
+      return Number.isFinite(v) ? v : MISSING;
+    },
+    probability = call(F.poissonp, F.nbinomialp),
+    cdf = call(F.poisson, F.nbinomial),
+    tail = call(F.poissontail, F.nbinomialtail),
+    less = (a, b) => (isMissing(a) || isMissing(b) ? MISSING : a - b),
+    keep = session.rows(parsed, null),
+    values = new Array(data.n).fill(MISSING),
+    mean = (i) => {
+      const at = indexAt(model, i);
+      return at ? Math.exp(at.xb) : MISSING;
+    },
+    fraction = (v) => !isMissing(v) && v - Math.trunc(v) > 0,
+    // ShowPrResults sets aside where a variable bound is not a whole
+    // number, which a missing value is not either.
+    replaced = (b, v) => !!b.variable && (isMissing(v) || fraction(v)),
+    plural = (n) => (n > 1 ? "s" : ""),
+    notes = [];
+  // What Stata says of a variable bound: its negative or missing counts
+  // (summarize's count of the missing takes in every observation not
+  // predicted too) and its noninteger values.
+  const describe = (b, s = null) => {
+    if (!b.variable) return;
+    const v = b.variable.data;
+    let negative = 0,
+      present = 0,
+      fractional = 0;
+    for (const i of keep) {
+      if (!isMissing(v[i])) present++;
+      if (!isMissing(v[i]) && v[i] < 0) negative++;
+      if (fraction(v[i])) fractional++;
+    }
+    const bad = negative + data.n - present;
+    if (bad)
+      notes.push(
+        `${b.text} contains ${bad} negative or missing count${s ?? plural(bad)}`,
+      );
+    if (fractional)
+      notes.push(
+        `${b.text} contains ${fractional} noninteger value${plural(fractional)}`,
+      );
+  };
+  // A variable's count less than the lower bound, which Stata counts and
+  // names after the upper bound.
+  const tooSmall = (lb, ub) => {
+    let small = 0;
+    for (const i of keep) {
+      const a = valueOf(lb, i),
+        b = valueOf(ub, i);
+      if (!isMissing(a) && !isMissing(b) && b < a) small++;
+    }
+    if (small)
+      notes.push(
+        `${ub.text} contains ${small} count${plural(small)} less than ${lb.text}`,
+      );
+  };
+  let label;
+  if (tokens.length > 1) {
+    if (tokens[1] !== "," || tokens.length !== 3)
+      throw new StataError("invalid syntax", 198);
+    const lb = bound(tokens[0]),
+      ub = bound(tokens[2]);
+    if (lb.number !== undefined) {
+      if (lb.number < 0)
+        throw new StataError(
+          `lower bound of ${lb.text} must be nonnegative`,
+          198,
+        );
+      if (!Number.isInteger(lb.number))
+        throw new StataError(
+          `lower bound of ${lb.text} must be an integer`,
+          198,
+        );
+    } else if (lb.missing)
+      throw new StataError("lower bound is missing\ninvalid syntax", 198);
+    else if (lb.other) throw new StataError(`${lb.text} not found`, 111);
+    if (ub.number !== undefined) {
+      if (ub.number < 0)
+        throw new StataError(
+          `upper bound of ${ub.text} must be nonnegative`,
+          198,
+        );
+      if (!Number.isInteger(ub.number))
+        throw new StataError(
+          `upper bound of ${ub.text} must be an integer`,
+          198,
+        );
+      // tpredict_p2 compares with a variable's first observation, as an
+      // if command does, and a missing value there is past any bound.
+      const first = lb.variable
+        ? data.n
+          ? lb.variable.data[0]
+          : undefined
+        : lb.number;
+      if (first !== undefined && (isMissing(first) || ub.number < first))
+        throw new StataError(
+          `upper bound of ${ub.text} must be greater than or equal to the lower bound of ${lb.text}`,
+          198,
+        );
+    } else if (ub.other) throw new StataError(`${ub.text} not found`, 111);
+    if (lb.string || ub.string) throw new StataError("type mismatch", 109);
+    for (const i of keep) {
+      const a = valueOf(lb, i),
+        b = valueOf(ub, i);
+      if (replaced(lb, a) || replaced(ub, b)) continue;
+      const mu = mean(i);
+      values[i] =
+        isMissing(a) || a < 0
+          ? MISSING
+          : (nb ? Math.floor(a) <= 0 : a === 0) && isMissing(b)
+            ? 1
+            : a > 0 && isMissing(b)
+              ? tail(mu, a)
+              : b < 0 || b < a
+                ? MISSING
+                : Math.floor(a) <= 0
+                  ? cdf(mu, b)
+                  : less(cdf(mu, b), cdf(mu, a - 1));
+    }
+    label = ub.missing
+      ? `Pr(${depvar}>=${lb.text})`
+      : `Pr(${lb.text}<=${depvar}<=${ub.text})`;
+    describe(lb);
+    if (ub.variable) {
+      describe(ub);
+      tooSmall(lb, ub);
+    } else if (lb.variable) tooSmall(lb, ub);
+  } else {
+    const n = bound(tokens[0]);
+    if (n.number !== undefined) {
+      if (n.number < 0)
+        throw new StataError("argument must be nonnegative", 198);
+      if (!Number.isInteger(n.number))
+        throw new StataError("argument must be an integer", 198);
+    } else if (n.string) throw new StataError("type mismatch", 109);
+    else if (!n.variable)
+      throw new StataError("argument must be a number or variable", 198);
+    for (const i of keep) {
+      const k = valueOf(n, i);
+      if (!replaced(n, k)) values[i] = probability(mean(i), k);
+    }
+    label = `Pr(${depvar}=${n.text})`;
+    // ShowPrnResults pluralizes by the variable's first value.
+    describe(n, n.variable && n.variable.data[0] > 1 ? "s" : "");
+  }
+  missingNote(ctx, makePrediction(session, parsed, 0, values, label));
+  notes.forEach((line) => ctx.out(line));
 }
 
 const PATTERN_LABELS = {

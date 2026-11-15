@@ -9,7 +9,7 @@
 import { greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
-import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
+import { Ftail, chi2tail, invttail, lngamma, ttail } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
 import {
   abbreviate,
@@ -46,6 +46,30 @@ function wrapped(session, ctx, text, indent = 6) {
     } else line = line ? `${line} ${word}` : word;
   }
   ctx.out(line);
+}
+
+/**
+ * The equation name mlogit gives an outcome, as _labels2eqnames makes it:
+ * the value itself when it has no label (or its label is the value), and
+ * otherwise the label's first 32 characters made a name by ustrtoname(),
+ * each character a name may not hold becoming _ ("By car" is By_car,
+ * "2 wheels" 2_wheels), with a leading _ only where a 32-character result
+ * would not be a name.
+ */
+export function equationName(session, variable, value) {
+  const value_ = labelled(session, variable, value, false),
+    map = session.data.valueLabels.get(variable.valueLabel),
+    lab = map?.has(value) ? [...map.get(value)].slice(0, 32).join("") : null,
+    words = (s) => s.trim().split(/\s+/).join(" ");
+  if (lab === null || !lab.length || words(lab) === words(value_))
+    return value_;
+  const name = (prefix) => {
+    const chars = [...lab].map((c) => (/[\p{L}\p{Nd}_]/u.test(c) ? c : "_"));
+    if (prefix && /^[0-9]/.test(chars[0])) chars.unshift("_");
+    return chars.slice(0, 32).join("");
+  };
+  const tag = name(false);
+  return [...tag].length === 32 && /^[0-9]/.test(tag) ? name(true) : tag;
 }
 
 /**
@@ -151,7 +175,12 @@ export function frame(
       ...(constant ? [active.length] : []),
     ];
   if (!sample.length) throw new StataError("no observations", 2000);
-  if (asked.weight && sample.some((i) => asked.weight[i] < 0))
+  // An importance weight may be negative, as glm takes it.
+  if (
+    asked.weight &&
+    asked.wtype !== "iweight" &&
+    sample.some((i) => asked.weight[i] < 0)
+  )
     throw new StataError("negative weights encountered", 402);
   return {
     // Each observation's sampling weight, or null.
@@ -312,7 +341,7 @@ export const statistic = (z) =>
 /** One row of a coefficient table tested against the normal or t. */
 export function row(label, b, se, level, df, transform) {
   // A coefficient with no variance shows only its value.
-  if (!(se > 0))
+  if (!(se > 0) || isMissing(se) || !Number.isFinite(se))
     return `${label}|${g(transform ? Math.exp(b) : b).padStart(11)}${".".padStart(11)}${".".padStart(9)}${".".padStart(8)}${".".padStart(13)}${".".padStart(12)}`;
   const z = b / se,
     p = df ? 2 * ttail(df, Math.abs(z)) : 2 * normal(-Math.abs(z)),
@@ -485,6 +514,400 @@ function noneUncensored(states, ctx) {
   throw new StataError("initial values not feasible", 1400);
 }
 
+/**
+ * tobit_p's CalcP, CalcE and CalcY: the probability that the outcome lies
+ * in (a,b), its mean there, and the mean of the outcome censored at a and
+ * b, at index xb and standard deviation s; a missing bound is none.
+ */
+function tobitMean(kind, xb, a, b, s) {
+  const probability = (lo, hi) =>
+      isMissing(lo) && isMissing(hi)
+        ? 1
+        : isMissing(hi)
+          ? normal(-(lo - xb) / s)
+          : isMissing(lo)
+            ? normal((hi - xb) / s)
+            : normal((hi - xb) / s) - normal((lo - xb) / s),
+    expected = () => {
+      const L = (a - xb) / s,
+        U = (b - xb) / s;
+      return isMissing(a) && isMissing(b)
+        ? xb
+        : isMissing(b)
+          ? xb + (s * density(L)) / normal(-L)
+          : isMissing(a)
+            ? xb - (s * density(U)) / normal(U)
+            : xb - (s * (density(U) - density(L))) / (normal(U) - normal(L));
+    };
+  if (kind === "pr") return probability(a, b);
+  if (kind === "e") return expected();
+  const E = expected(),
+    p = probability(a, b),
+    p2 = probability(MISSING, a);
+  return isMissing(a) && isMissing(b)
+    ? E
+    : isMissing(b)
+      ? p * E + (1 - p) * a
+      : isMissing(a)
+        ? p * E + (1 - p) * b
+        : p * E + p2 * a + (1 - p - p2) * b;
+}
+
+/**
+ * The first or second derivative of f at x, by central differences with a
+ * step small beside scale (the distance over which f bends) refined by
+ * Richardson extrapolation, which leaves an error far below the digits
+ * margins shows.
+ */
+function richardson(f, x, scale, order = 1) {
+  const at = (h) =>
+      order === 1
+        ? (f(x + h) - f(x - h)) / (2 * h)
+        : (f(x + h) - 2 * f(x) + f(x - h)) / (h * h),
+    h = (order === 1 ? 1e-3 : 4e-3) * scale;
+  return (4 * at(h / 2) - at(h)) / 3;
+}
+
+/**
+ * What margins may predict after tobit: xb (the default) and, for an
+ * interval (a,b) of numbers or ., pr(), e() and ystar(), as tobit_p makes
+ * them. Each but xb depends on the variance of the error too, so it brings
+ * its derivatives in var(e.depvar) and the variance of the coefficients
+ * bordered by that parameter's; Stata then refers to the normal.
+ */
+function tobitMargins(session, model) {
+  const depvar = model.depvar,
+    aux = model.auxiliary,
+    V = [
+      ...model.V.map((row, r) => [...row, aux.cross[0][r]]),
+      [...aux.cross[0], aux.V[0][0]],
+    ];
+  return {
+    choose: (text) => {
+      const [head, options = null] = splitAtComma(text),
+        found =
+          options === null
+            ? null
+            : /(^|[\s,])pr(?:e(?:d(?:i(?:ct?)?)?)?)?\(((?:[^()]|\([^()]*\))*)\)/.exec(
+                options,
+              );
+      if (!found) return null;
+      const inner = found[2].trim(),
+        rest = `${head}, ${options.slice(0, found.index)}${found[1]}${options.slice(found.index + found[0].length)}`,
+        predict = `predict(${inner})`;
+      if (/^xb$/.test(inner))
+        return { text: rest, predict, expression: "Linear prediction" };
+      if (/^std[pf]$/.test(inner))
+        throw new StataError(
+          "prediction is a function of possibly stochastic quantities other than e(b)",
+          498,
+        );
+      const m = /^(e|pr?|ys(?:t(?:ar?)?)?)\s*\((.*)\)$/.exec(inner);
+      if (!m)
+        throw new StataError(
+          `option ${inner.replace(/\(.*$/, "()")} not allowed`,
+          198,
+        );
+      const kind = m[1] === "e" ? "e" : m[1].startsWith("p") ? "pr" : "ystar",
+        parts = m[2].split(",");
+      if (parts.length !== 2) throw new StataError("invalid syntax", 198);
+      const bound = (written) => {
+        const token = written.trim();
+        if (token === ".") return { value: MISSING, text: "." };
+        if (/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(token))
+          return { value: Number(token), text: token };
+        let variable = null;
+        try {
+          variable = session.data.get(session.varlist(token)[0]);
+        } catch (error) {
+          if (!(error instanceof StataError)) throw error;
+        }
+        if (variable)
+          throw new StataError(
+            `a variable as a bound of ${kind}() is not available with margins in the browser yet`,
+            198,
+            "Give the bound as a number, or use predict to make the prediction for each observation.",
+          );
+        throw new StataError("invalid syntax", 198);
+      };
+      const lo = bound(parts[0]),
+        hi = bound(parts[1]),
+        a = lo.value,
+        b = hi.value;
+      if (!isMissing(a) && !isMissing(b) && a > b)
+        throw new StataError("", 198);
+      const title = isMissing(a)
+          ? isMissing(b)
+            ? ""
+            : `${depvar}<${hi.text}`
+          : isMissing(b)
+            ? `${depvar}>${lo.text}`
+            : `${lo.text}<${depvar}<${hi.text}`,
+        expression =
+          kind === "pr"
+            ? `Pr(${title || depvar})`
+            : kind === "e"
+              ? title
+                ? `E(${depvar}|${title})`
+                : `E(${depvar})`
+              : title
+                ? `E(${depvar}*|${title})`
+                : `E(${depvar})`,
+        sigma = model.sigma,
+        // The prediction at index e and standard deviation s; its
+        // derivatives in the variance are those in s over 2s.
+        f = (e, s = sigma) => tobitMean(kind, e, a, b, s),
+        inSigma = (g) => (e) =>
+          richardson((s) => g(e, s), sigma, sigma) / (2 * sigma);
+      return {
+        text: rest,
+        predict,
+        expression,
+        dist: "z",
+        link: [
+          (e) => f(e),
+          (e) => richardson((x) => f(x), e, sigma),
+          (e) => richardson((x) => f(x), e, sigma, 2),
+        ],
+        aux: {
+          mean: inSigma(f),
+          slope: inSigma((e, s) => richardson((x) => f(x, s), e, sigma)),
+        },
+        V,
+      };
+    },
+  };
+}
+
+/**
+ * predict after tobit, as tobit_p and regre_p2 make it: xb (the default),
+ * stdp, stdf, and for an interval (a,b) the probability pr(a,b), the
+ * truncated mean e(a,b) and the censored mean ystar(a,b); a bound is a
+ * number, an expression, a numeric variable or . for none. scores makes
+ * the two equation scores.
+ */
+function predictTobit(session, text, ctx, model) {
+  const parsed = session.parse(
+      "newvarlist [if] [in] [, XB STDP STDF E(string) Pr(string) YStar(string) SCores noOFFset]",
+      text,
+    ),
+    options = parsed.options,
+    data = session.data,
+    depvar = model.depvar,
+    s = model.sigma,
+    keep = session.rows(parsed, null),
+    // The index and its row where every regressor is there.
+    at = (i) => {
+      if (
+        model.columns.some((c) =>
+          (c.term.variables ?? [c.term.variable ?? c.term.factor]).some((v) =>
+            isMissing(v.data[i]),
+          ),
+        )
+      )
+        return null;
+      const row = model.names.map((name, k) =>
+        name === "_cons" ? 1 : model.columns[k].value(i),
+      );
+      return { row, xb: dot(row, model.b) };
+    },
+    clean = (v) => (Number.isFinite(v) ? v : MISSING),
+    make = (k, values, label) => {
+      const sorted = [...data.sortedBy],
+        made = data.generate(parsed.varlist[k], values, {
+          type: parsed.typed[k] ? parsed.types[k] : undefined,
+        });
+      data.sortedBy = sorted;
+      data.get(parsed.varlist[k]).label = label;
+      return made.missing;
+    },
+    note = (missing) => {
+      if (missing)
+        ctx.out(
+          `(${count(missing)} missing value${missing === 1 ? "" : "s"} generated)`,
+        );
+    },
+    stdp = (row) =>
+      Math.sqrt(
+        row.reduce(
+          (t, u, a) =>
+            t + u * row.reduce((r, v, b) => r + model.V[a][b] * v, 0),
+          0,
+        ),
+      );
+  if (options.scores) {
+    const other = ["xb", "stdp", "stdf"].find((name) => options[name]);
+    if (other) throw new StataError(`option ${other} not allowed`, 198);
+    if (options.e || options.pr || options.ystar)
+      throw new StataError(
+        `option ${options.e ? "e()" : options.pr ? "pr()" : "ystar()"} not allowed`,
+        198,
+      );
+    if (parsed.varlist.length > 2)
+      throw new StataError("too many variables specified", 103);
+    // Each observation's censoring as GenTobitScores reads it, a missing
+    // outcome counting as at or past the upper limit.
+    const { lower, upper } = model.limits,
+      y = data.get(depvar).data,
+      first = new Array(data.n).fill(MISSING),
+      second = new Array(data.n).fill(MISSING);
+    let missingIndex = 0;
+    for (let i = 0; i < data.n; i++) if (!at(i)) missingIndex++;
+    for (const i of keep) {
+      const p = at(i);
+      if (!p) continue;
+      const v = y[i],
+        above = upper !== null && (isMissing(v) || v >= upper),
+        below = lower !== null && !isMissing(v) && v <= lower,
+        cens = Number(above) - Number(below),
+        bound = cens === 0 ? v : cens < 0 ? lower : upper;
+      if (isMissing(bound)) continue;
+      const z = (bound - p.xb) / s;
+      if (cens === 0) {
+        first[i] = z / s;
+        second[i] = -0.5 / s ** 2 + 0.5 * (z / s) ** 2;
+      } else if (cens < 0) {
+        first[i] = clean(-density(z) / (s * normal(z)));
+        second[i] = clean((-0.5 / s) * ((z * density(z)) / (s * normal(z))));
+      } else {
+        first[i] = clean(density(z) / (s * normal(-z)));
+        second[i] = clean((0.5 / s) * ((z * density(z)) / (s * normal(-z))));
+      }
+    }
+    // _predict's note on the index comes first; the second variable is
+    // required, and Stata keeps the first when it is not there.
+    note(missingIndex);
+    make(0, first, "equation-level score for model from tobit");
+    if (parsed.varlist.length < 2)
+      throw new StataError("too few variables specified", 102);
+    make(1, second, "equation-level score for sigma from tobit");
+    return;
+  }
+  if (parsed.varlist.length > 1)
+    throw new StataError("too many variables specified", 103);
+  const interval = [
+      ["pr", options.pr],
+      ["e", options.e],
+      ["ystar", options.ystar],
+    ].filter(([, v]) => v !== undefined && v !== null && v !== ""),
+    switches = ["stdf"].filter((name) => options[name]);
+  if (options.xb && options.stdp)
+    throw new StataError("only one statistic may be specified", 198);
+  if (options.xb || options.stdp) {
+    const other = [...switches, ...interval.map(([name]) => `${name}()`)][0];
+    if (other) throw new StataError(`option ${other} not allowed`, 198);
+  }
+  if (interval.length + switches.length > 1)
+    throw new StataError("invalid syntax", 198);
+  const values = new Array(data.n).fill(MISSING);
+  if (!interval.length) {
+    if (!options.xb && !options.stdp && !options.stdf)
+      ctx.out("(option xb assumed; fitted values)");
+    for (const i of keep) {
+      const p = at(i);
+      if (!p) continue;
+      values[i] = options.stdp
+        ? stdp(p.row)
+        : options.stdf
+          ? Math.sqrt(stdp(p.row) ** 2 + s * s)
+          : p.xb;
+    }
+    note(
+      make(
+        0,
+        values,
+        options.stdp
+          ? "S.E. of the prediction"
+          : options.stdf
+            ? "S.E. of the forecast"
+            : "Linear prediction",
+      ),
+    );
+    return;
+  }
+  // The interval: two bounds separated by a comma.
+  const [kind, raw] = interval[0],
+    parts = raw.split(",");
+  if (parts.length !== 2) throw new StataError("invalid syntax", 198);
+  const bound = (written) => {
+    const token = written.trim();
+    if (token === ".") return { missing: true, text: "." };
+    if (/^[A-Za-z_]\w*$/.test(token)) {
+      let variable = null;
+      try {
+        variable = data.get(session.varlist(token)[0]);
+      } catch (error) {
+        if (!(error instanceof StataError)) throw error;
+      }
+      // A string variable reaches regre_p2's arithmetic as it is.
+      if (variable && /^str/.test(variable.type))
+        throw new StataError("type mismatch", 109);
+      if (variable) return { variable, text: variable.name };
+    }
+    let value = null;
+    try {
+      value = session.scalar(token);
+    } catch (error) {
+      if (!(error instanceof StataError)) throw error;
+    }
+    if (typeof value === "number" && !isMissing(value))
+      return { number: value, text: token };
+    if (/^[A-Za-z_]\w*$/.test(token))
+      throw new StataError(`variable ${token} not found`, 111);
+    throw new StataError("invalid syntax", 198);
+  };
+  const lb = bound(parts[0]),
+    ub = bound(parts[1]),
+    valueOf = (b, i) =>
+      b.variable ? b.variable.data[i] : b.missing ? MISSING : b.number;
+  if (
+    keep.some((i) => {
+      const a = valueOf(lb, i),
+        b = valueOf(ub, i);
+      return !isMissing(a) && !isMissing(b) && a > b;
+    })
+  )
+    throw new StataError(
+      `option ${kind}(a,b) incorrectly specified; b must be >= a`,
+      198,
+    );
+  const title = lb.missing
+      ? ub.missing
+        ? ""
+        : `${depvar}<${ub.text}`
+      : ub.missing
+        ? `${depvar}>${lb.text}`
+        : `${lb.text}<${depvar}<${ub.text}`,
+    // CalcP, CalcE and CalcY at index xb for bounds a and b.
+    mean = (xb, a, b) => tobitMean(kind, xb, a, b, s);
+  for (const i of keep) {
+    const a = valueOf(lb, i),
+      b = valueOf(ub, i);
+    if (kind === "pr" && isMissing(a) && isMissing(b)) {
+      values[i] = 1;
+      continue;
+    }
+    const p = at(i);
+    if (!p) continue;
+    values[i] = clean(mean(p.xb, a, b));
+  }
+  note(
+    make(
+      0,
+      values,
+      kind === "pr"
+        ? `Pr(${title || depvar})`
+        : kind === "e"
+          ? title
+            ? `E(${depvar}|${title})`
+            : `E(${depvar})`
+          : title
+            ? `E(${depvar}*|${title})`
+            : `E(${depvar})`,
+    ),
+  );
+}
+
 function tobit(session, text, ctx) {
   // tobit has vce(cluster), but not the older cluster() spelling.
   if (
@@ -546,8 +969,9 @@ function tobit(session, text, ctx) {
     },
     lower = limit("ll", Math.min),
     upper = limit("ul", Math.max);
-  if (lower === null && upper === null)
-    throw new StataError("you must specify ll() or ul()", 198);
+  // With neither limit tobit fits the outcome uncensored, as regression
+  // by maximum likelihood.
+  const limited = lower !== null || upper !== null;
   if (lower !== null && upper !== null && lower > upper)
     throw new StataError("observations with ll() > ul() not allowed", 198);
   // Each observation's state: -1 left-censored, 1 right-censored, 0
@@ -668,7 +1092,9 @@ function tobit(session, text, ctx) {
     rank = robust ? robustRank(V, clusters) : k + 1,
     df = n - (rank - 1 - Number(constant)),
     lr = constant && regressors > 0 && !robust,
-    dfModel = regressors,
+    // The Wald test counts only the constraints the variance can test,
+    // none with a single cluster.
+    dfModel = lr ? regressors : Math.min(regressors, rank),
     chi2 = lr ? 2 * (full.ll - ll0) : MISSING,
     wald =
       !lr && regressors
@@ -680,7 +1106,10 @@ function tobit(session, text, ctx) {
         : MISSING,
     F = isMissing(wald) ? MISSING : wald / dfModel,
     variance = full.theta[k],
-    seVariance = Math.sqrt(V[k][k]),
+    // One cluster leaves the variance of the variance missing.
+    seVariance = Number.isFinite(Math.sqrt(V[k][k]))
+      ? Math.sqrt(V[k][k])
+      : MISSING,
     critical = invttail(df, (1 - options.level / 100) / 2),
     counts = [0, -1, 1].map((s) => state.filter((v) => v === s).length),
     // As _censobs_limits shows a limit: a whole number in %10.0gc, any
@@ -709,6 +1138,9 @@ function tobit(session, text, ctx) {
       kind: "tobit",
       sample: f.sample,
       sigma: Math.sqrt(variance),
+      limits: { lower, upper },
+      predictor: (s, t, c) => predictTobit(s, t, c, model),
+      margins: null,
       baseLevels: baseLevelsAsked(options),
       // var(e.depvar) as test and lincom reach it, [/]var(e.wage).
       auxiliary: {
@@ -719,6 +1151,7 @@ function tobit(session, text, ctx) {
         V: [[V[k][k]]],
       },
     };
+  model.margins = tobitMargins(session, model);
   session.estimates = model;
   session.results.e = {
     N: n,
@@ -746,8 +1179,9 @@ function tobit(session, text, ctx) {
   f.notes(ctx);
   ctx.out("");
   // Stata's tobit first refines its starting values on a grid and logs the
-  // best node, which is where the full model's iterations begin.
-  if (!/\bnolog\b/.test(splitAtComma(text)[1] ?? "")) {
+  // best node, which is where the full model's iterations begin; with no
+  // limits it fits at once.
+  if (limited && !/\bnolog\b/.test(splitAtComma(text)[1] ?? "")) {
     ctx.out("Refining starting values:");
     ctx.out("");
     ctx.out(
@@ -819,8 +1253,12 @@ function tobit(session, text, ctx) {
       `var(e.${abbreviate(model.depvar, w - 6)})`.padStart(w + 1),
       variance,
       seVariance,
-      variance * Math.exp((-critical * seVariance) / variance),
-      variance * Math.exp((critical * seVariance) / variance),
+      isMissing(seVariance)
+        ? MISSING
+        : variance * Math.exp((-critical * seVariance) / variance),
+      isMissing(seVariance)
+        ? MISSING
+        : variance * Math.exp((critical * seVariance) / variance),
     ),
   );
   ctx.out(rule(w));
@@ -1217,11 +1655,7 @@ function mlogit(session, text, ctx) {
     base = given
       ? outcomes.indexOf(options.baseoutcome)
       : frequency.indexOf(greatest(frequency));
-  if (base < 0)
-    throw new StataError(
-      `baseoutcome(${options.baseoutcome}) is not an outcome`,
-      198,
-    );
+  if (base < 0) throw new StataError("basecategory not found", 111);
   // mlogit has cleared e() by then, and says so after a blank line.
   if (outcomes.length < 2) {
     forgetEstimates(session);
@@ -1293,7 +1727,7 @@ function mlogit(session, text, ctx) {
     rank = full.V.filter((row, j) => row[j] !== 0).length,
     dfModel = rank - (constant ? others.length : 0),
     chi2 = isMissing(ll0) ? MISSING : 2 * (full.ll - ll0),
-    label = (j) => labelled(session, f.dependent, outcomes[j]),
+    label = (j) => equationName(session, f.dependent, outcomes[j]),
     names = others.flatMap((j) => f.names.map((name) => `${label(j)}:${name}`)),
     model = {
       command: "mlogit",
@@ -1314,7 +1748,7 @@ function mlogit(session, text, ctx) {
       vce: "oim",
       kind: "mlogit",
       // Every outcome's equation name in order, and which one is the base.
-      equations: outcomes.map((_, j) => String(label(j))),
+      equations: outcomes.map((_, j) => label(j)),
       baseEquation: base,
       // The outcome each equation is for, by which [#]name may name it.
       outcomeValues: outcomes,
@@ -1345,6 +1779,8 @@ function mlogit(session, text, ctx) {
     p: isMissing(chi2) || dfModel <= 0 ? MISSING : chi2tail(dfModel, chi2),
     r2_p: isMissing(ll0) ? MISSING : 1 - full.ll / ll0,
     k_out: outcomes.length,
+    // The equation names, which outcome() and [eq] take.
+    eqnames: model.equations.join(" "),
     baseout: outcomes[base],
     ibaseout: base + 1,
     // Every outcome has an equation, the base one included.
@@ -1377,9 +1813,8 @@ function mlogit(session, text, ctx) {
   ctx.out("");
   // The equations are named by outcome, so their names count in the first
   // column's width and the dependent variable does not; it, and a name too
-  // long, are abbreviated. Stata names an equation by its outcome's label
-  // with spaces made underscores, cut to 32 characters.
-  const equation = (j) => String(label(j)).replace(/ /g, "_").slice(0, 32),
+  // long, are abbreviated.
+  const equation = label,
     w = tableWidth(
       session,
       tableModel(f),
@@ -1444,6 +1879,60 @@ function mlogit(session, text, ctx) {
  * count at every step.
  */
 export function gammaSums(m, y) {
+  // An outcome that is not a count: its fractional part f is stepped from
+  // m to m + f by the asymptotic series, differenced at a point moved past
+  // 30 by the recurrence so that a large m loses nothing, and the whole
+  // part summed from there.
+  if (!Number.isInteger(y)) {
+    const whole = Math.floor(y),
+      f = y - whole,
+      shift = Math.max(0, Math.ceil(30 - m)),
+      a = m + shift,
+      b = a + f,
+      r = Math.log1p(f / a),
+      // 1/a^k - 1/b^k, without cancellation.
+      inverse = (k) => {
+        let sum = 0;
+        for (let j = 0; j < k; j++) sum += a ** (k - 1 - j) * b ** j;
+        return (f * sum) / (a * b) ** k;
+      };
+    let ln =
+        (a - 0.5) * r +
+        f * Math.log(b) -
+        f -
+        inverse(1) / 12 +
+        inverse(3) / 360 -
+        inverse(5) / 1260 +
+        inverse(7) / 1680,
+      di =
+        r +
+        inverse(1) / 2 +
+        inverse(2) / 12 -
+        inverse(4) / 120 +
+        inverse(6) / 252 -
+        inverse(8) / 240,
+      // trigamma(m) - trigamma(m + f)
+      t =
+        inverse(1) +
+        inverse(2) / 2 +
+        inverse(3) / 6 -
+        inverse(5) / 30 +
+        inverse(7) / 42 -
+        inverse(9) / 30;
+    for (let j = 0; j < shift; j++) {
+      ln -= Math.log(m + f + j) - Math.log(m + j);
+      di -= 1 / (m + f + j) - 1 / (m + j);
+      t += 1 / (m + j) ** 2 - 1 / (m + f + j) ** 2;
+    }
+    // The whole part from m + f, whose tri is di less (m + f) times the
+    // difference of trigammas.
+    const rest = gammaSums(m + f, whole),
+      restT = whole ? (rest.di - rest.tri) / (m + f) : 0;
+    ln += rest.ln;
+    di += rest.di;
+    t += restT;
+    return { ln, di, tri: di - m * t };
+  }
   const head = Math.min(y, 1000);
   let ln = 0,
     di = 0,
@@ -1501,6 +1990,8 @@ export function gammaSums(m, y) {
  * where nbreg stops.)
  */
 const lnFactorial = (n) => {
+  // An outcome that is not a count takes lngamma, as Stata does.
+  if (!Number.isInteger(n)) return lngamma(n + 1);
   if (n > 170) return gammaSums(1, n).ln;
   let product = 1;
   for (let j = 2; j <= n; j++) product *= j;
@@ -1804,24 +2295,58 @@ export function maximizeNR(
   }
 }
 
+/**
+ * What nbreg's dispersion() asks for, read as syntax [, Mean Constant]
+ * reads it: mean, which is the default, or constant, which is not here yet.
+ */
+function dispersionOf(text) {
+  let mean = false,
+    constant = false;
+  for (const word of (text ?? "").trim().split(/\s+/).filter(Boolean)) {
+    if (/^m(e(an?)?)?$/.test(word)) mean = true;
+    else if (/^c(o(n(s(t(a(nt?)?)?)?)?)?)?$/.test(word)) constant = true;
+    else throw new StataError(`option ${word} not allowed`, 198);
+  }
+  if (constant && mean)
+    throw new StataError(
+      "must choose either mean or constant for option dispersion()",
+      198,
+    );
+  if (constant)
+    throw new StataError(
+      "option dispersion(constant) is not available in the browser yet",
+      198,
+      "nbreg fits the mean-dispersion model, dispersion(mean), here; fit the constant-dispersion model in Stata.",
+    );
+  return "mean";
+}
+
 function nbreg(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [fweight pweight iweight] [, Level(cilevel) noLOg IRr noCONStant Robust VCE(string) CLuster(string) BASElevels ALLBASElevels | Dispersion(string) EXPosure(varname) OFFset(varname)]",
+      "anything [if] [in] [fweight pweight iweight] [, Level(cilevel) noLOg IRr noCONStant Robust VCE(string) CLuster(string) BASElevels ALLBASElevels Dispersion(string) | EXPosure(varname) OFFset(varname)]",
       text,
     ),
     options = parsed.options,
+    // dispersion(mean), the default, is the model fitted here.
     asked =
-      (numericVarlist(session, parsed.anything), requested(session, parsed)),
+      (dispersionOf(options.dispersion),
+      numericVarlist(session, parsed.anything),
+      requested(session, parsed)),
     constant = options.constant !== false,
     f = notAllZero(
       twoOrMore(frame(session, parsed, constant, constant, false, asked)),
     ),
     n = f.y.length,
     weight = (i) => (f.w ? f.w[i] : 1);
-  if (f.y.some((v) => v < 0 || !Number.isInteger(v)))
+  if (f.y.some((v) => v < 0))
     throw new StataError(
-      `${f.dependent.name} must be a nonnegative count`,
+      `${f.dependent.name} must be greater than or equal to zero`,
       459,
+    );
+  // An outcome that is not a count is fitted all the same.
+  if (f.y.some((v) => !Number.isInteger(v)))
+    ctx.out(
+      "note: you are responsible for interpretation of non-count dep. variable",
     );
   const lnFact = f.y.map(lnFactorial),
     // Stata's nbreg_lf: the log likelihood, its gradient and the negative

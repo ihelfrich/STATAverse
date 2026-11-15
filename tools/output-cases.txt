@@ -30520,3 +30520,598 @@ matrix list A
 set linesize 90
 matrix list A
 set linesize 200
+=== recheck-limited-glm-gaussian-links
+clear
+set seed 7301
+set obs 200
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double h = 30 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)
+generate double s = h/100
+generate byte w = 1 + f
+glm h x, link(log)
+glm h x f, link(log) vce(robust)
+glm h x [fw=w], link(log) nolog
+capture noisily glm h x, link(logit) nolog
+capture noisily glm h x, family(gaussian) link(probit) nolog
+glm s x, link(logit)
+glm s x f, link(cloglog) nolog
+=== recheck-limited-glm-predict
+clear
+set seed 7301
+set obs 200
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double u = runiform()
+generate byte d = (x - 2 + f + ln(u/(1-u))) > 0
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+generate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)
+generate double p = (c + .5) / 12
+replace x = . in 5
+quietly glm d x f, family(binomial)
+foreach o in mu xb eta stdp anscombe cooksd deviance hat likelihood pearson response score working {
+  predict double b_`o', `o'
+}
+predict double b_dsa, deviance standardized adjusted
+predict double b_ps, pearson studentized
+predict double b_pm, pearson modified
+predict double b_rs, response standardized studentized modified
+predict double b_tx, t(x)
+predict double b_wsm, working standardized modified
+predict b_n if x > 2, deviance
+summarize b_*
+describe b_*
+quietly glm c x f, family(poisson)
+foreach o in mu anscombe cooksd deviance hat likelihood pearson response score working {
+  predict double q_`o', `o'
+}
+predict double q_da, deviance adjusted
+predict double q_ps, pearson standardized studentized
+summarize q_*
+quietly glm h x f, link(log)
+predict double l_sc, score
+predict double l_an, anscombe
+predict double l_ck, cooksd
+summarize l_*
+quietly glm p x f, family(binomial) link(probit)
+predict double r_an, anscombe
+predict double r_da, deviance adjusted
+predict double r_sc, score
+predict double r_w, working
+summarize r_*
+=== recheck-limited-glm-predict-checks
+clear
+set seed 7301
+set obs 200
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double u = runiform()
+generate byte d = (x - 2 + f + ln(u/(1-u))) > 0
+replace x = . in 5
+quietly glm d x f, family(binomial)
+capture noisily predict double z3, deviance pearson
+capture noisily predict double z4, hat studentized
+capture noisily predict double z6, likelihood modified standardized
+capture noisily predict double z7, mu xb
+capture noisily predict double z9, xb studentized
+capture noisily predict double z10, stdp standardized
+capture noisily predict double z13, cooksd modified
+capture noisily predict double z14, mu t(x)
+capture noisily predict double z15, score studentized
+capture noisily predict double z16, pr
+capture noisily predict double z17, nooffset
+capture noisily predict double z18 in 1/50, hat
+capture noisily predict double z19, xb stdp
+capture noisily predict z20 z21, score
+capture noisily predict double z22, anscombe adjusted
+summarize z*
+describe z*
+quietly glm d x f, family(binomial) vce(robust)
+capture noisily predict double y1, pearson standardized
+capture noisily predict double y2, hat
+capture noisily predict double y3, deviance pearson
+capture noisily predict double y4, pearson adjusted
+capture noisily predict double y5, xb studentized
+capture noisily predict y6 if x > 2, deviance
+capture noisily predict y7, cooksd
+summarize y*
+=== recheck-limited-count-predict
+clear
+set seed 7301
+set obs 200
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double u = runiform()
+generate byte d = (x - 2 + f + ln(u/(1-u))) > 0
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+replace x = . in 5
+quietly logit d x f
+predict s1, score
+predict double s2 if f, score
+quietly probit d x f
+predict s3, score
+quietly poisson c x f
+predict s4, score
+predict s5, ir
+predict s6 in 1/20, ir
+predict t1, pr(2)
+predict t2, pr(1,3)
+predict t3, pr(3,.)
+predict t4, pr(0,.)
+predict t5, pr(0,2)
+generate k = mod(_n,4)
+replace k = . in 7
+replace k = 1.5 in 9
+predict t6, pr(k)
+predict t7, pr(1,k)
+predict t8, pr(k,3)
+quietly nbreg c x f
+predict s7, score
+predict s8 s9, score
+predict s10, ir
+predict s11, pr(0)
+predict s12, pr(1,3)
+predict s13, pr(2,.)
+predict s21, pr(0,0)
+predict s24, pr(0, .)
+predict t9, pr(k)
+predict t10, pr(k,k)
+quietly cloglog d x f
+predict k1, score
+summarize s* t* k1
+describe s* t* k1
+=== recheck-limited-count-predict-checks
+clear
+set seed 7301
+set obs 200
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+replace x = . in 5
+replace c = . in 8
+quietly poisson c x f
+capture noisily predict z1, xb n
+capture noisily predict z2, xb ir
+capture noisily predict z3, stdp pr(1)
+capture noisily predict z4, score xb
+capture noisily predict z5 z6, n
+capture noisily predict z7 z8, score
+capture noisily predict z9, n nooffset
+capture noisily predict z10, ir pr(1)
+capture noisily predict z12, pr()
+capture noisily predict z13, pr(1,2,3)
+capture noisily predict z14, pr(1 2)
+capture noisily predict z15, score
+quietly nbreg c x f
+capture noisily predict w1 w2 w3, score
+capture noisily predict w4, n stdp
+capture noisily predict w5 w6, score
+capture noisily predict s14, pr(.,2)
+capture noisily predict s15, pr(3,1)
+capture noisily predict s16, pr(-1)
+capture noisily predict s17, pr(1.5)
+capture noisily predict s18, pr(a)
+capture noisily predict s19, ir n
+capture noisily predict s20, pr(1) n
+capture noisily predict s22, pr(1.5, 3)
+capture noisily predict s23, pr(1, 3.5)
+capture noisily predict s25, pr(-1, 2)
+summarize z* w*
+=== recheck-limited-tobit-predict
+clear
+set seed 7302
+set obs 200
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)
+replace h = max(0, min(h, 25))
+replace x = . in 5
+replace h = . in 6
+generate double lo = 2 + mod(_n, 3)
+quietly tobit h x f, ll(0) ul(25)
+predict a1
+predict a2, xb
+predict a3, stdp
+predict a4, stdf
+predict a5, pr(0,25)
+predict a6, e(0,25)
+predict a7, ystar(0,25)
+predict a8, e(0,.)
+predict a9, pr(.,10)
+predict a10, ystar(.,.)
+predict a11, e(.,.)
+predict a12, pr(.,.)
+predict a13, e(lo,20)
+predict double a14, ystar(lo, .)
+predict a15, pr(2*3, 10)
+predict a16 a17, scores
+capture noisily predict a18, scores
+capture noisily predict a19, e(5,2)
+capture noisily predict a20, e(5)
+capture noisily predict a21, pr(1,2) e(1,2)
+capture noisily predict a22, stdf pr(1,2)
+capture noisily predict a23, e(q,2)
+capture noisily predict a24, residuals
+summarize a*
+describe a*
+quietly tobit h x f, ll(0)
+predict b1 b2, scores
+predict b3, ystar(0,.)
+quietly tobit h x f, ul(25)
+predict b4 b5, scores
+quietly tobit h x f
+predict b6 b7, scores
+predict b8, ystar(0, 25)
+quietly tobit h x f, ll(0) ul(25) vce(robust)
+predict b9, stdf
+predict b10, e(0,25)
+summarize b*
+describe b*
+=== recheck-limited-tobit-uncensored
+clear
+set seed 7302
+set obs 300
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)
+tobit h x
+tobit h x f, nolog
+tobit h x, vce(robust)
+tobit h x, ll(.) ul(.)
+tobit h x, noconstant nolog
+=== recheck-limited-noncount-outcomes
+clear
+set seed 7304
+set obs 300
+generate double x = runiform()*4
+generate int c = floor(exp(.2 + .3*x) * (-ln(runiform())) * 1.5)
+generate double y = c + .5
+poisson y x, vce(robust)
+poisson y x
+poisson y x in 1/50, nolog irr
+poisson y x, robust nolog
+nbreg y x
+nbreg y x, nolog vce(robust)
+predict n1
+summarize n1
+generate yn = c - 3
+capture noisily nbreg yn x
+capture noisily poisson yn x
+=== recheck-limited-outcome-names
+clear
+set seed 7303
+set obs 300
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double u = x + f + 2*runiform()
+generate byte t = 1 + (u > 2) + (u > 3.2) + (u > 4.4)
+replace t = 7 if t == 4
+label define tl 1 "Bus" 2 "Car" 3 "Train" 7 "Walk"
+label values t tl
+generate byte s = t
+quietly mlogit t x f
+capture noisily predict p1, outcome(Bus)
+capture noisily predict p2, outcome(Walk) pr
+capture noisily predict p3, outcome(5)
+capture noisily predict p4, outcome(#5)
+capture noisily predict p5, outcome(Plane)
+capture noisily predict p6, xb outcome(Train)
+capture noisily predict p7, outcome(bus)
+capture noisily predict p8 p9, outcome(Car)
+capture noisily predict p10 p11, outcome(9)
+predict p12 p13 p14 p15
+capture noisily margins, predict(outcome(Bus))
+capture noisily margins, predict(outcome(5))
+capture noisily margins, predict(outcome(Plane))
+capture noisily margins, predict(outcome(#5))
+summarize p*
+describe p*
+quietly ologit t x f
+capture noisily predict q1, outcome(Bus)
+capture noisily predict q2, outcome(9)
+capture noisily predict q3, outcome(#9)
+capture noisily predict q4, outcome(7)
+capture noisily predict q5, xb outcome(9)
+capture noisily predict q6, outcome(#2)
+capture noisily predict q7, stdp outcome(#1)
+capture noisily predict q8 q9, outcome(#2)
+capture noisily margins, predict(outcome(Bus))
+capture noisily margins, predict(outcome(9))
+capture noisily margins, predict(outcome(#9))
+capture noisily margins, predict(outcome(7))
+quietly oprobit s x f
+capture noisily predict r1, outcome(5)
+capture noisily margins, predict(outcome(5))
+summarize q*
+capture noisily mlogit t x f, baseoutcome(5)
+capture noisily mlogit t x f, baseoutcome(Car)
+capture noisily mlogit t x f, baseoutcome(1.5)
+mlogit t x f, baseoutcome(7) nolog
+=== recheck-limited-outcome-factor-margins
+clear
+set seed 7305
+set obs 400
+generate byte g = runiform() > .5
+generate byte r = 1 + floor(runiform()*3)
+label define rl 1 "North" 2 "South" 3 "West"
+label values r rl
+generate double x = runiform()*3
+generate double u = x + g + 2*runiform()
+generate byte t = 1 + (u > 1.8) + (u > 3) + (u > 4)
+ologit t i.g, nolog
+margins g
+margins g, predict(outcome(2))
+oprobit t i.r, nolog
+margins r
+mlogit t i.g, nolog
+margins g, predict(outcome(2))
+margins g
+mlogit t i.g x, nolog
+margins g, predict(outcome(3))
+=== recheck-limited-lrtest-force-heckman-jackknife
+clear
+set seed 7306
+set obs 400
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double z = rnormal()
+generate double u = runiform()
+generate byte d = (x - 2 + f + ln(u/(1-u))) > 0
+quietly logit d x f
+estimates store a
+quietly logit d x if x > 1
+estimates store b
+capture noisily lrtest a b
+lrtest a b, force
+generate double e1 = rnormal()
+generate double e2 = .5*e1 + rnormal()
+generate byte works = (.5 + .7*z + .2*x + e1) > 0
+generate double lw = 1 + .1*x + .4*e2 if works
+heckman lw x, select(works = z x) twostep vce(jackknife)
+heckman lw x, select(works = z x) vce(jackknife) nolog
+=== recheck-limited-one-cluster-and-noncount-notes
+clear
+set seed 9
+set obs 100
+generate x = runiform()
+generate x2 = 2*x
+generate w = floor(3*runiform()) + .5
+generate y = floor(3*runiform())
+generate d = runiform() > .4
+generate z = runiform() > .5
+generate g = 1 + (runiform() > .5)
+generate x3 = runiform()
+poisson w x x2, nolog
+nbreg w x x2 i.z, nolog
+poisson w x if z, nolog vce(cluster z)
+logit d x if z, nolog vce(cluster z)
+probit d x if z, nolog vce(cluster z)
+poisson y x if z, nolog vce(cluster z) irr
+nbreg y x if z, nolog vce(cluster z)
+tobit y x if z, ll(0) vce(cluster z) nolog
+display e(df_m) " " e(df_r) " " e(rank)
+glm d x if z, family(binomial) vce(cluster z) nolog
+tobit y x x3, ll(0) vce(cluster g) nolog
+display e(df_m) " " e(df_r) " " e(rank)
+=== recheck2-limited-scores-zero-weights
+clear
+set seed 7311
+set obs 300
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double u = runiform()
+generate byte d = (x - 2 + f + ln(u/(1-u))) > 0
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+generate double h = 30 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)
+generate w = mod(_n,3)
+replace w = . in 1/4
+generate double iw = w - .5*(w==1)
+generate pw = w + .5
+replace pw = . in 5
+quietly poisson c x f [fweight=w]
+predict a1, score
+quietly poisson c x f [iweight=iw]
+predict a2, score
+quietly poisson c x f [pweight=pw]
+predict a3, score
+quietly nbreg c x f [pweight=w]
+predict a4 a5, scores
+quietly glm c x f [fweight=w], family(poisson)
+predict a6, score
+quietly glm c x f [aweight=pw], family(poisson)
+predict a7, score
+quietly glm d x f [iweight=iw], family(binomial) link(probit)
+predict a8, score
+quietly glm h x f [aweight=pw]
+predict a9, score
+quietly logit d x f [fweight=w]
+predict a10, score
+quietly probit d x f [pweight=pw]
+predict a11, score
+quietly tobit h x f [pweight=w], ll(30)
+predict a12 a13, scores
+quietly poisson c x f [fweight=w] if x > 1
+predict a14, score
+predict a15 if x < 3, score
+summarize a*
+=== recheck2-limited-mlogit-equation-names-stddp
+clear
+set seed 7312
+set obs 300
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double u = x + f + 2*runiform()
+generate byte t = 1 + (u > 2) + (u > 3.2)
+generate byte mode = cond(t == 1, 1, cond(t == 2, 5, 9))
+label define md 1 "By car" 5 "Bus-line" 9 "2 wheels"
+label values mode md
+replace x = . in 3
+quietly mlogit mode x f
+mlogit
+display e(eqnames)
+foreach o in "By car" "By_car" "Bus-line" "Bus_line" "2 wheels" "2_wheels" "_2_wheels" "By_car Bus_line" "By_car By_car" "#0" "#1.5" "#4" "1.0" "5.00000001" "3" {
+  capture noisily predict p, outcome(`o')
+  display "`o' " _rc
+  capture noisily margins, predict(outcome(`o'))
+  display "m `o' " _rc
+  capture drop p
+}
+predict double s1, stddp outcome(5,9)
+predict double s2, stddp outcome(1, 5)
+predict double s3, stddp outcome(#1,#1)
+predict double s4 if f, stddp outcome(2_wheels,By_car)
+predict double s5, stddp equation(9,1)
+predict double s6, index outcome(Bus_line)
+predict double s7, xb equation(Bus_line)
+summarize s*
+describe s*
+capture noisily predict q1, stddp
+capture noisily predict q2, stddp outcome(5)
+capture noisily predict q3 q4, stddp outcome(5,9)
+capture noisily predict q5 q6 q7, stddp
+capture noisily predict q8, stddp outcome(5,Bike)
+capture noisily predict q9, stddp xb outcome(5,9)
+capture noisily predict q10, xb stdp
+capture noisily predict q11, xb stdp pr
+capture noisily predict q12, stddp outcome(#4,1)
+capture noisily predict q13, outcome(5) equation(5)
+capture noisily predict q14 q15, xb outcome(5)
+capture noisily predict q16 q17, xb
+quietly mlogit mode x f, baseoutcome(5)
+predict double r1, stddp outcome(5,9)
+predict double r2, stdp outcome(9)
+summarize r*
+quietly ologit t x f
+capture noisily predict z1, stddp outcome(1,2)
+=== recheck2-limited-count-pr-bounds
+clear
+set seed 7313
+set obs 300
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+generate double n1 = mod(_n,4) - 1
+replace n1 = . in 1/3
+generate double n2 = n1 + .5
+generate n4 = mod(_n,3)
+generate str3 sv = "a"
+quietly poisson c x f
+predict a1, pr(n2)
+predict a2, pr(n1)
+predict a3, pr(n4, 1)
+predict a4, pr(n4, 2)
+capture noisily predict a5, pr(n1, 3)
+capture noisily predict a6, pr(sv)
+capture noisily predict a7, pr(sv, 2)
+capture noisily predict a8, pr(1, sv)
+capture noisily predict a9, pr(sv, -1)
+replace n4 = . in 1
+capture noisily predict a10, pr(n4, 2)
+replace n4 = 3 in 1
+capture noisily predict a11, pr(n4, 2)
+predict a12, pr(n4, 3)
+quietly nbreg c x f
+predict b1, pr(n2)
+capture noisily predict b2, pr(n1, 3)
+predict b3, pr(2, n2)
+summarize a* b*
+quietly tobit c x f, ll(0)
+capture noisily predict t1, e(sv,5)
+capture noisily predict t2, e(0,sv)
+capture noisily predict t3, ystar(sv,.)
+capture noisily predict t4, pr(sv,5)
+foreach k in -2 -1 -.5 -1e-9 0 .5 1.5 {
+  display "k=`k' " poissonp(2,`k') " " poisson(2,`k') " " poissontail(2,`k') " " nbinomialp(2,`k',.5) " " nbinomial(2,`k',.5) " " nbinomialtail(2,`k',.5)
+}
+=== recheck2-limited-ordered-outcomes-and-margins
+clear
+set seed 7314
+set obs 400
+generate double x = runiform()*4
+generate float xf = runiform()*4
+generate byte g = runiform() > .5
+generate double u = x + xf/2 + g + 2*runiform()
+generate byte t = 1 + (u > 2.5) + (u > 3.7) + (u > 5)
+quietly ologit t x
+foreach o in "#0" "#-1" "#1.5" "#1.0" "#+2" "#+1" "#+4" "#+5" "#2e0" "#9" "# 2" "#a" "2.0" "7" "abc" "#01" {
+  capture noisily predict p, outcome(`o')
+  display "`o' " _rc
+  capture noisily margins, predict(outcome(`o'))
+  display "m `o' " _rc
+  capture drop p
+}
+quietly oprobit t x
+capture noisily predict p, outcome(#0)
+capture noisily predict p, outcome(#1.5)
+quietly ologit t i.g xf
+margins g, at(g=1)
+margins g, at(g=0 xf=2.3)
+quietly oprobit t xf i.g
+margins g, atmeans
+matrix b = r(b)
+display %14.0g b[1,5]
+quietly margins, at(xf=2.3) predict(outcome(2))
+display %14.0g r(b)[1,1]
+quietly mlogit t i.g xf
+margins g, at(g=1) predict(outcome(2))
+quietly margins g, atmeans predict(outcome(2))
+display %14.0g r(b)[1,1]
+quietly margins, at(xf=2.3) predict(outcome(2))
+display %14.0g r(b)[1,1]
+quietly margins g
+display %14.0g sqrt(r(V)[2,2])
+quietly margins, dydx(xf) predict(outcome(2))
+display %14.0g r(b)[1,1] " " %14.0g sqrt(r(V)[1,1])
+quietly margins, dydx(*) predict(outcome(3))
+display %14.0g sqrt(r(V)[1,1]) " " %14.0g sqrt(r(V)[2,2]) " " %14.0g sqrt(r(V)[3,3])
+quietly ologit t c.xf##c.xf i.g
+quietly margins, dydx(xf) predict(outcome(2))
+display %14.0g r(b)[1,1] " " %14.0g sqrt(r(V)[1,1])
+quietly margins, dydx(*) atmeans predict(outcome(4))
+display %14.0g sqrt(r(V)[1,1]) " " %14.0g sqrt(r(V)[2,2]) " " %14.0g sqrt(r(V)[3,3])
+quietly oprobit t xf i.g
+quietly margins, dydx(*) predict(outcome(1))
+display %14.0g sqrt(r(V)[1,1]) " " %14.0g sqrt(r(V)[2,2]) " " %14.0g sqrt(r(V)[3,3])
+margins, dydx(xf)
+=== recheck2-limited-dispersion-tobit-glm-margins
+clear
+set seed 7315
+set obs 400
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate byte r = 1 + floor(runiform()*3)
+generate double a = 20 + 20*runiform()
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+generate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)
+generate double u = runiform()
+generate byte d = (x - 2 + f + ln(u/(1-u))) > 0
+replace h = 30 if h > 30
+replace h = 0 if h < 0
+capture noisily nbreg c x, dispersion(mean) nolog
+capture noisily nbreg c x, disp(m) nolog irr
+capture noisily nbreg c x, dispersion() nolog
+capture noisily nbreg c x, dispersion(mean constant) nolog
+capture noisily nbreg c x, dispersion(foo) nolog
+capture noisily nbreg c x, dispersion(Mean) nolog
+quietly tobit h x i.r c.a#c.f, ll(0) ul(30)
+margins, predict(ystar(0,30))
+margins, predict(pr(0,30))
+margins r, predict(e(0,30))
+margins, predict(xb)
+margins, predict(e(.,.))
+margins, at(x=2) predict(pr(10,.))
+margins, predict(e(.,20))
+margins, dydx(x) predict(e(0,.))
+margins r, predict(ystar(0,30)) at(x=(1 3))
+margins, dydx(a) atmeans
+capture noisily margins, predict(stdp)
+capture noisily margins, predict(e(0))
+capture noisily margins, predict(e(5,1))
+quietly glm h x f, family(gaussian) link(log)
+margins, dydx(x)
+quietly glm d x f, family(binomial)
+margins, dydx(*)
+quietly glm d x f, family(binomial) link(probit)
+margins, dydx(x)
+generate double iw = mod(_n,3) - .5
+glm d x f [iweight=iw], family(binomial) link(probit) nolog

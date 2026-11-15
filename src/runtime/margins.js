@@ -827,7 +827,7 @@ function margins(session, text, ctx) {
       : { value: 0, gradient: new Array(k).fill(0), estimable: false };
   };
   const effect = (fixed, variable) =>
-    chosen?.chain
+    chosen?.chain || model.chainEffects
       ? numericEffect(fixed, variable)
       : analyticEffect(fixed, variable);
   const analyticEffect = (fixed, variable) =>
@@ -1377,8 +1377,11 @@ function margins(session, text, ctx) {
   // After qreg, newey and prais Stata's margins refers to the normal, and
   // after jackknife to the distribution of the fit it resampled.
   const t =
-      (model.resampledDist !== undefined ? model.resampledDist : model.dist) !==
-        "z" && !["qreg", "newey", "prais", "xtreg"].includes(model.command),
+      (chosen?.dist ??
+        (model.resampledDist !== undefined
+          ? model.resampledDist
+          : model.dist)) !== "z" &&
+      !["qreg", "newey", "prais", "xtreg"].includes(model.command),
     critical = t
       ? invttail(model.df_r, (1 - level / 100) / 2)
       : invnormal(1 - (1 - level / 100) / 2),
@@ -1458,8 +1461,10 @@ function margins(session, text, ctx) {
         {
           name,
           value:
+            // A variable that enters only in interactions has no column
+            // of its own; its mean is the variable's.
             value === "mean"
-              ? g(columnMeans[model.names.indexOf(name)])
+              ? g(variableMeans.get(name))
               : value.generate
                 ? value.text
                 : g(value),
