@@ -147,6 +147,30 @@ function tokenize(source) {
       start,
       ...(raw === undefined ? {} : { raw }),
     });
+  // "text":lblname after a string, blanks allowed around the colon, is the
+  // value that value label gives text: "mid":gl. The name runs to a blank
+  // or an operator, so "mid":gl[1] names a label gl[1]; with no name at
+  // all, as in "mid": -x, it names none. Returns where the scan resumes.
+  const labelled = (from) => {
+    const colon = /^\s*:\s*/.exec(source.slice(from));
+    if (!colon) return from;
+    let to = from + colon[0].length,
+      depth = 0;
+    for (; to < source.length; to++) {
+      const c = source[to];
+      if (c === "(") depth++;
+      else if (c === ")" && depth) depth--;
+      else if (/[\s+\-*/^<>=!~&|),]/.test(c)) break;
+    }
+    const name = source.slice(from + colon[0].length, to);
+    if (!name && to >= source.length) throw invalid();
+    const string = tokens.at(-1);
+    Object.assign(string, {
+      type: "label",
+      value: { text: string.value, name },
+    });
+    return to;
+  };
   while (i < source.length) {
     // Each token ends where the scan resumes after it.
     if (tokens.length && tokens.at(-1).end === undefined) tokens.at(-1).end = i;
@@ -163,12 +187,12 @@ function tokenize(source) {
       }
       if (depth) throw new StataError("too few quotes", 132);
       push("string", source.slice(i + 2, j - 2), i);
-      i = j;
+      i = labelled(j);
     } else if (c === '"') {
       const end = source.indexOf('"', i + 1);
       if (end < 0) throw new StataError("too few quotes", 132);
       push("string", source.slice(i + 1, end), i);
-      i = end + 1;
+      i = labelled(end + 1);
     } else if ((m = /^(t[dmqwhcC])\(([^()]*)\)/.exec(rest))) {
       // td(), tc(), tC(), tw(), tm(), tq() and th(), read with their
       // blanks removed, as Stata's message shows them.
@@ -466,19 +490,32 @@ export function compileExpression(source, scope = {}) {
     const first = tokens[k],
       second = peek();
     if (second?.type !== "op") return;
-    const value = second.value;
-    if (value === ")" || value === "," || value === "]")
-      throw invalid(`${squeezed(from, first.end)} invalid name`);
+    const value = second.value,
+      closing = value === ")" || value === "," || value === "]";
     const binary =
       BINDING.includes(value) &&
       value !== "-" &&
       (value !== "+" || first.value === "+");
-    if (!binary) return;
-    if (BINDING.indexOf(value) <= BINDING.indexOf(first.value)) {
-      // After a parenthesis Stata looks for a function: (x) ** 2.
-      if (tokens[k - 1]?.type === "op" && tokens[k - 1].value === ")")
+    if (!closing && !binary) return;
+    if (closing || BINDING.indexOf(value) <= BINDING.indexOf(first.value)) {
+      // Stata names the word before the operator joined to it: x + 2 & )
+      // is 2& invalid name. After a parenthesis it looks for a function,
+      // as in (x) ** 2; a comparison of two characters, a number with a
+      // decimal point or a missing code there is invalid syntax.
+      const before = tokens[k - 1];
+      if (before?.type === "op" && before.value === ")")
         throw new StataError("unknown function ()", 133);
-      throw invalid(`${squeezed(from, first.end)} invalid name`);
+      if (closing && first.value.length > 1) throw invalid();
+      if (
+        closing &&
+        before?.type === "number" &&
+        !/^\d+$/.test(before.raw ?? "")
+      )
+        throw invalid();
+      if (closing && before?.type === "string") throw mismatch();
+      const start =
+        before && before.type !== "op" ? before.start : (from ?? first.start);
+      throw invalid(`${squeezed(start, first.end)} invalid name`);
     }
     throw invalid(`${operatorWord(at)} invalid name`);
   };
@@ -540,6 +577,7 @@ export function compileExpression(source, scope = {}) {
       const value = token.value;
       return node(S, () => value);
     }
+    if (token.type === "label") return dereference(token.value);
     if (token.type === "coefficient") {
       const { kind, name, shorthand, bracketed } = token.value,
         form = { equation: !!(shorthand || bracketed), shorthand: !!shorthand };
@@ -626,6 +664,34 @@ export function compileExpression(source, scope = {}) {
     if (name === "_rc") return node(N, () => scope.rc?.() ?? 0);
     return variable(name);
   };
+
+  /**
+   * "text":lblname, the value whose label in lblname is text, exactly as
+   * written. A label or text that is not there is missing, and Stata says
+   * so once, when the expression is first evaluated (the runtime may
+   * compile an expression twice); a label for .a gives missing as well.
+   */
+  function dereference({ text, name }) {
+    const labels = dataset?.valueLabels?.get(name);
+    let value = MISSING,
+      told = false;
+    if (labels)
+      for (const [code, label] of labels)
+        if (label === text) {
+          value = isMissing(code) ? MISSING : code;
+          told = true;
+          break;
+        }
+    return node(N, () => {
+      if (!told) {
+        told = true;
+        state.note?.(
+          `(value label dereference "${text}":${name || " "} not found)`,
+        );
+      }
+      return value;
+    });
+  }
 
   /**
    * The value of a factor-variable term or interaction: the product of its
@@ -778,6 +844,20 @@ export function compileExpression(source, scope = {}) {
     throw invalid(`${squeezed(from, to)} invalid name`);
   }
 
+  /** Where the function argument that begins at token k ends: its , or ). */
+  function argumentEnd(k) {
+    let depth = 0;
+    for (; k < tokens.length; k++) {
+      const token = tokens[k];
+      if (token.type !== "op") continue;
+      if (token.value === "(" || token.value === "[") depth++;
+      else if (token.value === ")" || token.value === "]") {
+        if (--depth < 0) break;
+      } else if (token.value === "," && !depth) break;
+    }
+    return k;
+  }
+
   function call(name) {
     at++; // the opening parenthesis
     if (name === "c") {
@@ -827,20 +907,81 @@ export function compileExpression(source, scope = {}) {
         () => scope.results?.[name]?.[inner.value] ?? MISSING,
       );
     }
+    // _caller(), the version the command runs under, and has_eprop(name),
+    // whether e(properties) has that word.
+    if (name === "_caller") {
+      if (!take(")")) throw invalid();
+      return node(N, () => scope.system?.("version") ?? 17);
+    }
+    if (name === "has_eprop") {
+      // The name may be written bare or in quotes, or left out (0).
+      const inner = take(")") ? null : tokens[at++];
+      if (inner && (!/^(name|string)$/.test(inner.type) || !take(")")))
+        throw invalid();
+      return node(N, () =>
+        Number(
+          !!inner &&
+            String(scope.results?.e?.properties ?? "")
+              .split(/\s+/)
+              .includes(inner.value),
+        ),
+      );
+    }
     if (
-      /^(rowsof|colsof|el|det|trace|issymmetric|matmissing|colnumb|rownumb)$/.test(
+      /^(rowsof|colsof|el|det|trace|issymmetric|matmissing|colnumb|rownumb|diag0cnt|mreldif)$/.test(
         name,
       ) &&
       scope.matrix
     ) {
-      const target = { ...tokens[at++] };
-      if (target?.type !== "name") throw invalid();
-      // A result matrix, e(V) or r(table), is named as it is written.
-      if (/^[er]$/.test(target.value) && isOp("(")) {
-        at++;
-        const inner = tokens[at++];
-        if (inner?.type !== "name" || !take(")")) throw invalid();
-        target.value = `${target.value}(${inner.value})`;
+      // A matrix's name, or a result matrix, e(V) or r(table), named as it
+      // is written.
+      const matrixName = () => {
+        const target = { ...tokens[at++] };
+        if (target?.type !== "name") throw invalid();
+        if (/^[er]$/.test(target.value) && isOp("(")) {
+          at++;
+          const inner = tokens[at++];
+          if (inner?.type !== "name" || !take(")")) throw invalid();
+          target.value = `${target.value}(${inner.value})`;
+        }
+        return target;
+      };
+      const target = matrixName();
+      if (name === "diag0cnt" || name === "mreldif") {
+        if (name === "mreldif" && !take(",")) throw invalid();
+        const other = name === "mreldif" ? matrixName() : null;
+        if (!take(")")) throw invalid();
+        const { rows, columns, element } = scope.matrix,
+          size = (m) => [rows(m), columns(m)],
+          [r, c] = size(target.value);
+        // A matrix that is not square, or two of different sizes, give
+        // missing.
+        if (
+          name === "diag0cnt"
+            ? r !== c
+            : size(other.value).join() !== [r, c].join()
+        )
+          return node(N, () => MISSING);
+        return node(N, () => {
+          let result = 0;
+          for (let i = 1; i <= r; i++)
+            if (name === "diag0cnt")
+              result += Number(element(target.value, i, i) === 0);
+            else
+              for (let j = 1; j <= c; j++) {
+                const x = element(target.value, i, j),
+                  y = element(other.value, i, j);
+                // mreldif(): the largest |x - y| / (|y| + 1).
+                if (isMissing(x) || isMissing(y)) {
+                  if (x !== y) return MISSING;
+                } else
+                  result = Math.max(
+                    result,
+                    Math.abs(x - y) / (Math.abs(y) + 1),
+                  );
+              }
+          return result;
+        });
       }
       if (name === "colnumb" || name === "rownumb") {
         if (!take(",")) throw invalid();
@@ -882,16 +1023,32 @@ export function compileExpression(source, scope = {}) {
     const known = FUNCTIONS[name];
     if (known && (known.max ?? known.args.length) === 1) commaInOne(at - 1);
     if (!take(")")) {
+      // Of the names in the arguments that are not found, or functions
+      // that are not known, Stata reports the last: max(aa, bb) is bb not
+      // found. Any other error stops it where it is.
+      let unresolved = null;
       do {
         // An argument left empty: mod(1,), mod(,1).
         if (isOp(",") || isOp(")")) throw invalid();
-        args.push(or());
+        const begin = at;
+        try {
+          args.push(or());
+        } catch (error) {
+          if (
+            !(error instanceof StataError) ||
+            (error.code !== 111 && error.code !== 133)
+          )
+            throw error;
+          unresolved = error;
+          at = argumentEnd(begin);
+        }
       } while (take(","));
       if (!take(")")) {
         if (at >= tokens.length)
           throw new StataError("too few ')' or ']'", 132);
         throw invalid();
       }
+      if (unresolved) throw unresolved;
     }
     if (name === "sum") {
       if (args.length !== 1) throw invalid("sum() takes one argument");

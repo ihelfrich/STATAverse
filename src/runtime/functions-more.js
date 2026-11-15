@@ -6,7 +6,13 @@
 // A result that is not a finite number becomes system missing when the
 // expression stores it, as Stata returns missing outside a function's
 // domain.
-import { DOUBLE_MAX, FLOAT_MAX, MISSING, isMissing } from "./values.js";
+import {
+  DOUBLE_MAX,
+  FLOAT_MAX,
+  MISSING,
+  encodeText,
+  isMissing,
+} from "./values.js";
 import { ibeta, gammap, gammaq, lngamma } from "./distributions.js";
 import { normal } from "./functions-normal.js";
 import { parseFormat } from "./format.js";
@@ -409,6 +415,33 @@ function invnchi2(df, lambda, p) {
   const f = (x) => nchi2(df, lambda, x);
   return solve(f, p, 0, above(f, p, df + lambda + 1));
 }
+// The density and the upper tail of the noncentral chi-squared, Poisson
+// mixtures of central ones (see mixture() below).
+function nchi2den(df, lambda, x) {
+  if (!(df > 0) || !(lambda >= 0)) return MISSING;
+  if (x < 0) return 0;
+  if (lambda === 0) return gammaden(df / 2, 2, 0, x);
+  // At 0 only the first term can count: infinite below 2 degrees of
+  // freedom, 1/2 its weight at 2, nothing above.
+  if (x === 0)
+    return df < 2 ? MISSING : df === 2 ? Math.exp(-lambda / 2) / 2 : 0;
+  return mixture(lambda, (j) => gammaden(df / 2 + j, 2, 0, x));
+}
+function nchi2tail(df, lambda, x) {
+  if (!(df > 0) || !(lambda >= 0)) return MISSING;
+  if (x <= 0) return 1;
+  if (lambda === 0) return gammaq(df / 2, x / 2);
+  return Math.min(
+    1,
+    mixture(lambda, (j) => gammaq(df / 2 + j, x / 2)),
+  );
+}
+function invnchi2tail(df, lambda, q) {
+  if (!(df > 0) || !(lambda >= 0) || !(q > 0 && q <= 1)) return MISSING;
+  if (q === 1) return 0;
+  const f = (x) => -nchi2tail(df, lambda, x);
+  return solve(f, -q, 0, above(f, -q, df + lambda + 1));
+}
 function npnchi2(df, x, p) {
   if (!(df > 0) || !(x > 0) || !(p > 0 && p < 1)) return MISSING;
   const f = (lambda) => -nchi2(df, lambda, x);
@@ -549,6 +582,16 @@ function nFden(df1, df2, lambda, f) {
     nbetaden(df1 / 2, df2 / 2, lambda, (df1 * f) / d) * ((df1 * df2) / (d * d))
   );
 }
+/** The t at which the noncentral t distribution reaches p. */
+function invnt(df, delta, p) {
+  if (!(df > 0) || !(p > 0 && p < 1)) return MISSING;
+  const f = (t) => nt(df, delta, t);
+  let lo = -1,
+    hi = 1;
+  while (f(lo) > p && lo > -1e300) lo *= 2;
+  while (f(hi) < p && hi < 1e300) hi *= 2;
+  return solve(f, p, lo, hi);
+}
 /** The noncentral t distribution, P(T < t), by Lenth's algorithm AS 243. */
 function nt(df, delta, t) {
   if (!(df > 0)) return MISSING;
@@ -675,6 +718,39 @@ function collator(locale) {
   return collators.get(locale);
 }
 /** Each word with its first cased letter in title case and the rest lower. */
+// The characters whose title case is not their upper case: ß is Ss, the
+// ligature ﬁ is Fi and ǆ is ǅ, as ICU and so Stata's ustrtitle() give them.
+const TITLE_CASE = {
+  ß: "Ss",
+  Ǆ: "ǅ",
+  ǅ: "ǅ",
+  ǆ: "ǅ",
+  Ǉ: "ǈ",
+  ǈ: "ǈ",
+  ǉ: "ǈ",
+  Ǌ: "ǋ",
+  ǋ: "ǋ",
+  ǌ: "ǋ",
+  Ǳ: "ǲ",
+  ǲ: "ǲ",
+  ǳ: "ǲ",
+  ﬀ: "Ff",
+  ﬁ: "Fi",
+  ﬂ: "Fl",
+  ﬃ: "Ffi",
+  ﬄ: "Ffl",
+  ﬅ: "St",
+  ﬆ: "St",
+  և: "Եւ",
+  ﬓ: "Մն",
+  ﬔ: "Մե",
+  ﬕ: "Մի",
+  ﬖ: "Վն",
+  ﬗ: "Մխ",
+  ᾳ: "ᾼ",
+  ῃ: "ῌ",
+  ῳ: "ῼ",
+};
 function ustrtitle(s) {
   segmenter ??= new Intl.Segmenter("en", { granularity: "word" });
   let out = "";
@@ -683,7 +759,7 @@ function ustrtitle(s) {
     for (const c of segment) {
       const cased = c.toLowerCase() !== c.toUpperCase();
       if (cased && !done) {
-        out += c.toUpperCase();
+        out += TITLE_CASE[c] ?? c.toUpperCase();
         done = true;
       } else out += c.toLowerCase();
     }
@@ -951,6 +1027,7 @@ export const MORE_FUNCTIONS = {
   maxfloat: { args: [], returns: N, fn: () => FLOAT_MAX },
   minfloat: { args: [], returns: N, fn: () => -FLOAT_MAX },
   maxdouble: { args: [], returns: N, fn: () => DOUBLE_MAX },
+  mindouble: { args: [], returns: N, fn: () => -DOUBLE_MAX },
   // The browser stores numbers low byte first, as Stata on Intel and Apple
   // silicon does: 2.
   byteorder: { args: [], returns: N, fn: () => 2 },
@@ -986,6 +1063,17 @@ export const MORE_FUNCTIONS = {
       return solve(f, 1 - q, 0, above(f, 1 - q, 1));
     },
   },
+  invnF: {
+    args: [N, N, N, N],
+    returns: N,
+    fn: (df1, df2, lambda, p) => {
+      if (!(df1 > 0 && df2 > 0 && lambda >= 0) || !(p >= 0 && p < 1))
+        return MISSING;
+      if (p === 0) return 0;
+      const f = (x) => nF(df1, df2, lambda, x);
+      return solve(f, p, 0, above(f, p, 1));
+    },
+  },
   npnF: {
     args: [N, N, N, N],
     returns: N,
@@ -1002,15 +1090,8 @@ export const MORE_FUNCTIONS = {
     const p = nt(df, delta, t);
     return isMissing(p) ? p : 1 - p;
   }),
-  invnttail: three((df, delta, q) => {
-    if (!(df > 0) || !(q > 0 && q < 1)) return MISSING;
-    const f = (t) => nt(df, delta, t);
-    let lo = -1,
-      hi = 1;
-    while (f(lo) > 1 - q && lo > -1e300) lo *= 2;
-    while (f(hi) < 1 - q && hi < 1e300) hi *= 2;
-    return solve(f, 1 - q, lo, hi);
-  }),
+  invnttail: three((df, delta, q) => invnt(df, delta, 1 - q)),
+  invnt: three(invnt),
   npnt: three((df, t, p) => {
     if (!(df > 0) || !(p > 0 && p < 1)) return MISSING;
     // nt falls as the noncentrality rises.
@@ -1096,6 +1177,19 @@ export const MORE_FUNCTIONS = {
   Fden: three(Fden),
   betaden: three(betaden),
   gammaden: { args: [N, N, N, N], returns: N, fn: gammaden },
+  // The derivatives of gammap(a, x) in x: the density, its slope, and the
+  // density's derivative in a, density * (ln x - digamma(a)).
+  dgammapdx: two((a, x) => gammaden(a, 1, 0, x)),
+  dgammapdxdx: two((a, x) => {
+    const density = gammaden(a, 1, 0, x);
+    return x > 0 && !isMissing(density) ? density * ((a - 1) / x - 1) : MISSING;
+  }),
+  dgammapdadx: two((a, x) => {
+    const density = gammaden(a, 1, 0, x);
+    return x > 0 && !isMissing(density)
+      ? density * (Math.log(x) - digamma(a))
+      : MISSING;
+  }),
   gammaptail: two(gammaq),
   // Outside [0, 1] the upper tail is 1 below and 0 above, as in Stata.
   ibetatail: three((a, b, x) =>
@@ -1127,7 +1221,10 @@ export const MORE_FUNCTIONS = {
   },
   binormal: three(binormal),
   nchi2: three(nchi2),
+  nchi2den: three(nchi2den),
+  nchi2tail: three(nchi2tail),
   invnchi2: three(invnchi2),
+  invnchi2tail: three(invnchi2tail),
   npnchi2: three(npnchi2),
 
   lnigammaden: three((a, b, x) =>
@@ -1438,11 +1535,16 @@ export const MORE_FUNCTIONS = {
       return rule;
     },
   },
+  // indexnot() reads bytes, as Stata's does: the position of the first
+  // byte of s that is no byte of set, so indexnot("ééa", "é") is 5.
   indexnot: {
     args: [S, S],
     returns: N,
     fn: (s, set) => {
-      for (let i = 0; i < s.length; i++) if (!set.includes(s[i])) return i + 1;
+      const bytes = encodeText(s),
+        wanted = new Set(encodeText(set));
+      for (let i = 0; i < bytes.length; i++)
+        if (!wanted.has(bytes[i])) return i + 1;
       return 0;
     },
   },
@@ -1467,5 +1569,6 @@ export const UNAVAILABLE_FUNCTIONS = new Set(
   collatorversion wordbreaklocale regexcapturenamed fileexists fileread
   filewrite lnwishartden lniwishartden lnmvnormalden lnmvtden rbeta rchi2
   rgamma rhypergeometric rigaussian rnbinomial rt dunnettprob invdunnettprob
-  tukeyprob invtukeyprob _caller`.split(/\s+/),
+  tukeyprob invtukeyprob dgammapda dgammapdada filereaderror frval _frval
+  replay _byn1 _byn2 _bylastcall matrix`.split(/\s+/),
 );

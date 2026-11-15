@@ -658,8 +658,25 @@ export function displayText(session, text, asMacro = false, errors = null) {
       items[next] !== "," &&
       (/[-+*/^&|<>=!~]$/.test(expression) ||
         /^([-+*/^&|<>=]|[!~]=)/.test(items[next]))
-    )
+    ) {
       expression += " " + items[next++];
+      // A string taken into an expression keeps a value-label name after
+      // it: display 1 + "high":gl. (A string that begins an item is shown
+      // as it is, and display "high":gl is an error, as in Stata.)
+      if (opensString(items[next - 1], 0) && /^:/.test(items[next] ?? "")) {
+        expression += items[next++];
+        if (items[next - 1] === ":" && typeof items[next] === "string")
+          expression += items[next++];
+      }
+    }
+    // An expression that ends in an operator before a comma is read with
+    // the comma, which Stata names: display 1 & , is 1& invalid name.
+    if (
+      items[next] === "," &&
+      !opensString(expression, 0) &&
+      /(?:[-+*/^&|<>!~]|==|[<>!~]=)\s*$/.test(expression)
+    )
+      session.scalar(`${expression},`);
     // An item that starts with an operator, as after display "T: " + x,
     // is read as a name with the operator at its front, unless it is a
     // number with a plus sign. An = or == before an item is dropped.
@@ -713,6 +730,16 @@ export function displayText(session, text, asMacro = false, errors = null) {
   let inError = false,
     line = 0;
   const styled = [];
+  // A function's message while an item is evaluated, as regexm() gives
+  // for a pattern Stata cannot read, is written where display has got to:
+  // display "x " regexm("a", "*") shows x regexp: ?+* follows nothing.
+  const outerNote = session.state.note;
+  if (!asMacro)
+    session.state.note = (text) => {
+      out += `${text}\n`;
+      (styled[line] ??= {}).other = true;
+      line++;
+    };
   try {
     for (let k = 0; k < items.length;) {
       const word = items[k],
@@ -733,6 +760,8 @@ export function displayText(session, text, asMacro = false, errors = null) {
   } catch (error) {
     if (error instanceof StataError) error.partial = out;
     throw error;
+  } finally {
+    session.state.note = outerNote;
   }
   if (asMacro) return out;
   const width = session.settings.linesize ?? 79,

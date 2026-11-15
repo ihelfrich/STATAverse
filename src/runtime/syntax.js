@@ -707,11 +707,19 @@ export function applySyntax(declaration, text, context) {
     result.varlist = names;
   }
 
+  // An if or =exp that ends in an operator just before the options is read
+  // with the comma, which Stata names: if x == 1 & , is 1& invalid name.
+  const beforeComma = (clause) =>
+    optionText !== null &&
+    clause === found.at(-1) &&
+    /(?:[-+*/^&|<>!~]|==|[<>!~]=)\s*$/.test(clause.text)
+      ? `${clause.text},`
+      : clause.text;
   for (const clause of found) {
     if (clause.kind === "weight") continue;
     if (!clause.text) throw new StataError("invalid syntax", 198);
     if (clause.kind === "if") {
-      context.expression?.(clause.text, "if");
+      context.expression?.(beforeComma(clause), "if");
       locals.if = decl.if.bare ? clause.text : "if " + clause.text;
       result.if = clause.text;
     } else if (clause.kind === "in") {
@@ -727,7 +735,7 @@ export function applySyntax(declaration, text, context) {
         );
       if (clause.text.startsWith("="))
         throw new StataError("invalid syntax", 198);
-      context.expression?.(clause.text, "exp");
+      context.expression?.(beforeComma(clause), "exp");
       locals.exp = decl.exp.bare ? clause.text : "= " + clause.text;
       result.exp = clause.text;
     } else {

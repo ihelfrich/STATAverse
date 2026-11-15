@@ -184878,6 +184878,526 @@
       ]
     },
     {
+      "id": "expr-value-label-dereference",
+      "source": "clear\nset obs 4\ngen g = _n\nlabel define gl 1 \"low\" 2 \"mid\" 3 \"high\" 4 \"a b\"\nlabel define e2 .a \"dk\" 1 \"one\"\nlabel values g gl\ncount if g == \"mid\":gl\ndisplay (\"high\":gl)\ndisplay 1 + \"high\":gl\ndisplay (\"a b\":gl) + (\"mid\" : gl)\ndisplay (\"nope\":gl)\ndisplay (\"mid\":nolab)\ndisplay (\"MID\":gl)\ndisplay 0+\"dk\":e2\ngen y = \"mid\":gl + 1\ngen w = \"zz\":gl\ncount if inlist(g, \"low\":gl, \"high\":gl)\nreplace g = \"low\":gl if g == \"high\":gl\ncapture noisily display \"high\":gl\ncapture noisily display 0+\"mid\":\ncapture noisily display strlen(\"mid\":gl)\nassert g != \"none\":gl\nkeep if g >= \"mid\":gl\nlist, nolabel\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "gen g = _n", "lines": [] },
+        {
+          "command": "label define gl 1 \"low\" 2 \"mid\" 3 \"high\" 4 \"a b\"",
+          "lines": []
+        },
+        { "command": "label define e2 .a \"dk\" 1 \"one\"", "lines": [] },
+        { "command": "label values g gl", "lines": [] },
+        { "command": "count if g == \"mid\":gl", "lines": ["  1"] },
+        { "command": "display (\"high\":gl)", "lines": ["3"] },
+        { "command": "display 1 + \"high\":gl", "lines": ["4"] },
+        { "command": "display (\"a b\":gl) + (\"mid\" : gl)", "lines": ["6"] },
+        {
+          "command": "display (\"nope\":gl)",
+          "lines": ["(value label dereference \"nope\":gl not found)", "."]
+        },
+        {
+          "command": "display (\"mid\":nolab)",
+          "lines": ["(value label dereference \"mid\":nolab not found)", "."]
+        },
+        {
+          "command": "display (\"MID\":gl)",
+          "lines": ["(value label dereference \"MID\":gl not found)", "."]
+        },
+        { "command": "display 0+\"dk\":e2", "lines": ["."] },
+        { "command": "gen y = \"mid\":gl + 1", "lines": [] },
+        {
+          "command": "gen w = \"zz\":gl",
+          "lines": [
+            "(value label dereference \"zz\":gl not found)",
+            "(4 missing values generated)"
+          ]
+        },
+        {
+          "command": "count if inlist(g, \"low\":gl, \"high\":gl)",
+          "lines": ["  2"]
+        },
+        {
+          "command": "replace g = \"low\":gl if g == \"high\":gl",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "capture noisily display \"high\":gl",
+          "lines": ["high:gl invalid name"]
+        },
+        {
+          "command": "capture noisily display 0+\"mid\":",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display strlen(\"mid\":gl)",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "assert g != \"none\":gl",
+          "lines": ["(value label dereference \"none\":gl not found)"]
+        },
+        {
+          "command": "keep if g >= \"mid\":gl",
+          "lines": ["(2 observations deleted)"]
+        },
+        {
+          "command": "list, nolabel",
+          "lines": [
+            "     +-----------+",
+            "     | g   y   w |",
+            "     |-----------|",
+            "  1. | 2   3   . |",
+            "  2. | 4   3   . |",
+            "     +-----------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "expr-value-label-use-if",
+      "source": "clear\ninput edu y\n1 10\n2 20\n3 30\nend\nlabel define edulbl 1 \"HS\" 2 \"College\" 3 \"Grad\"\nlabel values edu edulbl\nsave labdref, replace\nuse if edu == \"College\":edulbl using labdref, clear\ncount\nuse labdref, clear\nkeep if edu != \"College\":edulbl\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input edu y",
+          "lines": [
+            "           edu          y",
+            "  1. 1 10",
+            "  2. 2 20",
+            "  3. 3 30",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "label define edulbl 1 \"HS\" 2 \"College\" 3 \"Grad\"",
+          "lines": []
+        },
+        { "command": "label values edu edulbl", "lines": [] },
+        {
+          "command": "save labdref, replace",
+          "lines": ["(file labdref.dta not found)", "file labdref.dta saved"]
+        },
+        {
+          "command": "use if edu == \"College\":edulbl using labdref, clear",
+          "lines": ["(value label dereference \"College\":edulbl not found)"]
+        },
+        { "command": "count", "lines": ["  0"] },
+        { "command": "use labdref, clear", "lines": [] },
+        {
+          "command": "keep if edu != \"College\":edulbl",
+          "lines": ["(1 observation deleted)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------+",
+            "     |  edu    y |",
+            "     |-----------|",
+            "  1. |   HS   10 |",
+            "  2. | Grad   30 |",
+            "     +-----------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "expr-regex-stata-syntax",
+      "source": "display regexm(\"x\", \"*\")\ndisplay regexs(0)\ndisplay regexm(\"GA 30303\", \"[0-9]{5}\") \" \" regexm(\"a{2}\", \"a{2}\")\ndisplay regexm(\"GA 30303\", \"\\d+\") \" \" regexm(\"ad\", \"\\d\") \" \" regexm(\"a b\", \"a\\sb\") \" \" regexm(\"abc\", \"\\w+\")\ndisplay regexm(\"a1b22\", \"[[:digit:]]+\") \" \" regexm(\"a]\", \"[[:alpha:]]\") \" [\" regexs(0) \"]\"\ndisplay regexm(\"aaa\", \"a+?\")\ndisplay regexs(0)\ndisplay regexm(\"x(y)\", \"\\(y\\)\") \" \" regexm(\"a.b\", \"a.b\") \" \" regexm(\"axb\", \"a\\.b\")\ndisplay regexr(\"2020-01-02\", \"([0-9]+)-([0-9]+)\", \"\\2/\\1\")\ndisplay regexm(\"ab\", \"^(a|b)+\" + char(36)) \" \" regexm(\"ab\", \"(a|ab)\") \" [\" regexs(1) \"]\"\ndisplay regexm(\"café\", \"^caf.$\") \" \" regexm(\"café\", \"^caf..\") \" \" regexm(\"über\", \"^.ber\")\ndisplay regexm(\"café\", \"(caf)(.*)\") \" [\" regexs(2) \"] \" strlen(regexs(2))\ndisplay regexm(\"ABC\", \"(?i)abc\")\ndisplay \"D \" regexm(\"x\", \"x**\") \" E \" regexm(\"x\", \"(a*)*\")\ndisplay regexm(\"x\", \"[b-a]\") regexm(\"x\", \"[abc\") regexm(\"x\", \"(abc\") regexm(\"x\", \"abc)\") regexm(\"x\", \"abc\\\") regexm(\"a\", \"((((((((((a))))))))))\")\ndisplay regexm(\"aaa\", \"(a*)(a*)\") \" [\" regexs(1) \"][\" regexs(2) \"]\"\ndisplay regexm(\"abab\", \"(ab)*\") \" [\" regexs(0) \"][\" regexs(1) \"]\"\ndisplay regexm(\"ac\", \"a(b)?c\") \" [\" regexs(1) \"]\"\ndisplay regexm(\"ab\", \"(a)(b)\") \" [\" regexs(3) \"] \" regexs(1.7)\ndisplay regexm(\"]\", \"[]a]\") \" \" regexm(\"-\", \"[a-]\") \" \" regexm(\"b\", \"[^]a]\") \" \" regexm(\"b\", \"[a-c-e]\") \" \" regexm(\"-\", \"[a-c-e]\")\ndisplay regexm(\"\\\", \"[\\d]\") \" \" regexm(\"ab\", \"a\\b\") \" \" regexm(\"an\", \"a\\n\") \" \" regexm(\"AB\", \"ab\")\ndisplay regexr(\"abc\", \"x*\", \"Q\") \" \" regexr(\"abc\", \"x*\" + char(36), \"Q\") \" \" regexr(\"abcb\", \"b\", \"Q\") \" \" regexr(\"abc\", \"b\", \"[&]\")\ndisplay regexr(\"abc\", \"(b\", \"Q\")\ndisplay regexm(\"abc\", \"(a)\") regexr(\"xbx\", \"(b)\", \"Q\") \" [\" regexs(1) \"]\"\ndisplay regexm(\"abc\", \"(a)\") ustrregexm(\"xbx\", \"(b)\") \" [\" regexs(1) \"]\"\nclear\nset obs 3\ngen s = \"a\" + string(_n) + \"-\" + string(10*_n)\ngen m = regexm(s, \"x**\")\ngen t = regexs(1)\ngen n = regexs(1) if regexm(s, \"-([0-9]+)\" + char(36))\ncount if regexm(s, \"(?i)A\")\nreplace s = regexr(s, \"[\", \"z\")\nlist\n",
+      "commands": [
+        {
+          "command": "display regexm(\"x\", \"*\")",
+          "lines": ["regexp: ?+* follows nothing", "0"]
+        },
+        {
+          "command": "display regexs(0)",
+          "lines": [
+            "a regular expression match function must be executed prior to retrieving a subexpression",
+            "regexm required"
+          ]
+        },
+        {
+          "command": "display regexm(\"GA 30303\", \"[0-9]{5}\") \" \" regexm(\"a{2}\", \"a{2}\")",
+          "lines": ["0 1"]
+        },
+        {
+          "command": "display regexm(\"GA 30303\", \"\\d+\") \" \" regexm(\"ad\", \"\\d\") \" \" regexm(\"a b\", \"a\\sb\") \" \" regexm(\"abc\", \"\\w+\")",
+          "lines": ["0 1 0 0"]
+        },
+        {
+          "command": "display regexm(\"a1b22\", \"[[:digit:]]+\") \" \" regexm(\"a]\", \"[[:alpha:]]\") \" [\" regexs(0) \"]\"",
+          "lines": ["0 1 [a]]"]
+        },
+        {
+          "command": "display regexm(\"aaa\", \"a+?\")",
+          "lines": ["regexp: nested *?+", "0"]
+        },
+        {
+          "command": "display regexs(0)",
+          "lines": [
+            "a regular expression match function must be executed prior to retrieving a subexpression",
+            "regexm required"
+          ]
+        },
+        {
+          "command": "display regexm(\"x(y)\", \"\\(y\\)\") \" \" regexm(\"a.b\", \"a.b\") \" \" regexm(\"axb\", \"a\\.b\")",
+          "lines": ["1 1 0"]
+        },
+        {
+          "command": "display regexr(\"2020-01-02\", \"([0-9]+)-([0-9]+)\", \"\\2/\\1\")",
+          "lines": ["\\2/\\1-02"]
+        },
+        {
+          "command": "display regexm(\"ab\", \"^(a|b)+\" + char(36)) \" \" regexm(\"ab\", \"(a|ab)\") \" [\" regexs(1) \"]\"",
+          "lines": ["1 1 [a]"]
+        },
+        {
+          "command": "display regexm(\"café\", \"^caf.$\") \" \" regexm(\"café\", \"^caf..\") \" \" regexm(\"über\", \"^.ber\")",
+          "lines": ["0 1 0"]
+        },
+        {
+          "command": "display regexm(\"café\", \"(caf)(.*)\") \" [\" regexs(2) \"] \" strlen(regexs(2))",
+          "lines": ["1 [é] 2"]
+        },
+        {
+          "command": "display regexm(\"ABC\", \"(?i)abc\")",
+          "lines": ["regexp: ?+* follows nothing", "0"]
+        },
+        {
+          "command": "display \"D \" regexm(\"x\", \"x**\") \" E \" regexm(\"x\", \"(a*)*\")",
+          "lines": [
+            "D regexp: nested *?+",
+            "0 E regexp: *+ operand could be empty",
+            "0"
+          ]
+        },
+        {
+          "command": "display regexm(\"x\", \"[b-a]\") regexm(\"x\", \"[abc\") regexm(\"x\", \"(abc\") regexm(\"x\", \"abc)\") regexm(\"x\", \"abc\\\") regexm(\"a\", \"((((((((((a))))))))))\")",
+          "lines": [
+            "regexp: invalid [] range",
+            "0regexp: unmatched []",
+            "0regexp: unterminated ()",
+            "0regexp: unmatched ()",
+            "0regexp: trailing \\",
+            "0regexp: too many ()",
+            "0"
+          ]
+        },
+        {
+          "command": "display regexm(\"aaa\", \"(a*)(a*)\") \" [\" regexs(1) \"][\" regexs(2) \"]\"",
+          "lines": ["1 [aaa][]"]
+        },
+        {
+          "command": "display regexm(\"abab\", \"(ab)*\") \" [\" regexs(0) \"][\" regexs(1) \"]\"",
+          "lines": ["1 [abab][ab]"]
+        },
+        {
+          "command": "display regexm(\"ac\", \"a(b)?c\") \" [\" regexs(1) \"]\"",
+          "lines": ["1 [invalid number, outside of allowed range", "]"]
+        },
+        {
+          "command": "display regexm(\"ab\", \"(a)(b)\") \" [\" regexs(3) \"] \" regexs(1.7)",
+          "lines": ["1 [invalid number, outside of allowed range", "] a"]
+        },
+        {
+          "command": "display regexm(\"]\", \"[]a]\") \" \" regexm(\"-\", \"[a-]\") \" \" regexm(\"b\", \"[^]a]\") \" \" regexm(\"b\", \"[a-c-e]\") \" \" regexm(\"-\", \"[a-c-e]\")",
+          "lines": ["1 1 1 1 0"]
+        },
+        {
+          "command": "display regexm(\"\\\", \"[\\d]\") \" \" regexm(\"ab\", \"a\\b\") \" \" regexm(\"an\", \"a\\n\") \" \" regexm(\"AB\", \"ab\")",
+          "lines": ["1 1 1 0"]
+        },
+        {
+          "command": "display regexr(\"abc\", \"x*\", \"Q\") \" \" regexr(\"abc\", \"x*\" + char(36), \"Q\") \" \" regexr(\"abcb\", \"b\", \"Q\") \" \" regexr(\"abc\", \"b\", \"[&]\")",
+          "lines": ["Q abcQ aQcb a[&]c"]
+        },
+        {
+          "command": "display regexr(\"abc\", \"(b\", \"Q\")",
+          "lines": ["regexp: unterminated ()", "abc"]
+        },
+        {
+          "command": "display regexm(\"abc\", \"(a)\") regexr(\"xbx\", \"(b)\", \"Q\") \" [\" regexs(1) \"]\"",
+          "lines": [
+            "1xQx [a regular expression match function must be executed prior to retrieving a subexpression",
+            "regexm required",
+            "]"
+          ]
+        },
+        {
+          "command": "display regexm(\"abc\", \"(a)\") ustrregexm(\"xbx\", \"(b)\") \" [\" regexs(1) \"]\"",
+          "lines": ["11 [a]"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "gen s = \"a\" + string(_n) + \"-\" + string(10*_n)",
+          "lines": []
+        },
+        {
+          "command": "gen m = regexm(s, \"x**\")",
+          "lines": [
+            "regexp: nested *?+",
+            "regexp: nested *?+",
+            "regexp: nested *?+"
+          ]
+        },
+        {
+          "command": "gen t = regexs(1)",
+          "lines": [
+            "a regular expression match function must be executed prior to retrieving a subexpression",
+            "regexm required",
+            "a regular expression match function must be executed prior to retrieving a subexpression",
+            "regexm required",
+            "a regular expression match function must be executed prior to retrieving a subexpression",
+            "regexm required",
+            "(3 missing values generated)"
+          ]
+        },
+        {
+          "command": "gen n = regexs(1) if regexm(s, \"-([0-9]+)\" + char(36))",
+          "lines": []
+        },
+        {
+          "command": "count if regexm(s, \"(?i)A\")",
+          "lines": [
+            "regexp: ?+* follows nothing",
+            "regexp: ?+* follows nothing",
+            "regexp: ?+* follows nothing",
+            "  0"
+          ]
+        },
+        {
+          "command": "replace s = regexr(s, \"[\", \"z\")",
+          "lines": [
+            "regexp: unmatched []",
+            "regexp: unmatched []",
+            "regexp: unmatched []",
+            "(0 real changes made)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------+",
+            "     |     s   m   t    n |",
+            "     |--------------------|",
+            "  1. | a1-10   0       10 |",
+            "  2. | a2-20   0       20 |",
+            "  3. | a3-30   0       30 |",
+            "     +--------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "expr-unicode-functions",
+      "source": "display \"[\" usubinstr(\"a.b.c\", \".\", \"-\", .) \"] [\" usubinstr(\"café café\", \"é\", \"e\", 1) \"] [\" usubinstr(\"a.b.c\", \".\", \"-\", -1) \"]\"\ndisplay \"[\" ustrtoname(\"x y\") \"] [\" ustrtoname(\"1abc\") \"] [\" ustrtoname(\"1abc\", 0) \"] [\" ustrtoname(\"x😀y\") \"] [\" ustrtoname(\"x²\") \"]\"\ndisplay \"[\" ustrtoname(\"ééééééééééééééééééééééééééééééééééééééé\") \"] [\" strtoname(\"ééééééééééééééééééééééééééééééééééééééé\") \"]\"\ndisplay \"[\" strtoname(\"x😀y\") \"] [\" strtoname(\"e\" + uchar(769) + \"x\") \"] [\" ustrtoname(\"e\" + uchar(769) + \"x\") \"]\"\ndisplay indexnot(\"ééa\", \"é\") \" \" indexnot(\"aéb\", \"a\") \" \" indexnot(\"abc\", \"\")\ndisplay ustrtitle(\"ﬁrst ﬂow\") \" \" ustrtitle(\"ǆemal\") \" \" ustrtitle(\"ßa\")\ndisplay mindouble() == c(mindouble) \" \" mindouble()\ndisplay nchi2den(3, 2, 1.5) \" \" nchi2tail(3, 2, 1.5) \" \" invnchi2tail(3, 2, .3)\ndisplay invnF(2, 10, 3, .5) \" \" invnt(10, 1, .5) \" \" invnF(3, 7, 2, 0)\ndisplay nchi2den(3, 2, 0) \" \" nchi2den(2, 2, 0) \" \" nchi2den(1, 2, 0) \" \" nchi2tail(3, 2, 0)\ndisplay dgammapdx(2, 1.5) \" \" dgammapdxdx(2, 1.5) \" \" dgammapdadx(2, 1.5) \" \" dgammapdadx(0.5, 0.2)\ndisplay _caller() \" \" has_eprop(b)\nmatrix A = (1, 0 \\ 2, 0)\nmatrix B = (1, 0.5 \\ 2, 4)\nmatrix C = (1, 2, 3)\ndisplay diag0cnt(A) \" \" diag0cnt(B) \" \" mreldif(A, B) \" \" mreldif(B, A) \" \" diag0cnt(C) \" \" mreldif(A, C)\n",
+      "commands": [
+        {
+          "command": "display \"[\" usubinstr(\"a.b.c\", \".\", \"-\", .) \"] [\" usubinstr(\"café café\", \"é\", \"e\", 1) \"] [\" usubinstr(\"a.b.c\", \".\", \"-\", -1) \"]\"",
+          "lines": ["[a-b-c] [cafe café] [a.b.c]"]
+        },
+        {
+          "command": "display \"[\" ustrtoname(\"x y\") \"] [\" ustrtoname(\"1abc\") \"] [\" ustrtoname(\"1abc\", 0) \"] [\" ustrtoname(\"x😀y\") \"] [\" ustrtoname(\"x²\") \"]\"",
+          "lines": ["[x_y] [_1abc] [1abc] [x_y] [x_]"]
+        },
+        {
+          "command": "display \"[\" ustrtoname(\"ééééééééééééééééééééééééééééééééééééééé\") \"] [\" strtoname(\"ééééééééééééééééééééééééééééééééééééééé\") \"]\"",
+          "lines": ["[éééééééééééééééééééééééééééééééé] [éééééééééééééééé]"]
+        },
+        {
+          "command": "display \"[\" strtoname(\"x😀y\") \"] [\" strtoname(\"e\" + uchar(769) + \"x\") \"] [\" ustrtoname(\"e\" + uchar(769) + \"x\") \"]\"",
+          "lines": ["[x😀y] [éx] [e_x]"]
+        },
+        {
+          "command": "display indexnot(\"ééa\", \"é\") \" \" indexnot(\"aéb\", \"a\") \" \" indexnot(\"abc\", \"\")",
+          "lines": ["5 2 1"]
+        },
+        {
+          "command": "display ustrtitle(\"ﬁrst ﬂow\") \" \" ustrtitle(\"ǆemal\") \" \" ustrtitle(\"ßa\")",
+          "lines": ["First Flow ǅemal Ssa"]
+        },
+        {
+          "command": "display mindouble() == c(mindouble) \" \" mindouble()",
+          "lines": ["1 -8.99e+307"]
+        },
+        {
+          "command": "display nchi2den(3, 2, 1.5) \" \" nchi2tail(3, 2, 1.5) \" \" invnchi2tail(3, 2, .3)",
+          "lines": [".13420189 .8476991 6.1884319"]
+        },
+        {
+          "command": "display invnF(2, 10, 3, .5) \" \" invnt(10, 1, .5) \" \" invnF(3, 7, 2, 0)",
+          "lines": ["2.1535749 1.0257209 0"]
+        },
+        {
+          "command": "display nchi2den(3, 2, 0) \" \" nchi2den(2, 2, 0) \" \" nchi2den(1, 2, 0) \" \" nchi2tail(3, 2, 0)",
+          "lines": ["0 .18393972 . 1"]
+        },
+        {
+          "command": "display dgammapdx(2, 1.5) \" \" dgammapdxdx(2, 1.5) \" \" dgammapdadx(2, 1.5) \" \" dgammapdadx(0.5, 0.2)",
+          "lines": [".33469524 -.11156508 -.00579666 .3657151"]
+        },
+        {
+          "command": "display _caller() \" \" has_eprop(b)",
+          "lines": ["17 0"]
+        },
+        { "command": "matrix A = (1, 0 \\ 2, 0)", "lines": [] },
+        { "command": "matrix B = (1, 0.5 \\ 2, 4)", "lines": [] },
+        { "command": "matrix C = (1, 2, 3)", "lines": [] },
+        {
+          "command": "display diag0cnt(A) \" \" diag0cnt(B) \" \" mreldif(A, B) \" \" mreldif(B, A) \" \" diag0cnt(C) \" \" mreldif(A, C)",
+          "lines": ["1 0 .8 4 . ."]
+        }
+      ]
+    },
+    {
+      "id": "expr-name-errors",
+      "source": "clear\nset obs 3\ngen x1 = _n\ngen x2 = _n\ngen x3 = _n^2\ncapture noisily gen y = max(aa, bb)\ncapture noisily gen y = max(aa, min(bb, cc))\ncapture noisily gen y = max(aa, foo(1))\ncapture noisily gen y = max(foo(1), aa)\ncapture noisily gen y = cond(aa, bb, cc)\ncapture noisily gen y = max(aa, 1+)\ncapture noisily gen y = max(aa, x1) + bb\ncapture noisily summarize x1 if x2 == 1 & ,\ncapture noisily summarize x1 if x2 == 1 + 2 & , detail\ncapture noisily summarize x1 if (x2 == 1) & ,\ncapture noisily summarize x1 if x2 >= ,\ncapture noisily summarize x1 if x2 + 1.5 + ,\ncapture noisily gen y = x1 * ,\ncapture noisily display 1 + 2 & ,\ncapture noisily display (x2 == 1 + 2 & )\ncapture noisily display (1 + x2 & & 2)\ncapture noisily display (x2 > )\ncapture noisily sort -x1\ncapture noisily sort +x1\ncapture noisily sort @x\ncapture noisily sort .x\ncapture noisily sort 1x\ncapture noisily sort x1-\ncapture noisily summarize x1 - x3\ncapture noisily summarize x1 -x3\ncapture noisily summarize x3 - x1\ncapture noisily summarize x1 -- x3\ncapture noisily summarize q~3\ncapture noisily summarize x~\ncapture noisily summarize q~3*\ncapture noisily drop q~3\ncapture noisily list q~3\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "gen x1 = _n", "lines": [] },
+        { "command": "gen x2 = _n", "lines": [] },
+        { "command": "gen x3 = _n^2", "lines": [] },
+        {
+          "command": "capture noisily gen y = max(aa, bb)",
+          "lines": ["bb not found"]
+        },
+        {
+          "command": "capture noisily gen y = max(aa, min(bb, cc))",
+          "lines": ["cc not found"]
+        },
+        {
+          "command": "capture noisily gen y = max(aa, foo(1))",
+          "lines": ["unknown function foo()"]
+        },
+        {
+          "command": "capture noisily gen y = max(foo(1), aa)",
+          "lines": ["aa not found"]
+        },
+        {
+          "command": "capture noisily gen y = cond(aa, bb, cc)",
+          "lines": ["cc not found"]
+        },
+        {
+          "command": "capture noisily gen y = max(aa, 1+)",
+          "lines": ["1+ invalid name"]
+        },
+        {
+          "command": "capture noisily gen y = max(aa, x1) + bb",
+          "lines": ["aa not found"]
+        },
+        {
+          "command": "capture noisily summarize x1 if x2 == 1 & ,",
+          "lines": ["1& invalid name"]
+        },
+        {
+          "command": "capture noisily summarize x1 if x2 == 1 + 2 & , detail",
+          "lines": ["2& invalid name"]
+        },
+        {
+          "command": "capture noisily summarize x1 if (x2 == 1) & ,",
+          "lines": ["unknown function ()"]
+        },
+        {
+          "command": "capture noisily summarize x1 if x2 >= ,",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily summarize x1 if x2 + 1.5 + ,",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily gen y = x1 * ,",
+          "lines": ["x1* invalid name"]
+        },
+        {
+          "command": "capture noisily display 1 + 2 & ,",
+          "lines": ["2& invalid name"]
+        },
+        {
+          "command": "capture noisily display (x2 == 1 + 2 & )",
+          "lines": ["2& invalid name"]
+        },
+        {
+          "command": "capture noisily display (1 + x2 & & 2)",
+          "lines": ["x2& invalid name"]
+        },
+        {
+          "command": "capture noisily display (x2 > )",
+          "lines": ["x2> invalid name"]
+        },
+        { "command": "capture noisily sort -x1", "lines": ["- invalid name"] },
+        { "command": "capture noisily sort +x1", "lines": ["+ invalid name"] },
+        { "command": "capture noisily sort @x", "lines": ["@ invalid name"] },
+        { "command": "capture noisily sort .x", "lines": [".x invalid name"] },
+        { "command": "capture noisily sort 1x", "lines": ["1x invalid name"] },
+        {
+          "command": "capture noisily sort x1-",
+          "lines": ["nothing found where name expected"]
+        },
+        {
+          "command": "capture noisily summarize x1 - x3",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          x1 |          3           2           1          1          3",
+            "          x2 |          3           2           1          1          3",
+            "          x3 |          3    4.666667    4.041452          1          9"
+          ]
+        },
+        {
+          "command": "capture noisily summarize x1 -x3",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          x1 |          3           2           1          1          3",
+            "          x2 |          3           2           1          1          3",
+            "          x3 |          3    4.666667    4.041452          1          9"
+          ]
+        },
+        {
+          "command": "capture noisily summarize x3 - x1",
+          "lines": ["variables out of order"]
+        },
+        {
+          "command": "capture noisily summarize x1 -- x3",
+          "lines": ["- invalid name"]
+        },
+        {
+          "command": "capture noisily summarize q~3",
+          "lines": ["variable q*3 not found"]
+        },
+        {
+          "command": "capture noisily summarize x~",
+          "lines": ["x* ambiguous abbreviation"]
+        },
+        {
+          "command": "capture noisily summarize q~3*",
+          "lines": ["q~3*:  may not combine ~ and *-or-? notation"]
+        },
+        {
+          "command": "capture noisily drop q~3",
+          "lines": ["variable q~3 not found"]
+        },
+        {
+          "command": "capture noisily list q~3",
+          "lines": ["variable q*3 not found"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

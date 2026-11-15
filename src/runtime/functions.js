@@ -6,6 +6,7 @@
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { abbreviateName } from "./format.js";
+import { bytesText, stataMatch, stataPattern } from "./stata-regex.js";
 import {
   MISSING,
   byteLength,
@@ -171,12 +172,17 @@ function wildcard(pattern) {
       "$",
   );
 }
-function regex(pattern) {
-  try {
-    return new RegExp(pattern);
-  } catch {
-    throw new StataError("invalid regular expression", 198);
-  }
+/**
+ * A regexm() or regexr() pattern compiled as Stata reads it (see
+ * stata-regex.js), or null when Stata cannot read it: then Stata prints
+ * the library's message, for each observation, and forgets the last match.
+ */
+function stataProgram(state, pattern) {
+  const { program, error } = stataPattern(pattern);
+  if (program) return program;
+  state.note?.(`regexp: ${error}`);
+  state.match = undefined;
+  return null;
 }
 const escape = (text) => text.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
 const LIMIT = 2_000_000;
@@ -659,8 +665,24 @@ export const FUNCTIONS = {
   }),
   // A name made of the string: each character that may not be in a name
   // becomes _, a leading digit is prefixed with _ (unless p is 0), and the
-  // name is cut to 32 characters.
+  // name is cut to 32 bytes. strtoname() works on bytes, so it keeps every
+  // character outside ASCII, as Stata's does: strtoname("x😀y") is x😀y.
   strtoname: {
+    args: [S, N],
+    min: 1,
+    returns: S,
+    lenient: true,
+    fn: (s, p = 1) => {
+      let name = s.replace(/[\x00-\x2f\x3a-\x40\x5b-\x5e\x60\x7b-\x7f]/g, "_");
+      if (p !== 0 && /^[0-9]/.test(name)) name = "_" + name;
+      return isAscii(name)
+        ? name.slice(0, 32)
+        : decodeBytes(bytesOf(name).subarray(0, 32));
+    },
+  },
+  // ustrtoname() reads characters: what is not a letter, a digit or _
+  // becomes _ (an emoji, a combining accent, ²), and it keeps 32 of them.
+  ustrtoname: {
     args: [S, N],
     min: 1,
     returns: S,
@@ -783,12 +805,17 @@ export const FUNCTIONS = {
     returns: S,
     fn: (s, n) => abbreviateName(s, Math.max(5, Math.min(32, whole(n)))),
   },
+  // regexm() leaves its match for regexs(): undefined until a regexm()
+  // runs (and again after regexr() or a pattern Stata cannot read), null
+  // after one that did not match.
   regexm: {
     args: [S, S],
     returns: N,
     state: true,
     fn: (state, s, pattern) => {
-      state.match = regex(pattern).exec(s);
+      const program = stataProgram(state, pattern);
+      if (!program) return 0;
+      state.match = stataMatch(program, s);
       return Number(!!state.match);
     },
   },
@@ -796,21 +823,47 @@ export const FUNCTIONS = {
     args: [N],
     returns: S,
     state: true,
-    // A group the last match does not have, or no match, gives "" and
-    // Stata's message, once for each observation.
+    lenient: true,
+    // With no regexm() to read, or a group the last match does not have,
+    // regexs() gives "" and Stata's message, once for each observation.
     fn: (state, n) => {
-      const k = whole(n);
-      if (!state.match || !(k >= 0 && k < state.match.length)) {
+      const match = state.match;
+      if (match === undefined) {
+        state.note?.(
+          "a regular expression match function must be executed prior to retrieving a subexpression",
+        );
+        state.note?.("regexm required");
+        return "";
+      }
+      const k = isMissing(n) ? -1 : whole(n);
+      if (!match || !(k >= 0 && k < 10) || match.starts[k] < 0) {
         state.note?.("invalid number, outside of allowed range");
         return "";
       }
-      return state.match[k] ?? "";
+      return bytesText(match.bytes, match.starts[k], match.ends[k]);
     },
   },
+  // regexr() replaces the first match with the replacement as written (\1
+  // and & are themselves). A match of no length keeps only what is before
+  // it, as Stata's does: regexr("abc", "x*", "Q") is "Q".
   regexr: {
     args: [S, S, S],
     returns: S,
-    fn: (s, pattern, to) => bounded(s.replace(regex(pattern), () => to)),
+    state: true,
+    fn: (state, s, pattern, to) => {
+      const program = stataProgram(state, pattern);
+      state.match = undefined;
+      if (!program) return s;
+      const match = stataMatch(program, s);
+      if (!match) return s;
+      const { bytes, starts, ends } = match,
+        before = bytesText(bytes, 0, starts[0]);
+      return bounded(
+        starts[0] === ends[0]
+          ? before + to
+          : before + to + bytesText(bytes, ends[0], bytes.length),
+      );
+    },
   },
 };
 for (const [alias, name] of Object.entries({
@@ -846,3 +899,6 @@ Object.assign(FUNCTIONS, {
   },
 });
 FUNCTIONS.bsubstr = FUNCTIONS.substr;
+// usubinstr() replaces whole characters, which is what subinstr() does
+// with text that is valid UTF-8: the same function.
+FUNCTIONS.usubinstr = FUNCTIONS.subinstr;
