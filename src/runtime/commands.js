@@ -695,8 +695,9 @@ export function displayText(session, text, asMacro = false, errors = null) {
     }
     if (!opensString(expression, 0)) checkQuotes(expression);
     checkBrackets(expression);
+    // display right-aligns under %-tg, which list left-aligns.
     const value = session.scalar(expression),
-      spec = format && parseFormat(format);
+      spec = format && parseFormat(format === "%-tg" ? "%tg" : format);
     return [
       typeof value === "string"
         ? spec?.kind === "string"

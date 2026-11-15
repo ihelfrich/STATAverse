@@ -11,6 +11,7 @@ import { invnormal, normal } from "./functions.js";
 import {
   abbreviate,
   design,
+  hooks,
   invertSymmetric,
   quadratic,
   statisticCell,
@@ -737,6 +738,11 @@ export function timeSeriesOperator(session, ops, name) {
 export function requireTimeOrder(session) {
   const panel = session.panel,
     keys = panel.id ? [panel.id, panel.time] : [panel.time];
+  // A panel or time variable dropped since it was set is not found, as
+  // tsset finds it missing.
+  for (const key of keys)
+    if (!session.data.has(key))
+      throw new StataError(`variable ${key} not found`, 111);
   if (!keys.every((key, j) => session.data.sortedBy[j] === key))
     throw new StataError("not sorted", 5);
 }
@@ -942,6 +948,31 @@ function xtreg(session, text, ctx) {
   const panel = session.panel;
   // _xt.ado's message.
   if (!panel?.id) throw new StataError("must specify panelvar; use xtset", 459);
+  // vce(bootstrap) and vce(jackknife) resample the panels, as xtreg.ado's
+  // _vce_parserun does: bootstrap numbers each panel drawn as a panel of
+  // its own.
+  const resampled = /^\s*(bootstrap|boot|bs|jackknife|jknife|jack)\b/.exec(
+    parsed.options.vce ?? "",
+  );
+  if (resampled && hooks.resamplingVce) {
+    const vce = parsed.options.vce.trim(),
+      clusters = resampled[1].startsWith("b")
+        ? `cluster(${panel.id}) idcluster(${panel.id})`
+        : `cluster(${panel.id})`;
+    session.renumberedPanels = panel.id;
+    try {
+      hooks.resamplingVce(
+        session,
+        "xtreg",
+        text,
+        `${vce}${vce.includes(",") ? " " : ", "}${clusters}`,
+        ctx,
+      );
+    } finally {
+      delete session.renumberedPanels;
+    }
+    return;
+  }
   const options = parsed.options,
     data = session.data,
     id = data.get(panel.id).data,
@@ -1490,8 +1521,10 @@ function xtreg(session, text, ctx) {
   V = V.map((row) => row.map(finite));
   for (const key of Object.keys(extra)) extra[key] = finite(extra[key]);
   const r2 = rsq(b);
-  // fe's within R-squared is that of the within regression: 0 with no
-  // regressors named (with every one named omitted it is missing).
+  // fe's within R-squared is _regress's e(r2) of the within regression.
+  // With no regressor in it that is floating-point noise in Stata: missing
+  // for most data (9 of 12 seeds of a balanced 5 x 6 panel) and 1e-16 for
+  // the rest, so the usual missing is shown.
   // xtreg_re.ado sets all three to 0 when the fitted values
   // do not vary (sd below 1e-8), and the between and within ones when
   // the panel means of the fitted or of the dependent values do not.
@@ -1501,7 +1534,7 @@ function xtreg(session, text, ctx) {
       values.reduce((t, v) => t + (v - m) ** 2, 0) / (values.length - 1),
     );
   };
-  if (useFe && !candidates.length) r2.within = 0;
+  if (useFe && !candidates.length) r2.within = MISSING;
   if (!useFe && !useBe) {
     if (!(sd(r2.fit) >= 1e-8)) r2.within = r2.between = r2.overall = 0;
     else if (!(sd(r2.fitMeans) >= 1e-8) || !(sd(r2.yMeans) >= 1e-8))
@@ -1675,16 +1708,28 @@ function xtreg(session, text, ctx) {
       `${rLine("Overall", r2.overall).padEnd(48)}${obs("max", count(greatest(sizes)))}`,
     );
     ctx.out("");
+    // Under a prefix the displays differ as Stata's do: re's with the
+    // jackknife's F reads an e(chi2) it does not have, be's lays out
+    // F(1,9) without a blank and its Wald test as "Wald chi(k)".
     const test = r
       ? r.df
-        ? {
-            label: `F(${r.test.df}, ${r.df})`,
-            value: r.test.F,
-            p: r.test.p,
-            pLabel: "Prob > F",
-          }
+        ? !useFe && !useBe
+          ? {
+              label: ` chi2(${r.test.df})`,
+              value: MISSING,
+              p: MISSING,
+              pLabel: "Prob > chi2",
+            }
+          : {
+              label: useBe
+                ? `F(${r.test.df},${r.df})`
+                : `F(${r.test.df}, ${r.df})`,
+              value: r.test.F,
+              p: r.test.p,
+              pLabel: "Prob > F",
+            }
         : {
-            label: `Wald chi2(${r.test.df})`,
+            label: `Wald chi${useBe ? "" : "2"}(${r.test.df})`,
             value: r.test.value,
             p: r.test.p,
             pLabel: "Prob > chi2",

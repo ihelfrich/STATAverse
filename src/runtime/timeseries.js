@@ -9,17 +9,24 @@ import { row, statistic } from "./likelihood.js";
 import { count, perGroup } from "./reports.js";
 import { project } from "./diagnostics.js";
 import { draw, titleOf, unquote } from "./graphics.js";
+import { LOOKS, looksOf, parseGraph } from "./graph-looks.js";
 import {
   MISSING,
   isMissing,
   isName,
+  isReserved,
   isStringType,
   missingValue,
 } from "./values.js";
 import { parseNumlist } from "./numlist.js";
 import { abbreviate, invertSymmetric } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
-import { requireTimeOrder, seriesTerm, timeSeriesOperator } from "./panel.js";
+import {
+  requireDistinctTimes,
+  requireTimeOrder,
+  seriesTerm,
+  timeSeriesOperator,
+} from "./panel.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 
@@ -88,7 +95,8 @@ export function correlogram(
     }
     const ac = ck / c0;
     q += (ac * ac) / (n - k);
-    let pac = MISSING;
+    let pac = MISSING,
+      svar = MISSING;
     if (k <= plags) {
       // The rows with every lag up to k.
       const used = [];
@@ -116,13 +124,74 @@ export function correlogram(
               coefficient * coefficient * denominator,
             centre = y.reduce((t, v) => t + v, 0) / y.length,
             total = y.reduce((t, v) => t + (v - centre) ** 2, 0);
-          if (left > 1e-13 * total) pac = coefficient;
+          if (left > 1e-13 * total) {
+            pac = coefficient;
+            // pac.ado's standardized residual variance, (N - 1) rmse^2 / R0.
+            svar = ((used.length - 1) * left) / (used.length - k - 1) / c0;
+          }
         }
       }
     }
-    out.push({ lag: k, ac, pac, q: n * (n + 2) * q });
+    out.push({ lag: k, ac, pac, svar, q: n * (n + 2) * q });
   }
   return out;
+}
+
+/**
+ * Partial autocorrelations from autocorrelations by the Durbin-Levinson
+ * recursion, as pac.ado's yw computes them.
+ */
+export function yuleWalker(ac) {
+  const out = [],
+    previous = [];
+  for (let s = 1; s <= ac.length; s++) {
+    let top = ac[s - 1],
+      bottom = 1;
+    for (let j = 1; j < s; j++) {
+      top -= previous[j - 1] * ac[s - j - 1];
+      bottom -= previous[j - 1] * ac[j - 1];
+    }
+    const phi = top / bottom,
+      next = previous.map((v, j) => v - phi * previous[s - j - 2]);
+    next.push(phi);
+    previous.splice(0, previous.length, ...next);
+    out.push(phi);
+  }
+  return out;
+}
+
+/**
+ * pac ..., yw: the autocorrelations come from ac on the whole series, as
+ * pac.ado runs ac without its if and in, quietly.
+ */
+function ywPartials(session, parsed, lags) {
+  let whole;
+  try {
+    whole = correlationSeries(session, {
+      ...parsed,
+      if: null,
+      in: null,
+      only: null,
+    });
+    if (whole.n === 0) throw new StataError("no observations", 2000);
+    if (whole.n === 1) throw new StataError("insufficient observations", 2001);
+    if (lags >= whole.n)
+      throw new StataError(
+        `lags() too large; must be less than ${whole.n}`,
+        498,
+      );
+  } catch (error) {
+    if (!(error instanceof StataError)) throw error;
+    throw new StataError(
+      `calculation of autocorrelations failed\n${error.message}`,
+      error.code,
+    );
+  }
+  return yuleWalker(
+    correlogram(whole.values, lags, whole.times, whole.delta, 0).map(
+      (row) => row.ac,
+    ),
+  );
 }
 
 /**
@@ -163,11 +232,21 @@ function correlationSeries(session, parsed) {
     values = rows.map((i) => variable.data[i]),
     times = rows.map((i) => time[i]),
     delta = panel.delta ?? 1;
-  let gaps = 0;
-  for (let k = 1; k < times.length; k++)
+  let gaps = 0,
+    repeated = false;
+  for (let k = 1; k < times.length; k++) {
     if (times[k] - times[k - 1] > delta) gaps++;
-  return { variable, values, times, delta, gaps, n: values.length };
+    if (times[k] === times[k - 1]) repeated = true;
+  }
+  return { variable, values, times, delta, gaps, n: values.length, repeated };
 }
+// pac.ado's regression of the series on its first lag fails when a time
+// repeats, and says so in its own words.
+const repeatedTimes = (variable) =>
+  new StataError(
+    `regression failed\nfailed command: regress ${variable.name} L(1/1).${variable.name}\ninvalid values for time variable`,
+    451,
+  );
 const gapNote = (ctx, gaps) => {
   if (gaps)
     ctx.out(`(note: time series has ${gaps} gap${gaps > 1 ? "s" : ""})`);
@@ -175,10 +254,13 @@ const gapNote = (ctx, gaps) => {
 
 function corrgram(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, LAGs(integer -999) noPLot | YW]",
+      "anything [if] [in] [, LAGs(integer -999) noPLot YW]",
       text,
     ),
-    { values, times, delta, gaps, n } = correlationSeries(session, parsed);
+    { variable, values, times, delta, gaps, n, repeated } = correlationSeries(
+      session,
+      parsed,
+    );
   let lags = parsed.options.lags;
   if (lags === -999) lags = Math.max(1, Math.min(Math.floor(n / 2) - 2, 40));
   else if (lags >= n)
@@ -191,8 +273,20 @@ function corrgram(session, text, ctx) {
   if (n === 0) throw new StataError("no observations", 2000);
   if (n === 1) throw new StataError("insufficient observations", 2001);
   const plags = Math.min(lags, Math.floor(n / 2) - 2),
-    rows = correlogram(values, lags, times, delta, Math.max(plags, 0)),
-    plot = parsed.options.plot !== false,
+    yw = !!parsed.options.yw;
+  if (!yw && plags > 0 && repeated) throw repeatedTimes(variable);
+  const rows = correlogram(
+    values,
+    lags,
+    times,
+    delta,
+    yw ? 0 : Math.max(plags, 0),
+  );
+  if (yw && plags > 0)
+    ywPartials(session, parsed, plags).forEach((pac, k) => {
+      rows[k].pac = pac;
+    });
+  const plot = parsed.options.plot !== false,
     bar = (r) => {
       if (isMissing(r)) return "";
       const size = Math.min(8, Math.trunc(Math.abs(r) * 8));
@@ -250,17 +344,40 @@ function corrgram(session, text, ctx) {
   };
 }
 
+/**
+ * ac and pac, as ac.ado and pac.ado: the correlations at each lag drawn as
+ * droplines inside their confidence bands, or with nograph only stored by
+ * generate(). The graph options are checked when the graph is drawn, after
+ * the correlations, as graph twoway checks them in Stata.
+ */
 function correlationPlot(kind) {
+  const own = `LAGs(integer -999) GENerate(string) Level(cilevel) FFT noGRAPH${kind === "pac" ? " YW" : ""}`,
+    drawn = `${own}${kind === "pac" ? " SRV" : ""}`;
   return (session, text, ctx) => {
-    const parsed = session.parse(
-        "anything [if] [in] [, LAGs(integer -999) Level(cilevel) TItle(string) XTItle(string) YTItle(string) *]",
-        text,
-      ),
-      { variable, values, times, delta, gaps, n } = correlationSeries(
-        session,
-        parsed,
-      );
-    let lags = parsed.options.lags;
+    const loose = session.parse(`anything [if] [in] [, ${drawn} *]`, text),
+      asked = loose.options,
+      nograph = asked.graph === false;
+    // Without a graph the options are only these; with one the rest go to
+    // the graph.
+    const parsed = nograph
+      ? session.parse(`anything [if] [in] [, ${own}]`, text)
+      : loose;
+    if (asked.yw && asked.srv)
+      throw new StataError("cannot specify srv with yw", 198);
+    if (nograph && !asked.generate?.trim())
+      throw new StataError("generate() must be specified with nograph", 198);
+    const generate = asked.generate?.trim();
+    if (generate) {
+      if (/\s/.test(generate))
+        throw new StataError("generate() should name one new variable", 198);
+      if (!isName(generate) || isReserved(generate))
+        throw new StataError(`${generate} invalid name`, 198);
+      if (session.data.has(generate))
+        throw new StataError(`variable ${generate} already defined`, 110);
+    }
+    const { variable, values, times, delta, gaps, n, repeated } =
+      correlationSeries(session, parsed);
+    let lags = asked.lags;
     if (n === 0) throw new StataError("no observations", 2000);
     if (kind === "ac") {
       if (n === 1) throw new StataError("insufficient observations", 2001);
@@ -284,44 +401,131 @@ function correlationPlot(kind) {
     if (lags <= 0)
       throw new StataError("lags() must be greater than zero", 498);
     gapNote(ctx, gaps);
+    // ac's fft transforms the series as it stands, which needs no gaps.
+    if (kind === "ac" && asked.fft && gaps)
+      throw new StataError(
+        "time series may not have gaps\nwith the fft option specified",
+        459,
+      );
+    if (kind === "pac" && !asked.yw && repeated) throw repeatedTimes(variable);
     const rows = correlogram(
-        values,
-        lags,
-        times,
-        delta,
-        kind === "ac" ? 0 : lags,
-      ),
-      points = rows
-        .map((row) => [row.lag, kind === "ac" ? row.ac : row.pac])
-        .filter(([, r]) => !isMissing(r)),
+      values,
+      lags,
+      times,
+      delta,
+      kind === "ac" || asked.yw ? 0 : lags,
+    );
+    if (kind === "pac" && asked.yw)
+      ywPartials(session, parsed, lags).forEach((pac, k) => {
+        rows[k].pac = pac;
+      });
+    const stat = (row) => (kind === "ac" ? row.ac : row.pac),
       label =
         kind === "ac"
           ? `Autocorrelations of ${variable.name}`
           : `Partial autocorrelations of ${variable.name}`;
-    ctx.graph({
-      svg: draw({
-        layers: [
-          {
-            bars: points.map(([lag, r]) => ({
-              x0: lag - 0.08,
-              x1: lag + 0.08,
-              height: r,
-            })),
-            points: [],
-            label,
-          },
-          { kind: "scatter", points, label },
-        ],
-        xTitle: unquote(parsed.options.xtitle) || "Lag",
-        yTitle: unquote(parsed.options.ytitle) || label,
-        title: unquote(parsed.options.title),
-        yRange: [Math.min(-0.5, ...points.map((p) => p[1])), 1],
-        // Every correlation missing (a series pac fits exactly): the graph
-        // is drawn empty, as Stata draws it.
-        allowEmpty: true,
-      }),
-      description: `${label} at lags 1 to ${lags}: ${points.map(([, r]) => applyFormat(r, "%6.3f").trim()).join(", ")}. ${titleOf(variable)}, ${n} observations.`,
-    });
+    if (!nograph) {
+      const graphed = parseGraph(
+          session,
+          `anything [if] [in] [, ${drawn} CIOPts(string asis)${kind === "pac" ? " SRVOPts(string asis)" : ""} PLOT(string asis) ADDPLOT(string asis) ${LOOKS}]`,
+          text,
+        ),
+        options = graphed.options;
+      if (options.by !== undefined)
+        throw new StataError(
+          `by() is not allowed with ${kind}; draw one series at a time with if`,
+          198,
+        );
+      const extra = ["ciopts", "srvopts", "plot", "addplot"].find(
+        (name) => options[name] !== undefined,
+      );
+      if (extra)
+        throw new StataError(
+          `option ${extra}() is not drawn here; ${kind} draws its bands and correlations in the page's own style, with the titles, note, labels and lines that graph options give`,
+          198,
+        );
+      const looks = looksOf(options),
+        level = asked.level,
+        z = invnormal((100 + level) / 200),
+        levelText = g(level),
+        // ac's bands are Bartlett's for an MA(q); pac's are 1/sqrt(n).
+        band = [];
+      let sum = 0;
+      for (const row of rows) {
+        const se =
+          kind === "ac" ? Math.sqrt((1 + 2 * sum) / n) : 1 / Math.sqrt(n);
+        if (kind === "ac") sum += row.ac * row.ac;
+        band.push([row.lag, z * se, -z * se]);
+      }
+      const points = rows
+          .map((row) => [row.lag, stat(row)])
+          .filter(([, r]) => !isMissing(r)),
+        variances =
+          kind === "pac" && options.srv
+            ? rows
+                .filter((row) => !isMissing(row.svar))
+                .map((row) => [row.lag, row.svar])
+            : [],
+        heights = [
+          ...points.map((p) => p[1]),
+          ...band.flatMap((b) => [b[1], b[2]]),
+        ];
+      ctx.graph({
+        svg: draw({
+          ...looks,
+          layers: [
+            { kind: "band", points: band, label: `${levelText}% CI` },
+            {
+              bars: points.map(([lag, r]) => ({
+                x0: lag - 0.08,
+                x1: lag + 0.08,
+                height: r,
+              })),
+              points: [],
+              label,
+            },
+            { kind: "scatter", points, label },
+            ...(variances.length
+              ? [
+                  {
+                    kind: "scatter",
+                    points: variances,
+                    label: "Standardized variances",
+                  },
+                ]
+              : []),
+          ],
+          xTitle: options.xtitle ?? "Lag",
+          yTitle: options.ytitle ?? label,
+          title: options.title,
+          note:
+            looks.note ??
+            (kind === "ac"
+              ? `Bartlett's formula for MA(q) ${levelText}% confidence bands`
+              : `${levelText}% Confidence bands [se = 1/sqrt(n)]`),
+          legend: options.legend !== undefined ? looks.legend : { off: true },
+          yRange: [
+            Math.min(-0.5, ...heights, ...variances.map((p) => p[1])),
+            Math.max(1, ...heights, ...variances.map((p) => p[1])),
+          ],
+          // Every correlation missing (a series pac fits exactly): the
+          // graph is drawn with its bands only, as Stata draws it.
+          allowEmpty: true,
+        }),
+        description: `${label} at lags 1 to ${lags}: ${points.map(([, r]) => applyFormat(r, "%6.3f").trim()).join(", ")}, within ${levelText}% confidence bands. ${titleOf(variable)}, ${n} observations.`,
+      });
+    }
+    if (generate) {
+      // The correlation at lag k goes in observation k, in time order.
+      const out = new Array(session.data.n).fill(MISSING);
+      rows.forEach((row, k) => {
+        if (k < out.length) out[k] = stat(row);
+      });
+      session.data.generate(generate, out, { type: "double" });
+      const made = session.data.get(generate);
+      made.format = "%10.0g";
+      made.label = label;
+    }
   };
 }
 
@@ -355,6 +559,9 @@ function tssmooth(session, text, ctx) {
     at = new Map(rows.map((i, r) => [time[i], r])),
     out = new Array(data.n).fill(MISSING),
     order = [...data.sortedBy];
+  // The smoothers lag and lead the series, which needs each time once.
+  if (at.size < rows.length)
+    throw new StataError("repeated time values in sample", 451);
   if (isMa) {
     const [lagCount = 0, current = 0, leadCount = 0] = parsed.options.window;
     if (![0, 1].includes(current))
@@ -480,8 +687,11 @@ export function timeFrame(
   if (sorts) sortByTime(session, Array.isArray(sample) ? null : sample);
   const variable = session.data.get(panel.time),
     at = new Map();
+  // Their time-series operators need each time once, as regress's do.
   variable.data.forEach((t, i) => {
-    if (!isMissing(t) && (!only || only(i))) at.set(t, i);
+    if (isMissing(t) || (only && !only(i))) return;
+    if (at.has(t)) throw new StataError("repeated time values in sample", 451);
+    at.set(t, i);
   });
   return {
     name: panel.time,
@@ -743,9 +953,10 @@ function varlistEnd(text) {
  * varlist in its place. The temporary variables are dropped when the
  * command ends, whether it succeeds or fails. Each carries ts: its
  * variable, its name (L.x), its row label (L1.) and the operators that
- * head its column (L.), which the command's display uses.
+ * head its column (L.), which the command's display uses. distinctTimes
+ * refuses a time repeated in a panel, as correlate does.
  */
-export function operatorVariables(run) {
+export function operatorVariables(run, { distinctTimes = false } = {}) {
   return (session, text, ctx) => {
     const end = varlistEnd(text),
       listed = words(text.slice(0, end));
@@ -785,6 +996,9 @@ export function operatorVariables(run) {
     if (wanted.length)
       try {
         requireTimeOrder(session);
+        // correlate's operated variables need each time once, as regress's
+        // do; summarize, list and pwcorr take them as they come.
+        if (distinctTimes) requireDistinctTimes(session);
       } catch (error) {
         if (ctx.by?.groups.length)
           perGroup(() => {
@@ -1591,6 +1805,8 @@ function dfuller(session, text, ctx) {
     id = panel.id ? data.get(panel.id).data : null;
     selected = session.rows(parsed, null).filter((i) => !isMissing(time[i]));
   }
+  // regress D.y L.y needs each time once in the panel.
+  requireDistinctTimes(session);
   const column = (ops) => {
       const value = timeSeriesOperator(session, ops, term.variable);
       return Array.from({ length: data.n }, (_, i) => value(i));
@@ -3463,7 +3679,77 @@ function tsappend(session, text, ctx) {
   session.results.r = { add: count };
 }
 
+/**
+ * tsfill, as tsfill.ado fills gaps: in each panel, an observation for
+ * each missing time between its first and last (with full, between the
+ * first and last of all panels), with only the panel and time variables
+ * set; the data are left sorted by panel and time.
+ */
+function tsfill(session, text) {
+  const parsed = session.parse("[, Full]", text),
+    panel = session.panel;
+  if (!panel?.time)
+    throw new StataError("time variable not set, use tsset varname ...", 111);
+  const data = session.data,
+    keys = panel.id ? [panel.id, panel.time] : [panel.time];
+  for (const key of keys)
+    if (!data.has(key)) throw new StataError(`variable ${key} not found`, 111);
+  data.sort(keys);
+  session.results.r = {};
+  const time = data.get(panel.time).data,
+    id = panel.id ? data.get(panel.id).data : null,
+    delta = panel.delta ?? 1;
+  if (parsed.options.full && time.some((t) => isMissing(t)))
+    throw new StataError(
+      `timevar (${panel.time}) may not contain missing values when option full is specified`,
+      451,
+    );
+  // tsfill.ado's messages for a repeated time are each other's.
+  for (let i = 0; i + 1 < data.n; i++)
+    if (
+      (!id || id[i] === id[i + 1]) &&
+      !isMissing(time[i]) &&
+      time[i + 1] === time[i]
+    )
+      throw new StataError(
+        `repeated time values ${id ? "in sample" : "within panel"}`,
+        451,
+      );
+  const known = time.filter((t) => !isMissing(t)),
+    first = least(known),
+    last = Math.max(...known),
+    added = [];
+  for (let start = 0; start < data.n;) {
+    let end = start;
+    while (end + 1 < data.n && (!id || id[end + 1] === id[start])) end++;
+    const own = [];
+    for (let i = start; i <= end; i++)
+      if (!isMissing(time[i])) own.push(time[i]);
+    if (own.length) {
+      const present = new Set(own),
+        from = parsed.options.full ? first : own[0],
+        to = parsed.options.full ? last : own.at(-1);
+      for (let k = 0; from + k * delta <= to + 1e-9 * delta; k++) {
+        const t = from + k * delta;
+        if (!present.has(t)) added.push([id ? id[start] : null, t]);
+      }
+    }
+    start = end + 1;
+  }
+  if (!added.length) return;
+  const before = data.n;
+  data.setObservations(before + added.length);
+  const times = data.get(panel.time).data,
+    ids = id ? data.get(panel.id).data : null;
+  added.forEach(([group, t], k) => {
+    times[before + k] = t;
+    if (ids) ids[before + k] = group;
+  });
+  data.sort(keys);
+}
+
 export const TIMESERIES_COMMANDS = [
+  { name: "tsfill", minimum: 6, run: tsfill },
   { name: "tsappend", minimum: 8, run: tsappend },
   { name: "corrgram", minimum: 8, run: corrgram },
   { name: "ac", minimum: 2, run: correlationPlot("ac") },

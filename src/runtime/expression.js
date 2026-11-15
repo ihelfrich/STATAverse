@@ -562,7 +562,8 @@ export function compileExpression(source, scope = {}) {
     const panel = scope.timeVariable?.();
     if (!panel?.time)
       throw new StataError("time-series operators not allowed", 101);
-    const parts = args.split(",");
+    // tin() with nothing in it has neither bound, as tin(,) has none.
+    const parts = args.trim() ? args.split(",") : ["", ""];
     if (parts.length !== 2) throw invalid();
     const format = dataset.get(panel.time).format ?? "",
       units = format[1] === "t" ? format[2] : format[1] === "d" ? "d" : "g",

@@ -155,6 +155,22 @@ const RESTRICTED_FACTOR =
 // may hold a step, L(1(1)3).x.
 const SERIES_OPERATOR =
   /^((?:(?:[LFDS](?:\d+|\((?:[^()]|\([^()]*\))*\))?)+\.)+)([A-Za-z_]\w*|\([^()]*\))$/i;
+/**
+ * i(numlist) with time-series operators, as i(1)L.d, i(2 3)b3L.g or
+ * L.i(2 3).g: the word with plain i in its place, and the levels listed;
+ * null when the word has no such operator.
+ */
+function restrictedOperated(word) {
+  const m =
+    /(^|\.)i\(([^()]*)\)(?=(?:b(?:\d+|\(\s*#?\d+\s*\)|\(\s*(?:first|last|freq)\s*\)))?(?:[LFDSlfds]|\.[LFDSlfds]|\.[A-Za-z_]))/.exec(
+      word,
+    );
+  if (!m || RESTRICTED_FACTOR.test(word)) return null;
+  const plain = `${word.slice(0, m.index)}${m[1]}i${word.slice(m.index + m[0].length)}`,
+    split = splitOperators(plain);
+  if (!split?.ts || split.fv === "c") return null;
+  return { word: plain, only: parseNumlist(m[2]) };
+}
 // The indicator of one level of a factor: 2.g.
 const LEVEL_INDICATOR = /^(\d+)\.([A-Za-z_]\w*)$/;
 // A group of operators between dots: a factor-variable operator and
@@ -412,6 +428,13 @@ export function design(session, text, rows, constant = true, levelRows) {
         ...component(`i${restricted[2] ?? ""}.${restricted[3]}`, inInteraction),
         only: parseNumlist(restricted[1]),
       };
+    // The same under time-series operators: i(1)L.d, L.i(2 3).g.
+    const operated = restrictedOperated(word);
+    if (operated)
+      return {
+        ...component(operated.word, inInteraction),
+        only: operated.only,
+      };
     // A variable under time-series operators, and maybe a factor-variable
     // operator: cL.x is continuous, iL.g and L.i.g factors, and a bare L.g
     // in an interaction a factor, as a bare name is there.
@@ -555,12 +578,21 @@ export function design(session, text, rows, constant = true, levelRows) {
     } else if (SERIES_OPERATOR.test(written))
       for (const variable of seriesVariables(session, written))
         add([{ variable, factor: false }]);
-    else if (splitOperators(written)?.fv && splitOperators(written).ts) {
+    else if (
+      restrictedOperated(written) ||
+      (splitOperators(written)?.fv && splitOperators(written).ts)
+    ) {
       // cL.x, L.c.x, iL.g, L.i.g: each lag of a continuous variable as L.x
-      // is, or a factor of each lag.
-      const { fv, ts, name } = splitOperators(written);
+      // is, or a factor of each lag; i(1 2)L.g those levels of it only.
+      const operated = restrictedOperated(written),
+        { fv, ts, name } = splitOperators(operated?.word ?? written);
       for (const variable of seriesVariables(session, `${ts}.${name}`))
-        add([operatedComponent(variable, fv !== "c", fv)]);
+        add([
+          {
+            ...operatedComponent(variable, fv !== "c", fv),
+            ...(operated ? { only: operated.only } : {}),
+          },
+        ]);
     } else
       for (const name of session.varlist(token)) add([component(name, false)]);
   }
@@ -1214,20 +1246,27 @@ function tableBlocks(session, model) {
       !block.term.variable &&
       block.term.components.length === 1 &&
       block.term.components[0].factor &&
-      block.shown.length === 1 &&
-      // A factor under time-series operators is headed by its name
-      // (L.union) even with one level shown.
-      !block.term.components[0].variable.ts;
-    // ratio and its kin head even one group of over() by its name.
+      block.shown.length === 1;
+    // ratio and its kin head even one group of over() by its name, and a
+    // factor under time-series operators is headed by its name (L.union)
+    // even with one level shown.
     block.alone =
       one &&
       !model.headedFactors &&
+      !block.term.components[0].variable.ts &&
       !session.data.valueLabels?.has(
         block.term.components[0].variable.valueLabel,
       );
     // A level shown before its base (ib1. with levels 0 and 1) is followed
     // by a blank row all the same.
-    block.single = one && !block.alone && block.shown[0] === block.items.at(-1);
+    // Under time-series operators that holds only for a factor of one
+    // level, as i(1)L.d; iL.d with its base hidden has the blank row.
+    block.single =
+      one &&
+      !block.alone &&
+      (block.term.components[0].variable.ts
+        ? block.items.length === 1
+        : block.shown[0] === block.items.at(-1));
   }
   return blocks;
 }
@@ -1979,7 +2018,22 @@ function panelPredict(session, model, text, ctx) {
     },
     keep = new Set(session.rows(parsed, null)),
     values = new Array(data.n).fill(MISSING);
-  for (const i of model.sample) {
+  // ue is the dependent variable less xb wherever both are there, outside
+  // the estimation sample too, as xtrefe_p.ado and xtrere_p.ado compute it;
+  // the others need the panel's effect, from the sample.
+  if (what === "ue") {
+    for (const i of keep) {
+      const y = dependent.data[i],
+        known =
+          !isMissing(y) &&
+          model.names.every(
+            (name, k) =>
+              name === "_cons" || !isMissing(model.columns[k].value(i)),
+          );
+      if (known) values[i] = y - xb(i);
+    }
+  }
+  for (const i of what === "ue" ? [] : model.sample) {
     if (!keep.has(i)) continue;
     const u = effect(i),
       ue = residual.get(i);
@@ -4641,9 +4695,12 @@ export const ESTIMATION_COMMANDS = [
   {
     name: "correlate",
     minimum: 3,
-    run: factorVariables(operatorVariables(perGroup(correlate)), {
-      refuse: "factor-variable operators not allowed",
-    }),
+    run: factorVariables(
+      operatorVariables(perGroup(correlate), { distinctTimes: true }),
+      {
+        refuse: "factor-variable operators not allowed",
+      },
+    ),
     byable: true,
   },
   { name: "tabstat", minimum: 7, run: tabstat },

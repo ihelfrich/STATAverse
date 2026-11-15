@@ -185355,7 +185355,7 @@
     },
     {
       "id": "recheck-panel-xtreg-options",
-      "source": "clear\nset seed 2024\nset obs 30\ngenerate id = ceil(_n/10)\ngenerate t = mod(_n-1,10) + 1\ngenerate x = rnormal()\ngenerate y = x + rnormal()\nxtset id t\nxtreg y, fe\nxtreg y, re\nxtreg y, be\nreplace t = . in 4\nxtset id t\nxtreg y x, fe\nxtreg y x, re\ncapture noisily xtreg y x, fe re\ncapture noisily xtreg y x, be fe\ncapture noisily xtreg y x, fe pa\ncapture noisily xtreg y x, fe wls\ndrop in 1/3\nxtreg y x, be wls\nxtreg y x, be\n",
+      "source": "clear\nset seed 2024\nset obs 30\ngenerate id = ceil(_n/10)\ngenerate t = mod(_n-1,10) + 1\ngenerate x = rnormal()\ngenerate y = x + rnormal()\nxtset id t\nxtreg y, re\nxtreg y, be\nreplace t = . in 4\nxtset id t\nxtreg y x, fe\nxtreg y x, re\ncapture noisily xtreg y x, fe re\ncapture noisily xtreg y x, be fe\ncapture noisily xtreg y x, fe pa\ncapture noisily xtreg y x, fe wls\ndrop in 1/3\nxtreg y x, be wls\nxtreg y x, be\n",
       "commands": [
         { "command": "clear", "lines": [] },
         { "command": "set seed 2024", "lines": [] },
@@ -185373,32 +185373,6 @@
             "Panel variable: id (strongly balanced)",
             " Time variable: t, 1 to 10",
             "         Delta: 1 unit"
-          ]
-        },
-        {
-          "command": "xtreg y, fe",
-          "lines": [
-            "Fixed-effects (within) regression               Number of obs     =         30",
-            "Group variable: id                              Number of groups  =          3",
-            "",
-            "R-squared:                                      Obs per group:",
-            "     Within  = 0.0000                                         min =         10",
-            "                                                              avg =       10.0",
-            "                                                              max =         10",
-            "",
-            "                                                F(0, 27)          =       0.00",
-            "corr(u_i, Xb) =      .                          Prob > F          =          .",
-            "",
-            "------------------------------------------------------------------------------",
-            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
-            "-------------+----------------------------------------------------------------",
-            "       _cons |  -.2859417    .285991    -1.00   0.326    -.8727469    .3008634",
-            "-------------+----------------------------------------------------------------",
-            "     sigma_u |  .23008426",
-            "     sigma_e |  1.5664374",
-            "         rho |   .0211192   (fraction of variance due to u_i)",
-            "------------------------------------------------------------------------------",
-            "F test that all u_i=0: F(2, 27) = 0.22                       Prob > F = 0.8073"
           ]
         },
         {
@@ -186620,6 +186594,2769 @@
         {
           "command": "capture noisily poisson b x, vce(hac)",
           "lines": ["vcetype hac not allowed"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-xtreg-fe-empty",
+      "source": "clear\nset seed 2\nset obs 30\ngenerate id = ceil(_n/6)\ngenerate t = mod(_n-1,6)+1\ngenerate y = rnormal() + id\nxtset id t\nxtreg y, fe\ndisplay e(r2_w)\ndisplay e(r2_a)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate id = ceil(_n/6)", "lines": [] },
+        { "command": "generate t = mod(_n-1,6)+1", "lines": [] },
+        { "command": "generate y = rnormal() + id", "lines": [] },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 6",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtreg y, fe",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =         30",
+            "Group variable: id                              Number of groups  =          5",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  =      .                                         min =          6",
+            "                                                              avg =        6.0",
+            "                                                              max =          6",
+            "",
+            "                                                F(0, 25)          =       0.00",
+            "corr(u_i, Xb) =      .                          Prob > F          =          .",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   2.999152   .1494247    20.07   0.000     2.691407    3.306898",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  1.6261948",
+            "     sigma_e |  .81843268",
+            "         rho |   .7978989   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(4, 25) = 23.69                      Prob > F = 0.0000"
+          ]
+        },
+        { "command": "display e(r2_w)", "lines": ["."] },
+        { "command": "display e(r2_a)", "lines": ["."] }
+      ]
+    },
+    {
+      "id": "recheck-panel2-generic-format",
+      "source": "clear\nset obs 4\ngenerate t = tm(2001m1)+_n\nformat t %tm\ngenerate g = _n\ntsset t, generic\ntsset t, format(%tg)\nformat t %tg\nlist in 1\ngenerate id = 1\nxtset id t, generic\ndisplay \"[\" %tg 493.5 \"]\"\ndisplay \"[\" %-tg 5 \"]\"\ndisplay \"[\" %tg 123456789 \"]\"\nclear\nset obs 3\ngenerate t = 493 + _n*1000.25\nformat t %-tg\ndescribe t\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate t = tm(2001m1)+_n", "lines": [] },
+        { "command": "format t %tm", "lines": [] },
+        { "command": "generate g = _n", "lines": [] },
+        {
+          "command": "tsset t, generic",
+          "lines": [
+            "warning: Variable t had been formatted %tm (a monthly period), and you asked for a generic period. Are you sure that is what you want? Format has been changed. t is now formatted %tg.",
+            "",
+            "Time variable: t, 493 to 496",
+            "        Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "tsset t, format(%tg)",
+          "lines": ["Time variable: t, 493 to 496", "        Delta: 1 unit"]
+        },
+        { "command": "format t %tg", "lines": [] },
+        {
+          "command": "list in 1",
+          "lines": [
+            "     +---------+",
+            "     |   t   g |",
+            "     |---------|",
+            "  1. | 493   1 |",
+            "     +---------+"
+          ]
+        },
+        { "command": "generate id = 1", "lines": [] },
+        {
+          "command": "xtset id t, generic",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 493 to 496",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "display \"[\" %tg 493.5 \"]\"",
+          "lines": ["[    493.5]"]
+        },
+        { "command": "display \"[\" %-tg 5 \"]\"", "lines": ["[        5]"] },
+        {
+          "command": "display \"[\" %tg 123456789 \"]\"",
+          "lines": ["[ 1.23e+08]"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate t = 493 + _n*1000.25", "lines": [] },
+        { "command": "format t %-tg", "lines": [] },
+        {
+          "command": "describe t",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "t               float   %-tg"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------+",
+            "     | t       |",
+            "     |---------|",
+            "  1. | 1493.25 |",
+            "  2. | 2493.5  |",
+            "  3. | 3493.75 |",
+            "     +---------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-svyset-noclear",
+      "source": "clear\nset seed 71\nset obs 60\ngenerate psu = ceil(_n/4)\ngenerate st = ceil(_n/30)\ngenerate w = 1 + runiform()*3\ngenerate w2 = w*2\ngenerate y = rnormal()\nsvyset [pw=w], noclear\nchar list\nsvy: mean y\nsvyset psu [pw=w], strata(st)\nsvyset [pw=w2], noclear\nchar list\nsvy: mean y\nsvyset, noclear dof(5) singleunit(certainty)\nsvyset, noclear vce(linearized)\ncapture noisily svyset, noclear clear\ncapture noisily svyset psu, noclear\ncapture noisily svyset [pw=w], noclear strata(st)\ncapture noisily svyset [pw=w] || psu, noclear\nsvyset, noclear\nsvyset, clear\nsvyset, noclear dof(4)\nchar list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 71", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate psu = ceil(_n/4)", "lines": [] },
+        { "command": "generate st = ceil(_n/30)", "lines": [] },
+        { "command": "generate w = 1 + runiform()*3", "lines": [] },
+        { "command": "generate w2 = w*2", "lines": [] },
+        { "command": "generate y = rnormal()", "lines": [] },
+        {
+          "command": "svyset [pw=w], noclear",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_svy_version]:         3",
+            "  _dta[_svy_wvar]:            w",
+            "  _dta[_svy_wtype]:           pweight"
+          ]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  1             Number of obs   =         60",
+            "Number of PSUs   = 60             Population size = 152.426781",
+            "                                  Design df       =         59",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   .1130305    .136386     -.1598773    .3859383",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svyset psu [pw=w], strata(st)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: st",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svyset [pw=w2], noclear",
+          "lines": [
+            "Sampling weights: w2",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: st",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_svy_wvar]:            w2",
+            "  _dta[_svy_version]:         3",
+            "  _dta[_svy_stages]:          1",
+            "  _dta[_svy_strata1]:         st",
+            "  _dta[_svy_su1]:             psu",
+            "  _dta[_svy_wtype]:           pweight"
+          ]
+        },
+        {
+          "command": "svy: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Survey: Mean estimation",
+            "",
+            "Number of strata =  2             Number of obs   =         60",
+            "Number of PSUs   = 16             Population size = 304.853562",
+            "                                  Design df       =         14",
+            "",
+            "--------------------------------------------------------------",
+            "             |             Linearized",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   .1130305   .1388688     -.1848135    .4108745",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "svyset, noclear dof(5) singleunit(certainty)",
+          "lines": [
+            "Sampling weights: w2",
+            "             VCE: linearized",
+            "       Design df: 5",
+            "     Single unit: certainty",
+            "        Strata 1: st",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svyset, noclear vce(linearized)",
+          "lines": [
+            "Sampling weights: w2",
+            "             VCE: linearized",
+            "       Design df: 5",
+            "     Single unit: certainty",
+            "        Strata 1: st",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "capture noisily svyset, noclear clear",
+          "lines": ["only one of options clear or noclear is allowed"]
+        },
+        {
+          "command": "capture noisily svyset psu, noclear",
+          "lines": ["option noclear is not allowed with design_options"]
+        },
+        {
+          "command": "capture noisily svyset [pw=w], noclear strata(st)",
+          "lines": ["option noclear is not allowed with design_options"]
+        },
+        {
+          "command": "capture noisily svyset [pw=w] || psu, noclear",
+          "lines": ["option noclear is not allowed with design_options"]
+        },
+        {
+          "command": "svyset, noclear",
+          "lines": [
+            "Sampling weights: w2",
+            "             VCE: linearized",
+            "       Design df: 5",
+            "     Single unit: certainty",
+            "        Strata 1: st",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        { "command": "svyset, clear", "lines": [] },
+        {
+          "command": "svyset, noclear dof(4)",
+          "lines": [
+            "Sampling weights: <none>",
+            "             VCE: linearized",
+            "       Design df: 4",
+            "     Single unit: missing"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_svy_version]:         3",
+            "  _dta[_svy_dof]:             4"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-svyset-designs",
+      "source": "clear\nset seed 71\nset obs 60\ngenerate psu = ceil(_n/4)\ngenerate st = ceil(_n/30)\ngenerate ssu = mod(_n,2)\ngenerate w = 1 + runiform()*3\ngenerate fp = 40\ngenerate fp2 = 100\ngenerate y = rnormal()\nforvalues k = 1/4 {\ngenerate double rw`k' = w*(1+(mod(_n,`k'+1)==0))\n}\ngenerate ps = 1 + mod(_n,3)\ngenerate pw = 100*ps\nsvyset psu [iw=w], strata(st)\nchar list\nsvyset\nsvyset psu [pw=w], strata(st) fpc(fp) || ssu, fpc(fp2)\nchar list\nsvyset psu, weight(w) strata(st) fpc(fp) || ssu, weight(w) || _n\nchar list\nsvyset psu [pw=w], strata(st) poststrata(ps) postweight(pw)\nchar list\nsvyset [pw=w], vce(brr) brrweight(rw1-rw4) fay(.3) mse\nchar list\nsvyset [pw=w], vce(bootstrap) bsrweight(rw*) bsn(4)\nsvyset [pw=w], vce(jackknife) jkrweight(rw1 rw2)\nsvyset [pw=w], vce(sdr) sdrweight(rw1-rw4, fpc(.05))\nchar list\nsvyset psu [pw=w], dofsubpop\nsvyset psu [pw=w], nodofsubpop\nsvyset psu [pw=w], brrweight(rw1 rw2)\ncapture noisily svyset psu, srs\nsvyset, srs\nsvyset, psu(psu) strata(st)\nsvyset _n, vce(jackknife) mse singleunit(scaled)\nsvyset psu [pw=w], strata(st) || ssu, strata(st) fpc(fp2) || _n, fpc(fp)\nchar list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 71", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate psu = ceil(_n/4)", "lines": [] },
+        { "command": "generate st = ceil(_n/30)", "lines": [] },
+        { "command": "generate ssu = mod(_n,2)", "lines": [] },
+        { "command": "generate w = 1 + runiform()*3", "lines": [] },
+        { "command": "generate fp = 40", "lines": [] },
+        { "command": "generate fp2 = 100", "lines": [] },
+        { "command": "generate y = rnormal()", "lines": [] },
+        {
+          "command": "forvalues k = 1/4 {",
+          "lines": [
+            "  2. generate double rw`k' = w*(1+(mod(_n,`k'+1)==0))",
+            "  3. }"
+          ]
+        },
+        { "command": "generate ps = 1 + mod(_n,3)", "lines": [] },
+        { "command": "generate pw = 100*ps", "lines": [] },
+        {
+          "command": "svyset psu [iw=w], strata(st)",
+          "lines": [
+            "Importance weights: w",
+            "               VCE: linearized",
+            "        Subpop. df: off",
+            "       Single unit: missing",
+            "          Strata 1: st",
+            "   Sampling unit 1: psu",
+            "             FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_svy_version]:         3",
+            "  _dta[_svy_stages]:          1",
+            "  _dta[_svy_strata1]:         st",
+            "  _dta[_svy_su1]:             psu",
+            "  _dta[_svy_wvar]:            w",
+            "  _dta[_svy_wtype]:           iweight"
+          ]
+        },
+        {
+          "command": "svyset",
+          "lines": [
+            "Importance weights: w",
+            "               VCE: linearized",
+            "        Subpop. df: off",
+            "       Single unit: missing",
+            "          Strata 1: st",
+            "   Sampling unit 1: psu",
+            "             FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svyset psu [pw=w], strata(st) fpc(fp) || ssu, fpc(fp2)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: st",
+            " Sampling unit 1: psu",
+            "           FPC 1: fp",
+            "        Strata 2: <one>",
+            " Sampling unit 2: ssu",
+            "           FPC 2: fp2"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_svy_version]:         3",
+            "  _dta[_svy_stages]:          2",
+            "  _dta[_svy_fpc2]:            fp2",
+            "  _dta[_svy_su2]:             ssu",
+            "  _dta[_svy_fpc1]:            fp",
+            "  _dta[_svy_strata1]:         st",
+            "  _dta[_svy_su1]:             psu",
+            "  _dta[_svy_wvar]:            w",
+            "  _dta[_svy_wtype]:           pweight"
+          ]
+        },
+        {
+          "command": "svyset psu, weight(w) strata(st) fpc(fp) || ssu, weight(w) || _n",
+          "lines": [
+            "note: stage 2 is sampled with replacement; further stages will be ignored for variance estimation.",
+            "",
+            "Sampling weights: <none>",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: st",
+            " Sampling unit 1: psu",
+            "           FPC 1: fp",
+            "        Weight 1: w",
+            "        Strata 2: <one>",
+            " Sampling unit 2: ssu",
+            "           FPC 2: <zero>",
+            "        Weight 2: w"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_svy_version]:         3",
+            "  _dta[_svy_stages_wt]:       2",
+            "  _dta[_svy_stages]:          2",
+            "  _dta[_svy_su3]:             _n",
+            "  _dta[_svy_weight2]:         w",
+            "  _dta[_svy_su2]:             ssu",
+            "  _dta[_svy_weight1]:         w",
+            "  _dta[_svy_fpc1]:            fp",
+            "  _dta[_svy_strata1]:         st",
+            "  _dta[_svy_su1]:             psu"
+          ]
+        },
+        {
+          "command": "svyset psu [pw=w], strata(st) poststrata(ps) postweight(pw)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "      Poststrata: ps",
+            "Post. pop. sizes: pw",
+            "     Single unit: missing",
+            "        Strata 1: st",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_svy_version]:         3",
+            "  _dta[_svy_stages]:          1",
+            "  _dta[_svy_strata1]:         st",
+            "  _dta[_svy_su1]:             psu",
+            "  _dta[_svy_wvar]:            w",
+            "  _dta[_svy_wtype]:           pweight",
+            "  _dta[_svy_postweight]:      pw",
+            "  _dta[_svy_poststrata]:      ps",
+            "  _dta[_svy_su3]:             _n"
+          ]
+        },
+        {
+          "command": "svyset [pw=w], vce(brr) brrweight(rw1-rw4) fay(.3) mse",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: brr",
+            "             MSE: on",
+            "     BRR weights: rw1 .. rw4",
+            "Fay's adjustment: .3",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: <one>",
+            " Sampling unit 1: <observations>",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_svy_version]:         3",
+            "  _dta[_svy_stages]:          1",
+            "  _dta[_svy_su1]:             _n",
+            "  _dta[_svy_wvar]:            w",
+            "  _dta[_svy_wtype]:           pweight",
+            "  _dta[_svy_fay]:             .3",
+            "  _dta[_svy_brrweight]:       rw1 rw2 rw3 rw4",
+            "  _dta[_svy_vce]:             brr",
+            "  _dta[_svy_mse]:             mse",
+            "  _dta[_svy_su3]:             _n"
+          ]
+        },
+        {
+          "command": "svyset [pw=w], vce(bootstrap) bsrweight(rw*) bsn(4)",
+          "lines": [
+            " Sampling weights: w",
+            "              VCE: bootstrap",
+            "              MSE: off",
+            "Bootstrap weights: rw1 .. rw4",
+            "Bootstrap samples: 4",
+            "       Subpop. df: off",
+            "      Single unit: missing",
+            "         Strata 1: <one>",
+            "  Sampling unit 1: <observations>",
+            "            FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svyset [pw=w], vce(jackknife) jkrweight(rw1 rw2)",
+          "lines": [
+            " Sampling weights: w",
+            "              VCE: jackknife",
+            "              MSE: off",
+            "Jackknife weights: rw1 rw2",
+            "       Subpop. df: off",
+            "      Single unit: missing",
+            "         Strata 1: <one>",
+            "  Sampling unit 1: <observations>",
+            "            FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svyset [pw=w], vce(sdr) sdrweight(rw1-rw4, fpc(.05))",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: sdr",
+            "             MSE: off",
+            "     SDR weights: rw1 .. rw4",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: <one>",
+            " Sampling unit 1: <observations>",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_svy_version]:         3",
+            "  _dta[_svy_stages]:          1",
+            "  _dta[_svy_su1]:             _n",
+            "  _dta[_svy_wvar]:            w",
+            "  _dta[_svy_wtype]:           pweight",
+            "  _dta[_svy_sdrfpc]:          .05",
+            "  _dta[_svy_sdrweight]:       rw1 rw2 rw3 rw4",
+            "  _dta[_svy_vce]:             sdr",
+            "  _dta[_svy_su3]:             _n"
+          ]
+        },
+        {
+          "command": "svyset psu [pw=w], dofsubpop",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: on",
+            "     Single unit: missing",
+            "        Strata 1: <one>",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svyset psu [pw=w], nodofsubpop",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: <one>",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svyset psu [pw=w], brrweight(rw1 rw2)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "     BRR weights: rw1 rw2",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: <one>",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "capture noisily svyset psu, srs",
+          "lines": ["option srs not allowed"]
+        },
+        {
+          "command": "svyset, srs",
+          "lines": [
+            "Sampling weights: <none>",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: <one>",
+            " Sampling unit 1: <observations>",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svyset, psu(psu) strata(st)",
+          "lines": [
+            "Sampling weights: <none>",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: st",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svyset _n, vce(jackknife) mse singleunit(scaled)",
+          "lines": [
+            "Sampling weights: <none>",
+            "             VCE: jackknife",
+            "             MSE: on",
+            "      Subpop. df: off",
+            "     Single unit: scaled",
+            "        Strata 1: <one>",
+            " Sampling unit 1: <observations>",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svyset psu [pw=w], strata(st) || ssu, strata(st) fpc(fp2) || _n, fpc(fp)",
+          "lines": [
+            "note: stage 1 is sampled with replacement; further stages will be ignored for variance estimation.",
+            "",
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: st",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_svy_version]:         3",
+            "  _dta[_svy_stages]:          1",
+            "  _dta[_svy_fpc3]:            fp",
+            "  _dta[_svy_fpc2]:            fp2",
+            "  _dta[_svy_strata2]:         st",
+            "  _dta[_svy_su2]:             ssu",
+            "  _dta[_svy_strata1]:         st",
+            "  _dta[_svy_su1]:             psu",
+            "  _dta[_svy_wvar]:            w",
+            "  _dta[_svy_wtype]:           pweight",
+            "  _dta[_svy_su3]:             _n"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-svyset-errors",
+      "source": "clear\nset seed 71\nset obs 60\ngenerate psu = ceil(_n/4)\ngenerate st = ceil(_n/30)\ngenerate ssu = mod(_n,2)\ngenerate w = 1 + runiform()*3\ngenerate fp = 40\ngenerate s = \"a\"\nforvalues k = 1/4 {\ngenerate double rw`k' = w*(1+(mod(_n,`k'+1)==0))\n}\ngenerate ps = 1 + mod(_n,3)\ngenerate pw = 100*ps\nsvyset psu [pw=w], strata(st)\ncapture noisily svyset psu [pw=w], vce(foo)\ncapture noisily svyset psu [pw=w], vce(linearized) mse\ncapture noisily svyset psu [pw=w], mse\ncapture noisily svyset psu [pw=w], fay(3)\ncapture noisily svyset psu [pw=w], fay(a)\ncapture noisily svyset psu [pw=w], bsn(0)\ncapture noisily svyset psu [pw=w], bsn(2.5)\ncapture noisily svyset psu [pw=w], poststrata(ps)\ncapture noisily svyset psu [pw=w], postweight(pw)\ncapture noisily svyset psu [pw=w], dofsubpop nodofsubpop\ncapture noisily svyset psu [pw=w], brrweight(s)\ncapture noisily svyset psu [pw=w], brrweight(nosuch)\nsvyset psu [pw=w], jkrweight(rw1 rw2, stratum(1 2))\ncapture noisily svyset psu [pw=w], brrweight(w)\nsvyset psu [iw=w] || ssu\ncapture noisily svyset psu, weight(w) || ssu [pw=w]\nsvyset psu [pw=w] || _n || ssu\nsvyset psu || ssu, fpc(fp) weight(w) strata(st)\ncapture noisily svyset psu, clear noclear\ncapture noisily svyset psu [pw=w], fpc(s)\ncapture noisily svyset [pw=w], strata(st) srs\ncapture noisily svyset, srs psu(psu)\nsvyset, psu(ssu) strata(st) fpc(fp)\ncapture noisily svyset psu, psu(ssu)\ncapture noisily svyset psu, singleunit(foo)\nsvyset , fay(.5)\nsvyset , bsn(3) bsrweight(rw1 rw2)\nchar list\nsvyset\nclear\ncapture noisily svyset\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 71", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate psu = ceil(_n/4)", "lines": [] },
+        { "command": "generate st = ceil(_n/30)", "lines": [] },
+        { "command": "generate ssu = mod(_n,2)", "lines": [] },
+        { "command": "generate w = 1 + runiform()*3", "lines": [] },
+        { "command": "generate fp = 40", "lines": [] },
+        { "command": "generate s = \"a\"", "lines": [] },
+        {
+          "command": "forvalues k = 1/4 {",
+          "lines": [
+            "  2. generate double rw`k' = w*(1+(mod(_n,`k'+1)==0))",
+            "  3. }"
+          ]
+        },
+        { "command": "generate ps = 1 + mod(_n,3)", "lines": [] },
+        { "command": "generate pw = 100*ps", "lines": [] },
+        {
+          "command": "svyset psu [pw=w], strata(st)",
+          "lines": [
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: st",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w], vce(foo)",
+          "lines": ["option vce(foo) invalid"]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w], vce(linearized) mse",
+          "lines": ["option mse is not allowed with vce(linearized)"]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w], mse",
+          "lines": ["invalid vcetype"]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w], fay(3)",
+          "lines": ["fay() invalid -- invalid number, outside of allowed range"]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w], fay(a)",
+          "lines": ["fay() invalid -- invalid number"]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w], bsn(0)",
+          "lines": ["bsn() invalid -- invalid number, outside of allowed range"]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w], bsn(2.5)",
+          "lines": ["bsn() invalid -- invalid number, noninteger value"]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w], poststrata(ps)",
+          "lines": ["option poststrata() requires option postweight()"]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w], postweight(pw)",
+          "lines": ["option postweight() requires option poststrata()"]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w], dofsubpop nodofsubpop",
+          "lines": ["only one of options nodofsubpop or dofsubpop is allowed"]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w], brrweight(s)",
+          "lines": [
+            "string variables not allowed in option brrweight();",
+            "s is a string variable"
+          ]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w], brrweight(nosuch)",
+          "lines": [
+            "variable nosuch not found",
+            "(error in option brrweight())"
+          ]
+        },
+        {
+          "command": "svyset psu [pw=w], jkrweight(rw1 rw2, stratum(1 2))",
+          "lines": [
+            " Sampling weights: w",
+            "              VCE: linearized",
+            "Jackknife weights: rw1 rw2",
+            "       Subpop. df: off",
+            "      Single unit: missing",
+            "         Strata 1: <one>",
+            "  Sampling unit 1: psu",
+            "            FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w], brrweight(w)",
+          "lines": [
+            "invalid brrweight() option;",
+            "the brrweight() varlist may not contain pweight variable w"
+          ]
+        },
+        {
+          "command": "svyset psu [iw=w] || ssu",
+          "lines": [
+            "note: stage 1 is sampled with replacement; further stages will be ignored for variance estimation.",
+            "",
+            "Importance weights: w",
+            "               VCE: linearized",
+            "        Subpop. df: off",
+            "       Single unit: missing",
+            "          Strata 1: <one>",
+            "   Sampling unit 1: psu",
+            "             FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "capture noisily svyset psu, weight(w) || ssu [pw=w]",
+          "lines": [
+            "note: stage 1 is sampled with replacement; further stages will be ignored for variance estimation.",
+            "invalid weight specification;",
+            "pweights not allowed with stage-level weight() options"
+          ]
+        },
+        {
+          "command": "svyset psu [pw=w] || _n || ssu",
+          "lines": [
+            "note: stage 1 is sampled with replacement; further stages will be ignored for variance estimation.",
+            "",
+            "Sampling weights: w",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: <one>",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>"
+          ]
+        },
+        {
+          "command": "svyset psu || ssu, fpc(fp) weight(w) strata(st)",
+          "lines": [
+            "note: stage 1 is sampled with replacement; further stages will be ignored for variance estimation.",
+            "",
+            "Sampling weights: <none>",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: <one>",
+            " Sampling unit 1: psu",
+            "           FPC 1: <zero>",
+            "        Weight 1: <none>",
+            "        Strata 2: st",
+            " Sampling unit 2: ssu",
+            "           FPC 2: fp",
+            "        Weight 2: w"
+          ]
+        },
+        {
+          "command": "capture noisily svyset psu, clear noclear",
+          "lines": ["only one of options clear or noclear is allowed"]
+        },
+        {
+          "command": "capture noisily svyset psu [pw=w], fpc(s)",
+          "lines": [
+            "string variables not allowed in option fpc();",
+            "s is a string variable"
+          ]
+        },
+        {
+          "command": "capture noisily svyset [pw=w], strata(st) srs",
+          "lines": ["option srs not allowed"]
+        },
+        {
+          "command": "capture noisily svyset, srs psu(psu)",
+          "lines": ["only one of options psu() or srs is allowed"]
+        },
+        {
+          "command": "svyset, psu(ssu) strata(st) fpc(fp)",
+          "lines": [
+            "Sampling weights: <none>",
+            "             VCE: linearized",
+            "      Subpop. df: off",
+            "     Single unit: missing",
+            "        Strata 1: st",
+            " Sampling unit 1: ssu",
+            "           FPC 1: fp"
+          ]
+        },
+        {
+          "command": "capture noisily svyset psu, psu(ssu)",
+          "lines": ["option psu() invalid"]
+        },
+        {
+          "command": "capture noisily svyset psu, singleunit(foo)",
+          "lines": ["option singleunit() invalid"]
+        },
+        {
+          "command": "svyset , fay(.5)",
+          "lines": [
+            "Sampling weights: <none>",
+            "             VCE: linearized",
+            "Fay's adjustment: .5",
+            "      Subpop. df: off",
+            "     Single unit: missing"
+          ]
+        },
+        {
+          "command": "svyset , bsn(3) bsrweight(rw1 rw2)",
+          "lines": [
+            " Sampling weights: <none>",
+            "              VCE: linearized",
+            "Bootstrap weights: rw1 rw2",
+            "Bootstrap samples: 3",
+            "       Subpop. df: off",
+            "      Single unit: missing"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[_svy_version]:         3",
+            "  _dta[_svy_bsn]:             3",
+            "  _dta[_svy_bsrweight]:       rw1 rw2",
+            "  _dta[_svy_fpc2]:            fp",
+            "  _dta[_svy_strata2]:         st",
+            "  _dta[_svy_su3]:             ssu",
+            "  rw1[jk_stratum]:            1",
+            "  rw2[jk_stratum]:            2"
+          ]
+        },
+        {
+          "command": "svyset",
+          "lines": [
+            " Sampling weights: <none>",
+            "              VCE: linearized",
+            "Bootstrap weights: rw1 rw2",
+            "Bootstrap samples: 3",
+            "       Subpop. df: off",
+            "      Single unit: missing"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "capture noisily svyset",
+          "lines": ["no variables defined"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-ac-pac-generate",
+      "source": "clear\nset seed 31\nset obs 50\ngenerate t = _n\ngenerate y = sum(rnormal())\ndrop in 10\ndrop in 25/26\nreplace y = . in 40\ntsset t\nac y, lags(5) generate(a1) nograph\npac y, lags(5) generate(p1) nograph\npac y, lags(5) generate(p2) yw nograph\ncapture noisily ac y, lags(5) generate(a2) fft nograph\npac y, lags(5) generate(p3) nograph fft\ncapture noisily pac y, yw srv nograph generate(p4)\ncapture noisily pac y, yw srv\ncapture noisily ac y, nograph\ncapture noisily ac y, nograph generate(a3 a4)\ncapture noisily ac y, nograph generate(a1)\ncapture noisily ac y, nograph generate(1a)\ncapture noisily ac y, nograph generate(a5) title(x)\ncapture noisily ac y, nograph generate(a5) yw\ncapture noisily ac y, generate(a5) yw\ncapture noisily ac y, nograph generate(a5) level(90)\ncapture noisily ac y, nograph generate(a6) lags(100)\ndescribe a1 p1 p2 p3 a5\nlist t a1 p1 p2 p3 a5 in 1/7, sep(0)\ncorrgram y in 3/45, lags(4) yw\ncorrgram y, lags(6) yw\ncorrgram L.y, lags(3) yw noplot\ntsset, clear\ndrop if y == .\ngenerate tt = _n\ntsset tt\nac y, lags(5) generate(f1) fft nograph\nac y, lags(5) generate(f2) nograph\nlist tt f1 f2 in 1/6, sep(0)\ngenerate id = ceil(_n/23)\nxtset id tt\ncapture noisily ac y, nograph\ncapture noisily ac y, nograph generate(g1)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 31", "lines": [] },
+        {
+          "command": "set obs 50",
+          "lines": ["Number of observations (_N) was 0, now 50."]
+        },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "generate y = sum(rnormal())", "lines": [] },
+        { "command": "drop in 10", "lines": ["(1 observation deleted)"] },
+        { "command": "drop in 25/26", "lines": ["(2 observations deleted)"] },
+        {
+          "command": "replace y = . in 40",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "tsset t",
+          "lines": [
+            "Time variable: t, 1 to 50, but with gaps",
+            "        Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "ac y, lags(5) generate(a1) nograph",
+          "lines": ["(note: time series has 3 gaps)"]
+        },
+        {
+          "command": "pac y, lags(5) generate(p1) nograph",
+          "lines": ["(note: time series has 3 gaps)"]
+        },
+        {
+          "command": "pac y, lags(5) generate(p2) yw nograph",
+          "lines": ["(note: time series has 3 gaps)"]
+        },
+        {
+          "command": "capture noisily ac y, lags(5) generate(a2) fft nograph",
+          "lines": [
+            "(note: time series has 3 gaps)",
+            "time series may not have gaps",
+            "with the fft option specified"
+          ]
+        },
+        {
+          "command": "pac y, lags(5) generate(p3) nograph fft",
+          "lines": ["(note: time series has 3 gaps)"]
+        },
+        {
+          "command": "capture noisily pac y, yw srv nograph generate(p4)",
+          "lines": ["option srv not allowed"]
+        },
+        {
+          "command": "capture noisily pac y, yw srv",
+          "lines": ["cannot specify srv with yw"]
+        },
+        {
+          "command": "capture noisily ac y, nograph",
+          "lines": ["generate() must be specified with nograph"]
+        },
+        {
+          "command": "capture noisily ac y, nograph generate(a3 a4)",
+          "lines": ["generate() should name one new variable"]
+        },
+        {
+          "command": "capture noisily ac y, nograph generate(a1)",
+          "lines": ["variable a1 already defined"]
+        },
+        {
+          "command": "capture noisily ac y, nograph generate(1a)",
+          "lines": ["1a invalid name"]
+        },
+        {
+          "command": "capture noisily ac y, nograph generate(a5) title(x)",
+          "lines": ["option title() not allowed"]
+        },
+        {
+          "command": "capture noisily ac y, nograph generate(a5) yw",
+          "lines": ["option yw not allowed"]
+        },
+        {
+          "command": "capture noisily ac y, generate(a5) yw",
+          "lines": ["(note: time series has 3 gaps)", "option yw not allowed"]
+        },
+        {
+          "command": "capture noisily ac y, nograph generate(a5) level(90)",
+          "lines": ["(note: time series has 3 gaps)"]
+        },
+        {
+          "command": "capture noisily ac y, nograph generate(a6) lags(100)",
+          "lines": ["lags() too large; must be less than 46"]
+        },
+        {
+          "command": "describe a1 p1 p2 p3 a5",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "a1              double  %10.0g                Autocorrelations of y",
+            "p1              double  %10.0g                Partial autocorrelations of y",
+            "p2              double  %10.0g                Partial autocorrelations of y",
+            "p3              double  %10.0g                Partial autocorrelations of y",
+            "a5              double  %10.0g                Autocorrelations of y"
+          ]
+        },
+        {
+          "command": "list t a1 p1 p2 p3 a5 in 1/7, sep(0)",
+          "lines": [
+            "     +------------------------------------------------------------------+",
+            "     | t          a1           p1           p2           p3          a5 |",
+            "     |------------------------------------------------------------------|",
+            "  1. | 1   .67475755    .87903728    .67475755    .87903728   .67475755 |",
+            "  2. | 2   .50869963   -.04455538    .09803865   -.04455538   .50869963 |",
+            "  3. | 3   .27518756   -.11119827   -.18641002   -.11119827   .27518756 |",
+            "  4. | 4   .13395304   -.20824877   -.03909847   -.20824877   .13395304 |",
+            "  5. | 5   .12956436   -.03675971    .18239929   -.03675971   .12956436 |",
+            "  6. | 6           .            .            .            .   .02731905 |",
+            "  7. | 7           .            .            .            .   .02993554 |",
+            "     +------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "corrgram y in 3/45, lags(4) yw",
+          "lines": [
+            "(note: time series has 3 gaps)",
+            "",
+            "                                          -1       0       1 -1       0       1",
+            " LAG       AC       PAC      Q     Prob>Q  [Autocorrelation]  [Partial autocor]",
+            "-------------------------------------------------------------------------------",
+            "1        0.6752   0.6748   20.547  0.0000          |-----             |-----",
+            "2        0.4911   0.0980    31.69  0.0000          |---               |",
+            "3        0.2671  -0.1864    35.07  0.0000          |--               -|",
+            "4        0.1158  -0.0391   35.722  0.0000          |                  |"
+          ]
+        },
+        {
+          "command": "corrgram y, lags(6) yw",
+          "lines": [
+            "(note: time series has 3 gaps)",
+            "",
+            "                                          -1       0       1 -1       0       1",
+            " LAG       AC       PAC      Q     Prob>Q  [Autocorrelation]  [Partial autocor]",
+            "-------------------------------------------------------------------------------",
+            "1        0.6748   0.6748    22.34  0.0000          |-----             |-----",
+            "2        0.5087   0.0980   35.326  0.0000          |----              |",
+            "3        0.2752  -0.1864   39.214  0.0000          |--               -|",
+            "4        0.1340  -0.0391   40.158  0.0000          |-                 |",
+            "5        0.1296   0.1824   41.062  0.0000          |-                 |-",
+            "6        0.0273  -0.1540   41.103  0.0000          |                 -|"
+          ]
+        },
+        {
+          "command": "corrgram L.y, lags(3) yw noplot",
+          "lines": [
+            "(note: time series has 3 gaps)",
+            "",
+            " LAG       AC       PAC      Q     Prob>Q",
+            "-----------------------------------------",
+            "1        0.6681   0.6681   20.564  0.0000",
+            "2        0.4634   0.0308     30.7  0.0000",
+            "3        0.1636  -0.2839   31.995  0.0000"
+          ]
+        },
+        { "command": "tsset, clear", "lines": [] },
+        { "command": "drop if y == .", "lines": ["(1 observation deleted)"] },
+        { "command": "generate tt = _n", "lines": [] },
+        {
+          "command": "tsset tt",
+          "lines": ["Time variable: tt, 1 to 46", "        Delta: 1 unit"]
+        },
+        { "command": "ac y, lags(5) generate(f1) fft nograph", "lines": [] },
+        { "command": "ac y, lags(5) generate(f2) nograph", "lines": [] },
+        {
+          "command": "list tt f1 f2 in 1/6, sep(0)",
+          "lines": [
+            "     +----------------------------+",
+            "     | tt          f1          f2 |",
+            "     |----------------------------|",
+            "  1. |  1   .77826614   .77826614 |",
+            "  2. |  2   .56620084   .56620084 |",
+            "  3. |  3   .36447644   .36447644 |",
+            "  4. |  4   .14906152   .14906152 |",
+            "  5. |  5   .06847433   .06847433 |",
+            "  6. |  6           .           . |",
+            "     +----------------------------+"
+          ]
+        },
+        { "command": "generate id = ceil(_n/23)", "lines": [] },
+        {
+          "command": "xtset id tt",
+          "lines": [
+            "Panel variable: id (weakly balanced)",
+            " Time variable: tt, 1 to 46",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "capture noisily ac y, nograph",
+          "lines": ["generate() must be specified with nograph"]
+        },
+        {
+          "command": "capture noisily ac y, nograph generate(g1)",
+          "lines": ["sample may not include multiple panels"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-predict-ue",
+      "source": "clear\nset obs 16\ngenerate id = ceil(_n/4)\ngenerate t = mod(_n-1,4)+1\nset seed 7\ngenerate x = rnormal()\ngenerate y = 1 + x + rnormal() + id/3\nreplace t = . in 3\nreplace t = . in 10\nxtset id t\nxtreg y x, fe\npredict xb1, xb\npredict u1, u\npredict e1, e\npredict ue1, ue\npredict xbu1, xbu\nlist id t xb1 u1 e1 ue1 xbu1, sep(0)\npredict ue2 if id < 3, ue\nsummarize ue2\nxtreg y x, re\npredict ue3, ue\nlist id t ue3 in 1/4, sep(0)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 16",
+          "lines": ["Number of observations (_N) was 0, now 16."]
+        },
+        { "command": "generate id = ceil(_n/4)", "lines": [] },
+        { "command": "generate t = mod(_n-1,4)+1", "lines": [] },
+        { "command": "set seed 7", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        { "command": "generate y = 1 + x + rnormal() + id/3", "lines": [] },
+        {
+          "command": "replace t = . in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace t = . in 10",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (unbalanced)",
+            " Time variable: t, 1 to 4, but with gaps",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtreg y x, fe",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =         14",
+            "Group variable: id                              Number of groups  =          4",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.5361                                         min =          3",
+            "     Between = 0.9392                                         avg =        3.5",
+            "     Overall = 0.6414                                         max =          4",
+            "",
+            "                                                F(1, 9)           =      10.40",
+            "corr(u_i, Xb) = -0.5342                         Prob > F          =     0.0104",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.223339   .3793371     3.22   0.010     .3652188    2.081459",
+            "       _cons |   2.241245   .4299017     5.21   0.001      1.26874     3.21375",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  .33522023",
+            "     sigma_e |  1.1994135",
+            "         rho |  .07245333   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(3, 9) = 0.20                        Prob > F = 0.8911"
+          ]
+        },
+        { "command": "predict xb1, xb", "lines": [] },
+        {
+          "command": "predict u1, u",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "predict e1, e",
+          "lines": ["(2 missing values generated)"]
+        },
+        { "command": "predict ue1, ue", "lines": [] },
+        {
+          "command": "predict xbu1, xbu",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "list id t xb1 u1 e1 ue1 xbu1, sep(0)",
+          "lines": [
+            "     +--------------------------------------------------------------------+",
+            "     | id   t         xb1          u1          e1         ue1        xbu1 |",
+            "     |--------------------------------------------------------------------|",
+            "  1. |  1   1    2.223607    -.326037   -.7279333    -1.05397     1.89757 |",
+            "  2. |  1   2     .990189    -.326037   -.8030148   -1.129052    .6641519 |",
+            "  3. |  1   4    1.697803    -.326037    1.530948    1.204911    1.371766 |",
+            "  4. |  1   .    1.744024           .           .    -.710941           . |",
+            "  5. |  2   1     2.65858   -.2412525   -.3467254   -.5879779    2.417327 |",
+            "  6. |  2   2    3.310689   -.2412525    1.013339    .7720867    3.069437 |",
+            "  7. |  2   3   -.3475893   -.2412525    -.853586   -1.094839   -.5888419 |",
+            "  8. |  2   4     2.40239   -.2412525    .1869722   -.0542804    2.161137 |",
+            "  9. |  3   1    3.795353     .113735   -1.538939   -1.425204    3.909088 |",
+            " 10. |  3   3    2.192214     .113735     .473109    .5868439    2.305949 |",
+            " 11. |  3   4     .880684     .113735     1.06583    1.179565     .994419 |",
+            " 12. |  3   .    2.324132           .           .   -.2412123           . |",
+            " 13. |  4   1   -.2423703    .4004791    .1713157    .5717947    .1581088 |",
+            " 14. |  4   2    .8082457    .4004791    .2897717    .6902508    1.208725 |",
+            " 15. |  4   3   -1.013789    .4004791    1.105569    1.506048   -.6133097 |",
+            " 16. |  4   4   -.9119569    .4004791   -1.566657   -1.166178   -.5114778 |",
+            "     +--------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "predict ue2 if id < 3, ue",
+          "lines": ["(8 missing values generated)"]
+        },
+        {
+          "command": "summarize ue2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "         ue2 |          8   -.3317578    .8948908  -1.129052   1.204911"
+          ]
+        },
+        {
+          "command": "xtreg y x, re",
+          "lines": [
+            "Random-effects GLS regression                   Number of obs     =         16",
+            "Group variable: id                              Number of groups  =          4",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.5310                                         min =          4",
+            "     Between = 0.9353                                         avg =        4.0",
+            "     Overall = 0.6368                                         max =          4",
+            "",
+            "                                                Wald chi2(1)      =      24.54",
+            "corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.079785   .2179569     4.95   0.000      .652597    1.506972",
+            "       _cons |   2.083841   .2927198     7.12   0.000     1.510121    2.657562",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |          0",
+            "     sigma_e |  1.0934862",
+            "         rho |          0   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "predict ue3, ue", "lines": [] },
+        {
+          "command": "list id t ue3 in 1/4, sep(0)",
+          "lines": [
+            "     +--------------------+",
+            "     | id   t         ue3 |",
+            "     |--------------------|",
+            "  1. |  1   1   -.8986365 |",
+            "  2. |  1   2   -1.118455 |",
+            "  3. |  1   4    1.298544 |",
+            "  4. |  1   .   -.6118844 |",
+            "     +--------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-repeated-times",
+      "source": "clear\nset seed 111\nset obs 30\ngenerate t = _n\ngenerate x = rnormal()\ngenerate y = x + rnormal()\ntsset t\nreplace t = 5 in 6\nsort t\ncapture noisily dfuller y\ncapture noisily dfuller y, lags(2) trend\ncapture noisily pperron y\ncapture noisily arima y, ar(1)\ncapture noisily var y x, lags(1)\ncapture noisily varsoc y\ncapture noisily correlate y L.x\ncapture noisily corrgram y, lags(2)\ncapture noisily ac y, nograph generate(a1)\ncapture noisily pac y, nograph generate(p1)\ncapture noisily tssmooth ma s1 = y, window(1)\ncapture noisily tsappend, add(2)\ncapture noisily tsfill\nsummarize L.x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 111", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        { "command": "generate y = x + rnormal()", "lines": [] },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 30", "        Delta: 1 unit"]
+        },
+        { "command": "replace t = 5 in 6", "lines": ["(1 real change made)"] },
+        { "command": "sort t", "lines": [] },
+        {
+          "command": "capture noisily dfuller y",
+          "lines": ["repeated time values in sample"]
+        },
+        {
+          "command": "capture noisily dfuller y, lags(2) trend",
+          "lines": ["repeated time values in sample"]
+        },
+        {
+          "command": "capture noisily pperron y",
+          "lines": ["repeated time values in sample"]
+        },
+        {
+          "command": "capture noisily arima y, ar(1)",
+          "lines": ["repeated time values in sample"]
+        },
+        {
+          "command": "capture noisily var y x, lags(1)",
+          "lines": ["repeated time values in sample"]
+        },
+        {
+          "command": "capture noisily varsoc y",
+          "lines": ["repeated time values in sample"]
+        },
+        {
+          "command": "capture noisily correlate y L.x",
+          "lines": ["repeated time values in sample"]
+        },
+        {
+          "command": "capture noisily corrgram y, lags(2)",
+          "lines": [
+            "(note: time series has 1 gap)",
+            "regression failed",
+            "failed command: regress y L(1/1).y",
+            "invalid values for time variable"
+          ]
+        },
+        {
+          "command": "capture noisily ac y, nograph generate(a1)",
+          "lines": ["(note: time series has 1 gap)"]
+        },
+        {
+          "command": "capture noisily pac y, nograph generate(p1)",
+          "lines": [
+            "(note: time series has 1 gap)",
+            "regression failed",
+            "failed command: regress y L(1/1).y",
+            "invalid values for time variable"
+          ]
+        },
+        {
+          "command": "capture noisily tssmooth ma s1 = y, window(1)",
+          "lines": ["repeated time values in sample"]
+        },
+        {
+          "command": "capture noisily tsappend, add(2)",
+          "lines": ["repeated time values in sample"]
+        },
+        {
+          "command": "capture noisily tsfill",
+          "lines": ["repeated time values within panel"]
+        },
+        {
+          "command": "summarize L.x",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |         28   -.0063646    1.202315  -3.342678   2.418333"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-restricted-operated",
+      "source": "clear\nset seed 42\nset obs 60\ngenerate id = ceil(_n/10)\ngenerate year = 2000 + mod(_n-1,10)\ngenerate x = rnormal()\ngenerate g = 1 + mod(_n,3)\ngenerate d = runiform() > .5\ngenerate y = x + d + id/4 + rnormal()\nxtset id year\nregress y i(1)L.d\nregress y i(2 3)L.g\nregress y L.i(2 3).g\nregress y i(0 1)L.d\nregress y i(1).d\nregress y i(2).g x\nregress y i(1)L.d x\nregress y i(3)L.g\nregress y x i(2 3)L.g i(1)L.d\nregress y L.i(2).g\nregress y iL.d x\nregress y ib1L.d x\nregress y L.ibn.d x, nocons\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 42", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate id = ceil(_n/10)", "lines": [] },
+        { "command": "generate year = 2000 + mod(_n-1,10)", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        { "command": "generate g = 1 + mod(_n,3)", "lines": [] },
+        { "command": "generate d = runiform() > .5", "lines": [] },
+        { "command": "generate y = x + d + id/4 + rnormal()", "lines": [] },
+        {
+          "command": "xtset id year",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: year, 2000 to 2009",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "regress y i(1)L.d",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        54",
+            "-------------+----------------------------------   F(1, 52)        =      1.83",
+            "       Model |  3.72580257         1  3.72580257   Prob > F        =    0.1814",
+            "    Residual |  105.607695        52  2.03091722   R-squared       =    0.0341",
+            "-------------+----------------------------------   Adj R-squared   =    0.0155",
+            "       Total |  109.333498        53  2.06289619   Root MSE        =    1.4251",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         L.d |",
+            "          1  |   .5388156   .3978106     1.35   0.181    -.2594498    1.337081",
+            "       _cons |   1.219507   .2480785     4.92   0.000      .721701    1.717313",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y i(2 3)L.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        54",
+            "-------------+----------------------------------   F(1, 52)        =      2.71",
+            "       Model |    5.414447         1    5.414447   Prob > F        =    0.1058",
+            "    Residual |  103.919051        52  1.99844329   R-squared       =    0.0495",
+            "-------------+----------------------------------   Adj R-squared   =    0.0312",
+            "       Total |  109.333498        53  2.06289619   Root MSE        =    1.4137",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         L.g |",
+            "          3  |  -.6717171   .4080894    -1.65   0.106    -1.490608    .1471741",
+            "             |",
+            "       _cons |   1.652952   .2356105     7.02   0.000     1.180165    2.125739",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y L.i(2 3).g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        54",
+            "-------------+----------------------------------   F(1, 52)        =      2.71",
+            "       Model |    5.414447         1    5.414447   Prob > F        =    0.1058",
+            "    Residual |  103.919051        52  1.99844329   R-squared       =    0.0495",
+            "-------------+----------------------------------   Adj R-squared   =    0.0312",
+            "       Total |  109.333498        53  2.06289619   Root MSE        =    1.4137",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         L.g |",
+            "          3  |  -.6717171   .4080894    -1.65   0.106    -1.490608    .1471741",
+            "             |",
+            "       _cons |   1.652952   .2356105     7.02   0.000     1.180165    2.125739",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y i(0 1)L.d",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        54",
+            "-------------+----------------------------------   F(1, 52)        =      1.83",
+            "       Model |  3.72580257         1  3.72580257   Prob > F        =    0.1814",
+            "    Residual |  105.607695        52  2.03091722   R-squared       =    0.0341",
+            "-------------+----------------------------------   Adj R-squared   =    0.0155",
+            "       Total |  109.333498        53  2.06289619   Root MSE        =    1.4251",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         L.d |",
+            "          1  |   .5388156   .3978106     1.35   0.181    -.2594498    1.337081",
+            "             |",
+            "       _cons |   1.219507   .2480785     4.92   0.000      .721701    1.717313",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y i(1).d",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        60",
+            "-------------+----------------------------------   F(1, 58)        =     11.81",
+            "       Model |  21.4734717         1  21.4734717   Prob > F        =    0.0011",
+            "    Residual |  105.496938        58  1.81891272   R-squared       =    0.1691",
+            "-------------+----------------------------------   Adj R-squared   =    0.1548",
+            "       Total |   126.97041        59  2.15204084   Root MSE        =    1.3487",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         1.d |   1.230444   .3581103     3.44   0.001     .5136088     1.94728",
+            "       _cons |   .9765667   .2217201     4.40   0.000     .5327457    1.420388",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y i(2).g x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        60",
+            "-------------+----------------------------------   F(2, 57)        =     25.71",
+            "       Model |  60.2190164         2  30.1095082   Prob > F        =    0.0000",
+            "    Residual |  66.7513933        57  1.17107708   R-squared       =    0.4743",
+            "-------------+----------------------------------   Adj R-squared   =    0.4558",
+            "       Total |   126.97041        59  2.15204084   Root MSE        =    1.0822",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         2.g |   .5713081   .2972161     1.92   0.060    -.0238568    1.166473",
+            "           x |    .993069   .1472725     6.74   0.000      .698161    1.287977",
+            "       _cons |   1.220977   .1711172     7.14   0.000     .8783205    1.563633",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y i(1)L.d x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        54",
+            "-------------+----------------------------------   F(2, 51)        =     21.75",
+            "       Model |  50.3252746         2  25.1626373   Prob > F        =    0.0000",
+            "    Residual |  59.0082233        51  1.15702399   R-squared       =    0.4603",
+            "-------------+----------------------------------   Adj R-squared   =    0.4391",
+            "       Total |  109.333498        53  2.06289619   Root MSE        =    1.0757",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         L.d |",
+            "          1  |   .1723411   .3057652     0.56   0.575    -.4415082    .7861903",
+            "           x |   .9847355   .1551673     6.35   0.000     .6732241    1.296247",
+            "       _cons |   1.303999   .1877194     6.95   0.000      .927136    1.680861",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y i(3)L.g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        54",
+            "-------------+----------------------------------   F(1, 52)        =      2.71",
+            "       Model |    5.414447         1    5.414447   Prob > F        =    0.1058",
+            "    Residual |  103.919051        52  1.99844329   R-squared       =    0.0495",
+            "-------------+----------------------------------   Adj R-squared   =    0.0312",
+            "       Total |  109.333498        53  2.06289619   Root MSE        =    1.4137",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         L.g |",
+            "          3  |  -.6717171   .4080894    -1.65   0.106    -1.490608    .1471741",
+            "       _cons |   1.652952   .2356105     7.02   0.000     1.180165    2.125739",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x i(2 3)L.g i(1)L.d",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        54",
+            "-------------+----------------------------------   F(3, 50)        =     17.11",
+            "       Model |  55.3906219         3  18.4635406   Prob > F        =    0.0000",
+            "    Residual |  53.9428759        50  1.07885752   R-squared       =    0.5066",
+            "-------------+----------------------------------   Adj R-squared   =    0.4770",
+            "       Total |  109.333498        53  2.06289619   Root MSE        =    1.0387",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9811014   .1498436     6.55   0.000     .6801316    1.282071",
+            "             |",
+            "         L.g |",
+            "          3  |  -.6497424   .2998601    -2.17   0.035    -1.252029   -.0474557",
+            "             |",
+            "         L.d |",
+            "          1  |   .1736935   .2952568     0.59   0.559    -.4193472    .7667342",
+            "       _cons |   1.520267   .2069296     7.35   0.000     1.104637    1.935898",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y L.i(2).g",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        54",
+            "-------------+----------------------------------   F(1, 52)        =      0.37",
+            "       Model |  .764561083         1  .764561083   Prob > F        =    0.5477",
+            "    Residual |  108.568937        52  2.08786417   R-squared       =    0.0070",
+            "-------------+----------------------------------   Adj R-squared   =   -0.0121",
+            "       Total |  109.333498        53  2.06289619   Root MSE        =    1.4449",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         L.g |",
+            "          2  |  -.2524152   .4171195    -0.61   0.548    -1.089427    .5845963",
+            "       _cons |   1.513185   .2408241     6.28   0.000     1.029936    1.996434",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y iL.d x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        54",
+            "-------------+----------------------------------   F(2, 51)        =     21.75",
+            "       Model |  50.3252746         2  25.1626373   Prob > F        =    0.0000",
+            "    Residual |  59.0082233        51  1.15702399   R-squared       =    0.4603",
+            "-------------+----------------------------------   Adj R-squared   =    0.4391",
+            "       Total |  109.333498        53  2.06289619   Root MSE        =    1.0757",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         L.d |",
+            "          1  |   .1723411   .3057652     0.56   0.575    -.4415082    .7861903",
+            "             |",
+            "           x |   .9847355   .1551673     6.35   0.000     .6732241    1.296247",
+            "       _cons |   1.303999   .1877194     6.95   0.000      .927136    1.680861",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y ib1L.d x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        54",
+            "-------------+----------------------------------   F(2, 51)        =     21.75",
+            "       Model |  50.3252746         2  25.1626373   Prob > F        =    0.0000",
+            "    Residual |  59.0082233        51  1.15702399   R-squared       =    0.4603",
+            "-------------+----------------------------------   Adj R-squared   =    0.4391",
+            "       Total |  109.333498        53  2.06289619   Root MSE        =    1.0757",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         L.d |",
+            "          0  |  -.1723411   .3057652    -0.56   0.575    -.7861903    .4415082",
+            "             |",
+            "           x |   .9847355   .1551673     6.35   0.000     .6732241    1.296247",
+            "       _cons |    1.47634   .2388946     6.18   0.000     .9967386    1.955941",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y L.ibn.d x, nocons",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        54",
+            "-------------+----------------------------------   F(3, 51)        =     46.27",
+            "       Model |  160.602636         3  53.5342119   Prob > F        =    0.0000",
+            "    Residual |  59.0082233        51  1.15702399   R-squared       =    0.7313",
+            "-------------+----------------------------------   Adj R-squared   =    0.7155",
+            "       Total |  219.610859        54  4.06686776   Root MSE        =    1.0757",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         L.d |",
+            "          0  |   1.303999   .1877194     6.95   0.000      .927136    1.680861",
+            "          1  |    1.47634   .2388946     6.18   0.000     .9967386    1.955941",
+            "             |",
+            "           x |   .9847355   .1551673     6.35   0.000     .6732241    1.296247",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-tin-empty",
+      "source": "clear\nset obs 10\ngenerate y = _n\ngenerate t = _n\ntsset t\ncount if tin()\ncount if twithin()\ncount if tin( )\ncapture noisily count if tin(3)\ncount if tin(,)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 10",
+          "lines": ["Number of observations (_N) was 0, now 10."]
+        },
+        { "command": "generate y = _n", "lines": [] },
+        { "command": "generate t = _n", "lines": [] },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 10", "        Delta: 1 unit"]
+        },
+        { "command": "count if tin()", "lines": ["  10"] },
+        { "command": "count if twithin()", "lines": ["  10"] },
+        { "command": "count if tin( )", "lines": ["  10"] },
+        {
+          "command": "capture noisily count if tin(3)",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "count if tin(,)", "lines": ["  10"] }
+      ]
+    },
+    {
+      "id": "recheck-panel2-tsline-groups",
+      "source": "clear\nset seed 91\nset obs 40\ngenerate q = tq(2000q1) + _n\nformat q %tq\ngenerate y = sum(rnormal())\ngenerate x = sum(rnormal())\ntsset q\ntsline D.(y), nodraw\ntsline L(1/2).y, nodraw\ntsline D.(y x), nodraw\ncapture noisily tsline D.(y nosuch), nodraw\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 91", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate q = tq(2000q1) + _n", "lines": [] },
+        { "command": "format q %tq", "lines": [] },
+        { "command": "generate y = sum(rnormal())", "lines": [] },
+        { "command": "generate x = sum(rnormal())", "lines": [] },
+        {
+          "command": "tsset q",
+          "lines": [
+            "Time variable: q, 2000q2 to 2010q1",
+            "        Delta: 1 quarter"
+          ]
+        },
+        { "command": "tsline D.(y), nodraw", "lines": [] },
+        { "command": "tsline L(1/2).y, nodraw", "lines": [] },
+        { "command": "tsline D.(y x), nodraw", "lines": [] },
+        {
+          "command": "capture noisily tsline D.(y nosuch), nodraw",
+          "lines": ["variable nosuch not found"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-dropped-time",
+      "source": "clear\nset obs 12\ngenerate id = ceil(_n/4)\ngenerate year = 2000 + mod(_n-1,4)\nset seed 1\ngenerate y = runiform()\ngenerate x = runiform()\nxtset id year\ndrop year\ncapture noisily xtset\ncapture noisily regress y L.x\ncapture noisily generate z = L.x\ngenerate year = _n\nxtset id year\ndrop id\ncapture noisily xtset\ncapture noisily regress y L.x\ncapture noisily generate z = L.x\ncapture noisily tsfill\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 12",
+          "lines": ["Number of observations (_N) was 0, now 12."]
+        },
+        { "command": "generate id = ceil(_n/4)", "lines": [] },
+        { "command": "generate year = 2000 + mod(_n-1,4)", "lines": [] },
+        { "command": "set seed 1", "lines": [] },
+        { "command": "generate y = runiform()", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        {
+          "command": "xtset id year",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: year, 2000 to 2003",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "drop year", "lines": [] },
+        {
+          "command": "capture noisily xtset",
+          "lines": ["variable year not found"]
+        },
+        {
+          "command": "capture noisily regress y L.x",
+          "lines": ["variable year not found"]
+        },
+        {
+          "command": "capture noisily generate z = L.x",
+          "lines": ["variable year not found"]
+        },
+        { "command": "generate year = _n", "lines": [] },
+        {
+          "command": "xtset id year",
+          "lines": [
+            "Panel variable: id (weakly balanced)",
+            " Time variable: year, 1 to 12",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "drop id", "lines": [] },
+        {
+          "command": "capture noisily xtset",
+          "lines": ["variable id not found"]
+        },
+        {
+          "command": "capture noisily regress y L.x",
+          "lines": ["variable id not found"]
+        },
+        {
+          "command": "capture noisily generate z = L.x",
+          "lines": ["variable id not found"]
+        },
+        {
+          "command": "capture noisily tsfill",
+          "lines": ["variable id not found"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-bootstrap-panels",
+      "source": "clear\nset seed 101\nset obs 60\ngenerate id = ceil(_n/6)\ngenerate t = mod(_n-1,6)+1\ngenerate x = rnormal()\ngenerate y = x + rnormal() + id/4\ngenerate nid = id\nxtset nid t\nset seed 5\nbootstrap _b, reps(20) cluster(id) idcluster(nid) nodots: regress y L.x\nxtset\nset seed 5\nbootstrap, reps(20) cluster(id) idcluster(nid) nodots: xtreg y x, fe\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 101", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate id = ceil(_n/6)", "lines": [] },
+        { "command": "generate t = mod(_n-1,6)+1", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        { "command": "generate y = x + rnormal() + id/4", "lines": [] },
+        { "command": "generate nid = id", "lines": [] },
+        {
+          "command": "xtset nid t",
+          "lines": [
+            "Panel variable: nid (strongly balanced)",
+            " Time variable: t, 1 to 6",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "set seed 5", "lines": [] },
+        {
+          "command": "bootstrap _b, reps(20) cluster(id) idcluster(nid) nodots: regress y L.x",
+          "lines": [
+            "Linear regression                                      Number of obs =      50",
+            "                                                       Replications  =      20",
+            "                                                       Wald chi2(1)  =    0.96",
+            "                                                       Prob > chi2   =  0.3280",
+            "                                                       R-squared     =  0.0077",
+            "                                                       Adj R-squared = -0.0130",
+            "                                                       Root MSE      =  1.3967",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         L1. |    .132356   .1353129     0.98   0.328    -.1328523    .3975644",
+            "             |",
+            "       _cons |   1.398168   .2450261     5.71   0.000     .9179254     1.87841",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: nid (strongly balanced)",
+            " Time variable: t, 1 to 6",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "set seed 5", "lines": [] },
+        {
+          "command": "bootstrap, reps(20) cluster(id) idcluster(nid) nodots: xtreg y x, fe",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =         60",
+            "Group variable: nid                             Number of groups  =         10",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.4712                                         min =          6",
+            "     Between = 0.0216                                         avg =        6.0",
+            "     Overall = 0.2978                                         max =          6",
+            "",
+            "                                                Wald chi2(1)      =      42.66",
+            "corr(u_i, Xb) = -0.0854                         Prob > chi2       =     0.0000",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9481645   .1451754     6.53   0.000     .6636259    1.232703",
+            "       _cons |   1.368449   .2871764     4.77   0.000     .8055932    1.931304",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  .89368412",
+            "     sigma_e |  .91568378",
+            "         rho |  .48784304   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(9, .) = 5.67                        Prob > F =      ."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-svyset-empty",
+      "source": "clear\ncapture noisily svyset\ncapture noisily svyset, clear\nset obs 3\ncapture noisily svyset\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "capture noisily svyset",
+          "lines": ["no variables defined"]
+        },
+        {
+          "command": "capture noisily svyset, clear",
+          "lines": ["no variables defined"]
+        },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "capture noisily svyset",
+          "lines": ["no survey characteristics are set"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-margins-operated",
+      "source": "clear\nset seed 121\nset obs 80\ngenerate id = ceil(_n/8)\ngenerate t = mod(_n-1,8)+1\ngenerate union = runiform() > .5\ngenerate x = rnormal()\ngenerate y = x + union + rnormal()\nxtset id t\nregress y L.x\nmargins, dydx(L.x)\nregress y L(0/2).x D.x union\nmargins, dydx(*)\nregress y L.x L2.x\nmargins, dydx(*)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 121", "lines": [] },
+        {
+          "command": "set obs 80",
+          "lines": ["Number of observations (_N) was 0, now 80."]
+        },
+        { "command": "generate id = ceil(_n/8)", "lines": [] },
+        { "command": "generate t = mod(_n-1,8)+1", "lines": [] },
+        { "command": "generate union = runiform() > .5", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        { "command": "generate y = x + union + rnormal()", "lines": [] },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 8",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "regress y L.x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        70",
+            "-------------+----------------------------------   F(1, 68)        =      5.19",
+            "       Model |  10.7797581         1  10.7797581   Prob > F        =    0.0259",
+            "    Residual |   141.31874        68  2.07821676   R-squared       =    0.0709",
+            "-------------+----------------------------------   Adj R-squared   =    0.0572",
+            "       Total |  152.098498        69  2.20432606   Root MSE        =    1.4416",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         L1. |   -.443666   .1948036    -2.28   0.026    -.8323906   -.0549414",
+            "             |",
+            "       _cons |   .5711177   .1723217     3.31   0.001      .227255    .9149804",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(L.x)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 70",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  L.x",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         L1. |   -.443666   .1948036    -2.28   0.026    -.8323906   -.0549414",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y L(0/2).x D.x union",
+          "lines": [
+            "note: L.x omitted because of collinearity.",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =        60",
+            "-------------+----------------------------------   F(4, 55)        =     20.91",
+            "       Model |  79.9471662         4  19.9867915   Prob > F        =    0.0000",
+            "    Residual |  52.5770349        55  .955946089   R-squared       =    0.6033",
+            "-------------+----------------------------------   Adj R-squared   =    0.5744",
+            "       Total |  132.524201        59   2.2461729   Root MSE        =    .97772",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         --. |   .9002277   .2229125     4.04   0.000     .4535011    1.346954",
+            "         L1. |          0  (omitted)",
+            "         L2. |   -.180247   .1536957    -1.17   0.246    -.4882601    .1277661",
+            "         D1. |   .2238428   .1442899     1.55   0.127    -.0653206    .5130062",
+            "             |",
+            "       union |   1.196151   .2566231     4.66   0.000     .6818671    1.710436",
+            "       _cons |   .0073179   .1771549     0.04   0.967    -.3477084    .3623442",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 60",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  x L.x L2.x D.x union",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         --. |   .9002277   .2229125     4.04   0.000     .4535011    1.346954",
+            "         L1. |          0  (omitted)",
+            "         L2. |   -.180247   .1536957    -1.17   0.246    -.4882601    .1277661",
+            "         D1. |   .2238428   .1442899     1.55   0.127    -.0653206    .5130062",
+            "             |",
+            "       union |   1.196151   .2566231     4.66   0.000     .6818671    1.710436",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y L.x L2.x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        60",
+            "-------------+----------------------------------   F(2, 57)        =      2.65",
+            "       Model |  11.2934344         2  5.64671721   Prob > F        =    0.0790",
+            "    Residual |  121.230767        57  2.12685555   R-squared       =    0.0852",
+            "-------------+----------------------------------   Adj R-squared   =    0.0531",
+            "       Total |  132.524201        59   2.2461729   Root MSE        =    1.4584",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         L1. |  -.4386046   .2118121    -2.07   0.043     -.862751   -.0144583",
+            "         L2. |  -.3282297    .226869    -1.45   0.153     -.782527    .1260676",
+            "             |",
+            "       _cons |   .5895305   .1883847     3.13   0.003     .2122967    .9667643",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                    Number of obs = 60",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  L.x L2.x",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         L1. |  -.4386046   .2118121    -2.07   0.043     -.862751   -.0144583",
+            "         L2. |  -.3282297    .226869    -1.45   0.153     -.782527    .1260676",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-gheller",
+      "source": "clear\nset seed 404\nset obs 200\ngenerate treat = runiform() > .5\ngenerate age = 40 + 20*runiform()\ngenerate t = ceil(-ln(runiform())*20/exp(.5*treat - .03*(age-50)))\ngenerate died = runiform() < .7\nstset t, failure(died)\nquietly stcox treat age\nestat concordance, gheller\nestat concordance, gheller harrell\nestat concordance, gheller se\nestat concordance, gheller harrell se noshow\ncapture noisily estat concordance, se\nestat concordance if age > 50, gheller\nestat concordance, gheller all\nquietly stcox i.treat c.age##c.age\nestat concordance, gheller se\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 404", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate treat = runiform() > .5", "lines": [] },
+        { "command": "generate age = 40 + 20*runiform()", "lines": [] },
+        {
+          "command": "generate t = ceil(-ln(runiform())*20/exp(.5*treat - .03*(age-50)))",
+          "lines": []
+        },
+        { "command": "generate died = runiform() < .7", "lines": [] },
+        {
+          "command": "stset t, failure(died)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: died!=0 & died<.",
+            "Observed time interval: (0, t]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "        200  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "        200  observations remaining, representing",
+            "        136  failures in single-record/single-failure data",
+            "      3,189  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =        97"
+          ]
+        },
+        { "command": "quietly stcox treat age", "lines": [] },
+        {
+          "command": "estat concordance, gheller",
+          "lines": [
+            "        Failure _d: died",
+            "  Analysis time _t: t",
+            "",
+            "Gonen and Heller's K concordance statistic",
+            "",
+            "  Number of subjects (N)       =      200",
+            "",
+            "          Gonen and Heller's K =   0.5985",
+            "                     Somers' D =   0.1970"
+          ]
+        },
+        {
+          "command": "estat concordance, gheller harrell",
+          "lines": [
+            "        Failure _d: died",
+            "  Analysis time _t: t",
+            "",
+            "Harrell's C concordance statistic",
+            "",
+            "  Number of subjects (N)              =      200",
+            "  Number of comparison pairs (P)      =    13412",
+            "  Number of orderings as expected (E) =     7918",
+            "  Number of tied predictions (T)      =        0",
+            "",
+            "          Harrell's C = (E + T/2) / P =   0.5904",
+            "                   Somers' D = 2C - 1 =   0.1807",
+            "",
+            "Gonen and Heller's K concordance statistic",
+            "",
+            "  Number of subjects (N)              =      200",
+            "",
+            "                 Gonen and Heller's K =   0.5985",
+            "                   Somers' D = 2K - 1 =   0.1970"
+          ]
+        },
+        {
+          "command": "estat concordance, gheller se",
+          "lines": [
+            "        Failure _d: died",
+            "  Analysis time _t: t",
+            "",
+            "Gonen and Heller's K concordance statistic",
+            "",
+            "  Number of subjects (N)       =      200",
+            "",
+            "          Gonen and Heller's K =   0.5985",
+            "                     Somers' D =   0.1970",
+            "            Gonen's smoothed K =   0.5983",
+            "                 Asymptotic SE =   0.0236"
+          ]
+        },
+        {
+          "command": "estat concordance, gheller harrell se noshow",
+          "lines": [
+            "Harrell's C concordance statistic",
+            "",
+            "  Number of subjects (N)              =      200",
+            "  Number of comparison pairs (P)      =    13412",
+            "  Number of orderings as expected (E) =     7918",
+            "  Number of tied predictions (T)      =        0",
+            "",
+            "          Harrell's C = (E + T/2) / P =   0.5904",
+            "                   Somers' D = 2C - 1 =   0.1807",
+            "",
+            "Gonen and Heller's K concordance statistic",
+            "",
+            "  Number of subjects (N)              =      200",
+            "",
+            "                 Gonen and Heller's K =   0.5985",
+            "                   Somers' D = 2K - 1 =   0.1970",
+            "                   Gonen's smoothed K =   0.5983",
+            "                        Asymptotic SE =   0.0236"
+          ]
+        },
+        {
+          "command": "capture noisily estat concordance, se",
+          "lines": ["option se requires specifying option gheller"]
+        },
+        {
+          "command": "estat concordance if age > 50, gheller",
+          "lines": [
+            "note: different samples used to fit model and to calculate K statistic.",
+            "",
+            "        Failure _d: died",
+            "  Analysis time _t: t",
+            "",
+            "Gonen and Heller's K concordance statistic",
+            "",
+            "  Number of subjects (N)       =      110",
+            "",
+            "          Gonen and Heller's K =   0.5812",
+            "                     Somers' D =   0.1624"
+          ]
+        },
+        {
+          "command": "estat concordance, gheller all",
+          "lines": [
+            "        Failure _d: died",
+            "  Analysis time _t: t",
+            "",
+            "Gonen and Heller's K concordance statistic",
+            "",
+            "  Number of subjects (N)       =      200",
+            "",
+            "          Gonen and Heller's K =   0.5985",
+            "                     Somers' D =   0.1970"
+          ]
+        },
+        { "command": "quietly stcox i.treat c.age##c.age", "lines": [] },
+        {
+          "command": "estat concordance, gheller se",
+          "lines": [
+            "        Failure _d: died",
+            "  Analysis time _t: t",
+            "",
+            "Gonen and Heller's K concordance statistic",
+            "",
+            "  Number of subjects (N)       =      200",
+            "",
+            "          Gonen and Heller's K =   0.5987",
+            "                     Somers' D =   0.1975",
+            "            Gonen's smoothed K =   0.5985",
+            "                 Asymptotic SE =   0.0238"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-tsfill",
+      "source": "clear\ninput id t y str3 s\n1 1 10 \"a\"\n1 2 11 \"b\"\n1 5 14 \"c\"\n2 2 20 \"d\"\n2 4 22 \"e\"\n2 . 99 \"f\"\n3 3 30 \"g\"\nend\nxtset id t\ntsfill\nlist, sep(0)\nxtset\nclear\ninput id t y\n1 1 10\n1 2 11\n1 5 14\n2 2 20\n2 4 22\n3 3 30\nend\nxtset id t\ntsfill, full\nlist, sep(0)\nclear\ninput t y\n1990 1\n1992 2\n1996 3\nend\ntsset t, delta(2)\ntsfill\nlist\ngenerate r = t\nreplace t = 1990 in 2\nsort t\ncapture noisily tsfill\ncapture noisily tsfill, full\nclear\ninput t y\n1 1\n3 1\n. 2\nend\ntsset t\ncapture noisily tsfill, full\ntsfill\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id t y str3 s",
+          "lines": [
+            "            id          t          y          s",
+            "  1. 1 1 10 \"a\"",
+            "  2. 1 2 11 \"b\"",
+            "  3. 1 5 14 \"c\"",
+            "  4. 2 2 20 \"d\"",
+            "  5. 2 4 22 \"e\"",
+            "  6. 2 . 99 \"f\"",
+            "  7. 3 3 30 \"g\"",
+            "  8. end"
+          ]
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (unbalanced)",
+            " Time variable: t, 1 to 5, but with gaps",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "tsfill", "lines": [] },
+        {
+          "command": "list, sep(0)",
+          "lines": [
+            "     +-----------------+",
+            "     | id   t    y   s |",
+            "     |-----------------|",
+            "  1. |  1   1   10   a |",
+            "  2. |  1   2   11   b |",
+            "  3. |  1   3    .     |",
+            "  4. |  1   4    .     |",
+            "  5. |  1   5   14   c |",
+            "  6. |  2   2   20   d |",
+            "  7. |  2   3    .     |",
+            "  8. |  2   4   22   e |",
+            "  9. |  2   .   99   f |",
+            " 10. |  3   3   30   g |",
+            "     +-----------------+"
+          ]
+        },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: id (unbalanced)",
+            " Time variable: t, 1 to 5",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id t y",
+          "lines": [
+            "            id          t          y",
+            "  1. 1 1 10",
+            "  2. 1 2 11",
+            "  3. 1 5 14",
+            "  4. 2 2 20",
+            "  5. 2 4 22",
+            "  6. 3 3 30",
+            "  7. end"
+          ]
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (unbalanced)",
+            " Time variable: t, 1 to 5, but with gaps",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "tsfill, full", "lines": [] },
+        {
+          "command": "list, sep(0)",
+          "lines": [
+            "     +-------------+",
+            "     | id   t    y |",
+            "     |-------------|",
+            "  1. |  1   1   10 |",
+            "  2. |  1   2   11 |",
+            "  3. |  1   3    . |",
+            "  4. |  1   4    . |",
+            "  5. |  1   5   14 |",
+            "  6. |  2   1    . |",
+            "  7. |  2   2   20 |",
+            "  8. |  2   3    . |",
+            "  9. |  2   4   22 |",
+            " 10. |  2   5    . |",
+            " 11. |  3   1    . |",
+            " 12. |  3   2    . |",
+            " 13. |  3   3   30 |",
+            " 14. |  3   4    . |",
+            " 15. |  3   5    . |",
+            "     +-------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input t y",
+          "lines": [
+            "             t          y",
+            "  1. 1990 1",
+            "  2. 1992 2",
+            "  3. 1996 3",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "tsset t, delta(2)",
+          "lines": [
+            "Time variable: t, 1990 to 1996, but with a gap",
+            "        Delta: 2 units"
+          ]
+        },
+        { "command": "tsfill", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------+",
+            "     |    t   y |",
+            "     |----------|",
+            "  1. | 1990   1 |",
+            "  2. | 1992   2 |",
+            "  3. | 1994   . |",
+            "  4. | 1996   3 |",
+            "     +----------+"
+          ]
+        },
+        { "command": "generate r = t", "lines": [] },
+        {
+          "command": "replace t = 1990 in 2",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "sort t", "lines": [] },
+        {
+          "command": "capture noisily tsfill",
+          "lines": ["repeated time values within panel"]
+        },
+        {
+          "command": "capture noisily tsfill, full",
+          "lines": ["repeated time values within panel"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input t y",
+          "lines": [
+            "             t          y",
+            "  1. 1 1",
+            "  2. 3 1",
+            "  3. . 2",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "tsset t",
+          "lines": [
+            "Time variable: t, 1 to 3, but with a gap",
+            "        Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "capture noisily tsfill, full",
+          "lines": [
+            "timevar (t) may not contain missing values when option full is specified"
+          ]
+        },
+        { "command": "tsfill", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------+",
+            "     | t   y |",
+            "     |-------|",
+            "  1. | 1   1 |",
+            "  2. | 2   . |",
+            "  3. | 3   1 |",
+            "  4. | .   2 |",
+            "     +-------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-xtline",
+      "source": "clear\nset seed 5\nset obs 40\ngenerate id = ceil(_n/10)\ngenerate t = mod(_n-1,10)+1\ngenerate y = sum(rnormal())\ngenerate x = rnormal()\nlabel define idl 1 \"first\" 2 \"second\" 3 \"third\" 4 \"fourth\"\ncapture noisily xtline y, nodraw\nxtset id t\nxtline y, nodraw\nxtline y x, nodraw\nxtline y, overlay nodraw\ncapture noisily xtline y x, overlay nodraw\ncapture noisily xtline y, overlay byopts(title(a)) nodraw\nxtline y if t > 3, overlay nodraw\ncapture noisily xtline y, i(id) nodraw\ncapture noisily xtline y, t(t) nodraw\nxtline y, i(id) t(t) nodraw\nxtline y in 1/20, overlay legend(off) nodraw\nlabel values id idl\nxtline y, overlay nodraw title(hi)\ncapture noisily xtline y if t > 20, nodraw\nxtline D.y, nodraw\nxtline D.y, overlay nodraw\ntsset, clear\ngenerate tt = _n\ntsset tt\ntwoway tsline D.y L.y, nodraw\ntwoway (tsline y) (line y tt), nodraw\ntwoway tsline y || tsline L2.y, nodraw\ncapture noisily twoway tsline nosuch, nodraw\nac y, lags(5) nodraw\npac y, lags(5) srv nodraw\npac y, lags(5) yw level(90) nodraw\ncapture noisily pac y, srv yw nodraw\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 5", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate id = ceil(_n/10)", "lines": [] },
+        { "command": "generate t = mod(_n-1,10)+1", "lines": [] },
+        { "command": "generate y = sum(rnormal())", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        {
+          "command": "label define idl 1 \"first\" 2 \"second\" 3 \"third\" 4 \"fourth\"",
+          "lines": []
+        },
+        {
+          "command": "capture noisily xtline y, nodraw",
+          "lines": ["must specify panelvar; use xtset"]
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 10",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "xtline y, nodraw", "lines": [] },
+        { "command": "xtline y x, nodraw", "lines": [] },
+        { "command": "xtline y, overlay nodraw", "lines": [] },
+        {
+          "command": "capture noisily xtline y x, overlay nodraw",
+          "lines": [
+            "option overlay may not be specified with multiple variables"
+          ]
+        },
+        {
+          "command": "capture noisily xtline y, overlay byopts(title(a)) nodraw",
+          "lines": ["options byopts() and overlay may not be combined"]
+        },
+        { "command": "xtline y if t > 3, overlay nodraw", "lines": [] },
+        {
+          "command": "capture noisily xtline y, i(id) nodraw",
+          "lines": ["option i() requires option t()"]
+        },
+        {
+          "command": "capture noisily xtline y, t(t) nodraw",
+          "lines": ["option t() requires option i()"]
+        },
+        { "command": "xtline y, i(id) t(t) nodraw", "lines": [] },
+        {
+          "command": "xtline y in 1/20, overlay legend(off) nodraw",
+          "lines": []
+        },
+        { "command": "label values id idl", "lines": [] },
+        { "command": "xtline y, overlay nodraw title(hi)", "lines": [] },
+        {
+          "command": "capture noisily xtline y if t > 20, nodraw",
+          "lines": ["no observations"]
+        },
+        { "command": "xtline D.y, nodraw", "lines": [] },
+        { "command": "xtline D.y, overlay nodraw", "lines": [] },
+        { "command": "tsset, clear", "lines": [] },
+        { "command": "generate tt = _n", "lines": [] },
+        {
+          "command": "tsset tt",
+          "lines": ["Time variable: tt, 1 to 40", "        Delta: 1 unit"]
+        },
+        { "command": "twoway tsline D.y L.y, nodraw", "lines": [] },
+        { "command": "twoway (tsline y) (line y tt), nodraw", "lines": [] },
+        { "command": "twoway tsline y || tsline L2.y, nodraw", "lines": [] },
+        {
+          "command": "capture noisily twoway tsline nosuch, nodraw",
+          "lines": ["variable nosuch not found"]
+        },
+        { "command": "ac y, lags(5) nodraw", "lines": [] },
+        { "command": "pac y, lags(5) srv nodraw", "lines": [] },
+        { "command": "pac y, lags(5) yw level(90) nodraw", "lines": [] },
+        {
+          "command": "capture noisily pac y, srv yw nodraw",
+          "lines": ["cannot specify srv with yw"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-panel2-xtreg-resampled",
+      "source": "clear\nset seed 101\nset obs 60\ngenerate id = ceil(_n/6)\ngenerate t = mod(_n-1,6)+1\ngenerate x = rnormal()\ngenerate z = rnormal()\ngenerate y = x + rnormal() + id/4\nxtset id t\nxtreg y x, fe vce(bootstrap, reps(20) seed(3) nodots)\ndisplay e(N_reps) \" \" e(N_clust) \" \" e(cmd) \" \" e(vce) \" \" e(clustvar)\nxtset\nxtreg y x, re vce(jackknife, nodots)\nxtreg y x, be vce(bootstrap, reps(10) seed(1) nodots)\nxtreg y x, fe vce(jackknife)\nxtreg y x, fe vce(bootstrap, reps(5) seed(2)) level(90)\nxtreg y x, be vce(jackknife, nodots)\nxtreg y x z, re vce(jackknife, nodots)\nxtreg y x z, be vce(bootstrap, nodots reps(5) seed(1))\nregress y x, vce(bootstrap, reps(5) seed(2) nodots) level(90)\ncapture noisily bootstrap, reps(10) cluster(id) idcluster(id) nodots: xtreg y x, be\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 101", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate id = ceil(_n/6)", "lines": [] },
+        { "command": "generate t = mod(_n-1,6)+1", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        { "command": "generate z = rnormal()", "lines": [] },
+        { "command": "generate y = x + rnormal() + id/4", "lines": [] },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 6",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtreg y x, fe vce(bootstrap, reps(20) seed(3) nodots)",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =         60",
+            "Group variable: id                              Number of groups  =         10",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.4672                                         min =          6",
+            "     Between = 0.0041                                         avg =        6.0",
+            "     Overall = 0.2609                                         max =          6",
+            "",
+            "                                                Wald chi2(1)      =     161.63",
+            "corr(u_i, Xb) = -0.1026                         Prob > chi2       =     0.0000",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .8058346   .0633857    12.71   0.000     .6816009    .9300684",
+            "       _cons |   1.322896   .2572254     5.14   0.000     .8187438    1.827049",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  .84477058",
+            "     sigma_e |  .78442647",
+            "         rho |  .53698843   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(9, .) = 6.89                        Prob > F =      ."
+          ]
+        },
+        {
+          "command": "display e(N_reps) \" \" e(N_clust) \" \" e(cmd) \" \" e(vce) \" \" e(clustvar)",
+          "lines": ["20 10 xtreg bootstrap id"]
+        },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 6",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtreg y x, re vce(jackknife, nodots)",
+          "lines": [
+            "Random-effects GLS regression                   Number of obs     =         60",
+            "Group variable: id                              Number of groups  =         10",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.4672                                         min =          6",
+            "     Between = 0.0041                                         avg =        6.0",
+            "     Overall = 0.2609                                         max =          6",
+            "",
+            "                                                 chi2(1)          =          .",
+            "corr(u_i, X) = 0 (assumed)                      Prob > chi2       =          .",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .7913012   .0766526    10.32   0.000      .617901    .9647015",
+            "       _cons |   1.324141    .266893     4.96   0.001     .7203866    1.927895",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  .80012726",
+            "     sigma_e |  .78442647",
+            "         rho |  .50990768   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtreg y x, be vce(bootstrap, reps(10) seed(1) nodots)",
+          "lines": [
+            "Between regression (regression on group means)  Number of obs     =         60",
+            "Group variable: id                              Number of groups  =         10",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.4672                                         min =          6",
+            "     Between = 0.0041                                         avg =        6.0",
+            "     Overall = 0.2609                                         max =          6",
+            "",
+            "                                                Wald chi(1)       =       0.03",
+            "sd(u_i + avg(e_i.)) = .861834                   Prob > chi2       =     0.8519",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .1478058   .7917762     0.19   0.852    -1.404047    1.699659",
+            "       _cons |   1.379237   .1549657     8.90   0.000      1.07551    1.682965",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtreg y x, fe vce(jackknife)",
+          "lines": [
+            "(running xtreg on estimation sample)",
+            "",
+            "Jackknife replications (10): .........10 done",
+            "",
+            "Fixed-effects (within) regression               Number of obs     =         60",
+            "Group variable: id                              Number of groups  =         10",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.4672                                         min =          6",
+            "     Between = 0.0041                                         avg =        6.0",
+            "     Overall = 0.2609                                         max =          6",
+            "",
+            "                                                F(1, 9)           =     112.54",
+            "corr(u_i, Xb) = -0.1026                         Prob > F          =     0.0000",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .8058346   .0759601    10.61   0.000     .6340009    .9776684",
+            "       _cons |   1.322896   .2664901     4.96   0.001     .7200537    1.925739",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  .84477058",
+            "     sigma_e |  .78442647",
+            "         rho |  .53698843   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(9, 9) = 6.89                        Prob > F = 0.0042"
+          ]
+        },
+        {
+          "command": "xtreg y x, fe vce(bootstrap, reps(5) seed(2)) level(90)",
+          "lines": [
+            "(running xtreg on estimation sample)",
+            "",
+            "Bootstrap replications (5): ..... done",
+            "",
+            "Fixed-effects (within) regression               Number of obs     =         60",
+            "Group variable: id                              Number of groups  =         10",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.4672                                         min =          6",
+            "     Between = 0.0041                                         avg =        6.0",
+            "     Overall = 0.2609                                         max =          6",
+            "",
+            "                                                Wald chi2(1)      =     112.44",
+            "corr(u_i, Xb) = -0.1026                         Prob > chi2       =     0.0000",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .8058346   .0759941    10.60   0.000     .6808354    .9308339",
+            "       _cons |   1.322896   .2235308     5.92   0.000     .9552208    1.690572",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  .84477058",
+            "     sigma_e |  .78442647",
+            "         rho |  .53698843   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------",
+            "F test that all u_i=0: F(9, .) = 6.89                        Prob > F =      ."
+          ]
+        },
+        {
+          "command": "xtreg y x, be vce(jackknife, nodots)",
+          "lines": [
+            "Between regression (regression on group means)  Number of obs     =         60",
+            "Group variable: id                              Number of groups  =         10",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.4672                                         min =          6",
+            "     Between = 0.0041                                         avg =        6.0",
+            "     Overall = 0.2609                                         max =          6",
+            "",
+            "                                                F(1,9)            =       0.02",
+            "sd(u_i + avg(e_i.)) = .861834                   Prob > F          =     0.9047",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .1478058   1.199717     0.12   0.905    -2.566142    2.861753",
+            "       _cons |   1.379237   .2980005     4.63   0.001     .7051136    2.053361",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtreg y x z, re vce(jackknife, nodots)",
+          "lines": [
+            "Random-effects GLS regression                   Number of obs     =         60",
+            "Group variable: id                              Number of groups  =         10",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.4717                                         min =          6",
+            "     Between = 0.0194                                         avg =        6.0",
+            "     Overall = 0.2801                                         max =          6",
+            "",
+            "                                                 chi2(2)          =          .",
+            "corr(u_i, X) = 0 (assumed)                      Prob > chi2       =          .",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .7835765   .0729132    10.75   0.000     .6186354    .9485177",
+            "           z |  -.1084698   .1109825    -0.98   0.354    -.3595296      .14259",
+            "       _cons |    1.32361   .2628546     5.04   0.001     .7289915    1.918228",
+            "-------------+----------------------------------------------------------------",
+            "     sigma_u |  .75824522",
+            "     sigma_e |  .78879789",
+            "         rho |  .48025863   (fraction of variance due to u_i)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtreg y x z, be vce(bootstrap, nodots reps(5) seed(1))",
+          "lines": [
+            "Between regression (regression on group means)  Number of obs     =         60",
+            "Group variable: id                              Number of groups  =         10",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.0021                                         min =          6",
+            "     Between = 0.2038                                         avg =        6.0",
+            "     Overall = 0.0265                                         max =          6",
+            "",
+            "                                                Wald chi(2)       =       1.33",
+            "sd(u_i + avg(e_i.)) = .8237938                  Prob > chi2       =     0.5150",
+            "",
+            "                                     (Replications based on 10 clusters in id)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.0709879   .2309442    -0.31   0.759    -.5236302    .3816544",
+            "           z |  -.7970607   .6934585    -1.15   0.250    -2.156214     .562093",
+            "       _cons |   1.389212   .2046498     6.79   0.000     .9881053    1.790318",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x, vce(bootstrap, reps(5) seed(2) nodots) level(90)",
+          "lines": [
+            "Linear regression                                       Number of obs =     60",
+            "                                                        Replications  =      5",
+            "                                                        Wald chi2(1)  =  16.04",
+            "                                                        Prob > chi2   = 0.0001",
+            "                                                        R-squared     = 0.2609",
+            "                                                        Adj R-squared = 0.2482",
+            "                                                        Root MSE      = 1.0850",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .7133294   .1781107     4.00   0.000     .4203633    1.006295",
+            "       _cons |   1.330817   .1648715     8.07   0.000     1.059627    1.602006",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily bootstrap, reps(10) cluster(id) idcluster(id) nodots: xtreg y x, be",
+          "lines": ["variable id not found"]
         }
       ]
     },

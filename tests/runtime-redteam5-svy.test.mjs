@@ -93,10 +93,10 @@ test("what is not implemented is refused with r(198), never ignored", () => {
     ["svy bootstrap: mean y"],
     ["svy, vce(brr): mean y"],
     ["svy, vce(sdr): mean y"],
-    ["svyset psu [pw=w], vce(jackknife)"],
-    ["svyset psu [iw=w]"],
-    ["svyset psu, poststrata(strat) postweight(w)"],
-    ["svyset psu [pw=w], fpc(w) || _n"],
+    ["svy: mean y", "svyset psu [pw=w], vce(jackknife)"],
+    ["svy: mean y", "svyset psu [iw=w]"],
+    ["svy: mean y", "svyset psu, poststrata(strat) postweight(w)"],
+    ["svy: mean y", "svyset psu [pw=w], fpc(w) || _n"],
     ["svy: tobit y x, ll(0)"],
     ["svy: ivregress 2sls y (x = b)"],
     ["svy: tabulate strat b, se"],
@@ -130,8 +130,13 @@ test("the design stays with the data: save and use, preserve and clear", () => {
   assert.equal(readDesign(s.data)?.weight, "w");
   s.run("clear");
   assert.equal(readDesign(s.data), null);
+  // With no variables at all, Stata 19 says so first.
   const shown = s.run("svyset").output.at(-1).lines;
-  assert.deepEqual(shown, ["no survey characteristics are set"]);
+  assert.deepEqual(shown, ["no variables defined", "r(111);"]);
+  s.run("set obs 2\ngenerate x = 1");
+  assert.deepEqual(s.run("svyset").output.at(-1).lines, [
+    "no survey characteristics are set",
+  ]);
 });
 
 test("a dropped design variable is Stata's error, not a crash", () => {

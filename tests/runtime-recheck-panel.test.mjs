@@ -291,3 +291,120 @@ test("factor variables under time-series operators name their coefficients as St
   s.run("quietly regress y L.i.union");
   assert.deepEqual(s.estimates.names, ["0bL.union", "1L.union", "_cons"]);
 });
+
+// ----- the second re-check of the panel fixes -----
+
+test("xtreg, fe with no regressor leaves the within R-squared missing, as Stata mostly does", () => {
+  const s = session(
+    "clear\nset seed 2\nset obs 30\ngenerate id = ceil(_n/6)\ngenerate t = mod(_n-1,6)+1\ngenerate y = rnormal() + id\nxtset id t\nquietly xtreg y, fe",
+  );
+  // Stata's e(r2_w) is _regress's e(r2), rounding noise: missing for 9 of
+  // 12 seeds of this design, 1e-16 for the others.
+  assert.equal(s.results.e.r2_w >= 8.98e307, true);
+  assert.equal(s.results.e.r2_a >= 8.98e307, true);
+});
+
+test("ac and pac generate() and yw give Stata's values", () => {
+  const s = session(
+    "clear\nset seed 31\nset obs 50\ngenerate t = _n\ngenerate y = sum(rnormal())\ndrop in 10\ndrop in 25/26\nreplace y = . in 40\ntsset t\nac y, lags(5) generate(a1) nograph\npac y, lags(5) generate(p2) yw nograph\npac y in 3/45, lags(4) generate(p3) yw nograph",
+  );
+  const column = (name) => [...s.data.get(name).data];
+  const ac = [
+      0.6747575530420731, 0.5086996266226483, 0.2751875582245585,
+      0.1339530370923612, 0.1295643588167704,
+    ],
+    yw = [
+      0.6747575530420731, 0.0980386472857206, -0.186410018119588905,
+      -0.0390984709163955321, 0.182399287714912206,
+    ];
+  ac.forEach((v, k) => close(column("a1")[k], v, `ac ${k + 1}`, 1e-12));
+  yw.forEach((v, k) => close(column("p2")[k], v, `pac yw ${k + 1}`, 1e-12));
+  // pac's yw takes the autocorrelations of the whole series, as pac.ado
+  // runs ac without if and in.
+  yw.slice(0, 4).forEach((v, k) => close(column("p3")[k], v, `in ${k}`, 1e-12));
+  assert.equal(s.data.get("a1").format, "%10.0g");
+  assert.equal(s.data.get("p2").label, "Partial autocorrelations of y");
+  // A graph is drawn with its confidence bands.
+  const drawn = s.run("ac y, lags(3)");
+  assert.equal(drawn.rc, 0);
+  assert.match(
+    JSON.stringify(drawn.output.at(-1)),
+    /within 95% confidence bands/,
+  );
+  assert.equal(failure(s, "ac y, ciopts(color(red))").rc, 198);
+});
+
+test("estat concordance, gheller gives Gonen and Heller's K and its standard error", () => {
+  const s = session(
+    "clear\nset seed 404\nset obs 200\ngenerate treat = runiform() > .5\ngenerate age = 40 + 20*runiform()\ngenerate t = ceil(-ln(runiform())*20/exp(.5*treat - .03*(age-50)))\ngenerate died = runiform() < .7\nstset t, failure(died)\nquietly stcox treat age\nquietly estat concordance, gheller se",
+  );
+  const r = s.results.r;
+  close(r.K, 0.5985086244430597, "K", 1e-13);
+  close(r.D_K, 0.1970172488861195, "D_K", 1e-12);
+  close(r.K_s, 0.5983315284592418, "K_s", 1e-13);
+  close(r.K_s_se, 0.0236441081456548, "K_s_se", 1e-10);
+  assert.equal(r.N, 200);
+  s.run(
+    "quietly stcox i.treat c.age##c.age\nquietly estat concordance, gheller se harrell",
+  );
+  close(s.results.r.K, 0.5987282240979318, "K", 1e-13);
+  close(s.results.r.K_s_se, 0.023807887664437984, "K_s_se", 1e-10);
+  close(s.results.r.C, 0.5906650760512974, "C", 1e-13);
+});
+
+test("predict ue after xtreg, fe is y - xb outside the sample too", () => {
+  const s = session(
+    "clear\nset obs 16\ngenerate id = ceil(_n/4)\ngenerate t = mod(_n-1,4)+1\nset seed 7\ngenerate x = rnormal()\ngenerate y = 1 + x + rnormal() + id/3\nreplace t = . in 3\nreplace t = . in 10\nxtset id t\nquietly xtreg y x, fe\npredict double ue1, ue",
+  );
+  const ue = s.data.get("ue1").data;
+  close(ue[2], 1.204911061057207, "ue 3");
+  close(ue[9], 0.5868439373240597, "ue 10");
+  close(ue[0], -1.053970322319535, "ue 1");
+});
+
+test("bootstrap resamples whole panels and sorts each sample for lags", () => {
+  const s = session(
+    "clear\nset seed 101\nset obs 60\ngenerate id = ceil(_n/6)\ngenerate t = mod(_n-1,6)+1\ngenerate x = rnormal()\ngenerate y = x + rnormal() + id/4\ngenerate nid = id\nxtset nid t\nset seed 5\nquietly bootstrap _b, reps(20) cluster(id) idcluster(nid) nodots: regress y L.x",
+  );
+  const se = (k) => Math.sqrt(s.estimates.V[k][k]);
+  close(se(0), 0.1353128774488871, "se L.x", 1e-10);
+  close(se(1), 0.2450260897916466, "se _cons", 1e-10);
+  assert.equal(s.results.e.N, 50);
+  assert.equal(s.results.e.N_reps, 20);
+});
+
+test("svyset keeps every design Stata takes, svy refuses what it cannot estimate", () => {
+  const s = session(
+    "clear\nset seed 71\nset obs 60\ngenerate psu = ceil(_n/4)\ngenerate st = ceil(_n/30)\ngenerate ssu = mod(_n,2)\ngenerate w = 1 + runiform()*3\ngenerate fp = 40\ngenerate fp2 = 100\ngenerate y = rnormal()\ngenerate w2 = w",
+  );
+  for (const design of [
+    "svyset psu [iw=w], strata(st)",
+    "svyset psu [pw=w], strata(st) fpc(fp) || ssu, fpc(fp2)",
+    "svyset psu [pw=w], poststrata(st) postweight(fp)",
+    "svyset [pw=w], vce(jackknife) jkrweight(w2)",
+  ]) {
+    assert.equal(s.run(design).rc, 0, design);
+    assert.equal(s.run("svyset").rc, 0, design);
+    const refused = failure(s, "svy: mean y");
+    assert.equal(refused.rc, 198, design);
+    assert.match(refused.text, /svy cannot estimate with the survey design/);
+  }
+  // A failed svyset leaves the design as it was.
+  s.run("svyset psu [pw=w], strata(st)");
+  const before = chars(s);
+  assert.equal(failure(s, "svyset psu [pw=w], fay(3)").rc, 125);
+  assert.deepEqual(chars(s), before);
+  assert.equal(failure(s, "svyset [pw=w], noclear strata(st)").rc, 198);
+  assert.deepEqual(chars(s), before);
+});
+
+test("tsfill fills the gaps of each panel, or all with full", () => {
+  const s = session(
+    "clear\ninput id t y\n1 1 10\n1 2 11\n1 5 14\n2 2 20\n2 4 22\n3 3 30\nend\nxtset id t\ntsfill",
+  );
+  assert.equal(s.data.n, 9);
+  assert.deepEqual([...s.data.get("t").data], [1, 2, 3, 4, 5, 2, 3, 4, 3]);
+  assert.equal(s.data.get("y").data[2] >= 8.98e307, true);
+  s.run("tsfill, full");
+  assert.equal(s.data.n, 15);
+});

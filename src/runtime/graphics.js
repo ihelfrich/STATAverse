@@ -10,6 +10,8 @@ import { optionItems, splitAtComma } from "./syntax.js";
 import { compileExpression } from "./expression.js";
 import { isMissing, isStringType, MISSING } from "./values.js";
 import { weightedRows } from "./reports.js";
+import { requireTimeOrder, timeSeriesOperator } from "./panel.js";
+import { tsTerms } from "./timeseries.js";
 import {
   LOOKS,
   PLOT_LOOKS,
@@ -2001,7 +2003,7 @@ function graphOptions(session, text, own = "") {
 // Stata's twoway plot types that this page does not draw, which are named
 // as such when written after the plots in parentheses.
 const OTHER_PLOT_TYPES = new Set(
-  "rarea rbar rspike rcap rcapsym rscatter rline rconnected pcspike pccapsym pcarrow pcbarrow pcscatter pci pcarrowi scatteri spike dropline dot tsline tsrline contour contourline mband mspline fpfit fpfitci lpoly lpolyci".split(
+  "rarea rbar rspike rcap rcapsym rscatter rline rconnected pcspike pccapsym pcarrow pcbarrow pcscatter pci pcarrowi scatteri spike dropline dot tsrline contour contourline mband mspline fpfit fpfitci lpoly lpolyci".split(
     " ",
   ),
 );
@@ -2053,7 +2055,11 @@ function plotsInParentheses(head) {
     // of one: [aw=x] after the plots is "[ is not a twoway plot type".
     const word = /^\w+|^\S/.exec(head.slice(i))[0];
     if (word === "if" || word === "in") break;
-    if (!PLOT_KINDS[word] && !/^sc(a(t(t(er?)?)?)?)?$/.test(word))
+    if (
+      !PLOT_KINDS[word] &&
+      word !== "tsline" &&
+      !/^sc(a(t(t(er?)?)?)?)?$/.test(word)
+    )
       throw new StataError(
         OTHER_PLOT_TYPES.has(word)
           ? `${word} is not a twoway plot type available here`
@@ -2208,8 +2214,69 @@ function twowaySample(session, sample, specs) {
 }
 
 function twoway(session, text, ctx, single) {
+  const data = session.data,
+    made = [],
+    order = [...data.sortedBy];
+  try {
+    return twowayPlots(session, text, ctx, single, made);
+  } finally {
+    if (made.length) {
+      data.variables = data.variables.filter((v) => !made.includes(v));
+      data.sortedBy = order;
+    }
+  }
+}
+
+/**
+ * A tsline plot of twoway, tsline varlist [if] [in] [, options], as a line
+ * plot of its variables against the time variable tsset declared, sorted.
+ * A variable under time-series operators (D.y, L(1/2).y) is made as a
+ * temporary variable labelled with its name, kept in made until the graph
+ * is drawn.
+ */
+function tslineSpec(session, spec, made) {
+  const m = /^\s*tsline\s+([\s\S]*)$/.exec(spec);
+  if (!m) return spec;
+  const panel = session.panel;
+  if (!panel?.time)
+    throw new StataError("time variable not set, use tsset varname ...", 111);
+  const [head, options] = splitAtComma(m[1]),
+    at = /(^|\s)(if|in)(?=\s)/.exec(head),
+    listed = at ? head.slice(0, at.index) : head,
+    qualifier = at ? head.slice(at.index) : "",
+    data = session.data,
+    names = [];
+  if (!listed.trim()) throw new StataError("varlist required", 100);
+  for (const term of tsTerms(session, listed)) {
+    if (!term.ops.length) {
+      names.push(term.variable);
+      continue;
+    }
+    requireTimeOrder(session);
+    let name,
+      serial = 0;
+    do name = `__tl${String(++serial).padStart(4, "0")}`;
+    while (data.has(name));
+    const value = timeSeriesOperator(session, term.ops, term.variable);
+    data.generate(
+      name,
+      Array.from({ length: data.n }, (_, i) => value(i)),
+      { type: "double" },
+    );
+    const variable = data.get(name);
+    variable.label = term.name;
+    variable.format = data.get(term.variable).format;
+    made.push(variable);
+    names.push(name);
+  }
+  return `line ${names.join(" ")} ${panel.time} ${qualifier}, sort ${options ?? ""}`;
+}
+
+function twowayPlots(session, text, ctx, single, made) {
   // Plots are written (scatter y x) (line y x), or separated by ||.
-  const { specs, optionText, grouped, sample } = twowayParts(text, single);
+  const parts = twowayParts(text, single),
+    { optionText, grouped, sample } = parts,
+    specs = parts.specs.map((spec) => tslineSpec(session, spec, made));
   if (!specs.length) throw new StataError("invalid syntax", 198);
   // What follows the plots in parentheses is an if or an in by now.
   const sampleParsed = sample ? session.parse("[if] [in]", sample) : null;
@@ -2863,6 +2930,9 @@ function exportGraph(session, text, ctx) {
   (session.exported ??= []).push({ name, ...file });
   ctx.out(`file ${name} ${EXPORTS[format]}`);
 }
+
+/** twoway, for the commands that draw through it, as xtline does. */
+export const twowayCommand = (session, text, ctx) => twoway(session, text, ctx);
 
 /** Registers graph subcommands defined elsewhere: graph bar, graph box. */
 export function registerGraph(name, run) {
