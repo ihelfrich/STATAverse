@@ -186,7 +186,26 @@ function invalidName(word) {
     /^(?:[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~]*)?([^\w\u0080-\u{10FFFF}*?~])/u.exec(
       word,
     );
-  return stray ? stray[1] : word;
+  if (!stray) return word;
+  // After a name too: summarize a==b is == invalid name, a!=b != invalid
+  // name.
+  const after = /^(?:==|!=|~=|>=|<=)/.exec(
+    word.slice(stray[0].length - stray[1].length),
+  );
+  return after ? after[0] : stray[1];
+}
+
+/**
+ * The error for a word that is not a name. A % is Stata's "invalid '%'"
+ * everywhere; a varlist of factor variables (summarize, list) refuses @, /
+ * and | as characters not allowed in it.
+ */
+function badName(word, parentheses) {
+  const bad = invalidName(word);
+  if (bad === "%") return new StataError("invalid '%' ", 198);
+  if (parentheses === "factor" && ["@", "/", "|"].includes(bad))
+    return new StataError(`'${bad}' not allowed in varlist`, 198);
+  return new StataError(`${bad} invalid name`, 198);
 }
 
 export function expandVarlist(text, names, parentheses = null) {
@@ -244,7 +263,7 @@ export function expandVarlist(text, names, parentheses = null) {
       if (last < first) throw new StataError("variables out of order", 111);
       out.push(...names.slice(first, last + 1));
     } else if (!/^[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~]*$/u.test(word))
-      throw new StataError(`${invalidName(word)} invalid name`, 198);
+      throw badName(word, parentheses);
     else if (/[*?~]/.test(word)) {
       const matches = names.filter((name) => pattern(word).test(name));
       if (!matches.length) throw notFound(word);

@@ -1414,8 +1414,19 @@ function advise(record, context) {
       more = ` ${word} is not a variable, and ${leftVariable.name} is numeric: compare it with one of its numbers; label list ${labelled} shows each label's number.`;
     else if (word && kind(leftVariable) === "number")
       more = ` ${word} is not a variable, and ${left} is compared with a number or another variable.`;
+    // The example is the student's own comparison, written as it runs.
+    const value = number ?? right,
+      example = !left
+        ? "group == 1"
+        : textual && (number !== undefined || (word && !rightVariable))
+          ? `${left} == "${number !== undefined ? (shown ?? number) : word}"`
+          : code !== undefined
+            ? `${left} == ${code}`
+            : value !== undefined && !clash
+              ? `${left} == ${value}`
+              : "group == 1";
     return {
-      text: `A single = assigns. To compare two values, write ==, as in if group == 1.${more}`,
+      text: `A single = assigns. To compare two values, write ==, as in ${example}.${more}`,
       help,
       fix: clash
         ? ""
