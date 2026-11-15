@@ -235,7 +235,8 @@ export function loneEquals(text) {
     else if (c === ")" || c === "]") opens.pop();
     else if (
       c === "=" &&
-      !/[=!~<>]/.test(text[i - 1] ?? "") &&
+      // Stata reads > =, < =, ! = and ~ = as one operator.
+      !/[=!~<>]\s*$/.test(text.slice(0, i)) &&
       text[i + 1] !== "="
     ) {
       const open = opens.at(-1) ?? -1;
@@ -315,7 +316,7 @@ export function clauses(head, expAllowed = true) {
     if (
       flags[i] &&
       head[i] === "=" &&
-      !/[=!~<>]/.test(head[i - 1] ?? "") &&
+      !/[=!~<>]\s*$/.test(head.slice(0, i)) &&
       // Where no =exp is declared, == belongs to an expression.
       (expAllowed || head[i + 1] !== "=")
     ) {
@@ -718,6 +719,12 @@ export function applySyntax(declaration, text, context) {
       locals.in = (decl.in.bare ? "" : "in ") + `${first}/${last}`;
       result.in = [first, last];
     } else if (clause.kind === "exp") {
+      // A second = names what follows it: gen z = = x is =x invalid name.
+      if (/^=(?!=)/.test(clause.text))
+        throw new StataError(
+          `=${/^=\s*([^\s\-+*/^<>&|!~=,()[\]]*)/.exec(clause.text)[1]} invalid name`,
+          198,
+        );
       if (clause.text.startsWith("="))
         throw new StataError("invalid syntax", 198);
       context.expression?.(clause.text, "exp");

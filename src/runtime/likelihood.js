@@ -1347,6 +1347,10 @@ function mlogit(session, text, ctx) {
     k_out: outcomes.length,
     baseout: outcomes[base],
     ibaseout: base + 1,
+    // Every outcome has an equation, the base one included.
+    k_eq: outcomes.length,
+    k_eq_model: outcomes.length,
+    k_eq_base: base + 1,
     rank,
     k: size,
     cmd: "mlogit",

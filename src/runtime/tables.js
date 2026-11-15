@@ -9,6 +9,7 @@ import {
 } from "./format.js";
 import { Ftail, invttail, ttail } from "./distributions.js";
 import { project } from "./diagnostics.js";
+import { operatorGroups } from "./varlist.js";
 import { weightsNotYet } from "./estimation.js";
 import {
   count,
@@ -1184,6 +1185,12 @@ function meanOrTotal(session, text, ctx, totals) {
   if (overOptions !== null && !/^\s*(nol(a(b(el?)?)?)?)?\s*$/.test(overOptions))
     throw new StataError("invalid over() option", 198);
   const over = overText === null ? [] : overVariables(session, overText);
+  if (over.length && variables.some((v) => v.ts?.factor))
+    throw new StataError(
+      `factor variables with over() are not available in the browser yet for ${command}`,
+      198,
+      "Make each level a variable with generate, or leave out over().",
+    );
   for (const v of over)
     if (variables.includes(v))
       throw new StataError(
@@ -1297,8 +1304,11 @@ function meanOrTotal(session, text, ctx, totals) {
           .join("#"),
         empty: !group.rows.length,
       })),
+      // A factor-variable column, as 1.g from mean i.g, is named as Stata
+      // names it and keeps its group for the table.
       variables: variables.map((variable) => ({
-        name: variable.name,
+        name: variable.ts?.factor ? variable.ts.name : variable.name,
+        ts: variable.ts?.factor ? variable.ts : undefined,
         cells: groups.map((group) => estimate(group.rows, variable)),
       })),
     };
@@ -1311,13 +1321,15 @@ function meanOrTotal(session, text, ctx, totals) {
     N: n,
     k_eq: 1,
     rank: groups.filter((group) => group.rows.length).length * variables.length,
-    cmdline: `${command} ${text.trim()}`,
+    cmdline: `${command} ${(ctx.commandText ?? text).trim()}`,
     cmd: command,
     vce: cluster ? "cluster" : "analytic",
     ...(cluster ? { vcetype: "Robust", clustvar: cluster.name } : {}),
     title: totals ? "Total estimation" : "Mean estimation",
     estat_cmd: "estat_vce_only",
-    varlist: variables.map((v) => v.name).join(" "),
+    varlist: variables
+      .map((v) => (v.ts?.factor ? v.ts.name : v.name))
+      .join(" "),
     marginsnotok: "_ALL",
     ...(over.length ? { over: over.map((v) => v.name).join(" ") } : {}),
     properties: "b V",
@@ -1419,10 +1431,23 @@ function showMeanOrTotal(session, results, options, ctx) {
     );
   }
   ctx.out(`${"-".repeat(stub + 1)}+${"-".repeat(width - stub - 2)}`);
+  // The levels of a factor variable, as from mean i.g, are rows under
+  // its name, labelled by level, with a blank row between groups.
+  const factorGroups = operatorGroups(results.variables),
+    factorGroupOf = new Map(
+      factorGroups.flatMap((group, at) => group.members.map((k) => [k, at])),
+    );
   results.variables.forEach((variable, k) => {
     if (!over.length) {
+      const at = factorGroupOf.get(k),
+        group = factorGroups[at];
+      if (group.members[0] === k) {
+        if (at && (group.headed || factorGroups[at - 1].headed))
+          ctx.out(`${" ".repeat(stub)} |`);
+        if (group.headed) ctx.out(`${group.base.padStart(stub)} |`);
+      }
       ctx.out(
-        `${variable.name.padStart(stub)} |${row(variable.cells[0], names[k][0])}`,
+        `${(group.headed ? variable.ts.label : variable.name).padStart(stub)} |${row(variable.cells[0], names[k][0])}`,
       );
       return;
     }

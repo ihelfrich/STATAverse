@@ -45,6 +45,7 @@ import { fileName, fold, load } from "./data-commands.js";
 import { smclParagraph } from "./data-utilities.js";
 import { characteristicsOf, defineCharacteristic } from "./store.js";
 import { operatorVariables } from "./timeseries.js";
+import { factorVariables } from "./factor-varlist.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 
@@ -1457,7 +1458,7 @@ export const EVERYDAY_COMMANDS = [
       ctx.out("");
     },
   },
-  { name: "mean", minimum: 4, run: mean },
+  { name: "mean", minimum: 4, run: factorVariables(mean) },
   // ci is byable(recall) in Stata: under by it runs once per group.
   { name: "ci", minimum: 2, run: perGroup(ci), byable: true },
   { name: "cii", minimum: 3, run: cii },

@@ -28,6 +28,7 @@ import {
   splitAtComma,
 } from "./syntax.js";
 import { operatorGroups, resolveVariable } from "./varlist.js";
+import { factorVariables } from "./factor-varlist.js";
 import { parseNumlist } from "./numlist.js";
 import { requireTimeOrder } from "./panel.js";
 import {
@@ -2789,7 +2790,7 @@ export function linear(model, text, session) {
  * equation has no name. An equation the model does not have is not found;
  * [eq]_b[x] arrives here as eq:x too.
  */
-export function coefficientValue(model, kind, name) {
+export function coefficientValue(model, kind, name, form = {}) {
   const text = name.trim(),
     missing = () => new StataError(`[${text}] not found`, 111),
     space = coefficientSpace(model),
@@ -2808,6 +2809,30 @@ export function coefficientValue(model, kind, name) {
     );
     if (!entry) throw missing();
     return read(entry);
+  }
+  // Stata's i., ibn. and ib#. name no coefficient: _b[i.g].
+  const operator = /(?:^|[:#])(i\w*|b\d+)\.[\p{L}_]/u.exec(text);
+  if (operator) throw new StataError(`${operator[1]}:  operator invalid`, 198);
+  // mlogit: [#k] counts every outcome's equation, the base one included,
+  // and an equation is named by its label or its outcome's value; the base
+  // outcome's coefficients are 0.
+  if (colon && model.equations && model.baseEquation !== undefined) {
+    const given = colon[1].trim(),
+      numbered = /^#(\d+)$/.exec(given);
+    let j = numbered ? Number(numbered[1]) - 1 : model.equations.indexOf(given);
+    if (j < 0 && !numbered)
+      j = (model.outcomeValues ?? []).findIndex((v) => String(v) === given);
+    if (j < 0 || j >= model.equations.length)
+      throw new StataError(`equation [${given}] not found`, 303);
+    const coefficient = colon[2].trim();
+    if (j === model.baseEquation) {
+      if (!(model.coefficientNames ?? []).includes(coefficient))
+        throw missing();
+      return 0;
+    }
+    const at = coefficientIndex(model, `${model.equations[j]}:${coefficient}`);
+    if (at < 0) throw missing();
+    return kind === "_b" ? model.b[at] : Math.sqrt(model.V[at][at]);
   }
   // A fit of several equations (heckman): [#2]x is the second equation's,
   // and an equation it does not have is not found.
@@ -2846,11 +2871,47 @@ export function coefficientValue(model, kind, name) {
       if (!entry) throw missing();
       return read(entry);
     }
+    // [#1]x and [#1]_b[x] name the only equation; _b[#1:x] does not.
+    if (equation === "#1" && !form.equation) throw missing();
     if (equation !== main && !(main === null && equation === "_"))
-      if (!/^#1$/.test(equation))
-        throw new StataError(`equation ${equation} not found`, 111);
+      if (!(form.equation && equation === "#1"))
+        throw new StataError(
+          form.equation
+            ? `equation [${equation}] not found`
+            : `equation ${equation} not found`,
+          form.equation ? 303 : 111,
+        );
   }
-  const at = coefficientIndex(model, text);
+  let at = coefficientIndex(model, text);
+  // A base or omitted level is found without its b or o, as _b[0.g] for
+  // 0b.g; c.x alone is x, and a bare name in an interaction is c.name.
+  if (at < 0) {
+    const level = (part) => part.replace(/^(\d+)(?:bn|b|o)\./, "$1."),
+      parts = text.replace(/^[^:]*:/, "").split("#"),
+      wanted = parts
+        .map((part) =>
+          parts.length > 1 && /^[\p{L}_][\w]*$/u.test(part)
+            ? `c.${part}`
+            : parts.length === 1
+              ? part.replace(/^c\./, "").replace(/^([LFDS])0\./i, "")
+              : part,
+        )
+        .join("#"),
+      prefix = colon ? `${colon[1].trim()}:` : "";
+    if (wanted !== text.replace(/^[^:]*:/, ""))
+      at = coefficientIndex(model, prefix + wanted);
+    if (at < 0) {
+      const plain = wanted.split("#").map(level).join("#");
+      at = model.names.findIndex(
+        (n) =>
+          n
+            .replace(/^[^:]*:/, "")
+            .split("#")
+            .map(level)
+            .join("#") === plain,
+      );
+    }
+  }
   if (at < 0) throw missing();
   return kind === "_b" ? model.b[at] : Math.sqrt(model.V[at][at]);
 }
@@ -4369,7 +4430,9 @@ export const ESTIMATION_COMMANDS = [
   {
     name: "correlate",
     minimum: 3,
-    run: operatorVariables(perGroup(correlate)),
+    run: factorVariables(operatorVariables(perGroup(correlate)), {
+      refuse: "factor-variable operators not allowed",
+    }),
     byable: true,
   },
   { name: "tabstat", minimum: 7, run: tabstat },

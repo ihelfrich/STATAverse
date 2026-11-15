@@ -674,7 +674,7 @@ export class Session {
           ? (this.data.esample?.[i] ?? 0)
           : 0,
       matrix: matrixAccess(this),
-      coefficient: (kind, name) => {
+      coefficient: (kind, name, form = {}) => {
         const model = this.estimates;
         // Without a model, e(b) and e(V) may still be there, as after a
         // bootstrap of statistics; otherwise the name is not found.
@@ -682,6 +682,19 @@ export class Session {
           const b = this.results.e?.["matrix:b"],
             V = this.results.e?.["matrix:V"],
             at = b ? b.colNames.indexOf(name) : -1;
+          // With no e(b) at all, Stata names what is missing.
+          if (!b && form.equation && !name.startsWith("/"))
+            throw new StataError(
+              `equation [${name.split(":")[0]}] not found`,
+              303,
+            );
+          if (!b || (kind === "_se" && !V))
+            throw new StataError(
+              kind === "_se"
+                ? "_se not allowed when e(V) is not present"
+                : "_b not allowed when e(b) is not present",
+              111,
+            );
           if (at < 0) throw new StataError(`[${name}] not found`, 111);
           return kind === "_b"
             ? b.values[0][at]
@@ -689,7 +702,7 @@ export class Session {
               ? Math.sqrt(V.values[at][at])
               : MISSING;
         }
-        return coefficientValue(model, kind, name);
+        return coefficientValue(model, kind, name, form);
       },
       series: (ops, name) => timeSeriesOperator(this, ops, name),
       system: (name) =>
@@ -705,7 +718,7 @@ export class Session {
           filedate: this.data.filedate ?? "",
           current_date: currentDate(),
           current_time: new Date().toTimeString().slice(0, 8),
-          stata_version: 17,
+          stata_version: 19,
           version: 17,
           os: "Browser",
           machine_type: "STATAverse",
@@ -716,6 +729,23 @@ export class Session {
           linesize: this.settings.linesize ?? 80,
           more: "off",
           maxvar: 5000,
+          // The limits of Stata's storage types, as c() gives them.
+          maxdouble: Number.MAX_VALUE / 2,
+          mindouble: -Number.MAX_VALUE / 2,
+          smallestdouble: 2 ** -1022,
+          epsdouble: 2 ** -52,
+          maxfloat: (2 - 2 ** -23) * 2 ** 126,
+          minfloat: -(2 - 2 ** -23) * 2 ** 126,
+          epsfloat: 2 ** -23,
+          maxlong: 2147483620,
+          minlong: -2147483647,
+          maxint: 32740,
+          minint: -32767,
+          maxbyte: 100,
+          minbyte: -127,
+          maxstrvarlen: 2045,
+          maxstrlvarlen: 2000000000,
+          matsize: 400,
           alpha: "a b c d e f g h i j k l m n o p q r s t u v w x y z",
           ALPHA: "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z",
           Mons: "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec",
@@ -734,7 +764,13 @@ export class Session {
       },
     };
   }
-  compile(text) {
+  /**
+   * Compiles an expression. options.assign marks the =exp of generate,
+   * replace, scalar and local, where Stata calls a lone = invalid syntax
+   * whatever stands beside it; options.enclosed marks an expression read
+   * inside parentheses, as egen reads its argument.
+   */
+  compile(text, options = {}) {
     try {
       return compileExpression(text, this.scope());
     } catch (error) {
@@ -756,8 +792,23 @@ export class Session {
             198,
             "A single = assigns; to compare two values, write ==.",
           );
+        // egen reads its argument in parentheses, as total(x = 1), where a
+        // lone = makes one name: x=1 invalid name.
+        if (options.enclosed && lone && lone.open === -1)
+          throw new StataError(
+            `${text.replace(/\s+/g, "")} invalid name`,
+            198,
+            "A single = assigns; to compare two values, write ==.",
+          );
+        if (options.assign)
+          throw new StataError(
+            "invalid syntax",
+            198,
+            "A single = assigns; to compare two values, write ==.",
+          );
         // A string on either side is a type mismatch, as Stata finds it
-        // in summarize wage if region = "North" or if x = region.
+        // in summarize wage if region = "North" or if x = region; a name
+        // on the left that does not exist is reported first.
         const sides = lone ? this.equalsStrings(text, lone) : {};
         throw new StataError(
           sides.left || sides.right ? "type mismatch" : "invalid syntax",
@@ -774,20 +825,24 @@ export class Session {
    */
   equalsStrings(text, lone) {
     const sides = equalsOperands(text, lone),
-      string = (part) => {
+      string = (part, left) => {
         try {
           return (
             !!part && compileExpression(part, this.scope()).type !== "numeric"
           );
-        } catch {
+        } catch (error) {
+          // A variable on the left that is not there is Stata's first
+          // complaint: count if nosuch = "a" is nosuch not found.
+          if (left && error instanceof StataError && error.code === 111)
+            throw error;
           return false;
         }
       };
-    return { left: string(sides.left), right: string(sides.right) };
+    return { left: string(sides.left, true), right: string(sides.right) };
   }
   /** The value of an expression outside any observation. */
-  scalar(text) {
-    return this.compile(text).evaluate(0, {
+  scalar(text, options) {
+    return this.compile(text, options).evaluate(0, {
       start: 0,
       count: this.data.n,
       sums: [],
@@ -803,8 +858,8 @@ export class Session {
       n: this.data.n,
       level: this.settings.level,
       defaultType: this.data.defaultType,
-      expression: (text) => {
-        this.compile(text);
+      expression: (text, clause) => {
+        this.compile(text, { assign: clause === "exp" });
       },
     };
   }
@@ -1526,6 +1581,10 @@ export class Session {
         this.fitsOnData.clear();
       }
       this.postedSample = null;
+      // A function's message while an expression is evaluated, as regexs()
+      // gives for a group it does not have, goes to this command's output.
+      const outerNote = this.state.note;
+      this.state.note = ctx.out;
       try {
         if (replayed) value = this.replay(command, body, ctx, lines);
         else if (recall) {
@@ -1580,6 +1639,7 @@ export class Session {
         }
         throw error;
       } finally {
+        this.state.note = outerNote;
         // Once the data have changed they stay changed until use, save or
         // clear, even if a later command changes them back.
         if (!READ_ONLY.has(command.name)) markChanged(this);
@@ -2057,7 +2117,9 @@ export class Session {
       frame.locals.delete(m[1]);
     } else if ((m = /^while\s+(.*)$/.exec(header))) {
       loop(() => {
-        while (this.truth(this.expand(node.header, frame).trim().slice(5))) {
+        while (
+          this.condition(this.expand(node.header, frame).trim().slice(5))
+        ) {
           if (++this.steps > MAX_STEPS)
             throw new StataError(
               "this loop ran longer than the browser allows",
@@ -2069,7 +2131,7 @@ export class Session {
     } else if ((m = /^if\s+(.*)$/.exec(header))) {
       // The outcome is recorded after the body runs, so that an if inside
       // the body cannot decide whether this block's else runs.
-      const taken = this.truth(m[1]);
+      const taken = this.condition(m[1]);
       if (taken) body();
       frame.lastIf = taken;
     } else if ((m = /^else(?:\s+if\s+(.*))?$/.exec(header))) {
@@ -2077,7 +2139,7 @@ export class Session {
       // leaves that outcome for the next else; else if is an if of its
       // own, whose outcome the next else reads.
       if (!frame.lastIf) {
-        const taken = m[1] === undefined ? true : this.truth(m[1]);
+        const taken = m[1] === undefined ? true : this.condition(m[1]);
         if (taken) body();
         if (m[1] !== undefined) frame.lastIf = taken;
       }
@@ -2156,6 +2218,24 @@ export class Session {
     }
     this.quietDepth = quietDepth;
     for (const record of inner) if (keep(record)) output.push(record);
+  }
+
+  /**
+   * The truth of the expression of the if and while commands, which
+   * refuse a lone = with "=exp not allowed", or as a type mismatch when a
+   * string stands on its left, as Stata does.
+   */
+  condition(text) {
+    const lone = loneEquals(text);
+    if (lone && lone.open === -1) {
+      const string = this.equalsStrings(text, lone).left;
+      throw new StataError(
+        string ? "type mismatch" : "=exp not allowed",
+        string ? 109 : 101,
+        "A single = assigns; to compare two values, write ==.",
+      );
+    }
+    return this.truth(text);
   }
 
   truth(text) {

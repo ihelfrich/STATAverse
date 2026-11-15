@@ -50,6 +50,7 @@ import { STATS_MORE_COMMANDS } from "./stats-more.js";
 import { TABLE_COMMANDS } from "./tables.js";
 import { GLM_COMMANDS } from "./glm.js";
 import { TIMESERIES_COMMANDS, operatorVariables } from "./timeseries.js";
+import { factorVariables } from "./factor-varlist.js";
 import { ARIMA_COMMANDS } from "./arima.js";
 import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
@@ -212,7 +213,11 @@ function defineMacro(session, frame, map, text) {
   const name = m[1];
   if (m[2] === "=") {
     if (!m[3].trim()) throw invalid();
-    return setMacro(map, name, macroValue(session, session.scalar(m[3])));
+    return setMacro(
+      map,
+      name,
+      macroValue(session, session.scalar(m[3], { assign: true })),
+    );
   }
   if (m[2] === ":")
     return setMacro(map, name, extendedFunction(session, frame, m[3]));
@@ -583,6 +588,8 @@ export function displayText(session, text, asMacro = false) {
       return items[k + 1] === "," ? ["", k + 2] : [" ", k + 1];
     if (typeof word === "object") {
       const { directive, argument } = word;
+      // What a lone = at the end of an expression leaves: display 3 =.
+      if (directive === "nothing") throw new StataError("invalid syntax", 198);
       if (directive === "continue") return ["", k + 1];
       if (directive === "quote") return ['"', k + 1];
       if (directive === "request") return ["", k + 1];
@@ -657,6 +664,20 @@ export function displayText(session, text, asMacro = false) {
     // is read as a name with the operator at its front, unless it is a
     // number with a plus sign. An = or == before an item is dropped.
     expression = expression.replace(/^==?\s*/, "");
+    // A lone = outside brackets ends the expression, and what follows it
+    // is the next item: display 1 + 2 = 4 shows 34.
+    const lone = loneEquals(expression);
+    if (lone && lone.open === -1) {
+      const after = expression.slice(lone.at + 1).trim();
+      // Two lone = in a row are one name to Stata: display 3 = = 3.
+      if (/^=(?!=)/.test(after))
+        throw new StataError(
+          `${expression.slice(0, lone.at).replace(/\s+/g, "")}=${/^=\s*(\S*)/.exec(after)[1]} invalid name`,
+          198,
+        );
+      items.splice(next, 0, after || { directive: "nothing", argument: null });
+      expression = expression.slice(0, lone.at).trim();
+    }
     const lead = /^([+*/^<>&|]=?|[!~]=)\s*/.exec(expression),
       sign = lead?.[1].replace(/^[!~]/, "");
     if (lead && !/^\+\s*[\d.]/.test(expression)) {
@@ -665,6 +686,9 @@ export function displayText(session, text, asMacro = false) {
         token = opensString(rest, 0)
           ? rest.slice(0, end < 0 ? rest.length : end)
           : /^[^\s(]*/.exec(rest)[0];
+      // A string left open after the operator: display "a" + "b.
+      if (opensString(rest, 0) && end < 0)
+        throw new StataError("too few quotes", 132);
       if (rest[token.length] === "(")
         throw new StataError(`unknown function ${sign}${token}()`, 133);
       throw new StataError(`${sign}${token} invalid name`, 198);
@@ -736,7 +760,7 @@ function generate(session, text, ctx) {
     });
   if (before && after)
     throw new StataError("before() may not be combined with after()", 198);
-  const compiled = session.compile(parsed.exp),
+  const compiled = session.compile(parsed.exp, { assign: true }),
     string = compiled.type === "string",
     typed = parsed.typed[0],
     type = parsed.types[0];
@@ -774,7 +798,7 @@ function replace(session, text, ctx) {
     name = parsed.varlist[0],
     variable = session.data.get(name),
     string = isStringType(variable.type),
-    compiled = session.compile(parsed.exp);
+    compiled = session.compile(parsed.exp, { assign: true });
   if ((compiled.type === "string") !== string)
     throw new StataError("type mismatch", 109);
   // Assign one observation at a time, so that x[_n-1] sees the new value.
@@ -1644,7 +1668,7 @@ function scalar(session, text, ctx) {
     throw invalid();
   }
   if (!isName(m[1])) throw invalid(`${m[1]} invalid name`);
-  session.scalars.set(m[1], session.scalar(m[2]));
+  session.scalars.set(m[1], session.scalar(m[2], { assign: true }));
 }
 /**
  * The first token of text, as tokenize and gettoken read it: blanks are
@@ -2237,15 +2261,22 @@ function confirm(session, text) {
 function assertCommand(session, text, ctx) {
   let parsed;
   try {
+    if (!text.trim()) throw invalid();
     parsed = session.parse("anything [if] [in] [, Rc0 Null Fast]", text);
   } catch (error) {
-    // assert region = 1 is invalid syntax in Stata, not an =exp.
-    if (error instanceof StataError && error.message === "=exp not allowed")
+    // assert region = 1 is invalid syntax in Stata, not an =exp; with a
+    // string beside the = it is a type mismatch, as in an if qualifier.
+    if (error instanceof StataError && error.message === "=exp not allowed") {
+      const [head] = splitAtComma(text),
+        condition = head.split(/\s(?:if|in)\s/)[0],
+        lone = loneEquals(condition),
+        string = lone && session.equalsStrings(condition, lone).left;
       throw new StataError(
-        "invalid syntax",
-        198,
+        string ? "type mismatch" : "invalid syntax",
+        string ? 109 : 198,
         "A single = assigns; to compare two values, write ==.",
       );
+    }
     throw error;
   }
   const compiled = session.compile(parsed.anything);
@@ -2275,7 +2306,7 @@ function assertCommand(session, text, ctx) {
 }
 // The random-number functions, which differ from one observation to the next.
 const RANDOM_FUNCTION =
-  /^r(?:beta|binomial|cauchy|chi2|exponential|gamma|hypergeometric|igaussian|laplace|logistic|nbinomial|normal|poisson|t|uniform|uniformint|weibull|weibullph)$/;
+  /^(?:r(?:beta|binomial|cauchy|chi2|exponential|gamma|hypergeometric|igaussian|laplace|logistic|nbinomial|normal|poisson|t|uniform|uniformint|weibull|weibullph)|uniform)$/;
 /**
  * Whether an expression can differ between observations: it names a
  * variable without a subscript, _n, or a random-number function.
@@ -2607,7 +2638,7 @@ function egen(session, text, ctx) {
   } else if (fcn === "seq") {
     groups.forEach((group) => group.forEach((i, k) => (values[i] = k + 1)));
   } else if (fcn === "rank") {
-    const compiled = session.compile(argument);
+    const compiled = session.compile(argument, { enclosed: true });
     if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
     for (const group of groups) {
       const pairs = group
@@ -2632,7 +2663,7 @@ function egen(session, text, ctx) {
       }
     }
   } else if (fcn === "std" || fcn === "cut" || fcn === "anymatch") {
-    const compiled = session.compile(argument);
+    const compiled = session.compile(argument, { enclosed: true });
     if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
     const all = evaluateAll(compiled, data.n);
     if (fcn === "std") {
@@ -2724,7 +2755,7 @@ function egen(session, text, ctx) {
             )
         : statistic(fcn);
     if (!fn) throw new StataError(`unknown egen function ${fcn}()`, 133);
-    const compiled = session.compile(argument);
+    const compiled = session.compile(argument, { enclosed: true });
     // count() counts !missing(exp), which for a string is a nonempty value.
     const counting = fcn === "count" && compiled.type === "string";
     if (compiled.type !== "numeric" && !counting)
@@ -3453,11 +3484,21 @@ export const COMMANDS = [
   command("xtile", 5, xtile),
   command("centile", 7, perGroup(centile), true),
   command("count", 3, noEqualsInIf(perGroup(countCommand)), true),
-  command("summarize", 2, operatorVariables(perGroup(summarize)), true),
+  command(
+    "summarize",
+    2,
+    factorVariables(operatorVariables(perGroup(summarize))),
+    true,
+  ),
   command("tabulate", 2, perGroup(tabulate), true),
   command("tab1", 4, tab1),
   command("tab2", 4, tab2),
-  command("list", 1, operatorVariables(noEqualsInIf(perGroup(list))), true),
+  command(
+    "list",
+    1,
+    factorVariables(operatorVariables(noEqualsInIf(perGroup(list)))),
+    true,
+  ),
   command("describe", 1, describe),
   command("label", 2, label),
   command("format", 4, format),
@@ -3624,12 +3665,17 @@ export const COMMANDS = [
         "program error:  matching close brace not found",
         198,
       );
+    // The first place the expression fails is the error Stata reports,
+    // when no later word starts a command after a sound expression.
+    let failure = null;
     for (let k = 1; k < words.length; k++) {
       if (!findCommandName(session, words[k])) continue;
       let truth;
       try {
-        truth = session.truth(words.slice(0, k).join(" "));
-      } catch {
+        truth = session.condition(words.slice(0, k).join(" "));
+      } catch (error) {
+        if (!(error instanceof StataError)) throw error;
+        failure ??= error;
         continue;
       }
       if (truth) runWithin(session, words.slice(k).join(" "), ctx);
@@ -3637,7 +3683,12 @@ export const COMMANDS = [
       ctx.frame.lastIf = truth;
       return;
     }
-    throw invalid();
+    if (failure) throw failure;
+    // With no command after it, the whole line is the expression, and a
+    // sound one still wants its block: if display "x" is display not
+    // found, and if 1 is { required.
+    session.condition(text);
+    throw new StataError("{ required", 100);
   }),
   command("else", 4, (session, text, ctx) => {
     // An else runs when the last if was false, or when there was none;

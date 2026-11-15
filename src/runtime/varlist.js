@@ -81,12 +81,15 @@ export function expandVarlist(text, names) {
 export function operatorGroups(variables) {
   const groups = [];
   for (const [k, v] of variables.entries()) {
-    const base = v.ts?.variable ?? v.name,
+    // A factor-variable column alone, as 1.g, is a group of its own.
+    const base = v.ts?.alone ? v.name : (v.ts?.variable ?? v.name),
       last = groups.at(-1);
     if (last && last.base === base) last.members.push(k);
     else groups.push({ base, members: [k] });
   }
   for (const group of groups)
-    group.headed = group.members.some((k) => variables[k].ts);
+    group.headed = group.members.some(
+      (k) => variables[k].ts && !variables[k].ts.alone,
+    );
   return groups;
 }
