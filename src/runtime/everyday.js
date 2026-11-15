@@ -39,6 +39,7 @@ import { Generator } from "./random.js";
 import { fileName, fold, load } from "./data-commands.js";
 import { smclParagraph } from "./data-utilities.js";
 import { characteristicsOf, defineCharacteristic } from "./store.js";
+import { operatorVariables } from "./timeseries.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 
@@ -546,7 +547,7 @@ function pwcorr(session, text, ctx) {
     out(
       `             |${variables
         .slice(start, end)
-        .map((v) => columnName(v.name, session.data.names))
+        .map((v) => columnName(v.ts?.name ?? v.name, session.data.names))
         .join("")}`,
     );
     out(`-------------+${"-".repeat(9 * (end - start))}`);
@@ -562,7 +563,7 @@ function pwcorr(session, text, ctx) {
         if (j < i && shownP(result.p)) S[i][j] = S[j][i] = result.p;
       }
       out(
-        `${rowName(variables[i].name, session.data.names)} | ${results
+        `${rowName(variables[i].ts?.name ?? variables[i].name, session.data.names)} | ${results
           .map(({ rho, p }, j) =>
             shownP(p) || start + j === i
               ? " " +
@@ -596,7 +597,7 @@ function pwcorr(session, text, ctx) {
   }
   // Under by, Stata's by adds a blank line before the next group's rule.
   if (ctx.group) ctx.out("");
-  const names = variables.map((v) => v.name),
+  const names = variables.map((v) => v.ts?.name ?? v.name),
     matrix = (values) => ({ rowNames: names, colNames: names, values });
   session.results.r = {
     N: N[0][1],
@@ -1247,7 +1248,12 @@ export const EVERYDAY_COMMANDS = [
   // ci is byable(recall) in Stata: under by it runs once per group.
   { name: "ci", minimum: 2, run: perGroup(ci), byable: true },
   { name: "cii", minimum: 3, run: cii },
-  { name: "pwcorr", minimum: 6, run: perGroup(pwcorr), byable: true },
+  {
+    name: "pwcorr",
+    minimum: 6,
+    run: operatorVariables(perGroup(pwcorr)),
+    byable: true,
+  },
   { name: "spearman", minimum: 8, run: spearman },
   { name: "clonevar", minimum: 8, run: clonevar },
   {

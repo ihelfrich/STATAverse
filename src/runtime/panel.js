@@ -223,8 +223,14 @@ function xtset(session, text, ctx) {
   }
 }
 
-/** Evaluator for L., F. and D. applied to a variable, under the xtset order. */
-export function timeSeriesOperator(session, operator, order, name) {
+/**
+ * Evaluator for time-series operators applied to a variable, under the
+ * xtset order: ops is a list of [letter, order] pairs, L, F, D or S, as
+ * L2D.x gives [["L", 2], ["D", 1]]. Each operator is a shift or a
+ * difference of shifts relative to the observation's own period, so they
+ * combine in any order, as Stata's do.
+ */
+export function timeSeriesOperator(session, ops, name) {
   const panel = session.panel;
   if (!panel?.time) throw new StataError("time variable not set", 111);
   const data = session.data,
@@ -250,19 +256,26 @@ export function timeSeriesOperator(session, operator, order, name) {
     const row = index.get(`${columns.id ? columns.id[i] : ""}|${t + shift}`);
     return row === undefined ? MISSING : data.get(variable.name).data[row];
   };
-  // Under delta(), a lag of one is one delta earlier.
-  const k = order || 1,
-    step = panel.delta ?? 1;
-  if (operator === "L") return (i) => at(i, -k * step);
-  if (operator === "F") return (i) => at(i, k * step);
-  // D is the difference; D2 is the difference of differences.
-  const difference = (i, depth, shift) => {
-    if (depth === 0) return at(i, shift * step);
-    const a = difference(i, depth - 1, shift),
-      b = difference(i, depth - 1, shift - 1);
-    return isMissing(a) || isMissing(b) ? MISSING : a - b;
+  // Under delta(), a lag of one is one delta earlier. D2 is the difference
+  // of differences; S12 the difference with twelve periods before.
+  const step = panel.delta ?? 1,
+    minus = (a, b) => (isMissing(a) || isMissing(b) ? MISSING : a - b);
+  const value = (i, k, shift) => {
+    if (k === ops.length) return at(i, shift * step);
+    const [letter, order] = ops[k];
+    if (letter === "L") return value(i, k + 1, shift - order);
+    if (letter === "F") return value(i, k + 1, shift + order);
+    if (letter === "S")
+      return order
+        ? minus(value(i, k + 1, shift), value(i, k + 1, shift - order))
+        : value(i, k + 1, shift);
+    const difference = (depth, s) =>
+      depth === 0
+        ? value(i, k + 1, s)
+        : minus(difference(depth - 1, s), difference(depth - 1, s - 1));
+    return difference(order, shift);
   };
-  return (i) => difference(i, k, 0);
+  return (i) => value(i, 0, 0);
 }
 
 function correlation(a, b, w = null) {

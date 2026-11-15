@@ -330,6 +330,8 @@ const BY_RECALL = new Set([
 // Estimation commands that, typed alone, show the last fit again; with no
 // fit there is nothing to show (r(301)).
 const REPLAYED = new Set([...BY_RECALL, "xtreg", "rreg", "intreg", "truncreg"]);
+// Byable(recall) estimators that replay themselves when typed alone.
+const BY_RECALL_REPLAYING = new Set(["stcox", "arima"]);
 // Prefix commands, which run an estimator and show their own replay.
 const PREFIX_COMMANDS = new Set([
   "svy",
@@ -476,8 +478,7 @@ export class Session {
         }
         return coefficientValue(model, kind, name);
       },
-      series: (operator, order, name) =>
-        timeSeriesOperator(this, operator, order, name),
+      series: (ops, name) => timeSeriesOperator(this, ops, name),
       system: (name) =>
         ({
           N: this.data.n,
@@ -918,7 +919,11 @@ export class Session {
       // With no observations there are no groups, and by runs nothing:
       // even generate creates no variable.
       if (flags.by && !flags.by.groups.length && command.byable) return;
-      const recall = flags.by && !command.byable && BY_RECALL.has(command.name);
+      const recall =
+        flags.by &&
+        !command.byable &&
+        (BY_RECALL.has(command.name) ||
+          BY_RECALL_REPLAYING.has(command.name));
       if (flags.by && !command.byable && !recall)
         throw new StataError(
           `${command.name} may not be combined with by`,
@@ -961,7 +966,12 @@ export class Session {
             start.at = lines.length ?? 0;
             this.panelRows = rows;
             try {
-              return command.run(this, text, { ...inner, by: undefined });
+              const value = command.run(this, text, { ...inner, by: undefined });
+              // by leaves a blank line before the next group's rule, which
+              // an estimator whose table ends in a rule does not print.
+              if (Array.isArray(lines) && lines.length && lines.at(-1) !== "")
+                inner.out("");
+              return value;
             } finally {
               this.panelRows = outer;
             }

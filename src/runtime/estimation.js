@@ -21,8 +21,9 @@ import {
   weightedRows,
 } from "./reports.js";
 import { optionItems, splitAtComma } from "./syntax.js";
-import { resolveVariable } from "./varlist.js";
+import { operatorGroups, resolveVariable } from "./varlist.js";
 import { parseNumlist } from "./numlist.js";
+import { operatorVariables } from "./timeseries.js";
 import {
   MISSING,
   byteLength,
@@ -3640,18 +3641,38 @@ function correlate(session, text, ctx) {
       ? variables.length
       : Math.max(1, Math.floor((linesize - 14) / 9)),
     out = (line) => fold(line, linesize).forEach((part) => ctx.out(part));
+  // Under time-series operators a column shows its operators above the
+  // variable's name, and the rows of one variable are grouped under it as
+  // L1., D1. and --.
+  const groups = operatorGroups(variables),
+    heads = new Map(
+      groups.flatMap((group) =>
+        group.members.map((k, j) => [k, group.headed && !j ? group.base : null]),
+      ),
+    ),
+    headed = new Set(
+      groups.filter((g) => g.headed).flatMap((g) => g.members),
+    );
   for (let start = 0; start < variables.length; start += across) {
     const block = variables.slice(start, start + across);
     ctx.out("");
-    out(`             |${block.map((v) => column(v.name)).join("")}`);
-    out(`-------------+${"-".repeat(9 * block.length)}`);
-    for (let a = start; a < variables.length; a++)
+    if (block.some((v) => v.ts))
       out(
-        `${row(variables[a].name)} |${block
+        `             | ${block.map((v) => (v.ts?.prefix ?? "").padStart(9)).join("")}`,
+      );
+    out(
+      `             |${block.map((v) => column(v.ts?.variable ?? v.name)).join("")}`,
+    );
+    out(`-------------+${"-".repeat(9 * block.length)}`);
+    for (let a = start; a < variables.length; a++) {
+      if (heads.get(a)) out(`${row(heads.get(a))} |`);
+      out(
+        `${headed.has(a) ? (variables[a].ts?.label ?? "--.").padStart(12) : row(variables[a].name)} |${block
           .slice(0, a - start + 1)
           .map((_, k) => shown(a, start + k))
           .join("")}`,
       );
+    }
   }
   ctx.out("");
   // Under by, Stata's by adds a blank line before the next group's rule.
@@ -3671,8 +3692,8 @@ function correlate(session, text, ctx) {
         }
       : {}),
     "matrix:C": {
-      rowNames: variables.map((v) => v.name),
-      colNames: variables.map((v) => v.name),
+      rowNames: variables.map((v) => v.ts?.name ?? v.name),
+      colNames: variables.map((v) => v.ts?.name ?? v.name),
       values: C.map((row, a) =>
         row.map((value, b) =>
           options.covariance ? value : correlationOf(C, a, b),
@@ -4106,6 +4127,11 @@ export const ESTIMATION_COMMANDS = [
   { name: "predict", minimum: 7, run: predict },
   { name: "test", minimum: 4, run: test },
   { name: "lincom", minimum: 6, run: lincom },
-  { name: "correlate", minimum: 3, run: perGroup(correlate), byable: true },
+  {
+    name: "correlate",
+    minimum: 3,
+    run: operatorVariables(perGroup(correlate)),
+    byable: true,
+  },
   { name: "tabstat", minimum: 7, run: tabstat },
 ];

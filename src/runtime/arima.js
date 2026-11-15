@@ -363,7 +363,7 @@ function specification(session, text) {
     ar = Array.from({ length: values[0] }, (_, j) => j + 1);
     ma = Array.from({ length: values[2] }, (_, j) => j + 1);
   }
-  const frame = timeFrame(session, "arima");
+  const frame = timeFrame(session, "arima", parsed);
   // A string variable, as in Stata, leaves no observations.
   let terms = tsTerms(session, parsed.anything, { strings: true });
   if (d) terms = terms.map((t) => tsTerm(t.variable, [["D", d], ...t.ops]));
