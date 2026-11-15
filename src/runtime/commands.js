@@ -2000,6 +2000,21 @@ function temporary(prefix) {
     }
   };
 }
+/**
+ * tempfile: names in Stata's temporary folder, numbered apart from those of
+ * tempvar and tempname. Each has an extension of its own (St00001.000001),
+ * so save keeps the name as given and says it saved the file as .dta format.
+ */
+function temporaryFile(session, text, ctx) {
+  for (const name of text.trim().split(/\s+/).filter(Boolean)) {
+    session.temporaryFiles = (session.temporaryFiles ?? 0) + 1;
+    setMacro(
+      ctx.frame.locals,
+      name,
+      `/tmp/St00001.${String(session.temporaryFiles).padStart(6, "0")}`,
+    );
+  }
+}
 function args(session, text, ctx) {
   text
     .trim()
@@ -3583,7 +3598,7 @@ export const COMMANDS = [
   command("gettoken", 8, gettoken),
   command("tempvar", 7, temporary("")),
   command("tempname", 8, temporary("")),
-  command("tempfile", 8, temporary("")),
+  command("tempfile", 8, temporaryFile),
   command("args", 4, args),
   command("syntax", 6, syntaxCommand),
   command("return", 3, returns("r")),

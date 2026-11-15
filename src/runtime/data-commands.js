@@ -7,8 +7,9 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { count, list } from "./reports.js";
 import { applySyntax, splitAtComma } from "./syntax.js";
-import { Dataset } from "./store.js";
-import { findFile } from "./files.js";
+import { Dataset, defineCharacteristic } from "./store.js";
+import { expandVarlist } from "./varlist.js";
+import { findFile, folderName } from "./files.js";
 import { oldMerge } from "./merge-old.js";
 import {
   MAX_STRING_WIDTH,
@@ -186,18 +187,29 @@ function stampNow(now = new Date()) {
 const copy = (value) =>
   value === undefined ? undefined : structuredClone(value);
 
+/**
+ * Stata's refusal of a file in the folder that is not a Stata dataset: a
+ * text file, a workbook, SPSS or SAS file kept as its bytes, or a picture
+ * written by graph export. null for a dataset.
+ */
+function notDataset(name, stored) {
+  if (stored.bytes instanceof Uint8Array || !Array.isArray(stored.variables))
+    return new StataError(
+      `file ${name} not Stata format`,
+      610,
+      typeof stored.text === "string"
+        ? `${name} is a text file. Read it with import delimited using ${name}, clear`
+        : /\.xlsx?$/i.test(name)
+          ? `${name} is an Excel workbook. Read it with import excel using ${name}, firstrow clear`
+          : "",
+    );
+  return null;
+}
 export function load(session, name) {
   const stored = files(session).get(findFile(files(session), name));
   if (!stored) throw new StataError(`file ${name} not found`, 601);
-  if (typeof stored.text === "string")
-    throw new StataError(
-      `${name} is a text file, not a Stata dataset; use import delimited`,
-      610,
-    );
-  // A workbook, SPSS or SAS file added to the folder is kept as its bytes,
-  // and a picture written by graph export as its own kind of file.
-  if (stored.bytes instanceof Uint8Array || !Array.isArray(stored.variables))
-    throw new StataError(`file ${name} not Stata format`, 610);
+  const refused = notDataset(name, stored);
+  if (refused) throw refused;
   const data = new Dataset({ defaultType: session.data.defaultType });
   data.restore(stored);
   data.defaultType = session.data.defaultType;
@@ -218,15 +230,17 @@ function save(session, text, ctx) {
       text.replace(/^(\s*)using(?=\s*(,|$))/, '$1"using"'),
     ),
     name = fileName(parsed.anything || data.filename || ""),
+    // ./people.dta is people.dta in the session's folder.
+    kept = folderName(name),
     store = files(session);
-  if (store.has(name) && !parsed.options.replace)
-    throw new StataError(`file ${name} already exists`, 602);
+  if (store.has(kept) && !parsed.options.replace)
+    throw new StataError(hanging(session, `file ${name} already exists`), 602);
   if (!data.variables.length && !parsed.options.emptyok)
     throw new StataError("no variables defined", 111);
   if (!data.n && parsed.options.emptyok)
     ctx.out("(dataset contains 0 observations)");
-  if (parsed.options.replace && !store.has(name))
-    ctx.out(`(file ${name} not found)`);
+  if (parsed.options.replace && !store.has(kept))
+    ctx.out(hanging(session, `(file ${name} not found)`));
   const stamp = stampNow(),
     snapshot = data.snapshot(),
     used = new Set(data.variables.map((v) => v.valueLabel));
@@ -240,14 +254,23 @@ function save(session, text, ctx) {
           .filter(([label]) => parsed.options.orphans || used.has(label))
           .reverse(),
   );
-  store.set(name, {
+  store.set(kept, {
     ...snapshot,
     notes: copy(data.notes),
-    chars: copy(data.chars),
+    // Stata writes each owner's characteristics oldest first, so that they
+    // are listed in the opposite order once the file is used again.
+    chars: redefinedCharacteristics(data),
     timestamp: stamp,
   });
-  settle(data, name, stamp);
-  ctx.out(`file ${name} saved`);
+  settle(data, kept, stamp);
+  // A name with another extension, a tempfile's among them, is still
+  // written as a Stata dataset, and save says so.
+  ctx.out(
+    hanging(
+      session,
+      `file ${name} saved${/\.dta$/i.test(name) ? "" : " as .dta format"}`,
+    ),
+  );
 }
 
 /**
@@ -280,7 +303,19 @@ function use(session, text, ctx) {
       { n: Number.MAX_SAFE_INTEGER },
     ),
     name = fileName(form.using ?? form.anything),
-    data = load(session, name);
+    stored = files(session).get(findFile(files(session), name));
+  if (stored && notDataset(name, stored)) {
+    // Stata lets the data in memory go before it reads the file, so a file
+    // that is not a dataset leaves none.
+    if (changed(session) && !form.options.clear)
+      throw new StataError(
+        "no; dataset in memory has changed since last saved",
+        4,
+      );
+    session.data = new Dataset({ defaultType: session.data.defaultType });
+    throw notDataset(name, stored);
+  }
+  const data = load(session, name);
   if (changed(session) && !form.options.clear)
     throw new StataError(
       "no; dataset in memory has changed since last saved",
@@ -411,10 +446,63 @@ export function reconcile(session, command, data, other, names, options, ctx) {
   return ignored;
 }
 
-/** The file names after using, each quoted or a single word. */
+/**
+ * Brings the using data's characteristics into the data, as append, merge,
+ * cross and joinby do: those of _dta and of each variable named in kept that
+ * the data now have. A characteristic the data already define keeps their
+ * text; notes come after the data's own, a note the data already hold for
+ * the same owner left out, unless nonotes. Stata adds them one by one, so
+ * each becomes the newest: the other characteristics first, then each note
+ * and the count note0.
+ */
+export function bringCharacteristics(data, other, kept, { notes = true } = {}) {
+  const wanted = new Set(kept);
+  for (const [owner, theirs] of other.chars ?? new Map()) {
+    if (owner !== "_dta" && !(wanted.has(owner) && data.has(owner))) continue;
+    for (const [name, text] of theirs)
+      if (!/^note\d+$/.test(name) && !data.chars?.get(owner)?.has(name))
+        defineCharacteristic(data, owner, name, text);
+    if (!notes) continue;
+    const last = Number(theirs.get("note0"));
+    for (let k = 1; k <= (Number.isInteger(last) ? last : 0); k++) {
+      const text = theirs.get(`note${k}`);
+      if (text === undefined) continue;
+      const mine = data.chars?.get(owner) ?? new Map(),
+        held = [...mine].some(
+          ([name, value]) => /^note[1-9]\d*$/.test(name) && value === text,
+        );
+      if (held) continue;
+      const next = (Number(mine.get("note0")) || 0) + 1;
+      defineCharacteristic(data, owner, `note${next}`, text);
+      defineCharacteristic(data, owner, "note0", String(next));
+    }
+  }
+}
+/**
+ * The characteristics of the data as merge and joinby leave them before the
+ * using data's come in: Stata defines them afresh, so each owner's are
+ * listed in the opposite order.
+ */
+export function redefinedCharacteristics(data) {
+  return new Map(
+    [...(data.chars ?? new Map())].map(([owner, chars]) => [
+      owner,
+      new Map([...chars].reverse()),
+    ]),
+  );
+}
+
+/** The file names after using, each quoted or a single word, as typed. */
 function usingFiles(text) {
-  const names = (text.match(/`"[^"]*"'|"[^"]*"|\S+/g) ?? []).map(fileName);
-  if (!names.length) throw invalid("invalid file specification");
+  const names = (text.match(/`"[^"]*"'|"[^"]*"|\S+/g) ?? []).map((word) =>
+    word.startsWith('`"') && word.endsWith("\"'")
+      ? word.slice(2, -2)
+      : word.startsWith('"') && word.endsWith('"')
+        ? word.slice(1, -1)
+        : word,
+  );
+  if (!names.length || names.some((name) => !name))
+    throw invalid("invalid file specification");
   return names;
 }
 
@@ -424,11 +512,21 @@ function append(session, text, ctx) {
     m = /^\s*using\b([\s\S]*)$/.exec(head);
   if (!m) throw new StataError("using required", 100);
   const parsed = session.parse(
-      "[, GENerate(name) FORCE KEEP(string) noLabel | noNOTEs]",
+      "[, GENerate(name) FORCE KEEP(string) noLabel noNOTEs]",
       optionText === null ? "" : "," + optionText,
     ),
-    names = usingFiles(m[1]),
-    others = names.map((name) => load(session, name)),
+    // append.ado reads each file's description first, and any file it
+    // cannot describe, missing or not a dataset, is "not found" by the
+    // name as typed.
+    others = usingFiles(m[1]).map((name) => {
+      try {
+        return load(session, fileName(name));
+      } catch (error) {
+        if (error instanceof StataError && [601, 610].includes(error.code))
+          throw new StataError(`file ${name} not found`, 601, error.hint);
+        throw error;
+      }
+    }),
     data = session.data,
     marker = parsed.options.generate;
   if (marker && data.has(marker))
@@ -446,7 +544,7 @@ function append(session, text, ctx) {
   others.forEach((other, k) => {
     const n = data.n,
       kept = parsed.options.keep
-        ? expand(parsed.options.keep, other.names)
+        ? usingVarlist(session, parsed.options.keep, other.names)
         : other.names,
       ignored = reconcile(
         session,
@@ -491,6 +589,9 @@ function append(session, text, ctx) {
         valueLabel: theirs.valueLabel,
       });
     }
+    bringCharacteristics(data, other, kept, {
+      notes: parsed.options.notes !== false,
+    });
   });
   if (marker) {
     // label values widens the format to the longest label.
@@ -554,6 +655,23 @@ function hanging(session, text) {
   lines.push(line);
   return lines.join("\n");
 }
+/**
+ * merge's and joinby's refusal of a key variable that is a string in one
+ * dataset and numeric in the other.
+ */
+export function keyTypes(session, key, data, other) {
+  const mine = data.get(key).type,
+    theirs = other.get(key).type;
+  if (isStringType(mine) !== isStringType(theirs))
+    throw new StataError(
+      `key variable ${key} is ${mine} in master but ${theirs} in using data\n` +
+        paragraph(
+          session,
+          "Each key variable (on which observations are matched) must be of the same generic type in the master and using datasets.  Same generic type means both numeric or both string.",
+        ),
+      106,
+    );
+}
 /** merge's refusal of a strL key; where is " in master data." or the like. */
 export function strLKey(session, key, where) {
   return new StataError(
@@ -587,7 +705,7 @@ function merge(session, text, ctx) {
     (whole, before, name) => `${before}using "${name}"`,
   );
   const parsed = session.parse(
-      `${sequential ? "" : "varlist "}using/ [, KEEPUSing(string) GENerate(name) noGENerate KEEP(string) ASSERT(string) NOREPort UPDATE REPLACE FORCE noLabel | SORTED noNOTEs]`,
+      `${sequential ? "" : "varlist "}using/ [, KEEPUSing(string) GENerate(name) noGENerate KEEP(string) ASSERT(string) NOREPort UPDATE REPLACE FORCE noLabel noNOTEs | SORTED]`,
       rest,
     ),
     data = session.data,
@@ -627,11 +745,7 @@ function merge(session, text, ctx) {
   const other = load(session, fileName(parsed.using));
   for (const key of keys) {
     if (!other.has(key)) throw new StataError(`variable ${key} not found`, 111);
-    if (isStringType(other.get(key).type) !== isStringType(data.get(key).type))
-      throw new StataError(
-        `key variable ${key} is str in one dataset and numeric in the other`,
-        106,
-      );
+    keyTypes(session, key, data, other);
   }
   // A key may be str# but not strL, in either dataset.
   for (const key of keys) {
@@ -678,7 +792,7 @@ function merge(session, text, ctx) {
       ? [
           ...new Set([
             ...keys,
-            ...expand(parsed.options.keepusing, other.names),
+            ...usingVarlist(session, parsed.options.keepusing, other.names),
           ]),
         ]
       : other.names,
@@ -807,6 +921,10 @@ function merge(session, text, ctx) {
       valueLabel: theirs.valueLabel,
     });
   }
+  result.chars = redefinedCharacteristics(data);
+  bringCharacteristics(result, other, wanted, {
+    notes: parsed.options.notes !== false,
+  });
   if (!noMarker) {
     result.generate(
       marker,
@@ -876,19 +994,23 @@ function merge(session, text, ctx) {
   }
 }
 
-function expand(text, names) {
-  return text
-    .trim()
-    .split(/\s+/)
-    .flatMap((word) => {
-      const hits = names.filter(
-        (name) => name === word || name.startsWith(word),
-      );
-      if (names.includes(word)) return [word];
-      if (hits.length !== 1)
-        throw new StataError(`variable ${word} not found`, 111);
-      return hits;
-    });
+/** The varlist of merge's keepusing() or append's keep(), read against the
+ * using data's names, with the paragraph Stata adds to an error in it.
+ */
+function usingVarlist(session, text, names) {
+  try {
+    return expandVarlist(text, names);
+  } catch (error) {
+    if (!(error instanceof StataError)) throw error;
+    throw new StataError(
+      `${error.message}\n` +
+        paragraph(
+          session,
+          "You specified the keep(varlist) option.  The above error was the result of parsing the list of variables you supplied against the using data.",
+        ),
+      error.code,
+    );
+  }
 }
 
 // ----- reshape -----
@@ -2725,6 +2847,28 @@ function recode(session, text, ctx) {
 const quiet = () => {};
 
 /**
+ * cd: the session has one folder, /stataverse, so cd changes to it and
+ * shows it, as Stata shows the folder it changes to, and to no other: a
+ * folder on the student's computer is not there, and Stata's message says
+ * it cannot change to it.
+ */
+function cd(session, text, ctx) {
+  const typed = text.trim(),
+    m = /^(?:`"([^"]*)"'|"([^"]*)"|([^\s",]+))$/.exec(typed);
+  if (typed && !m) throw invalid();
+  const folder = m ? (m[1] ?? m[2] ?? m[3]) : "";
+  if (["", ".", "./", "/stataverse", "/stataverse/"].includes(folder)) {
+    ctx.out("/stataverse");
+    return;
+  }
+  throw new StataError(
+    `unable to change to ${folder}`,
+    170,
+    "In the browser every file is in one folder, /stataverse: the files added in Data. Leave the cd line out, and name files without a folder.",
+  );
+}
+
+/**
  * cmdlog: a file of the commands typed in the Command window, in the
  * session's folder. As in Stata, the commands of a do-file are not written
  * to it (see console-session.js, which writes the typed ones).
@@ -2791,11 +2935,11 @@ export const DATA_COMMANDS = [
   { name: "encode", minimum: 2, run: encode },
   { name: "decode", minimum: 3, run: decode },
   { name: "recode", minimum: 6, run: recode },
-  // A browser session has one folder; these are accepted so that do-files
+  // A browser session has one folder; mkdir is accepted so that do-files
   // written for Stata keep running. The Console keeps a log (session.log)
   // the student can download.
   { name: "mkdir", minimum: 5, run: quiet },
-  { name: "cd", minimum: 2, run: quiet },
+  { name: "cd", minimum: 2, run: cd },
   {
     name: "log",
     minimum: 3,

@@ -14,6 +14,7 @@ import { invttail, ttail } from "./distributions.js";
 import { FUNCTIONS } from "./functions.js";
 import { count, moments, percentile, perGroup } from "./reports.js";
 import {
+  byteLength,
   formatNumber,
   isMissing,
   isStringType,
@@ -84,11 +85,13 @@ export function abbreviateVariable(data, name, width) {
 
 /**
  * ds_util.ado's DisplayInCols: items in as many columns of equal width as
- * the line holds, filled down each column in turn.
+ * the line holds, filled down each column in turn. The width is that of the
+ * longest item in bytes, so a name with letters beyond ASCII widens the
+ * columns by more than its characters do.
  */
 export function displayInColumns(session, items, ctx, skip = 2) {
   if (!items.length) return;
-  const width = greatest(items.map((item) => item.length)) + skip,
+  const width = greatest(items.map((item) => byteLength(item))) + skip,
     columns = Math.floor(((session.settings.linesize ?? 80) + 1) / width);
   if (columns < 2) {
     items.forEach((item) => ctx.out(item));

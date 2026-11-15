@@ -38,6 +38,8 @@ const library = Object.fromEntries(
  * Whether added bytes are text: no NUL in the text they decode to, and no
  * zero byte at all unless the scan chose UTF-16 or UTF-32, whose files are
  * whole numbers of their code units. A .dta, .xlsx or .zip file fails.
+ * Bytes with no zero among them are text whatever the scan named them: a
+ * 29-byte ASCII file is named UTF-16LE by Stata's scan, and read as such.
  */
 function looksLikeText(bytes, stored) {
   const unit = /^UTF-32/.test(stored.encoding)
@@ -45,11 +47,8 @@ function looksLikeText(bytes, stored) {
     : /^UTF-16/.test(stored.encoding)
       ? 2
       : 1;
-  return (
-    !stored.text.includes("\0") &&
-    bytes.length % unit === 0 &&
-    (unit > 1 || !bytes.includes(0))
-  );
+  if (!bytes.includes(0)) return !stored.text.includes("\0");
+  return !stored.text.includes("\0") && bytes.length % unit === 0 && unit > 1;
 }
 
 export function createConsoleSession() {

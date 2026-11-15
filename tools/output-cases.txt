@@ -26607,3 +26607,250 @@ generate w = 1 + runiform()
 generate y = 2 + 3*x + g/10 + rnormal()
 regress y x i.g
 regress y x i.g [aw=w], vce(robust)
+=== recheck-files-merge-notes-chars
+clear
+input id x
+1 10
+2 20
+3 30
+end
+char x[unit] kg
+char _dta[foo] master
+notes x: master note
+notes x: shared note
+notes: master dta note
+save rfnm, replace
+clear
+input id x y
+1 11 5
+2 21 6
+4 41 7
+end
+char x[unit] lb
+char x[other] u
+char y[unit] cm
+char _dta[foo] using
+char _dta[bar] using
+notes x: using note
+notes x: shared note
+notes y: y note
+notes: using dta note
+notes id: id using note
+save rfnu, replace
+use rfnm, clear
+char list
+merge 1:1 id using rfnu, nogenerate
+notes
+char list
+describe
+use rfnm, clear
+merge 1:1 id using rfnu, nogenerate nonotes
+notes
+char list
+use rfnm, clear
+merge 1:1 id using rfnu, nogenerate keepusing(x)
+char list
+=== recheck-files-append-cross-joinby-notes
+clear
+input id x z
+1 10 0
+2 20 0
+end
+char x[unit] kg
+char z[a] 1
+notes x: master note
+notes: master dta note
+save rfam, replace
+clear
+input id x y
+1 11 5
+3 31 7
+end
+char x[unit] lb
+char x[other] u
+char y[unit] cm
+notes x: using note
+notes x: master note
+notes y: y note
+notes: using dta note
+save rfau, replace
+use rfam, clear
+append using rfau
+notes
+char list
+use rfam, clear
+append using rfau rfau, generate(src)
+notes
+use rfam, clear
+append using rfau, nonotes
+notes
+char list
+use rfam, clear
+drop x
+cross using rfau
+notes
+char list
+use rfam, clear
+joinby id using rfau, unmatched(both)
+notes
+char list
+=== recheck-files-char-order-save-use
+clear
+set obs 1
+generate z = 1
+char z[a] 1
+char z[b] 2
+notes z: first
+notes z: second
+char _dta[q] 3
+char list
+save rfco, replace
+use rfco, clear
+char list
+save rfco, replace
+use rfco, clear
+char list
+=== recheck-files-merge-messages
+set linesize 79
+clear
+input id str3 s x
+1 "a" 5
+2 "b" 6
+end
+save rfmm, replace
+clear
+input str2 id xa xb
+"1" 3 4
+end
+save rfms, replace
+clear
+input id xa xb
+1 3 4
+end
+save rfmn, replace
+use rfmm, clear
+capture noisily merge 1:1 id using rfms
+display _rc
+capture noisily merge 1:1 id using rfmn, keepusing(nothere)
+display _rc
+capture noisily merge 1:1 id using rfmn, keepusing(x)
+display _rc
+capture noisily merge 1:1 id using rfmn, keepusing(xa q*)
+display _rc
+capture noisily merge 1:1 id using rfmn, keepusing(x*)
+display _rc
+capture noisily append using rfnosuch
+display _rc
+capture noisily append using "rf no such.dta"
+display _rc
+capture noisily append using rfmn rfnosuch2
+display _rc
+display _N
+use rfms, clear
+capture noisily merge 1:1 id using rfmm
+display _rc
+capture noisily joinby id using rfmm
+display _rc
+display _N
+=== recheck-files-not-stata-format
+clear
+set obs 2
+generate id = _n
+generate v = 10 * _n
+export delimited using rfnsf.csv, replace
+save rfnsf, replace
+capture noisily merge 1:1 id using rfnsf.csv
+display _rc " " _N
+capture noisily append using rfnsf.csv
+display _rc " " _N
+capture noisily describe using rfnsf.csv
+display _rc
+capture noisily use rfnsf.csv
+display _rc " " _N
+capture noisily use rfnsf.csv, clear
+display _rc " " _N
+capture noisily use rfnosuch, clear
+display _rc " " _N
+=== recheck-files-dot-slash
+clear
+set obs 3
+generate id = _n
+save "./rfdot", replace
+export delimited using ./rfdot.csv, replace
+use ./rfdot, clear
+describe using ./rfdot, short
+import delimited using ./rfdot.csv, clear
+use "./rfdot.dta", clear
+merge 1:1 id using ./rfdot, nogenerate
+append using ./rfdot
+count
+=== recheck-files-save-other-extension
+set linesize 79
+clear
+set obs 2
+generate x = _n
+save rfother.dat
+use rfother.dat, clear
+capture noisily save rfother.dat
+save rfother.dat, replace
+save rfdtaname.dta
+=== recheck-files-nobind
+clear
+input id str20 note
+1 `"say "hi""'
+2 `"""'
+3 `"a,b"'
+end
+export delimited using rfnob.csv, replace quote
+import delimited using rfnob.csv, bindquotes(nobind) clear
+list
+import delimited using rfnob.csv, bindquotes(nobind) stripquotes(no) clear
+list
+=== recheck-files-ds-utf8
+clear
+set obs 1
+generate a = 1
+generate b = 1
+generate école = 1
+generate c = 1
+ds
+generate ééééé = 1
+ds
+ds, skip(1)
+=== recheck-files-numericcols-text
+clear
+input str6 p str6 q str6 r str6 s str6 t str6 u str6 v
+"1" "1" "1" "1" "1" "1.5" "300"
+"x" "ab" "abc" "abcdef" "NA" "x" "abcdef"
+"" "1.5" "100000" "" "300" "ab" "1.5"
+end
+export delimited using rfnum.csv, novarnames replace
+import delimited using rfnum.csv, numericcols(_all) clear
+describe
+list
+import delimited using rfnum.csv, numericcols(_all) varnames(nonames) clear
+describe
+import delimited using rfnum.csv, numericcols(2 3) clear
+describe
+=== recheck-files-charset-29-bytes
+clear
+input Alpha Beta str1 Gamma
+1 2 "x"
+3 4 "y"
+end
+export delimited using rfsemi.csv, delimiter(";") replace
+import delimited using rfsemi.csv, clear
+=== recheck-files-list-tab
+clear
+set obs 2
+generate s = "id" + char(9) + "name"
+replace s = "a" + char(9) + "b" + char(9) + "c" in 2
+list
+list, clean noobs
+list, table divider
+=== recheck-files-cd
+capture noisily cd "/Users/student/Dropbox/ECON400"
+display _rc
+capture noisily cd C:\Users\me\Documents
+capture noisily cd a b
+display _rc

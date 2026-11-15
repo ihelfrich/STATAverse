@@ -2,7 +2,14 @@
 // that combine or rearrange datasets: cross, joinby and stack.
 import { greatest } from "./extremes.js";
 import { Signal, StataError } from "./errors.js";
-import { fileName, load, strLKey } from "./data-commands.js";
+import {
+  bringCharacteristics,
+  fileName,
+  keyTypes,
+  load,
+  redefinedCharacteristics,
+  strLKey,
+} from "./data-commands.js";
 import { INSPECT_COMMANDS } from "./data-inspect.js";
 import { parseBlocks, splitCommands } from "./dofile.js";
 import { fileEcho } from "./echo.js";
@@ -256,6 +263,7 @@ function cross(session, text) {
   data.sortedBy = [];
   for (const variable of other.variables)
     if (!data.has(variable.name)) bring(data, variable, using);
+  bringCharacteristics(data, other, other.names);
 }
 
 function joinby(session, text, ctx) {
@@ -287,6 +295,7 @@ function joinby(session, text, ctx) {
   }
   for (const key of keys)
     if (!other.has(key)) throw new StataError(`variable ${key} not found`, 111);
+  for (const key of keys) keyTypes(session, key, data, other);
   // A key may be str# but not strL, as in merge.
   for (const key of keys) {
     const mine = data.get(key).type === "strL",
@@ -364,6 +373,8 @@ function joinby(session, text, ctx) {
   }
   for (const variable of other.variables)
     if (!data.has(variable.name)) bring(data, variable, using);
+  data.chars = redefinedCharacteristics(data);
+  bringCharacteristics(data, other, other.names);
   unfiled(data);
 }
 /**
