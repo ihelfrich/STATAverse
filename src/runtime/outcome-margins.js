@@ -92,6 +92,45 @@ function outcomeName(session, model, value) {
   return text.replace(/ /g, "_");
 }
 
+/**
+ * The index of the outcome outcome() names: #k, a value, or (after mlogit
+ * only) a value label. Each model refuses others in its own words: mlogit
+ * as an equation or outcome not found, r(303); ologit and oprobit as not
+ * a value of the outcome, r(111).
+ */
+function chooseOutcome(session, model, s, word) {
+  const ordered = model.kind !== "mlogit",
+    k = s.outcomes.length;
+  if (word.startsWith("#")) {
+    const n = Number(word.slice(1));
+    if (Number.isInteger(n) && n >= 1 && n <= k) return n - 1;
+    if (ordered)
+      throw new StataError(
+        `there is no outcome ${word}\nthere are only ${k} categories`,
+        111,
+      );
+    throw new StataError(`equation ${word} not found`, 303);
+  }
+  const numeric = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(word);
+  let j = s.outcomes.findIndex(
+    (value) => String(value) === word || (numeric && Number(word) === value),
+  );
+  if (j < 0 && !ordered) {
+    const variable = session.data.get(model.depvar);
+    j = s.outcomes.findIndex(
+      (value) =>
+        session.data.valueLabels.get(variable.valueLabel)?.get(value) === word,
+    );
+  }
+  if (j >= 0) return j;
+  if (ordered)
+    throw new StataError(
+      `${numeric ? `outcome ${word} not found\n` : ""}outcome() must be either a value of ${model.depvar}\nor #1, #2, ...`,
+      111,
+    );
+  throw new StataError(`outcome ${word} not found`, 303);
+}
+
 export function outcomeMargins(session, model, text, ctx) {
   const s = model.outcomeModel;
   if (!s || s.columns.some((c) => !c.evaluate))
@@ -146,11 +185,7 @@ export function outcomeMargins(session, model, text, ctx) {
     // The outcomes asked for: one, or all of them.
     asked = /outcome\(\s*([^)\s]+)\s*\)/.exec(options.predict ?? ""),
     chosen = asked
-      ? [
-          asked[1].startsWith("#")
-            ? Number(asked[1].slice(1)) - 1
-            : s.outcomes.findIndex((value) => String(value) === asked[1]),
-        ]
+      ? [chooseOutcome(session, model, s, asked[1])]
       : s.outcomes.map((_, j) => j),
     terms = parsed.anything?.trim()
       ? marginTermsOf(session, parsed.anything, factors)
@@ -173,8 +208,6 @@ export function outcomeMargins(session, model, text, ctx) {
       `predict(${options.predict}) is not available here; use predict(outcome(#))`,
       198,
     );
-  if (!(chosen[0] >= 0 && chosen[0] < s.outcomes.length))
-    throw new StataError(`outcome ${asked[1]} not found`, 303);
   for (const name of wrt)
     if (name !== null && !names.includes(name))
       throw new StataError(
@@ -217,7 +250,10 @@ export function outcomeMargins(session, model, text, ctx) {
   // takes, when at() fixes no other such factor; the effects are then
   // conditional, as margins says of others.
   const fixedAll = sets.every((set) => {
-    const free = names.filter((name) => !set.has(name));
+    // The factors of the margins term are fixed in each of its cells.
+    const free = names.filter(
+      (name) => !set.has(name) && !(terms[0] ?? []).includes(name),
+    );
     return (
       !free.length ||
       (free.length === 1 &&
@@ -353,7 +389,7 @@ export function outcomeMargins(session, model, text, ctx) {
           .map((value, k) => levelText(term[k], value))
           .join(named ? "#" : " ");
         results.push({
-          label: all ? `${j + 1}#${text}` : text,
+          label: all ? `${j + 1}${named ? "#" : " "}${text}` : text,
           factor: term.join("#"),
           ...margin(fixed, j),
         });
@@ -623,38 +659,55 @@ export function outcomePredict(session, model, text, ctx) {
     linearOnly = options.xb || options.stdp;
   if (Number(!!options.pr) + Number(!!options.xb) + Number(!!options.stdp) > 1)
     throw new StataError("only one statistic may be specified", 198);
-  let chosen = 0;
-  if (options.outcome !== undefined) {
-    const word = options.outcome.trim();
-    chosen = word.startsWith("#")
-      ? Number(word.slice(1)) - 1
-      : s.outcomes.findIndex((value) => String(value) === word);
-    if (!(chosen >= 0 && chosen < s.outcomes.length))
-      throw new StataError(`outcome ${word} not found`, 303);
-  }
+  // The note comes before Stata looks for the outcome.
   if (!linearOnly && !options.pr)
     ctx.out(
       `(option pr assumed; predicted ${options.outcome !== undefined ? "probability" : "probabilities"})`,
     );
+  // The index of an ordered model belongs to no one outcome.
+  if (!multinomial && linearOnly && options.outcome !== undefined)
+    throw new StataError(
+      `option outcome() cannot be specified with option ${options.xb ? "xb" : "stdp"}`,
+      198,
+    );
   // One new variable, or one for each outcome; Stata's mlogit wraps its
   // explanation at the words, ologit's and oprobit's break after "or".
   const k = s.outcomes.length,
-    linesize = session.settings.linesize ?? 79;
-  if (![1, k].includes(names.length)) {
-    const head = `${model.depvar} has ${k} outcomes and so you must specify ${k} new variables, or `,
-      tail =
-        "you can use the outcome() option and specify variables one at a time",
-      explained = multinomial
-        ? wordWrap(head + tail, linesize)
-        : [...wrapLine(head, linesize), tail];
+    linesize = session.settings.linesize ?? 79,
+    counted = () => {
+      if ([1, k].includes(names.length)) return;
+      const head = `${model.depvar} has ${k} outcomes and so you must specify ${k} new variables, or `,
+        tail =
+          "you can use the outcome() option and specify variables one at a time",
+        explained = multinomial
+          ? wordWrap(head + tail, linesize)
+          : [...wrapLine(head, linesize), tail];
+      throw new StataError(
+        [
+          `too ${names.length < k ? "few" : "many"} variables specified`,
+          ...explained,
+        ].join("\n"),
+        names.length < k ? 102 : 103,
+      );
+    };
+  // mlogit asks for one variable with outcome() before it looks for the
+  // outcome; ologit and oprobit count the variables first.
+  if (
+    multinomial &&
+    names.length > 1 &&
+    !linearOnly &&
+    options.outcome !== undefined
+  )
     throw new StataError(
-      [
-        `too ${names.length < k ? "few" : "many"} variables specified`,
-        ...explained,
-      ].join("\n"),
-      names.length < k ? 102 : 103,
+      "option pr with outcome() requires that you specify 1 new variable\ntoo many variables specified",
+      103,
     );
-  }
+  if (!multinomial) counted();
+  const chosen =
+    options.outcome !== undefined
+      ? chooseOutcome(session, model, s, options.outcome.trim())
+      : 0;
+  counted();
   if (names.length > 1 && (linearOnly || options.outcome !== undefined))
     throw new StataError(
       `option ${linearOnly ? (options.xb ? "xb" : "stdp") : "pr with outcome()"} requires that you specify 1 new variable\ntoo many variables specified`,
@@ -703,7 +756,7 @@ export function outcomePredict(session, model, text, ctx) {
     });
     missing = Math.max(missing, made.missing);
     const j = names.length > 1 ? k : chosen,
-      which = `${model.depvar}==${s.outcomes[j]}`;
+      which = `${model.depvar}==${outcomeName(session, model, s.outcomes[j])}`;
     data.get(name).label = options.xb
       ? multinomial
         ? `Linear prediction, ${which}`

@@ -184878,6 +184878,2459 @@
       ]
     },
     {
+      "id": "recheck-limited-glm-gaussian-links",
+      "source": "clear\nset seed 7301\nset obs 200\ngenerate double x = runiform()*4\ngenerate byte f = runiform() > .5\ngenerate double h = 30 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)\ngenerate double s = h/100\ngenerate byte w = 1 + f\nglm h x, link(log)\nglm h x f, link(log) vce(robust)\nglm h x [fw=w], link(log) nolog\ncapture noisily glm h x, link(logit) nolog\ncapture noisily glm h x, family(gaussian) link(probit) nolog\nglm s x, link(logit)\nglm s x f, link(cloglog) nolog\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7301", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        {
+          "command": "generate double h = 30 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)",
+          "lines": []
+        },
+        { "command": "generate double s = h/100", "lines": [] },
+        { "command": "generate byte w = 1 + f", "lines": [] },
+        {
+          "command": "glm h x, link(log)",
+          "lines": [
+            "Iteration 0:  Log likelihood = -662.98942",
+            "Iteration 1:  Log likelihood = -661.61937",
+            "Iteration 2:  Log likelihood =  -661.6092",
+            "Iteration 3:  Log likelihood =  -661.6092",
+            "",
+            "Generalized linear models                         Number of obs   =        200",
+            "Optimization     : ML                             Residual df     =        198",
+            "                                                  Scale parameter =   44.17969",
+            "Deviance         =  8747.579146                   (1/df) Deviance =   44.17969",
+            "Pearson          =  8747.579146                   (1/df) Pearson  =   44.17969",
+            "",
+            "Variance function: V(u) = 1                       [Gaussian]",
+            "Link function    : g(u) = ln(u)                   [Log]",
+            "",
+            "                                                  AIC             =   6.636092",
+            "Log likelihood   = -661.6091972                   BIC             =   7698.512",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OIM",
+            "           h | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .1645105   .0083331    19.74   0.000     .1481778    .1808431",
+            "       _cons |   3.531241   .0232642   151.79   0.000     3.485644    3.576838",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "glm h x f, link(log) vce(robust)",
+          "lines": [
+            "Iteration 0:  Log pseudolikelihood =  -643.9481",
+            "Iteration 1:  Log pseudolikelihood = -642.60601",
+            "Iteration 2:  Log pseudolikelihood = -642.59635",
+            "Iteration 3:  Log pseudolikelihood = -642.59635",
+            "",
+            "Generalized linear models                         Number of obs   =        200",
+            "Optimization     : ML                             Residual df     =        197",
+            "                                                  Scale parameter =   36.71554",
+            "Deviance         =  7232.961244                   (1/df) Deviance =   36.71554",
+            "Pearson          =  7232.961244                   (1/df) Pearson  =   36.71554",
+            "",
+            "Variance function: V(u) = 1                       [Gaussian]",
+            "Link function    : g(u) = ln(u)                   [Log]",
+            "",
+            "                                                  AIC             =   6.455964",
+            "Log pseudolikelihood = -642.5963508               BIC             =   6189.193",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           h | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .1575512    .007739    20.36   0.000     .1423831    .1727193",
+            "           f |   .1121011   .0180129     6.22   0.000     .0767964    .1474058",
+            "       _cons |   3.485481   .0226153   154.12   0.000     3.441155    3.529806",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "glm h x [fw=w], link(log) nolog",
+          "lines": [
+            "Generalized linear models                         Number of obs   =        305",
+            "Optimization     : ML                             Residual df     =        303",
+            "                                                  Scale parameter =   41.77058",
+            "Deviance         =  12656.48672                   (1/df) Deviance =   41.77058",
+            "Pearson          =  12656.48672                   (1/df) Pearson  =   41.77058",
+            "",
+            "Variance function: V(u) = 1                       [Gaussian]",
+            "Link function    : g(u) = ln(u)                   [Log]",
+            "",
+            "                                                  AIC             =   6.576605",
+            "Log likelihood   = -1000.932292                   BIC             =   10923.23",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OIM",
+            "           h | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .1604786   .0065284    24.58   0.000     .1476832    .1732739",
+            "       _cons |   3.558941   .0183857   193.57   0.000     3.522906    3.594977",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily glm h x, link(logit) nolog",
+          "lines": [
+            "no observations",
+            "data not suitable for nonstandard family-link combination"
+          ]
+        },
+        {
+          "command": "capture noisily glm h x, family(gaussian) link(probit) nolog",
+          "lines": [
+            "no observations",
+            "data not suitable for nonstandard family-link combination"
+          ]
+        },
+        {
+          "command": "glm s x, link(logit)",
+          "lines": [
+            "Iteration 0:  Log likelihood =  261.75787",
+            "Iteration 1:  Log likelihood =  261.81123",
+            "Iteration 2:  Log likelihood =  261.81124",
+            "",
+            "Generalized linear models                         Number of obs   =        200",
+            "Optimization     : ML                             Residual df     =        198",
+            "                                                  Scale parameter =   .0043138",
+            "Deviance         =  .8541297675                   (1/df) Deviance =   .0043138",
+            "Pearson          =  .8541297675                   (1/df) Pearson  =   .0043138",
+            "",
+            "Variance function: V(u) = 1                       [Gaussian]",
+            "Link function    : g(u) = ln(u/(1-u))             [Logit]",
+            "",
+            "                                                  AIC             =  -2.598112",
+            "Log likelihood   =  261.8112444                   BIC             =  -1048.213",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OIM",
+            "           s | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .3323042   .0167665    19.82   0.000     .2994424    .3651659",
+            "       _cons |  -.7325038   .0406295   -18.03   0.000    -.8121362   -.6528714",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "glm s x f, link(cloglog) nolog",
+          "lines": [
+            "Generalized linear models                         Number of obs   =        200",
+            "Optimization     : ML                             Residual df     =        197",
+            "                                                  Scale parameter =   .0036015",
+            "Deviance         =  .7094958663                   (1/df) Deviance =   .0036015",
+            "Pearson          =  .7094958663                   (1/df) Pearson  =   .0036015",
+            "",
+            "Variance function: V(u) = 1                       [Gaussian]",
+            "Link function    : g(u) = ln(-ln(1-u))            [Complementary log–log]",
+            "",
+            "                                                  AIC             =  -2.773641",
+            "Log likelihood   =  280.3640909                   BIC             =  -1043.059",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OIM",
+            "           s | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .2295413     .01115    20.59   0.000     .2076878    .2513949",
+            "           f |   .1660636   .0256402     6.48   0.000     .1158098    .2163174",
+            "       _cons |  -.9735516   .0307787   -31.63   0.000    -1.033877   -.9132265",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-limited-glm-predict",
+      "source": "clear\nset seed 7301\nset obs 200\ngenerate double x = runiform()*4\ngenerate byte f = runiform() > .5\ngenerate double u = runiform()\ngenerate byte d = (x - 2 + f + ln(u/(1-u))) > 0\ngenerate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)\ngenerate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)\ngenerate double p = (c + .5) / 12\nreplace x = . in 5\nquietly glm d x f, family(binomial)\nforeach o in mu xb eta stdp anscombe cooksd deviance hat likelihood pearson response score working {\n  predict double b_`o', `o'\n}\npredict double b_dsa, deviance standardized adjusted\npredict double b_ps, pearson studentized\npredict double b_pm, pearson modified\npredict double b_rs, response standardized studentized modified\npredict double b_tx, t(x)\npredict double b_wsm, working standardized modified\npredict b_n if x > 2, deviance\nsummarize b_*\ndescribe b_*\nquietly glm c x f, family(poisson)\nforeach o in mu anscombe cooksd deviance hat likelihood pearson response score working {\n  predict double q_`o', `o'\n}\npredict double q_da, deviance adjusted\npredict double q_ps, pearson standardized studentized\nsummarize q_*\nquietly glm h x f, link(log)\npredict double l_sc, score\npredict double l_an, anscombe\npredict double l_ck, cooksd\nsummarize l_*\nquietly glm p x f, family(binomial) link(probit)\npredict double r_an, anscombe\npredict double r_da, deviance adjusted\npredict double r_sc, score\npredict double r_w, working\nsummarize r_*\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7301", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        { "command": "generate double u = runiform()", "lines": [] },
+        {
+          "command": "generate byte d = (x - 2 + f + ln(u/(1-u))) > 0",
+          "lines": []
+        },
+        {
+          "command": "generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)",
+          "lines": []
+        },
+        {
+          "command": "generate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)",
+          "lines": []
+        },
+        { "command": "generate double p = (c + .5) / 12", "lines": [] },
+        {
+          "command": "replace x = . in 5",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "quietly glm d x f, family(binomial)", "lines": [] },
+        {
+          "command": "foreach o in mu xb eta stdp anscombe cooksd deviance hat likelihood pearson response score working {",
+          "lines": [
+            "  2.   predict double b_`o', `o'",
+            "  3. }",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing values generated)",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "predict double b_dsa, deviance standardized adjusted",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double b_ps, pearson studentized",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double b_pm, pearson modified",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double b_rs, response standardized studentized modified",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double b_tx, t(x)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double b_wsm, working standardized modified",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict b_n if x > 2, deviance",
+          "lines": ["(97 missing values generated)"]
+        },
+        {
+          "command": "summarize b_*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "        b_mu |        199    .6532663    .2585231   .1398343   .9646632",
+            "        b_xb |        199     .889841    1.416998  -1.816667   3.306855",
+            "       b_eta |        199     .889841    1.416998  -1.816667   3.306855",
+            "      b_stdp |        199     .326573    .0667107   .2447431   .4727927",
+            "  b_anscombe |        199     .069079    1.108757  -3.230576   2.122869",
+            "-------------+---------------------------------------------------------",
+            "    b_cooksd |        199    .0051164     .008304   .0000941   .0644423",
+            "  b_deviance |        199    .0735351    .9873502  -2.536749   1.832496",
+            "       b_hat |        199    .0150754    .0047919   .0075875   .0304667",
+            "b_likelihood |        199    .0733125    .9950185  -2.574274     1.8547",
+            "   b_pearson |        199    .0064109    .9940013  -4.895593   2.088135",
+            "-------------+---------------------------------------------------------",
+            "  b_response |        199    1.23e-12    .4023472  -.9599469   .8134435",
+            "     b_score |        199    1.23e-12    .4023472  -.9599469   .8134435",
+            "   b_working |        199    .0305624     2.92085  -24.96683   5.360306",
+            "       b_dsa |        199    -.118677    1.004332  -3.331889   2.120332",
+            "        b_ps |        199    .0064109    .9940013  -4.895593   2.088135",
+            "-------------+---------------------------------------------------------",
+            "        b_pm |        199    .0064109    .9940013  -4.895593   2.088135",
+            "        b_rs |        199    .0000235    .4056943  -.9637801   .8210447",
+            "        b_tx |        199    2.329979     1.30899   -.012079   4.420793",
+            "       b_wsm |        199    .0309081    2.939399  -25.06653   5.410395",
+            "         b_n |        103    .2275235    .7998104  -2.536749   .9880784"
+          ]
+        },
+        {
+          "command": "describe b_*",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "b_mu            double  %10.0g                Predicted mean d",
+            "b_xb            double  %10.0g                Linear prediction",
+            "b_eta           double  %10.0g                Linear prediction",
+            "b_stdp          double  %10.0g                S.E. of the prediction",
+            "b_anscombe      double  %10.0g                Anscombe residual",
+            "b_cooksd        double  %10.0g                Cook's distance",
+            "b_deviance      double  %10.0g                deviance residual",
+            "b_hat           double  %10.0g                hat diagonal",
+            "b_likelihood    double  %10.0g                likelihood residual",
+            "b_pearson       double  %10.0g                Pearson residual",
+            "b_response      double  %10.0g                response residual",
+            "b_score         double  %10.0g                equation-level score from glm",
+            "b_working       double  %10.0g                working residual",
+            "b_dsa           double  %10.0g                standardized adjusted deviance residual",
+            "b_ps            double  %10.0g                Studentized Pearson residual",
+            "b_pm            double  %10.0g                modified Pearson residual",
+            "b_rs            double  %10.0g                standardized modified Studentized response residual",
+            "b_tx            double  %10.0g                partial(x) residual",
+            "b_wsm           double  %10.0g                standardized modified working residual",
+            "b_n             float   %9.0g                 deviance residual"
+          ]
+        },
+        { "command": "quietly glm c x f, family(poisson)", "lines": [] },
+        {
+          "command": "foreach o in mu anscombe cooksd deviance hat likelihood pearson response score working {",
+          "lines": [
+            "  2.   predict double q_`o', `o'",
+            "  3. }",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing value generated)",
+            "(1 missing values generated)",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "predict double q_da, deviance adjusted",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double q_ps, pearson standardized studentized",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "summarize q_*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "        q_mu |        199    1.904523    .8279808    .726818   3.737924",
+            "  q_anscombe |        199   -.2365245    1.263819  -2.840587   2.202268",
+            "    q_cooksd |        199    .0070331    .0100905   6.65e-09   .0713013",
+            "  q_deviance |        199   -.2084089    1.221636  -2.678131   2.191753",
+            "       q_hat |        199    .0150754    .0060489    .009611    .037372",
+            "-------------+---------------------------------------------------------",
+            "q_likelihood |        199    -.207061    1.230344  -2.696014   2.238637",
+            "   q_pearson |        199    -.001007    1.106276  -1.893725   2.639707",
+            "  q_response |        199   -5.47e-10    1.647343  -3.586193   4.557166",
+            "     q_score |        199   -5.47e-10    1.647343  -3.586193   4.557166",
+            "   q_working |        199   -.0025673    .8051549         -1   1.797327",
+            "-------------+---------------------------------------------------------",
+            "        q_da |        199   -.0782718    1.222447  -2.590121   2.293576",
+            "        q_ps |        199   -.0010343    1.115632  -1.918931   2.678762"
+          ]
+        },
+        { "command": "quietly glm h x f, link(log)", "lines": [] },
+        {
+          "command": "predict double l_sc, score",
+          "lines": ["(1 missing values generated)"]
+        },
+        {
+          "command": "predict double l_an, anscombe",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double l_ck, cooksd",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "summarize l_*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "        l_sc |        199   -3.44e-11    1.739154  -8.801059   4.494591",
+            "        l_an |        199   -1.026655    7.094297  -20.81539   14.35989",
+            "        l_ck |        199    .0046612    .0111506   2.07e-07   .0932513"
+          ]
+        },
+        {
+          "command": "quietly glm p x f, family(binomial) link(probit)",
+          "lines": []
+        },
+        {
+          "command": "predict double r_an, anscombe",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double r_da, deviance adjusted",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double r_sc, score",
+          "lines": [
+            "note: p has noninteger values",
+            "(1 missing values generated)"
+          ]
+        },
+        {
+          "command": "predict double r_w, working",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "summarize r_*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "        r_an |        199   -.0270159    .3402684  -.7199499   .8236048",
+            "        r_da |        199    .2421625    .3523896  -.5750888   .9420654",
+            "        r_sc |        199   -1.85e-12    .2341865  -.4604135   .6494574",
+            "         r_w |        199    .0005938    .4572746  -.7818988   1.111613"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-limited-glm-predict-checks",
+      "source": "clear\nset seed 7301\nset obs 200\ngenerate double x = runiform()*4\ngenerate byte f = runiform() > .5\ngenerate double u = runiform()\ngenerate byte d = (x - 2 + f + ln(u/(1-u))) > 0\nreplace x = . in 5\nquietly glm d x f, family(binomial)\ncapture noisily predict double z3, deviance pearson\ncapture noisily predict double z4, hat studentized\ncapture noisily predict double z6, likelihood modified standardized\ncapture noisily predict double z7, mu xb\ncapture noisily predict double z9, xb studentized\ncapture noisily predict double z10, stdp standardized\ncapture noisily predict double z13, cooksd modified\ncapture noisily predict double z14, mu t(x)\ncapture noisily predict double z15, score studentized\ncapture noisily predict double z16, pr\ncapture noisily predict double z17, nooffset\ncapture noisily predict double z18 in 1/50, hat\ncapture noisily predict double z19, xb stdp\ncapture noisily predict z20 z21, score\ncapture noisily predict double z22, anscombe adjusted\nsummarize z*\ndescribe z*\nquietly glm d x f, family(binomial) vce(robust)\ncapture noisily predict double y1, pearson standardized\ncapture noisily predict double y2, hat\ncapture noisily predict double y3, deviance pearson\ncapture noisily predict double y4, pearson adjusted\ncapture noisily predict double y5, xb studentized\ncapture noisily predict y6 if x > 2, deviance\ncapture noisily predict y7, cooksd\nsummarize y*\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7301", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        { "command": "generate double u = runiform()", "lines": [] },
+        {
+          "command": "generate byte d = (x - 2 + f + ln(u/(1-u))) > 0",
+          "lines": []
+        },
+        {
+          "command": "replace x = . in 5",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "quietly glm d x f, family(binomial)", "lines": [] },
+        {
+          "command": "capture noisily predict double z3, deviance pearson",
+          "lines": ["__000001 not found"]
+        },
+        {
+          "command": "capture noisily predict double z4, hat studentized",
+          "lines": ["option studentized not allowed with hat residuals"]
+        },
+        {
+          "command": "capture noisily predict double z6, likelihood modified standardized",
+          "lines": [
+            "option standardizedmodified not allowed with likelihood residuals"
+          ]
+        },
+        {
+          "command": "capture noisily predict double z7, mu xb",
+          "lines": ["__000001 not found"]
+        },
+        {
+          "command": "capture noisily predict double z9, xb studentized",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "capture noisily predict double z10, stdp standardized",
+          "lines": ["option standardized not allowed"]
+        },
+        {
+          "command": "capture noisily predict double z13, cooksd modified",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "capture noisily predict double z14, mu t(x)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "capture noisily predict double z15, score studentized",
+          "lines": ["option studentized not allowed"]
+        },
+        {
+          "command": "capture noisily predict double z16, pr",
+          "lines": ["option pr not allowed"]
+        },
+        {
+          "command": "capture noisily predict double z17, nooffset",
+          "lines": [
+            "(option mu assumed; predicted mean d)",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "capture noisily predict double z18 in 1/50, hat",
+          "lines": ["(151 missing values generated)"]
+        },
+        {
+          "command": "capture noisily predict double z19, xb stdp",
+          "lines": ["option stdp not allowed"]
+        },
+        {
+          "command": "capture noisily predict z20 z21, score",
+          "lines": ["too many variables specified"]
+        },
+        {
+          "command": "capture noisily predict double z22, anscombe adjusted",
+          "lines": ["option adjusted allowed only with option deviance"]
+        },
+        {
+          "command": "summarize z*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          z9 |        199     .889841    1.416998  -1.816667   3.306855",
+            "         z13 |        199    .0051164     .008304   .0000941   .0644423",
+            "         z14 |        199    .6532663    .2585231   .1398343   .9646632",
+            "         z17 |        199    .6532663    .2585231   .1398343   .9646632",
+            "         z18 |         49    .0151824    .0056945   .0077161   .0304667"
+          ]
+        },
+        {
+          "command": "describe z*",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "z9              double  %10.0g                Studentized Linear prediction",
+            "z13             double  %10.0g                Cook's distance",
+            "z14             double  %10.0g                Predicted mean d",
+            "z17             double  %10.0g                Predicted mean d",
+            "z18             double  %10.0g                hat diagonal"
+          ]
+        },
+        {
+          "command": "quietly glm d x f, family(binomial) vce(robust)",
+          "lines": []
+        },
+        {
+          "command": "capture noisily predict double y1, pearson standardized",
+          "lines": ["option standardized not allowed after robust estimation"]
+        },
+        {
+          "command": "capture noisily predict double y2, hat",
+          "lines": ["option standardized not allowed after robust estimation"]
+        },
+        {
+          "command": "capture noisily predict double y3, deviance pearson",
+          "lines": ["option standardized not allowed after robust estimation"]
+        },
+        {
+          "command": "capture noisily predict double y4, pearson adjusted",
+          "lines": ["option adjusted allowed only with option deviance"]
+        },
+        {
+          "command": "capture noisily predict double y5, xb studentized",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "capture noisily predict y6 if x > 2, deviance",
+          "lines": ["(97 missing values generated)"]
+        },
+        {
+          "command": "capture noisily predict y7, cooksd",
+          "lines": ["option standardized not allowed after robust estimation"]
+        },
+        {
+          "command": "summarize y*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          y5 |        199     .889841    1.416998  -1.816667   3.306855",
+            "          y6 |        103    .2275235    .7998104  -2.536749   .9880784"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-limited-count-predict",
+      "source": "clear\nset seed 7301\nset obs 200\ngenerate double x = runiform()*4\ngenerate byte f = runiform() > .5\ngenerate double u = runiform()\ngenerate byte d = (x - 2 + f + ln(u/(1-u))) > 0\ngenerate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)\nreplace x = . in 5\nquietly logit d x f\npredict s1, score\npredict double s2 if f, score\nquietly probit d x f\npredict s3, score\nquietly poisson c x f\npredict s4, score\npredict s5, ir\npredict s6 in 1/20, ir\npredict t1, pr(2)\npredict t2, pr(1,3)\npredict t3, pr(3,.)\npredict t4, pr(0,.)\npredict t5, pr(0,2)\ngenerate k = mod(_n,4)\nreplace k = . in 7\nreplace k = 1.5 in 9\npredict t6, pr(k)\npredict t7, pr(1,k)\npredict t8, pr(k,3)\nquietly nbreg c x f\npredict s7, score\npredict s8 s9, score\npredict s10, ir\npredict s11, pr(0)\npredict s12, pr(1,3)\npredict s13, pr(2,.)\npredict s21, pr(0,0)\npredict s24, pr(0, .)\npredict t9, pr(k)\npredict t10, pr(k,k)\nquietly cloglog d x f\npredict k1, score\nsummarize s* t* k1\ndescribe s* t* k1\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7301", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        { "command": "generate double u = runiform()", "lines": [] },
+        {
+          "command": "generate byte d = (x - 2 + f + ln(u/(1-u))) > 0",
+          "lines": []
+        },
+        {
+          "command": "generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)",
+          "lines": []
+        },
+        {
+          "command": "replace x = . in 5",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "quietly logit d x f", "lines": [] },
+        {
+          "command": "predict s1, score",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double s2 if f, score",
+          "lines": ["(95 missing values generated)"]
+        },
+        { "command": "quietly probit d x f", "lines": [] },
+        {
+          "command": "predict s3, score",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "quietly poisson c x f", "lines": [] },
+        {
+          "command": "predict s4, score",
+          "lines": ["(1 missing values generated)"]
+        },
+        {
+          "command": "predict s5, ir",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict s6 in 1/20, ir",
+          "lines": ["(181 missing values generated)"]
+        },
+        {
+          "command": "predict t1, pr(2)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict t2, pr(1,3)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict t3, pr(3,.)",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "predict t4, pr(0,.)", "lines": [] },
+        {
+          "command": "predict t5, pr(0,2)",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "generate k = mod(_n,4)", "lines": [] },
+        {
+          "command": "replace k = . in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace k = 1.5 in 9",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "predict t6, pr(k)",
+          "lines": [
+            "(3 missing values generated)",
+            "k contains 1 negative or missing count",
+            "k contains 1 noninteger value"
+          ]
+        },
+        {
+          "command": "predict t7, pr(1,k)",
+          "lines": [
+            "(53 missing values generated)",
+            "k contains 1 negative or missing count",
+            "k contains 1 noninteger value",
+            "k contains 50 counts less than 1"
+          ]
+        },
+        {
+          "command": "predict t8, pr(k,3)",
+          "lines": [
+            "(3 missing values generated)",
+            "k contains 1 negative or missing count",
+            "k contains 1 noninteger value"
+          ]
+        },
+        { "command": "quietly nbreg c x f", "lines": [] },
+        {
+          "command": "predict s7, score",
+          "lines": ["(1 missing values generated)"]
+        },
+        {
+          "command": "predict s8 s9, score",
+          "lines": ["(1 missing values generated)"]
+        },
+        {
+          "command": "predict s10, ir",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict s11, pr(0)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict s12, pr(1,3)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict s13, pr(2,.)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict s21, pr(0,0)",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "predict s24, pr(0, .)", "lines": [] },
+        {
+          "command": "predict t9, pr(k)",
+          "lines": [
+            "(3 missing values generated)",
+            "k contains 1 negative or missing count",
+            "k contains 1 noninteger value"
+          ]
+        },
+        {
+          "command": "predict t10, pr(k,k)",
+          "lines": [
+            "(3 missing values generated)",
+            "k contains 1 negative or missing count",
+            "k contains 1 noninteger value",
+            "k contains 1 negative or missing count",
+            "k contains 1 noninteger value"
+          ]
+        },
+        { "command": "quietly cloglog d x f", "lines": [] },
+        {
+          "command": "predict k1, score",
+          "lines": ["(1 missing values generated)"]
+        },
+        {
+          "command": "summarize s* t* k1",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          s1 |        199   -3.56e-10    .4023472  -.9599469   .8134435",
+            "          s2 |        105    2.02e-11    .3841094  -.9599469   .7328422",
+            "          s3 |        199    1.39e-09    .6882577  -2.259509   1.420667",
+            "          s4 |        199   -1.21e-07    1.647343  -3.586193   4.557166",
+            "          s5 |        199    1.904523    .8279807   .7268181   3.737924",
+            "-------------+---------------------------------------------------------",
+            "          s6 |         19    2.085987    .9879179   .8683804   3.681967",
+            "          s7 |        199    1.34e-09    1.085007   -2.02443   2.734576",
+            "          s8 |        199    1.34e-09    1.085007   -2.02443   2.734576",
+            "          s9 |        199   -3.23e-09    .1785584  -.2438559   .6442524",
+            "         s10 |        199    1.906471    .8388483   .7172822   3.772341",
+            "-------------+---------------------------------------------------------",
+            "         s11 |        199    .2457998    .1284643   .0636538   .5134866",
+            "         s12 |        199    .5867596    .0526198   .4631085   .6442906",
+            "         s13 |        199    .4870564    .1865769   .1679168   .8044624",
+            "         s21 |        199    .2457998    .1284643   .0636538   .5134866",
+            "         s24 |        200           1           0          1          1",
+            "-------------+---------------------------------------------------------",
+            "          t1 |        199    .2259051    .0402949   .1276934   .2706703",
+            "          t2 |        199     .647296    .0721031    .462463    .726032",
+            "          t3 |        199    .3006055    .2018652   .0374854    .720929",
+            "          t4 |        200           1           0          1          1",
+            "          t5 |        199    .6993945    .2018652   .2790709   .9625146",
+            "-------------+---------------------------------------------------------",
+            "          t6 |        197    .2172062    .1002065   .0255016    .482412",
+            "          t7 |        147    .4810467    .1731682   .0993505    .726032",
+            "          t8 |        197    .5066501    .2826453   .0309532   .9933849",
+            "          t9 |        197    .2126005    .0954122   .0357354   .5125421",
+            "         t10 |        197    .2126005    .0954122   .0357354   .5125421",
+            "-------------+---------------------------------------------------------",
+            "          k1 |        199   -1.24e-09    .7043761  -4.159811   .8666703"
+          ]
+        },
+        {
+          "command": "describe s* t* k1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s1              float   %9.0g                 equation-level score from logit",
+            "s2              double  %10.0g                equation-level score from logit",
+            "s3              float   %9.0g                 equation-level score from probit",
+            "s4              float   %9.0g                 equation-level score from poisson",
+            "s5              float   %9.0g                 Predicted incidence rate",
+            "s6              float   %9.0g                 Predicted incidence rate",
+            "s7              float   %9.0g                 equation-level score for [c] from nbreg",
+            "s8              float   %9.0g                 equation-level score for [c] from nbreg",
+            "s9              float   %9.0g                 equation-level score for /lnalpha from nbreg",
+            "s10             float   %9.0g                 Predicted incidence rate",
+            "s11             float   %9.0g                 Pr(c=0)",
+            "s12             float   %9.0g                 Pr(1<=c<=3)",
+            "s13             float   %9.0g                 Pr(c>=2)",
+            "s21             float   %9.0g                 Pr(0<=c<=0)",
+            "s24             float   %9.0g                 Pr(c>=0)",
+            "t1              float   %9.0g                 Pr(c=2)",
+            "t2              float   %9.0g                 Pr(1<=c<=3)",
+            "t3              float   %9.0g                 Pr(c>=3)",
+            "t4              float   %9.0g                 Pr(c>=0)",
+            "t5              float   %9.0g                 Pr(0<=c<=2)",
+            "t6              float   %9.0g                 Pr(c=k)",
+            "t7              float   %9.0g                 Pr(1<=c<=k)",
+            "t8              float   %9.0g                 Pr(k<=c<=3)",
+            "t9              float   %9.0g                 Pr(c=k)",
+            "t10             float   %9.0g                 Pr(k<=c<=k)",
+            "k1              float   %9.0g                 equation-level score from cloglog"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-limited-count-predict-checks",
+      "source": "clear\nset seed 7301\nset obs 200\ngenerate double x = runiform()*4\ngenerate byte f = runiform() > .5\ngenerate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)\nreplace x = . in 5\nreplace c = . in 8\nquietly poisson c x f\ncapture noisily predict z1, xb n\ncapture noisily predict z2, xb ir\ncapture noisily predict z3, stdp pr(1)\ncapture noisily predict z4, score xb\ncapture noisily predict z5 z6, n\ncapture noisily predict z7 z8, score\ncapture noisily predict z9, n nooffset\ncapture noisily predict z10, ir pr(1)\ncapture noisily predict z12, pr()\ncapture noisily predict z13, pr(1,2,3)\ncapture noisily predict z14, pr(1 2)\ncapture noisily predict z15, score\nquietly nbreg c x f\ncapture noisily predict w1 w2 w3, score\ncapture noisily predict w4, n stdp\ncapture noisily predict w5 w6, score\ncapture noisily predict s14, pr(.,2)\ncapture noisily predict s15, pr(3,1)\ncapture noisily predict s16, pr(-1)\ncapture noisily predict s17, pr(1.5)\ncapture noisily predict s18, pr(a)\ncapture noisily predict s19, ir n\ncapture noisily predict s20, pr(1) n\ncapture noisily predict s22, pr(1.5, 3)\ncapture noisily predict s23, pr(1, 3.5)\ncapture noisily predict s25, pr(-1, 2)\nsummarize z* w*\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7301", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        {
+          "command": "generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)",
+          "lines": []
+        },
+        {
+          "command": "replace x = . in 5",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace c = . in 8",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "quietly poisson c x f", "lines": [] },
+        {
+          "command": "capture noisily predict z1, xb n",
+          "lines": ["option n not allowed"]
+        },
+        {
+          "command": "capture noisily predict z2, xb ir",
+          "lines": ["option ir not allowed"]
+        },
+        {
+          "command": "capture noisily predict z3, stdp pr(1)",
+          "lines": ["option pr() not allowed"]
+        },
+        {
+          "command": "capture noisily predict z4, score xb",
+          "lines": ["option xb not allowed"]
+        },
+        {
+          "command": "capture noisily predict z5 z6, n",
+          "lines": ["too many variables specified"]
+        },
+        {
+          "command": "capture noisily predict z7 z8, score",
+          "lines": ["too many variables specified"]
+        },
+        {
+          "command": "capture noisily predict z9, n nooffset",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "capture noisily predict z10, ir pr(1)",
+          "lines": ["only one of options ir or pr(1) is allowed"]
+        },
+        {
+          "command": "capture noisily predict z12, pr()",
+          "lines": [
+            "(option n assumed; predicted number of events)",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "capture noisily predict z13, pr(1,2,3)",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily predict z14, pr(1 2)",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily predict z15, score",
+          "lines": ["(2 missing values generated)"]
+        },
+        { "command": "quietly nbreg c x f", "lines": [] },
+        {
+          "command": "capture noisily predict w1 w2 w3, score",
+          "lines": [
+            "too many variables specified",
+            "    The current estimation results for nbreg have 2 equations so you must specify 2 new variables, or you can use the equation() option and specify one variable at a time."
+          ]
+        },
+        {
+          "command": "capture noisily predict w4, n stdp",
+          "lines": ["option n not allowed"]
+        },
+        {
+          "command": "capture noisily predict w5 w6, score",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "capture noisily predict s14, pr(.,2)",
+          "lines": ["lower bound is missing", "invalid syntax"]
+        },
+        {
+          "command": "capture noisily predict s15, pr(3,1)",
+          "lines": [
+            "upper bound of 1 must be greater than or equal to the lower bound of 3"
+          ]
+        },
+        {
+          "command": "capture noisily predict s16, pr(-1)",
+          "lines": ["argument must be nonnegative"]
+        },
+        {
+          "command": "capture noisily predict s17, pr(1.5)",
+          "lines": ["argument must be an integer"]
+        },
+        {
+          "command": "capture noisily predict s18, pr(a)",
+          "lines": ["argument must be a number or variable"]
+        },
+        {
+          "command": "capture noisily predict s19, ir n",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily predict s20, pr(1) n",
+          "lines": ["only one of options n or pr(1) is allowed"]
+        },
+        {
+          "command": "capture noisily predict s22, pr(1.5, 3)",
+          "lines": ["lower bound of 1.5 must be an integer"]
+        },
+        {
+          "command": "capture noisily predict s23, pr(1, 3.5)",
+          "lines": ["upper bound of 3.5 must be an integer"]
+        },
+        {
+          "command": "capture noisily predict s25, pr(-1, 2)",
+          "lines": ["lower bound of -1 must be nonnegative"]
+        },
+        {
+          "command": "summarize z* w*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          z9 |        199    2.292477    .8933136   1.005881   4.121029",
+            "         z12 |        199    2.292477    .8933136   1.005881   4.121029",
+            "         z15 |        198   -4.58e-08    1.673422  -3.962408     4.2006",
+            "          w5 |        198   -3.74e-08    1.315294  -2.863297   3.033667",
+            "          w6 |        198   -3.39e-08    .1131491  -.1464782   .5088506"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-limited-tobit-predict",
+      "source": "clear\nset seed 7302\nset obs 200\ngenerate double x = runiform()*4\ngenerate byte f = runiform() > .5\ngenerate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)\nreplace h = max(0, min(h, 25))\nreplace x = . in 5\nreplace h = . in 6\ngenerate double lo = 2 + mod(_n, 3)\nquietly tobit h x f, ll(0) ul(25)\npredict a1\npredict a2, xb\npredict a3, stdp\npredict a4, stdf\npredict a5, pr(0,25)\npredict a6, e(0,25)\npredict a7, ystar(0,25)\npredict a8, e(0,.)\npredict a9, pr(.,10)\npredict a10, ystar(.,.)\npredict a11, e(.,.)\npredict a12, pr(.,.)\npredict a13, e(lo,20)\npredict double a14, ystar(lo, .)\npredict a15, pr(2*3, 10)\npredict a16 a17, scores\ncapture noisily predict a18, scores\ncapture noisily predict a19, e(5,2)\ncapture noisily predict a20, e(5)\ncapture noisily predict a21, pr(1,2) e(1,2)\ncapture noisily predict a22, stdf pr(1,2)\ncapture noisily predict a23, e(q,2)\ncapture noisily predict a24, residuals\nsummarize a*\ndescribe a*\nquietly tobit h x f, ll(0)\npredict b1 b2, scores\npredict b3, ystar(0,.)\nquietly tobit h x f, ul(25)\npredict b4 b5, scores\nquietly tobit h x f\npredict b6 b7, scores\npredict b8, ystar(0, 25)\nquietly tobit h x f, ll(0) ul(25) vce(robust)\npredict b9, stdf\npredict b10, e(0,25)\nsummarize b*\ndescribe b*\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7302", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        {
+          "command": "generate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)",
+          "lines": []
+        },
+        {
+          "command": "replace h = max(0, min(h, 25))",
+          "lines": ["(68 real changes made)"]
+        },
+        {
+          "command": "replace x = . in 5",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace h = . in 6",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "generate double lo = 2 + mod(_n, 3)", "lines": [] },
+        { "command": "quietly tobit h x f, ll(0) ul(25)", "lines": [] },
+        {
+          "command": "predict a1",
+          "lines": [
+            "(option xb assumed; fitted values)",
+            "(1 missing value generated)"
+          ]
+        },
+        {
+          "command": "predict a2, xb",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict a3, stdp",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict a4, stdf",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict a5, pr(0,25)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict a6, e(0,25)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict a7, ystar(0,25)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict a8, e(0,.)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict a9, pr(.,10)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict a10, ystar(.,.)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict a11, e(.,.)",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "predict a12, pr(.,.)", "lines": [] },
+        {
+          "command": "predict a13, e(lo,20)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double a14, ystar(lo, .)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict a15, pr(2*3, 10)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict a16 a17, scores",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "capture noisily predict a18, scores",
+          "lines": [
+            "(1 missing value generated)",
+            "too few variables specified"
+          ]
+        },
+        {
+          "command": "capture noisily predict a19, e(5,2)",
+          "lines": ["option e(a,b) incorrectly specified; b must be >= a"]
+        },
+        {
+          "command": "capture noisily predict a20, e(5)",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily predict a21, pr(1,2) e(1,2)",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily predict a22, stdf pr(1,2)",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily predict a23, e(q,2)",
+          "lines": ["variable q not found"]
+        },
+        {
+          "command": "capture noisily predict a24, residuals",
+          "lines": ["option residuals not allowed"]
+        },
+        {
+          "command": "summarize a*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          a1 |        199    8.618718    9.495018  -9.799843   26.10082",
+            "          a2 |        199    8.618718    9.495018  -9.799843   26.10082",
+            "          a3 |        199    .8653951    .1583827   .6622515    1.34483",
+            "          a4 |        199    6.381261      .02286   6.354976   6.461866",
+            "          a5 |        199    .6740826    .2480408   .0605088   .9520398",
+            "-------------+---------------------------------------------------------",
+            "          a6 |        199    10.40317    5.554808   2.725513   20.33774",
+            "          a7 |        199    9.739644    7.318368   .1649181   22.99082",
+            "          a8 |        199    11.28749    6.825066    2.72552   26.10132",
+            "          a9 |        199    .5513356    .3735157   .0054257   .9991339",
+            "         a10 |        199    8.618718    9.495018  -9.799843   26.10082",
+            "-------------+---------------------------------------------------------",
+            "         a11 |        199    8.618718    9.495018  -9.799843   26.10082",
+            "         a12 |        200           1           0          1          1",
+            "         a13 |        199    10.51629    3.536333   4.671375    16.6434",
+            "         a14 |        199    10.96384    7.036059   2.143823   26.10092",
+            "         a15 |        199    .1239671    .0855948   .0046902   .2483267",
+            "-------------+---------------------------------------------------------",
+            "         a16 |        199    .0040678    .1581039   -.385911   .8094977",
+            "         a17 |        199    .0015857    .0263093  -.0125159    .315546",
+            "         a18 |        199    .0040678    .1581039   -.385911   .8094977"
+          ]
+        },
+        {
+          "command": "describe a*",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "a1              float   %9.0g                 Linear prediction",
+            "a2              float   %9.0g                 Linear prediction",
+            "a3              float   %9.0g                 S.E. of the prediction",
+            "a4              float   %9.0g                 S.E. of the forecast",
+            "a5              float   %9.0g                 Pr(0<h<25)",
+            "a6              float   %9.0g                 E(h|0<h<25)",
+            "a7              float   %9.0g                 E(h*|0<h<25)",
+            "a8              float   %9.0g                 E(h|h>0)",
+            "a9              float   %9.0g                 Pr(h<10)",
+            "a10             float   %9.0g                 E(h)",
+            "a11             float   %9.0g                 E(h)",
+            "a12             float   %9.0g                 Pr(h)",
+            "a13             float   %9.0g                 E(h|lo<h<20)",
+            "a14             double  %10.0g                E(h*|h>lo)",
+            "a15             float   %9.0g                 Pr(2*3<h<10)",
+            "a16             float   %9.0g                 equation-level score for model from tobit",
+            "a17             float   %9.0g                 equation-level score for sigma from tobit",
+            "a18             float   %9.0g                 equation-level score for model from tobit"
+          ]
+        },
+        { "command": "quietly tobit h x f, ll(0)", "lines": [] },
+        {
+          "command": "predict b1 b2, scores",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict b3, ystar(0,.)",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "quietly tobit h x f, ul(25)", "lines": [] },
+        {
+          "command": "predict b4 b5, scores",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "quietly tobit h x f", "lines": [] },
+        {
+          "command": "predict b6 b7, scores",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict b8, ystar(0, 25)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "quietly tobit h x f, ll(0) ul(25) vce(robust)",
+          "lines": []
+        },
+        {
+          "command": "predict b9, stdf",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict b10, e(0,25)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "summarize b*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          b1 |        198    1.95e-10    .1682309   -.443877   .4462454",
+            "          b2 |        198    5.00e-10    .0188108  -.0156576   .0839097",
+            "          b3 |        199    9.605224    7.292233   .1843785   24.23739",
+            "          b4 |        199    .0052204    .2047642  -.5244518   1.038865",
+            "          b5 |        199    .0026208    .0442308  -.0186513     .52154",
+            "-------------+---------------------------------------------------------",
+            "          b6 |        198   -2.45e-10    .2098619  -.5820143   .5341308",
+            "          b7 |        198   -1.13e-10    .0295471  -.0219057   .1474606",
+            "          b8 |        199     10.0881    6.389135   .5427913   21.69396",
+            "          b9 |        199    6.384217    .0246706   6.354578   6.465462",
+            "         b10 |        199    10.40317    5.554808   2.725513   20.33774"
+          ]
+        },
+        {
+          "command": "describe b*",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "b1              float   %9.0g                 equation-level score for model from tobit",
+            "b2              float   %9.0g                 equation-level score for sigma from tobit",
+            "b3              float   %9.0g                 E(h*|h>0)",
+            "b4              float   %9.0g                 equation-level score for model from tobit",
+            "b5              float   %9.0g                 equation-level score for sigma from tobit",
+            "b6              float   %9.0g                 equation-level score for model from tobit",
+            "b7              float   %9.0g                 equation-level score for sigma from tobit",
+            "b8              float   %9.0g                 E(h*|0<h<25)",
+            "b9              float   %9.0g                 S.E. of the forecast",
+            "b10             float   %9.0g                 E(h|0<h<25)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-limited-tobit-uncensored",
+      "source": "clear\nset seed 7302\nset obs 300\ngenerate double x = runiform()*4\ngenerate byte f = runiform() > .5\ngenerate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)\ntobit h x\ntobit h x f, nolog\ntobit h x, vce(robust)\ntobit h x, ll(.) ul(.)\ntobit h x, noconstant nolog\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7302", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        {
+          "command": "generate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)",
+          "lines": []
+        },
+        {
+          "command": "tobit h x",
+          "lines": [
+            "Iteration 0:  Log likelihood = -981.67291",
+            "Iteration 1:  Log likelihood = -981.67291",
+            "",
+            "Tobit regression                                    Number of obs     =    300",
+            "                                                           Uncensored =    300",
+            "Limits: Lower = -inf                                    Left-censored =      0",
+            "        Upper = +inf                                   Right-censored =      0",
+            "",
+            "                                                    LR chi2(1)        = 337.67",
+            "                                                    Prob > chi2       = 0.0000",
+            "Log likelihood = -981.67291                         Pseudo R2         = 0.1467",
+            "",
+            "------------------------------------------------------------------------------",
+            "           h | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   7.925846   .3171406    24.99   0.000     7.301736    8.549957",
+            "       _cons |  -7.331217   .7450856    -9.84   0.000    -8.797493   -5.864941",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.h)|   40.71551   3.324407                      34.67185    47.81263",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tobit h x f, nolog",
+          "lines": [
+            "Tobit regression                                    Number of obs     =    300",
+            "                                                           Uncensored =    300",
+            "Limits: Lower = -inf                                    Left-censored =      0",
+            "        Upper = +inf                                   Right-censored =      0",
+            "",
+            "                                                    LR chi2(2)        = 390.29",
+            "                                                    Prob > chi2       = 0.0000",
+            "Log likelihood = -955.36329                         Pseudo R2         = 0.1696",
+            "",
+            "------------------------------------------------------------------------------",
+            "           h | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   7.951151   .2905316    27.37   0.000     7.379397    8.522905",
+            "           f |   5.128237   .6761982     7.58   0.000     3.797508    6.458966",
+            "       _cons |  -10.10086   .7740877   -13.05   0.000    -11.62423   -8.577487",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.h)|   34.16533   2.789588                       29.0939    40.12078",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tobit h x, vce(robust)",
+          "lines": [
+            "Iteration 0:  Log pseudolikelihood = -981.67291",
+            "Iteration 1:  Log pseudolikelihood = -981.67291",
+            "",
+            "Tobit regression                                    Number of obs     =    300",
+            "                                                           Uncensored =    300",
+            "Limits: Lower = -inf                                    Left-censored =      0",
+            "        Upper = +inf                                   Right-censored =      0",
+            "",
+            "                                                    F(1, 299)         = 588.72",
+            "                                                    Prob > F          = 0.0000",
+            "Log pseudolikelihood = -981.67291                   Pseudo R2         = 0.1467",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           h | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   7.925846   .3266556    24.26   0.000     7.283011    8.568682",
+            "       _cons |  -7.331217   .7532924    -9.73   0.000    -8.813644   -5.848791",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.h)|   40.71551    3.24862                      34.79909    47.63781",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tobit h x, ll(.) ul(.)",
+          "lines": [
+            "Iteration 0:  Log likelihood = -981.67291",
+            "Iteration 1:  Log likelihood = -981.67291",
+            "",
+            "Tobit regression                                    Number of obs     =    300",
+            "                                                           Uncensored =    300",
+            "Limits: Lower = -inf                                    Left-censored =      0",
+            "        Upper = +inf                                   Right-censored =      0",
+            "",
+            "                                                    LR chi2(1)        = 337.67",
+            "                                                    Prob > chi2       = 0.0000",
+            "Log likelihood = -981.67291                         Pseudo R2         = 0.1467",
+            "",
+            "------------------------------------------------------------------------------",
+            "           h | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   7.925846   .3171406    24.99   0.000     7.301736    8.549957",
+            "       _cons |  -7.331217   .7450856    -9.84   0.000    -8.797493   -5.864941",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.h)|   40.71551   3.324407                      34.67185    47.81263",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tobit h x, noconstant nolog",
+          "lines": [
+            "Tobit regression                                    Number of obs     =    300",
+            "                                                           Uncensored =    300",
+            "Limits: Lower = -inf                                    Left-censored =      0",
+            "        Upper = +inf                                   Right-censored =      0",
+            "",
+            "                                                    F(1, 299)         = 835.72",
+            "                                                    Prob > F          = 0.0000",
+            "Log likelihood = -1023.6258                         Pseudo R2         = 0.1632",
+            "",
+            " ( 1)  [h]_cons = 0",
+            "------------------------------------------------------------------------------",
+            "           h | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   5.213485   .1803425    28.91   0.000     4.858584    5.568387",
+            "       _cons |          0  (omitted)",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.h)|   53.85499   4.397241                      45.86096    63.24246",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-limited-noncount-outcomes",
+      "source": "clear\nset seed 7304\nset obs 300\ngenerate double x = runiform()*4\ngenerate int c = floor(exp(.2 + .3*x) * (-ln(runiform())) * 1.5)\ngenerate double y = c + .5\npoisson y x, vce(robust)\npoisson y x\npoisson y x in 1/50, nolog irr\npoisson y x, robust nolog\nnbreg y x\nnbreg y x, nolog vce(robust)\npredict n1\nsummarize n1\ngenerate yn = c - 3\ncapture noisily nbreg yn x\ncapture noisily poisson yn x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7304", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        {
+          "command": "generate int c = floor(exp(.2 + .3*x) * (-ln(runiform())) * 1.5)",
+          "lines": []
+        },
+        { "command": "generate double y = c + .5", "lines": [] },
+        {
+          "command": "poisson y x, vce(robust)",
+          "lines": [
+            "note: noncount dependent variable encountered; results correspond to an exponential-mean model rather than a poisson model.",
+            "",
+            "Iteration 0:  Log pseudolikelihood =  -850.8486",
+            "Iteration 1:  Log pseudolikelihood =  -850.8486",
+            "",
+            "Poisson regression                                      Number of obs =    300",
+            "                                                        Wald chi2(1)  =  18.63",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log pseudolikelihood = -850.8486                        Pseudo R2     = 0.0351",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .2084209   .0482872     4.32   0.000     .1137797     .303062",
+            "       _cons |   .8048956   .1067648     7.54   0.000     .5956404    1.014151",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "poisson y x",
+          "lines": [
+            "note: noncount dependent variable encountered; if you are fitting an exponential-mean model, consider using robust standard errors.",
+            "",
+            "Iteration 0:  Log likelihood =  -850.8486",
+            "Iteration 1:  Log likelihood =  -850.8486",
+            "",
+            "Poisson regression                                      Number of obs =    300",
+            "                                                        LR chi2(1)    =  61.85",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -850.8486                              Pseudo R2     = 0.0351",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .2084209   .0266525     7.82   0.000     .1561828    .2606589",
+            "       _cons |   .8048956   .0677046    11.89   0.000     .6721971    .9375941",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "poisson y x in 1/50, nolog irr",
+          "lines": [
+            "note: noncount dependent variable encountered; if you are fitting an exponential-mean model, consider using robust standard errors.",
+            "",
+            "Poisson regression                                      Number of obs =     50",
+            "                                                        LR chi2(1)    =  12.46",
+            "                                                        Prob > chi2   = 0.0004",
+            "Log likelihood = -175.26565                             Pseudo R2     = 0.0343",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y |        IRR   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.225001   .0709423     3.50   0.000     1.093558    1.372244",
+            "       _cons |   2.283844   .3559679     5.30   0.000     1.682655    3.099828",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline incidence rate."
+          ]
+        },
+        {
+          "command": "poisson y x, robust nolog",
+          "lines": [
+            "note: noncount dependent variable encountered; if you are fitting an exponential-mean model, consider using robust standard errors.",
+            "",
+            "Poisson regression                                      Number of obs =    300",
+            "                                                        Wald chi2(1)  =  18.63",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log pseudolikelihood = -850.8486                        Pseudo R2     = 0.0351",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .2084209   .0482872     4.32   0.000     .1137797     .303062",
+            "       _cons |   .8048956   .1067648     7.54   0.000     .5956404    1.014151",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "nbreg y x",
+          "lines": [
+            "note: you are responsible for interpretation of non-count dep. variable",
+            "",
+            "Fitting Poisson model:",
+            "",
+            "Iteration 0:  Log likelihood =  -850.8486",
+            "Iteration 1:  Log likelihood =  -850.8486",
+            "",
+            "Fitting constant-only model:",
+            "",
+            "Iteration 0:  Log likelihood = -713.33896",
+            "Iteration 1:  Log likelihood = -705.49408",
+            "Iteration 2:  Log likelihood = -705.46959",
+            "Iteration 3:  Log likelihood = -705.46959",
+            "",
+            "Fitting full model:",
+            "",
+            "Iteration 0:  Log likelihood = -695.83197",
+            "Iteration 1:  Log likelihood = -695.37457",
+            "Iteration 2:  Log likelihood = -695.37381",
+            "Iteration 3:  Log likelihood = -695.37381",
+            "",
+            "Negative binomial regression                            Number of obs =    300",
+            "                                                        LR chi2(1)    =  20.19",
+            "Dispersion: mean                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -695.37381                             Pseudo R2     = 0.0143",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .2126135   .0468386     4.54   0.000     .1208115    .3044154",
+            "       _cons |   .7960358   .1110654     7.17   0.000     .5783516     1.01372",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -.5400663   .1202056                     -.7756649   -.3044677",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   .5827096   .0700449                      .4603976    .7375158",
+            "------------------------------------------------------------------------------",
+            "LR test of alpha=0: chibar2(01) = 310.95               Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "nbreg y x, nolog vce(robust)",
+          "lines": [
+            "note: you are responsible for interpretation of non-count dep. variable",
+            "",
+            "Negative binomial regression                            Number of obs =    300",
+            "                                                        Wald chi2(1)  =  19.90",
+            "Dispersion: mean                                        Prob > chi2   = 0.0000",
+            "Log pseudolikelihood = -695.37381                       Pseudo R2     = 0.0143",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .2126135   .0476639     4.46   0.000      .119194    .3060329",
+            "       _cons |   .7960358   .1041609     7.64   0.000     .5918841    1.000187",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -.5400663   .1072041                     -.7501824   -.3299502",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   .5827096   .0624688                      .4722804    .7189596",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "predict n1",
+          "lines": ["(option n assumed; predicted number of events)"]
+        },
+        {
+          "command": "summarize n1",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          n1 |        300    3.478834    .8710574   2.217789   5.178411"
+          ]
+        },
+        { "command": "generate yn = c - 3", "lines": [] },
+        {
+          "command": "capture noisily nbreg yn x",
+          "lines": ["yn must be greater than or equal to zero"]
+        },
+        {
+          "command": "capture noisily poisson yn x",
+          "lines": ["yn must be greater than or equal to zero"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-limited-outcome-names",
+      "source": "clear\nset seed 7303\nset obs 300\ngenerate double x = runiform()*4\ngenerate byte f = runiform() > .5\ngenerate double u = x + f + 2*runiform()\ngenerate byte t = 1 + (u > 2) + (u > 3.2) + (u > 4.4)\nreplace t = 7 if t == 4\nlabel define tl 1 \"Bus\" 2 \"Car\" 3 \"Train\" 7 \"Walk\"\nlabel values t tl\ngenerate byte s = t\nquietly mlogit t x f\ncapture noisily predict p1, outcome(Bus)\ncapture noisily predict p2, outcome(Walk) pr\ncapture noisily predict p3, outcome(5)\ncapture noisily predict p4, outcome(#5)\ncapture noisily predict p5, outcome(Plane)\ncapture noisily predict p6, xb outcome(Train)\ncapture noisily predict p7, outcome(bus)\ncapture noisily predict p8 p9, outcome(Car)\ncapture noisily predict p10 p11, outcome(9)\npredict p12 p13 p14 p15\ncapture noisily margins, predict(outcome(Bus))\ncapture noisily margins, predict(outcome(5))\ncapture noisily margins, predict(outcome(Plane))\ncapture noisily margins, predict(outcome(#5))\nsummarize p*\ndescribe p*\nquietly ologit t x f\ncapture noisily predict q1, outcome(Bus)\ncapture noisily predict q2, outcome(9)\ncapture noisily predict q3, outcome(#9)\ncapture noisily predict q4, outcome(7)\ncapture noisily predict q5, xb outcome(9)\ncapture noisily predict q6, outcome(#2)\ncapture noisily predict q7, stdp outcome(#1)\ncapture noisily predict q8 q9, outcome(#2)\ncapture noisily margins, predict(outcome(Bus))\ncapture noisily margins, predict(outcome(9))\ncapture noisily margins, predict(outcome(#9))\ncapture noisily margins, predict(outcome(7))\nquietly oprobit s x f\ncapture noisily predict r1, outcome(5)\ncapture noisily margins, predict(outcome(5))\nsummarize q*\ncapture noisily mlogit t x f, baseoutcome(5)\ncapture noisily mlogit t x f, baseoutcome(Car)\ncapture noisily mlogit t x f, baseoutcome(1.5)\nmlogit t x f, baseoutcome(7) nolog\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7303", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        { "command": "generate double u = x + f + 2*runiform()", "lines": [] },
+        {
+          "command": "generate byte t = 1 + (u > 2) + (u > 3.2) + (u > 4.4)",
+          "lines": []
+        },
+        {
+          "command": "replace t = 7 if t == 4",
+          "lines": ["(76 real changes made)"]
+        },
+        {
+          "command": "label define tl 1 \"Bus\" 2 \"Car\" 3 \"Train\" 7 \"Walk\"",
+          "lines": []
+        },
+        { "command": "label values t tl", "lines": [] },
+        { "command": "generate byte s = t", "lines": [] },
+        { "command": "quietly mlogit t x f", "lines": [] },
+        {
+          "command": "capture noisily predict p1, outcome(Bus)",
+          "lines": ["(option pr assumed; predicted probability)"]
+        },
+        {
+          "command": "capture noisily predict p2, outcome(Walk) pr",
+          "lines": []
+        },
+        {
+          "command": "capture noisily predict p3, outcome(5)",
+          "lines": [
+            "(option pr assumed; predicted probability)",
+            "outcome 5 not found"
+          ]
+        },
+        {
+          "command": "capture noisily predict p4, outcome(#5)",
+          "lines": [
+            "(option pr assumed; predicted probability)",
+            "equation #5 not found"
+          ]
+        },
+        {
+          "command": "capture noisily predict p5, outcome(Plane)",
+          "lines": [
+            "(option pr assumed; predicted probability)",
+            "outcome Plane not found"
+          ]
+        },
+        {
+          "command": "capture noisily predict p6, xb outcome(Train)",
+          "lines": []
+        },
+        {
+          "command": "capture noisily predict p7, outcome(bus)",
+          "lines": [
+            "(option pr assumed; predicted probability)",
+            "outcome bus not found"
+          ]
+        },
+        {
+          "command": "capture noisily predict p8 p9, outcome(Car)",
+          "lines": [
+            "(option pr assumed; predicted probability)",
+            "option pr with outcome() requires that you specify 1 new variable",
+            "too many variables specified"
+          ]
+        },
+        {
+          "command": "capture noisily predict p10 p11, outcome(9)",
+          "lines": [
+            "(option pr assumed; predicted probability)",
+            "option pr with outcome() requires that you specify 1 new variable",
+            "too many variables specified"
+          ]
+        },
+        {
+          "command": "predict p12 p13 p14 p15",
+          "lines": ["(option pr assumed; predicted probabilities)"]
+        },
+        {
+          "command": "capture noisily margins, predict(outcome(Bus))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(t==Bus), predict(outcome(Bus))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |        .15   .0132919    11.29   0.000     .1239483    .1760517",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily margins, predict(outcome(5))",
+          "lines": ["outcome 5 not found"]
+        },
+        {
+          "command": "capture noisily margins, predict(outcome(Plane))",
+          "lines": ["outcome Plane not found"]
+        },
+        {
+          "command": "capture noisily margins, predict(outcome(#5))",
+          "lines": ["equation #5 not found"]
+        },
+        {
+          "command": "summarize p*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          p1 |        300         .15    .2733982   5.80e-11   .9518331",
+            "          p2 |        300    .2533333    .3540066   2.57e-09   .9902869",
+            "          p6 |        300           0           0          0          0",
+            "         p12 |        300         .15    .2733982   5.80e-11   .9518331",
+            "         p13 |        300         .29    .2730499   9.51e-06   .7709444",
+            "-------------+---------------------------------------------------------",
+            "         p14 |        300    .3066667    .2634031   .0001774    .773321",
+            "         p15 |        300    .2533333    .3540066   2.57e-09   .9902869"
+          ]
+        },
+        {
+          "command": "describe p*",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "p1              float   %9.0g                 Pr(t==Bus)",
+            "p2              float   %9.0g                 Pr(t==Walk)",
+            "p6              float   %9.0g                 Linear prediction, t==Train",
+            "p12             float   %9.0g                 Pr(t==Bus)",
+            "p13             float   %9.0g                 Pr(t==Car)",
+            "p14             float   %9.0g                 Pr(t==Train)",
+            "p15             float   %9.0g                 Pr(t==Walk)"
+          ]
+        },
+        { "command": "quietly ologit t x f", "lines": [] },
+        {
+          "command": "capture noisily predict q1, outcome(Bus)",
+          "lines": [
+            "(option pr assumed; predicted probability)",
+            "outcome() must be either a value of t",
+            "or #1, #2, ..."
+          ]
+        },
+        {
+          "command": "capture noisily predict q2, outcome(9)",
+          "lines": [
+            "(option pr assumed; predicted probability)",
+            "outcome 9 not found",
+            "outcome() must be either a value of t",
+            "or #1, #2, ..."
+          ]
+        },
+        {
+          "command": "capture noisily predict q3, outcome(#9)",
+          "lines": [
+            "(option pr assumed; predicted probability)",
+            "there is no outcome #9",
+            "there are only 4 categories"
+          ]
+        },
+        {
+          "command": "capture noisily predict q4, outcome(7)",
+          "lines": ["(option pr assumed; predicted probability)"]
+        },
+        {
+          "command": "capture noisily predict q5, xb outcome(9)",
+          "lines": ["option outcome() cannot be specified with option xb"]
+        },
+        {
+          "command": "capture noisily predict q6, outcome(#2)",
+          "lines": ["(option pr assumed; predicted probability)"]
+        },
+        {
+          "command": "capture noisily predict q7, stdp outcome(#1)",
+          "lines": ["option outcome() cannot be specified with option stdp"]
+        },
+        {
+          "command": "capture noisily predict q8 q9, outcome(#2)",
+          "lines": [
+            "(option pr assumed; predicted probability)",
+            "too few variables specified",
+            "t has 4 outcomes and so you must specify 4 new variables, or",
+            "you can use the outcome() option and specify variables one at a time"
+          ]
+        },
+        {
+          "command": "capture noisily margins, predict(outcome(Bus))",
+          "lines": ["outcome() must be either a value of t", "or #1, #2, ..."]
+        },
+        {
+          "command": "capture noisily margins, predict(outcome(9))",
+          "lines": [
+            "outcome 9 not found",
+            "outcome() must be either a value of t",
+            "or #1, #2, ..."
+          ]
+        },
+        {
+          "command": "capture noisily margins, predict(outcome(#9))",
+          "lines": ["there is no outcome #9", "there are only 4 categories"]
+        },
+        {
+          "command": "capture noisily margins, predict(outcome(7))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 300",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(t==7), predict(outcome(7))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .2523226   .0150156    16.80   0.000     .2228926    .2817527",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly oprobit s x f", "lines": [] },
+        {
+          "command": "capture noisily predict r1, outcome(5)",
+          "lines": [
+            "(option pr assumed; predicted probability)",
+            "outcome 5 not found",
+            "outcome() must be either a value of s",
+            "or #1, #2, ..."
+          ]
+        },
+        {
+          "command": "capture noisily margins, predict(outcome(5))",
+          "lines": [
+            "outcome 5 not found",
+            "outcome() must be either a value of s",
+            "or #1, #2, ..."
+          ]
+        },
+        {
+          "command": "summarize q*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          q4 |        300    .2523226    .3471597   .0000166   .9895125",
+            "          q6 |        300    .2910455    .2802214   .0001855   .7625738"
+          ]
+        },
+        {
+          "command": "capture noisily mlogit t x f, baseoutcome(5)",
+          "lines": ["basecategory not found"]
+        },
+        {
+          "command": "capture noisily mlogit t x f, baseoutcome(Car)",
+          "lines": ["option baseoutcome() incorrectly specified"]
+        },
+        {
+          "command": "capture noisily mlogit t x f, baseoutcome(1.5)",
+          "lines": ["basecategory not found"]
+        },
+        {
+          "command": "mlogit t x f, baseoutcome(7) nolog",
+          "lines": [
+            "Multinomial logistic regression                         Number of obs =    300",
+            "                                                        LR chi2(6)    = 427.49",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -192.41638                             Pseudo R2     = 0.5263",
+            "",
+            "------------------------------------------------------------------------------",
+            "           t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "Bus          |",
+            "           x |  -8.573066   .8497615   -10.09   0.000    -10.23857   -6.907564",
+            "           f |  -9.467363   1.080771    -8.76   0.000    -11.58564   -7.349091",
+            "       _cons |   19.82995   2.048292     9.68   0.000     15.81537    23.84453",
+            "-------------+----------------------------------------------------------------",
+            "Car          |",
+            "           x |  -5.731133   .6277954    -9.13   0.000    -6.961589   -4.500676",
+            "           f |  -5.684837   .8159414    -6.97   0.000    -7.284053   -4.085622",
+            "       _cons |   16.80999   1.941942     8.66   0.000     13.00385    20.61612",
+            "-------------+----------------------------------------------------------------",
+            "Train        |",
+            "           x |  -3.244177   .4952474    -6.55   0.000    -4.214844    -2.27351",
+            "           f |  -2.969398    .590365    -5.03   0.000    -4.126492   -1.812303",
+            "       _cons |   11.18129   1.701996     6.57   0.000     7.845434    14.51714",
+            "-------------+----------------------------------------------------------------",
+            "Walk         |  (base outcome)",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-limited-outcome-factor-margins",
+      "source": "clear\nset seed 7305\nset obs 400\ngenerate byte g = runiform() > .5\ngenerate byte r = 1 + floor(runiform()*3)\nlabel define rl 1 \"North\" 2 \"South\" 3 \"West\"\nlabel values r rl\ngenerate double x = runiform()*3\ngenerate double u = x + g + 2*runiform()\ngenerate byte t = 1 + (u > 1.8) + (u > 3) + (u > 4)\nologit t i.g, nolog\nmargins g\nmargins g, predict(outcome(2))\noprobit t i.r, nolog\nmargins r\nmlogit t i.g, nolog\nmargins g, predict(outcome(2))\nmargins g\nmlogit t i.g x, nolog\nmargins g, predict(outcome(3))\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7305", "lines": [] },
+        {
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        { "command": "generate byte g = runiform() > .5", "lines": [] },
+        { "command": "generate byte r = 1 + floor(runiform()*3)", "lines": [] },
+        {
+          "command": "label define rl 1 \"North\" 2 \"South\" 3 \"West\"",
+          "lines": []
+        },
+        { "command": "label values r rl", "lines": [] },
+        { "command": "generate double x = runiform()*3", "lines": [] },
+        { "command": "generate double u = x + g + 2*runiform()", "lines": [] },
+        {
+          "command": "generate byte t = 1 + (u > 1.8) + (u > 3) + (u > 4)",
+          "lines": []
+        },
+        {
+          "command": "ologit t i.g, nolog",
+          "lines": [
+            "Ordered logistic regression                             Number of obs =    400",
+            "                                                        LR chi2(1)    =  65.52",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -510.03789                             Pseudo R2     = 0.0604",
+            "",
+            "------------------------------------------------------------------------------",
+            "           t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         1.g |   1.527904   .1952787     7.82   0.000     1.145165    1.910643",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |  -.8733411   .1447353                     -1.157017   -.5896651",
+            "       /cut2 |   .7072171   .1405071                      .4318283    .9826059",
+            "       /cut3 |   2.373269   .1824099                      2.015752    2.730786",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins g",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "1._predict: Pr(t==1), predict(pr outcome(1))",
+            "2._predict: Pr(t==2), predict(pr outcome(2))",
+            "3._predict: Pr(t==3), predict(pr outcome(3))",
+            "4._predict: Pr(t==4), predict(pr outcome(4))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "  _predict#g |",
+            "        1 0  |   .2945596   .0300752     9.79   0.000     .2356133    .3535058",
+            "        1 1  |   .0830778   .0141911     5.85   0.000     .0552638    .1108918",
+            "        2 0  |   .3752264    .027943    13.43   0.000     .3204592    .4299936",
+            "        2 1  |   .2225401   .0233338     9.54   0.000     .1768066    .2682736",
+            "        3 0  |   .2449801   .0237616    10.31   0.000     .1984083     .291552",
+            "        3 1  |   .3939761   .0283511    13.90   0.000     .3384089    .4495433",
+            "        4 0  |   .0852339   .0142223     5.99   0.000     .0573586    .1131092",
+            "        4 1  |   .3004061   .0313823     9.57   0.000     .2388979    .3619142",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins g, predict(outcome(2))",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(t==2), predict(outcome(2))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          0  |   .3752264    .027943    13.43   0.000     .3204592    .4299936",
+            "          1  |   .2225401   .0233338     9.54   0.000     .1768066    .2682736",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "oprobit t i.r, nolog",
+          "lines": [
+            "Ordered probit regression                               Number of obs =    400",
+            "                                                        LR chi2(2)    =   2.48",
+            "                                                        Prob > chi2   = 0.2888",
+            "Log likelihood = -541.55687                             Pseudo R2     = 0.0023",
+            "",
+            "------------------------------------------------------------------------------",
+            "           t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           r |",
+            "      South  |  -.0179451    .128761    -0.14   0.889     -.270312    .2344217",
+            "       West  |    .171416   .1324372     1.29   0.196    -.0881561    .4309882",
+            "-------------+----------------------------------------------------------------",
+            "       /cut1 |  -.8244986   .1035399                     -1.027433    -.621564",
+            "       /cut2 |   .0346398   .0974881                     -.1564333    .2257129",
+            "       /cut3 |   .9384253   .1050987                      .7324357    1.144415",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins r",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "1._predict: Pr(t==1), predict(pr outcome(1))",
+            "2._predict: Pr(t==2), predict(pr outcome(2))",
+            "3._predict: Pr(t==3), predict(pr outcome(3))",
+            "4._predict: Pr(t==4), predict(pr outcome(4))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "  _predict#r |",
+            "    1#North  |   .2048282   .0294037     6.97   0.000      .147198    .2624583",
+            "    1#South  |   .2099619   .0292359     7.18   0.000     .1526605    .2672633",
+            "     1#West  |   .1596458   .0263675     6.05   0.000     .1079665    .2113251",
+            "    2#North  |   .3089883   .0248422    12.44   0.000     .2602986    .3576781",
+            "    2#South  |   .3110068   .0248527    12.51   0.000     .2622964    .3597172",
+            "     2#West  |    .285958   .0250948    11.40   0.000     .2367731    .3351429",
+            "    3#North  |   .3121706   .0252479    12.36   0.000     .2626856    .3616555",
+            "    3#South  |   .3095888   .0251693    12.30   0.000     .2602579    .3589197",
+            "     3#West  |   .3328582   .0254509    13.08   0.000     .2829753    .3827411",
+            "    4#North  |   .1740129   .0269947     6.45   0.000     .1211043    .2269215",
+            "    4#South  |   .1694425   .0262045     6.47   0.000     .1180827    .2208024",
+            "     4#West  |    .221538    .031357     7.07   0.000     .1600794    .2829966",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mlogit t i.g, nolog",
+          "lines": [
+            "Multinomial logistic regression                         Number of obs =    400",
+            "                                                        LR chi2(3)    =  66.48",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -509.55968                             Pseudo R2     = 0.0612",
+            "",
+            "------------------------------------------------------------------------------",
+            "           t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "1            |",
+            "         1.g |  -1.805553   .3457148    -5.22   0.000    -2.483141   -1.127964",
+            "       _cons |   .1541507   .1854495     0.83   0.406    -.2093238    .5176251",
+            "-------------+----------------------------------------------------------------",
+            "2            |",
+            "         1.g |  -.7903221   .2594024    -3.05   0.002    -1.298742   -.2819027",
+            "       _cons |   .3285041   .1784709     1.84   0.066    -.0212924    .6783005",
+            "-------------+----------------------------------------------------------------",
+            "3            |  (base outcome)",
+            "-------------+----------------------------------------------------------------",
+            "4            |",
+            "         1.g |   .9257543   .3290624     2.81   0.005     .2808038    1.570705",
+            "       _cons |  -1.155771   .2781044    -4.16   0.000    -1.700845   -.6106961",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins g, predict(outcome(2))",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(t==2), predict(outcome(2))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          0  |   .3588517    .033179    10.82   0.000      .293822    .4238814",
+            "          1  |   .2408377   .0309395     7.78   0.000     .1801974    .3014779",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins g",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "1._predict: Pr(t==1), predict(pr outcome(1))",
+            "2._predict: Pr(t==2), predict(pr outcome(2))",
+            "3._predict: Pr(t==3), predict(pr outcome(3))",
+            "4._predict: Pr(t==4), predict(pr outcome(4))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "  _predict#g |",
+            "        1 0  |   .3014354   .0317415     9.50   0.000     .2392232    .3636476",
+            "        1 1  |   .0732984   .0188582     3.89   0.000      .036337    .1102599",
+            "        2 0  |   .3588517    .033179    10.82   0.000      .293822    .4238814",
+            "        2 1  |   .2408377   .0309395     7.78   0.000     .1801974    .3014779",
+            "        3 0  |   .2583732   .0302791     8.53   0.000     .1990272    .3177192",
+            "        3 1  |    .382199   .0351603    10.87   0.000     .3132861    .4511118",
+            "        4 0  |   .0813397   .0189084     4.30   0.000     .0442799    .1183996",
+            "        4 1  |   .3036649   .0332728     9.13   0.000     .2384514    .3688785",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mlogit t i.g x, nolog",
+          "lines": [
+            "Multinomial logistic regression                         Number of obs =    400",
+            "                                                        LR chi2(6)    = 490.14",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -297.72889                             Pseudo R2     = 0.4515",
+            "",
+            "------------------------------------------------------------------------------",
+            "           t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "1            |",
+            "         1.g |  -5.671212   .6634155    -8.55   0.000    -6.971483   -4.370942",
+            "           x |  -5.865113   .6017649    -9.75   0.000     -7.04455   -4.685675",
+            "       _cons |   8.099964   .8407828     9.63   0.000      6.45206    9.747869",
+            "-------------+----------------------------------------------------------------",
+            "2            |",
+            "         1.g |  -2.951778   .4578556    -6.45   0.000    -3.849159   -2.054398",
+            "           x |  -2.491935   .3277202    -7.60   0.000    -3.134255   -1.849615",
+            "       _cons |   5.069137   .6835449     7.42   0.000     3.729413     6.40886",
+            "-------------+----------------------------------------------------------------",
+            "3            |  (base outcome)",
+            "-------------+----------------------------------------------------------------",
+            "4            |",
+            "         1.g |   2.618865   .4737768     5.53   0.000      1.69028    3.547451",
+            "           x |   3.186185   .4744987     6.71   0.000     2.256184    4.116185",
+            "       _cons |  -9.091478   1.267962    -7.17   0.000    -11.57664   -6.606317",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins g, predict(outcome(3))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(t==3), predict(outcome(3))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          0  |   .2491106   .0249685     9.98   0.000     .2001734    .2980479",
+            "          1  |   .3758615   .0305983    12.28   0.000     .3158901     .435833",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-limited-lrtest-force-heckman-jackknife",
+      "source": "clear\nset seed 7306\nset obs 400\ngenerate double x = runiform()*4\ngenerate byte f = runiform() > .5\ngenerate double z = rnormal()\ngenerate double u = runiform()\ngenerate byte d = (x - 2 + f + ln(u/(1-u))) > 0\nquietly logit d x f\nestimates store a\nquietly logit d x if x > 1\nestimates store b\ncapture noisily lrtest a b\nlrtest a b, force\ngenerate double e1 = rnormal()\ngenerate double e2 = .5*e1 + rnormal()\ngenerate byte works = (.5 + .7*z + .2*x + e1) > 0\ngenerate double lw = 1 + .1*x + .4*e2 if works\nheckman lw x, select(works = z x) twostep vce(jackknife)\nheckman lw x, select(works = z x) vce(jackknife) nolog\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7306", "lines": [] },
+        {
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        { "command": "generate double z = rnormal()", "lines": [] },
+        { "command": "generate double u = runiform()", "lines": [] },
+        {
+          "command": "generate byte d = (x - 2 + f + ln(u/(1-u))) > 0",
+          "lines": []
+        },
+        { "command": "quietly logit d x f", "lines": [] },
+        { "command": "estimates store a", "lines": [] },
+        { "command": "quietly logit d x if x > 1", "lines": [] },
+        { "command": "estimates store b", "lines": [] },
+        {
+          "command": "capture noisily lrtest a b",
+          "lines": ["observations differ: 400 vs. 314"]
+        },
+        {
+          "command": "lrtest a b, force",
+          "lines": [
+            "Likelihood-ratio test",
+            "Assumption: b nested within a",
+            "",
+            " LR chi2(1) = -95.55",
+            "Prob > chi2 = 1.0000"
+          ]
+        },
+        { "command": "generate double e1 = rnormal()", "lines": [] },
+        { "command": "generate double e2 = .5*e1 + rnormal()", "lines": [] },
+        {
+          "command": "generate byte works = (.5 + .7*z + .2*x + e1) > 0",
+          "lines": []
+        },
+        {
+          "command": "generate double lw = 1 + .1*x + .4*e2 if works",
+          "lines": ["(94 missing values generated)"]
+        },
+        {
+          "command": "heckman lw x, select(works = z x) twostep vce(jackknife)",
+          "lines": [
+            "(running heckman on estimation sample)",
+            "",
+            "Jackknife replications (400): .........10.........20.........30.........40.........50.........60.........70.........80.........90.........100.........110.........120.........130.........140.........15",
+            "> 0.........160.........170.........180.........190.........200.........210.........220.........230.........240.........250.........260.........270.........280.........290.........300.........310.....",
+            "> ....320.........330.........340.........350.........360.........370.........380.........390.........400 done",
+            "",
+            "Heckman selection model -- two-step estimates   Number of obs     =        400",
+            "(regression model with sample selection)              Selected    =        306",
+            "                                                      Nonselected =         94",
+            "",
+            "                                                F(   1,    399)   =       7.38",
+            "                                                Prob > F          =     0.0069",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "lw           |",
+            "           x |   .0615401   .0226499     2.72   0.007      .017012    .1060682",
+            "       _cons |   1.091355   .0724218    15.07   0.000      .948979    1.233731",
+            "-------------+----------------------------------------------------------------",
+            "works        |",
+            "           z |   .6098686    .085921     7.10   0.000     .4409541    .7787831",
+            "           x |   .1675254    .066754     2.51   0.012     .0362919    .2987589",
+            "       _cons |   .5277982   .1508083     3.50   0.001       .23132    .8242763",
+            "-------------+----------------------------------------------------------------",
+            "/mills       |",
+            "      lambda |   .2214752   .1174667     1.89   0.060    -.0094558    .4524062",
+            "-------------+----------------------------------------------------------------",
+            "         rho |    0.50694",
+            "       sigma |  .43688381",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "heckman lw x, select(works = z x) vce(jackknife) nolog",
+          "lines": [
+            "(running heckman on estimation sample)",
+            "",
+            "Jackknife replications (400): .........10.........20.........30.........40.........50.........60.........70.........80.........90.........100.........110.........120.........130.........140.........15",
+            "> 0.........160.........170.........180.........190.........200.........210.........220.........230.........240.........250.........260.........270.........280.........290.........300.........310.....",
+            "> ....320.........330.........340.........350.........360.........370.........380.........390.........400 done",
+            "",
+            "Heckman selection model                         Number of obs     =        400",
+            "(regression model with sample selection)              Selected    =        306",
+            "                                                      Nonselected =         94",
+            "",
+            "                                                F(   1,    399)   =       7.50",
+            "Log likelihood = -348.5648                      Prob > F          =     0.0064",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "lw           |",
+            "           x |   .0606789   .0221519     2.74   0.006     .0171298    .1042279",
+            "       _cons |   1.104018   .0584205    18.90   0.000     .9891675    1.218868",
+            "-------------+----------------------------------------------------------------",
+            "works        |",
+            "           z |   .6158623   .0843131     7.30   0.000     .4501088    .7816158",
+            "           x |   .1556558   .0657155     2.37   0.018      .026464    .2848476",
+            "       _cons |   .5500006   .1514353     3.63   0.000     .2522898    .8477115",
+            "-------------+----------------------------------------------------------------",
+            "     /athrho |   .4711416   .1899037     2.48   0.014     .0978048    .8444783",
+            "    /lnsigma |  -.8396008   .0529504   -15.86   0.000    -.9436975   -.7355041",
+            "-------------+----------------------------------------------------------------",
+            "         rho |   .4391212    .153285                      .0974941    .6881738",
+            "       sigma |   .4318829   .0228684                      .3891862    .4792638",
+            "      lambda |   .1896489   .0719731                      .0481551    .3311427",
+            "------------------------------------------------------------------------------",
+            "LR test of indep. eqns. (rho = 0): chi2(1) = 3.94         Prob > chi2 = 0.0471"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-limited-one-cluster-and-noncount-notes",
+      "source": "clear\nset seed 9\nset obs 100\ngenerate x = runiform()\ngenerate x2 = 2*x\ngenerate w = floor(3*runiform()) + .5\ngenerate y = floor(3*runiform())\ngenerate d = runiform() > .4\ngenerate z = runiform() > .5\ngenerate g = 1 + (runiform() > .5)\ngenerate x3 = runiform()\npoisson w x x2, nolog\nnbreg w x x2 i.z, nolog\npoisson w x if z, nolog vce(cluster z)\nlogit d x if z, nolog vce(cluster z)\nprobit d x if z, nolog vce(cluster z)\npoisson y x if z, nolog vce(cluster z) irr\nnbreg y x if z, nolog vce(cluster z)\ntobit y x if z, ll(0) vce(cluster z) nolog\ndisplay e(df_m) \" \" e(df_r) \" \" e(rank)\nglm d x if z, family(binomial) vce(cluster z) nolog\ntobit y x x3, ll(0) vce(cluster g) nolog\ndisplay e(df_m) \" \" e(df_r) \" \" e(rank)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 9", "lines": [] },
+        {
+          "command": "set obs 100",
+          "lines": ["Number of observations (_N) was 0, now 100."]
+        },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate x2 = 2*x", "lines": [] },
+        { "command": "generate w = floor(3*runiform()) + .5", "lines": [] },
+        { "command": "generate y = floor(3*runiform())", "lines": [] },
+        { "command": "generate d = runiform() > .4", "lines": [] },
+        { "command": "generate z = runiform() > .5", "lines": [] },
+        { "command": "generate g = 1 + (runiform() > .5)", "lines": [] },
+        { "command": "generate x3 = runiform()", "lines": [] },
+        {
+          "command": "poisson w x x2, nolog",
+          "lines": [
+            "note: noncount dependent variable encountered; if you are fitting an exponential-mean model, consider using robust standard errors.",
+            "note: x2 omitted because of collinearity.",
+            "",
+            "Poisson regression                                      Number of obs =    100",
+            "                                                        LR chi2(1)    =   0.06",
+            "                                                        Prob > chi2   = 0.8096",
+            "Log likelihood = -134.35832                             Pseudo R2     = 0.0002",
+            "",
+            "------------------------------------------------------------------------------",
+            "           w | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   -.067904   .2821416    -0.24   0.810    -.6208914    .4850833",
+            "          x2 |          0  (omitted)",
+            "       _cons |   .4743895   .1464663     3.24   0.001     .1873209    .7614581",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "nbreg w x x2 i.z, nolog",
+          "lines": [
+            "note: you are responsible for interpretation of non-count dep. variable",
+            "note: x2 omitted because of collinearity.",
+            "",
+            "Negative binomial regression                            Number of obs =    100",
+            "                                                        LR chi2(2)    =   1.05",
+            "Dispersion: mean                                        Prob > chi2   = 0.5930",
+            "Log likelihood = -133.86471                             Pseudo R2     = 0.0039",
+            "",
+            "------------------------------------------------------------------------------",
+            "           w | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.1118253   .2846673    -0.39   0.694    -.6697631    .4461124",
+            "          x2 |          0  (omitted)",
+            "         1.z |   .1617068   .1631345     0.99   0.322    -.1580309    .4814445",
+            "       _cons |   .4064636   .1629329     2.49   0.013     .0871209    .7258062",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -26.57703          .                             .           .",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   2.87e-12          .                             .           .",
+            "------------------------------------------------------------------------------",
+            "LR test of alpha=0: chibar2(01) = 0.00                 Prob >= chibar2 = 1.000"
+          ]
+        },
+        {
+          "command": "poisson w x if z, nolog vce(cluster z)",
+          "lines": [
+            "note: noncount dependent variable encountered; results correspond to an exponential-mean model rather than a poisson model.",
+            "",
+            "Poisson regression                                      Number of obs =     52",
+            "                                                        Wald chi2(0)  =      .",
+            "                                                        Prob > chi2   =      .",
+            "Log pseudolikelihood = -70.382144                       Pseudo R2     = 0.0000",
+            "",
+            "                                      (Std. err. adjusted for 1 clusters in z)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           w | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .0106796          .        .       .            .           .",
+            "       _cons |    .509497          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit d x if z, nolog vce(cluster z)",
+          "lines": [
+            "Logistic regression                                     Number of obs =     52",
+            "                                                        Wald chi2(0)  =      .",
+            "                                                        Prob > chi2   =      .",
+            "Log pseudolikelihood = -33.654668                       Pseudo R2     = 0.0572",
+            "",
+            "                                      (Std. err. adjusted for 1 clusters in z)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           d | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.970663          .        .       .            .           .",
+            "       _cons |  -1.203949          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "probit d x if z, nolog vce(cluster z)",
+          "lines": [
+            "Probit regression                                       Number of obs =     52",
+            "                                                        Wald chi2(0)  =      .",
+            "                                                        Prob > chi2   =      .",
+            "Log pseudolikelihood = -33.652781                       Pseudo R2     = 0.0573",
+            "",
+            "                                      (Std. err. adjusted for 1 clusters in z)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           d | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    1.21717          .        .       .            .           .",
+            "       _cons |  -.7460583          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "poisson y x if z, nolog vce(cluster z) irr",
+          "lines": [
+            "Poisson regression                                      Number of obs =     52",
+            "                                                        Wald chi2(0)  =      .",
+            "                                                        Prob > chi2   =      .",
+            "Log pseudolikelihood = -66.086781                       Pseudo R2     = 0.0048",
+            "",
+            "                                      (Std. err. adjusted for 1 clusters in z)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y |        IRR   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    .696988          .        .       .            .           .",
+            "       _cons |   1.274927          .        .       .            .           .",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline incidence rate."
+          ]
+        },
+        {
+          "command": "nbreg y x if z, nolog vce(cluster z)",
+          "lines": [
+            "Negative binomial regression                            Number of obs =     52",
+            "                                                        Wald chi2(0)  =      .",
+            "Dispersion: mean                                        Prob > chi2   =      .",
+            "Log pseudolikelihood = -66.086781                       Pseudo R2     = 0.0048",
+            "",
+            "                                      (Std. err. adjusted for 1 clusters in z)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.3609871          .        .       .            .           .",
+            "       _cons |   .2428892          .        .       .            .           .",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -21.82887          .                             .           .",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   3.31e-10          .                             .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tobit y x if z, ll(0) vce(cluster z) nolog",
+          "lines": [
+            "Tobit regression                                    Number of obs     =     52",
+            "                                                           Uncensored =     35",
+            "Limits: Lower =    0                                    Left-censored =     17",
+            "        Upper = +inf                                   Right-censored =      0",
+            "",
+            "                                                    F(0, 54)          =      .",
+            "                                                    Prob > F          =      .",
+            "Log pseudolikelihood = -72.118973                   Pseudo R2         = 0.0067",
+            "",
+            "                                      (Std. err. adjusted for 1 clusters in z)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   -.578769          .        .       .            .           .",
+            "       _cons |   1.124541          .        .       .            .           .",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.y)|   1.419079          .                             .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(df_m) \" \" e(df_r) \" \" e(rank)",
+          "lines": ["0 54 0"]
+        },
+        {
+          "command": "glm d x if z, family(binomial) vce(cluster z) nolog",
+          "lines": [
+            "Generalized linear models                         Number of obs   =         52",
+            "Optimization     : ML                             Residual df     =         52",
+            "                                                  Scale parameter =          1",
+            "Deviance         =  67.30933631                   (1/df) Deviance =    1.29441",
+            "Pearson          =  51.96414897                   (1/df) Pearson  =   .9993106",
+            "",
+            "Variance function: V(u) = u*(1-u)                 [Bernoulli]",
+            "Link function    : g(u) = ln(u/(1-u))             [Logit]",
+            "",
+            "                                                  AIC             =    1.29441",
+            "Log pseudolikelihood = -33.65466816               BIC             =  -138.1553",
+            "",
+            "                                      (Std. err. adjusted for 1 clusters in z)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           d | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.970663          .        .       .            .           .",
+            "       _cons |  -1.203949          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "tobit y x x3, ll(0) vce(cluster g) nolog",
+          "lines": [
+            "Tobit regression                                    Number of obs     =    100",
+            "                                                           Uncensored =     70",
+            "Limits: Lower =    0                                    Left-censored =     30",
+            "        Upper = +inf                                   Right-censored =      0",
+            "",
+            "                                                    F(1, 101)         =      .",
+            "                                                    Prob > F          =      .",
+            "Log pseudolikelihood = -136.59334                   Pseudo R2         = 0.0024",
+            "",
+            "                                      (Std. err. adjusted for 2 clusters in g)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |  -.2072458   .6088962    -0.34   0.734    -1.415132    1.000641",
+            "          x3 |    .246092   .3699508     0.67   0.507    -.4877909    .9799749",
+            "       _cons |    .858171   .1812673     4.73   0.000     .4985855    1.217757",
+            "-------------+----------------------------------------------------------------",
+            "     var(e.y)|   1.231233   .1488375                       .968713    1.564896",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(df_m) \" \" e(df_r) \" \" e(rank)",
+          "lines": ["1 101 1"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

@@ -8,7 +8,7 @@
 import { StataError } from "./errors.js";
 import { evaluateAll } from "./expression.js";
 import { applyFormat } from "./format.js";
-import { chi2tail, lngamma } from "./distributions.js";
+import { chi2tail, ibeta, lngamma } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
 import {
   abbreviate,
@@ -317,9 +317,14 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx, asked) {
     weightedTerm = (term) => (i, xb, todo) =>
       term(i, xb, todo).map((v) => v * ww[i]);
   let theta, V, ll, log, logNotes, converged;
-  if (familyName === "gaussian") {
-    if (linkName !== "identity")
-      throw new StataError("family(gaussian) takes link(identity) here", 198);
+  // The Gaussian family with a link other than the identity is fitted by
+  // ml as the others are, glim_lf carrying the scale phi: the sum of
+  // squared residuals over N - k at the last point whose Hessian it took,
+  // which divides the score and Hessian, while glim_v1's likelihood takes
+  // the variance phi * (N - k) / N.
+  let phi = 1,
+    phiUsed = 1;
+  if (familyName === "gaussian" && linkName === "identity") {
     // Least squares, which glm.ado reports without iterating.
     const xtx = Array.from({ length: k }, () => new Array(k).fill(0));
     x.forEach((r, i) => {
@@ -381,27 +386,43 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx, asked) {
           usable.map((i) => z[i]),
           usable.map((i) => w[i]),
         ) ?? new Array(k).fill(0);
+      const gaussian = familyName === "gaussian",
+        squares = (theta) =>
+          x.reduce(
+            (t, r, i) => t + ww[i] * (y[i] - link.mu(dot(r, theta))) ** 2,
+            0,
+          );
+      if (gaussian) phi = squares(start) / (n - k);
       // glim_lf: the log likelihood, its score and the observed
       // information in the index, with the mean kept inside its range.
-      fit = maximizeNR(
-        sums(
-          x,
-          weightedTerm((i, xb, todo) => {
-            const u = family.bound(link.mu(xb)),
-              value = family.ll(y[i], u);
-            if (!todo) return [value];
-            const d1 = link.d1(u),
-              v = family.v(u),
-              t1 = (d1 * d1) / v;
-            return [
-              value,
-              ((y[i] - u) / v) * d1,
-              t1 - (u - y[i]) * ((t1 / v) * family.dv(u) - link.d2(u) / v),
-            ];
-          }),
-        ),
-        start,
+      const evaluate = sums(
+        x,
+        weightedTerm((i, xb, todo) => {
+          const u = family.bound(link.mu(xb)),
+            sig2 = (phi * (n - k)) / n,
+            value = gaussian
+              ? -0.5 * ((y[i] - u) ** 2 / sig2 + Math.log(2 * Math.PI * sig2))
+              : family.ll(y[i], u);
+          if (!todo) return [value];
+          const d1 = link.d1(u),
+            v = family.v(u),
+            t1 = (d1 * d1) / v;
+          return [
+            value,
+            (((y[i] - u) / v) * d1) / phi,
+            (t1 - (u - y[i]) * ((t1 / v) * family.dv(u) - link.d2(u) / v)) /
+              phi,
+          ];
+        }),
       );
+      fit = maximizeNR((theta, todo) => {
+        const result = evaluate(theta, todo);
+        if (gaussian && todo) {
+          phiUsed = phi;
+          phi = squares(theta) / (n - k);
+        }
+        return result;
+      }, start);
     } catch (error) {
       // ml has logged the iterations it took before it stopped.
       if (error instanceof StataError && error.log) {
@@ -421,11 +442,12 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx, asked) {
             ),
           );
       }
-      // glm.ado answers any failure of a Poisson model with a link other
-      // than its own or the identity with a note of its own and r(459).
+      // glm.ado answers any failure of a Gaussian or Poisson model with a
+      // link other than the identity or log with a note of its own and
+      // r(459).
       if (
         error instanceof StataError &&
-        familyName === "poisson" &&
+        (familyName === "poisson" || familyName === "gaussian") &&
         !["log", "identity"].includes(linkName)
       )
         throw new StataError(
@@ -444,16 +466,21 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx, asked) {
   // cluster.
   let clusters = null;
   if (asked.robust && V.every((r) => r.every(Number.isFinite))) {
+    // The score carries the scale the variance carries, which then
+    // cancels.
     const scale =
-        familyName === "gaussian"
-          ? x.reduce((t, r, i) => t + ww[i] * (y[i] - dot(r, theta)) ** 2, 0) /
-            (n - k)
-          : 1,
+        familyName !== "gaussian"
+          ? 1
+          : linkName === "identity"
+            ? x.reduce(
+                (t, r, i) => t + ww[i] * (y[i] - dot(r, theta)) ** 2,
+                0,
+              ) /
+              (n - k)
+            : phiUsed,
       score = (i) => {
-        const xb = dot(x[i], theta);
-        if (familyName === "gaussian") return (y[i] - xb) / scale;
-        const u = family.bound(link.mu(xb));
-        return ((y[i] - u) / family.v(u)) * link.d1(u);
+        const u = family.bound(link.mu(dot(x[i], theta)));
+        return (((y[i] - u) / family.v(u)) * link.d1(u)) / scale;
       },
       apart = wtype === "fweight" && !asked.cluster,
       own = { data: x.map((_, i) => i) },
@@ -674,6 +701,12 @@ function glm(session, text, ctx) {
     bic = deviance - df * Math.log(n),
     right = (label, value) => `${label.padEnd(16)}=${value.padStart(11)}`,
     long = (value) => g(value, "%12.0g").padStart(12);
+  Object.assign(fitted.model, {
+    phi: scale,
+    familyName,
+    robust: asked.robust,
+  });
+  fitted.model.predictor = (s, t, c) => predictGlm(s, t, c, fitted.model);
   session.estimates = fitted.model;
   session.results.e = {
     N: n,
@@ -922,6 +955,353 @@ function cloglog(session, text, ctx) {
   coefficientTable(session, ctx, fitted, parsed.options, false);
   unconverged(fitted);
   ctx.out("");
+}
+
+// The Bernoulli's Anscombe transform, 1.5 t^(2/3) 2F1(2/3, 1/3; 5/3; t),
+// which is the incomplete beta integral B_t(2/3, 2/3).
+const BETA_23 = Math.exp(2 * lngamma(2 / 3) - lngamma(4 / 3)),
+  anscombeBinomial = (t) => (t <= 0 ? 0 : BETA_23 * ibeta(2 / 3, 2 / 3, t));
+// Each family's Anscombe residual and the adjustment to its deviance
+// residual, as glim_v1 to glim_v3 give them.
+const RESIDUALS = {
+  gaussian: { anscombe: (y, u) => y - u, adjust: () => 0 },
+  binomial: {
+    anscombe: (y, u) =>
+      (anscombeBinomial(y) - anscombeBinomial(u)) / (u * (1 - u)) ** (1 / 6),
+    adjust: (u) => (1 - 2 * u) / (6 * Math.sqrt(u * (1 - u))),
+  },
+  poisson: {
+    anscombe: (y, u) => (1.5 * (y ** (2 / 3) - u ** (2 / 3))) / u ** (1 / 6),
+    adjust: (u) => 1 / (6 * Math.sqrt(u)),
+  },
+};
+const GLM_LABELS = {
+  xb: "Linear prediction",
+  eta: "Linear prediction",
+  deviance: "deviance residual",
+  response: "response residual",
+  pearson: "Pearson residual",
+  anscombe: "Anscombe residual",
+  working: "working residual",
+};
+
+/**
+ * predict after glm, as glim_p makes each statistic: from the index and
+ * the mean (the link's inverse, unbounded) at every observation asked
+ * for, the residuals of the family; standardized ones divide by the root
+ * of one less the hat diagonal, which the IRLS weights of the estimation
+ * sample give; studentized ones by the root of phi; modified ones (the
+ * dispersion taken as 1) by that of the inverse weight, which leaves
+ * them missing outside the estimation sample.
+ */
+function predictGlm(session, text, ctx, model) {
+  const parsed = session.parse(
+      "newvarlist [if] [in] [, Anscombe Cooksd Deviance Hat Likelihood Response Pearson Working T(varname) STAndardized STUdentized MODified ADJusted Eta Mu SCores XB STDP noOFFset]",
+      text,
+    ),
+    options = parsed.options,
+    family = FAMILIES[model.familyName],
+    link = LINKS[model.link],
+    residuals = RESIDUALS[model.familyName],
+    data = session.data,
+    y = data.get(model.depvar).data,
+    keep = session.rows(parsed, null),
+    // The index, mean, variance and dmu/deta at observation i, or null
+    // where a regressor is missing.
+    at = (i) => {
+      if (
+        model.columns.some((c) =>
+          (c.term.variables ?? [c.term.variable ?? c.term.factor]).some((v) =>
+            isMissing(v.data[i]),
+          ),
+        )
+      )
+        return null;
+      const row = model.names.map((name, k) =>
+          name === "_cons" ? 1 : model.columns[k].value(i),
+        ),
+        eta = dot(row, model.b),
+        mu = link.mu(eta);
+      return { row, eta, mu, v: family.v(mu), dmu: link.d1(mu) };
+    },
+    clean = (v) => (Number.isFinite(v) ? v : MISSING),
+    make = (values, label, plural = false) => {
+      const sorted = [...data.sortedBy],
+        made = data.generate(parsed.varlist[0], values, {
+          type: parsed.typed[0] ? parsed.types[0] : undefined,
+        });
+      data.sortedBy = sorted;
+      data.get(parsed.varlist[0]).label = label;
+      if (made.missing)
+        ctx.out(
+          `(${count(made.missing)} missing value${made.missing === 1 && !plural ? "" : "s"} generated)`,
+        );
+    },
+    named = (list) => list.filter((name) => options[name]);
+  // _pred_se makes stdp itself and takes nothing else with it.
+  if (options.stdp) {
+    const other = named([
+      "xb",
+      "anscombe",
+      "cooksd",
+      "deviance",
+      "hat",
+      "likelihood",
+      "response",
+      "pearson",
+      "working",
+      "standardized",
+      "studentized",
+      "modified",
+      "adjusted",
+      "eta",
+      "mu",
+      "scores",
+    ]);
+    if (other.length || options.t)
+      throw new StataError(
+        `option ${other[0] === "xb" ? "stdp" : (other[0] ?? "t()")} not allowed`,
+        198,
+      );
+  }
+  if (parsed.varlist.length > 1)
+    throw new StataError("too many variables specified", 103);
+  // The equation score from ml score, which takes no other statistic.
+  if (options.scores) {
+    const other = named([
+      "anscombe",
+      "cooksd",
+      "deviance",
+      "hat",
+      "likelihood",
+      "response",
+      "pearson",
+      "working",
+      "standardized",
+      "studentized",
+      "modified",
+      "adjusted",
+      "eta",
+      "mu",
+      "xb",
+    ]);
+    if (other.length || options.t)
+      throw new StataError(`option ${other[0] ?? "t()"} not allowed`, 198);
+    // ml score sets the family up again, which checks the outcome over
+    // the observations asked for.
+    if (model.familyName !== "gaussian") {
+      const name = model.depvar;
+      if (keep.some((i) => !isMissing(y[i]) && y[i] < 0))
+        throw new StataError(
+          `dependent variable ${name} has negative values`,
+          499,
+        );
+      if (
+        model.familyName === "binomial" &&
+        keep.some((i) => !isMissing(y[i]) && y[i] > 1)
+      )
+        throw new StataError(`${name} > 1 in some cases`, 499);
+      if (keep.some((i) => !isMissing(y[i]) && !Number.isInteger(y[i])))
+        ctx.out(`note: ${name} has noninteger values`);
+    }
+    const values = new Array(data.n).fill(MISSING);
+    for (const i of keep) {
+      const p = at(i);
+      if (p && !isMissing(y[i]))
+        values[i] = clean((p.dmu * (y[i] - p.mu)) / (p.v * model.phi));
+    }
+    return make(values, "equation-level score from glm", true);
+  }
+  if (options.stdp) {
+    const values = new Array(data.n).fill(MISSING);
+    for (const i of keep) {
+      const p = at(i);
+      if (p)
+        values[i] = Math.sqrt(
+          p.row.reduce(
+            (t, u, a) =>
+              t + u * p.row.reduce((s, v, b) => s + model.V[a][b] * v, 0),
+            0,
+          ),
+        );
+    }
+    return make(values, "S.E. of the prediction");
+  }
+  const types = named([
+      "anscombe",
+      "cooksd",
+      "deviance",
+      "eta",
+      "hat",
+      "likelihood",
+      "mu",
+      "response",
+      "pearson",
+      "working",
+      "xb",
+    ]),
+    type = types.join(""),
+    mods = named(["standardized", "studentized", "modified"]);
+  if (options.adjusted && type !== "deviance")
+    throw new StataError(
+      "option adjusted allowed only with option deviance",
+      198,
+    );
+  // Each statistic glim_p makes before it needs the hat diagonal.
+  const simple = {
+    mu: (p) => p.mu,
+    xb: (p) => p.eta,
+    eta: (p) => p.eta,
+    deviance: (p, yi) => {
+      const d =
+        model.familyName === "gaussian"
+          ? (yi - p.mu) ** 2
+          : family.deviance(yi, p.mu);
+      return (
+        Math.sign(yi - p.mu) * Math.sqrt(d) +
+        (options.adjusted ? residuals.adjust(p.mu) : 0)
+      );
+    },
+    response: (p, yi) => yi - p.mu,
+    pearson: (p, yi) => (yi - p.mu) / Math.sqrt(p.v),
+    anscombe: (p, yi) => residuals.anscombe(yi, p.mu),
+    working: (p, yi) => (yi - p.mu) / p.dmu,
+  };
+  let base = null,
+    label;
+  if ((!type && !options.t) || type === "mu") {
+    if (!type) ctx.out(`(option mu assumed; predicted mean ${model.depvar})`);
+    base = simple.mu;
+    label = `Predicted mean ${model.depvar}`;
+  } else if (simple[type]) {
+    base = simple[type];
+    label =
+      type === "deviance" && options.adjusted
+        ? "adjusted deviance residual"
+        : GLM_LABELS[type];
+  } else if (options.t && !type) {
+    const variable = data.get(session.varlist(options.t)[0]),
+      k = model.names.indexOf(variable.name);
+    if (k < 0) throw new StataError(`[${variable.name}] not found`, 111);
+    base = (p, yi, i) => p.dmu * (yi - p.mu) + model.b[k] * variable.data[i];
+    label = `partial(${variable.name}) residual`;
+  }
+  // The weight of each observation of the estimation sample, aweights
+  // scaled to average one; nothing outside it.
+  const weightOf = new Map();
+  (model.sample ?? []).forEach((i, r) =>
+    weightOf.set(i, model.weights ? model.weights[r] : 1),
+  );
+  const factor = (i) => {
+    let f = 1;
+    if (options.studentized) f /= Math.sqrt(model.phi);
+    if (options.modified) {
+      const w = weightOf.get(i);
+      f = w > 0 ? f * Math.sqrt(w) : MISSING;
+    }
+    return f;
+  };
+  if (options.studentized && label !== undefined)
+    label = `Studentized ${label}`;
+  else if (options.studentized) label = "Studentized ";
+  if (options.modified) label = `modified ${label ?? ""}`;
+  // Every statistic but the mean and index takes the outcome.
+  const outcomeFree = [simple.mu, simple.xb, simple.eta].includes(base),
+    plain = (i, p) => {
+      if (!outcomeFree && isMissing(y[i])) return MISSING;
+      const v = base(p, y[i], i),
+        f = factor(i);
+      return isMissing(f) ? MISSING : clean(v * f);
+    };
+  if (base && !options.standardized) {
+    const values = new Array(data.n).fill(MISSING);
+    for (const i of keep) {
+      const p = at(i);
+      if (p) values[i] = plain(i, p);
+    }
+    return make(values, label);
+  }
+  // Everything else takes the hat diagonal: W x (X'WX)^-1 x' with the
+  // weights W = dmu^2 / v over the estimation sample.
+  if (model.robust)
+    throw new StataError(
+      "option standardized not allowed after robust estimation",
+      198,
+    );
+  const active = model.estimable
+      .map((on, k) => (on ? k : -1))
+      .filter((k) => k >= 0),
+    cross = active.map(() => active.map(() => 0));
+  for (const i of model.sample ?? []) {
+    const p = at(i);
+    if (!p) continue;
+    const w = ((p.dmu * p.dmu) / p.v) * weightOf.get(i);
+    active.forEach((a, r) =>
+      active.forEach((c, s) => (cross[r][s] += w * p.row[a] * p.row[c])),
+    );
+  }
+  const inverse = invertSymmetric(cross) ?? cross.map((r) => r.map(() => NaN)),
+    hatAt = (i, p) => {
+      if (!weightOf.has(i)) return MISSING;
+      const x = active.map((a) => p.row[a]),
+        q = x.reduce(
+          (t, u, r) => t + u * x.reduce((s, v, c) => s + inverse[r][c] * v, 0),
+          0,
+        );
+      return clean(q * ((p.dmu * p.dmu) / p.v));
+    };
+  const values = new Array(data.n).fill(MISSING),
+    combined = ["standardized", "studentized", "modified"]
+      .filter((name) => options[name])
+      .join("");
+  if (type === "hat" || type === "likelihood") {
+    if (mods.length)
+      throw new StataError(
+        `option ${combined} not allowed with ${type} residuals`,
+        198,
+      );
+    for (const i of keep) {
+      const p = at(i);
+      if (!p) continue;
+      const h = hatAt(i, p);
+      if (isMissing(h)) continue;
+      if (type === "hat") values[i] = h;
+      else {
+        const yi = y[i],
+          spe = (yi - p.mu) / Math.sqrt(p.v * (1 - h)),
+          d =
+            model.familyName === "gaussian"
+              ? (yi - p.mu) ** 2
+              : family.deviance(yi, p.mu);
+        values[i] = clean(Math.sign(yi - p.mu) * Math.sqrt(h * spe * spe + d));
+      }
+    }
+    return make(
+      values,
+      type === "hat" ? "hat diagonal" : "likelihood residual",
+    );
+  }
+  if (type === "cooksd") {
+    for (const i of keep) {
+      const p = at(i);
+      if (!p) continue;
+      const h = hatAt(i, p),
+        pp = (y[i] - p.mu) / Math.sqrt(p.v * model.phi);
+      if (!isMissing(h))
+        values[i] = clean((h * pp * pp) / (model.rank * (1 - h) ** 2));
+    }
+    return make(values, "Cook's distance");
+  }
+  // Two statistics at once leave glim_p's temporary variable unmade.
+  if (!base) throw new StataError("__000001 not found", 111);
+  for (const i of keep) {
+    const p = at(i);
+    if (!p) continue;
+    const h = hatAt(i, p),
+      v = plain(i, p);
+    if (!isMissing(h) && !isMissing(v)) values[i] = clean(v / Math.sqrt(1 - h));
+  }
+  return make(values, `standardized ${label}`);
 }
 
 export const GLM_COMMANDS = [

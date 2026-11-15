@@ -162,7 +162,7 @@ export function lrtest(session, text, ctx) {
     }
     boundary = count(large, "k_rs") !== count(small, "k_rs");
   }
-  if (a.N !== b.N)
+  if (a.N !== b.N && !force)
     throw new StataError("observations differ: " + a.N + " vs. " + b.N, 498);
   // Models from different commands (e(cmd)) are not compared without
   // force, as xtprobit (whose header gives the boundary test of rho) with
