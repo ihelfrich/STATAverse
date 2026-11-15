@@ -189,12 +189,16 @@ function expressions(head) {
   const out = [];
   let depth = 0,
     start = -1;
+  let between = false;
   [...text].forEach((c, i) => {
     if (c === "(" && depth++ === 0) start = i + 1;
-    if (c === ")" && --depth === 0) out.push(text.slice(start, i));
+    else if (c === ")" && --depth === 0) out.push(text.slice(start, i));
+    // Something outside every parenthesis, as the / of (a)/(b), makes the
+    // whole one expression.
+    else if (!depth && !/\s/.test(c)) between = true;
   });
   if (depth || !out.length) throw new StataError("invalid syntax", 198);
-  return out;
+  return between ? [text] : out;
 }
 
 function nlcom(session, text, ctx) {

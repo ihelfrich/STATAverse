@@ -273,7 +273,22 @@ function noteWeights(text, parsed, ctx) {
   )
     ctx.out(assumedWeights(parsed.weight.type));
 }
+/**
+ * summarize and list name no variable when there are none: Stata says
+ * "no variables defined" for any varlist, a wildcard or _all among them,
+ * where drop and keep say "variable * not found".
+ */
+function needVariables(session, text) {
+  if (session.data.variables.length) return;
+  const varlist = splitAtComma(text)[0]
+    .replace(/(?:^|\s)(?:if|in)(?:\s|$)[\s\S]*$/, "")
+    .replace(/\[[\s\S]*$/, "")
+    .trim();
+  if (varlist) throw new StataError("no variables defined", 111);
+}
+
 export function summarize(session, text, ctx) {
+  needVariables(session, text);
   const parsed = session.parse(
     "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) Format]",
     text,
@@ -1592,6 +1607,7 @@ export function list(session, text, ctx) {
       198,
       "header(#), which repeats the headings every # observations, is not available; list shows them once.",
     );
+  needVariables(session, text);
   const parsed = session.parse(
       "[varlist] [if] [in] [, CLEAN NOObs noLabel SEParator(integer 5) ABbreviate(integer 8) SEPBY(varlist) Divider noHeader STRing(integer 0) Table Display noCompress LINEsize(integer 0) | FAst FOOTer MEan SUm N LABVar(string) CONStant NOTrim ABSolute NODotz SUBVARname FVall DS OBS]",
       text,
@@ -1890,8 +1906,15 @@ export const perGroup = (run) => (session, text, ctx) => {
     try {
       run(session, text, { ...ctx, group });
     } catch (error) {
-      if (!(error instanceof StataError && [2000, 2001].includes(error.code)))
-        throw error;
+      if (!(error instanceof StataError)) throw error;
+      // by, rc0 goes on past any error, saying what it was.
+      if (ctx.by.rc0 && ![2000, 2001].includes(error.code)) {
+        if (error.message) ctx.out(error.message);
+        ctx.out(`(return code was ${error.code})`);
+        ctx.out("");
+        continue;
+      }
+      if (![2000, 2001].includes(error.code)) throw error;
       ctx.out(error.message);
       ctx.out("");
     }

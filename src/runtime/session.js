@@ -17,6 +17,7 @@ import {
   coerce,
   defaultFormat,
   formatNumber,
+  isStringType,
   parseNumber,
   stringWidth,
   truncateBytes,
@@ -29,6 +30,7 @@ import { timeSeriesOperator } from "./panel.js";
 import { matrixAccess } from "./matrix.js";
 import { coefficientValue, tableResults } from "./estimation.js";
 import { echoOf } from "./echo.js";
+import { STATA_COMMANDS } from "./stata-commands.js";
 import { perGroup } from "./reports.js";
 
 const MAX_STEPS = 200000;
@@ -36,6 +38,7 @@ const MAX_STEPS = 200000;
 // whether they have (a check that reads every value).
 const READ_ONLY = new Set([
   "display",
+  "numlist",
   "summarize",
   "list",
   "count",
@@ -73,6 +76,52 @@ function prefixesOf(header) {
   // capture alone is as quiet as quietly.
   found.silent = found.quiet || (found.capture && !found.noisy);
   return found;
+}
+/**
+ * A loop's macro name. Stata keeps a local under its name with _ before
+ * it, and reports a bad one that way: forvalues = 1/3 gives "_= invalid
+ * name".
+ */
+function localName(name) {
+  if (!/^[A-Za-z_0-9]+$/.test(name) || name.length > 31)
+    throw new StataError(`_${name} invalid name`, 198);
+}
+const RANGE_NUMBER = "[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?";
+const RANGE_FORMS = [
+  new RegExp(`^(${RANGE_NUMBER})\\s*/\\s*(${RANGE_NUMBER})$`),
+  new RegExp(
+    `^(${RANGE_NUMBER})\\s*\\(\\s*(${RANGE_NUMBER})\\s*\\)\\s*(${RANGE_NUMBER})$`,
+  ),
+  new RegExp(
+    `^(${RANGE_NUMBER})\\s+(${RANGE_NUMBER})\\s*(?:to|:)\\s*(${RANGE_NUMBER})$`,
+  ),
+];
+/**
+ * The values forvalues takes, from #1/#2, #1(#d)#2, #1 #t to #2 or
+ * #1 #t : #2, made as they are needed; null for anything else, which
+ * Stata calls invalid syntax.
+ */
+function forvaluesRange(text) {
+  const t = text.trim();
+  let from, step, to, m;
+  if ((m = RANGE_FORMS[0].exec(t))) [from, step, to] = [+m[1], 1, +m[2]];
+  else if ((m = RANGE_FORMS[1].exec(t)))
+    [from, step, to] = [+m[1], +m[2], +m[3]];
+  else if ((m = RANGE_FORMS[2].exec(t)))
+    [from, step, to] = [+m[1], +m[2] - +m[1], +m[3]];
+  else return null;
+  if (step === 0)
+    throw new StataError("forvalues:  increment may not be zero", 198);
+  return {
+    *[Symbol.iterator]() {
+      for (let k = 0; ; k++) {
+        // Multiplying avoids accumulating rounding error over a long run.
+        const value = Number((from + k * step).toPrecision(15));
+        if (step > 0 ? value > to : value < to) return;
+        yield value;
+      }
+    },
+  };
 }
 // c(current_date) in Stata's form, such as "10 Nov 2026".
 function currentDate() {
@@ -380,6 +429,8 @@ const KEEP_DATA = new Set([
 const REPLAY_IGNORED = { regress: /^(nocons(t(a(nt?)?)?)?|first)$/ };
 const REPLAY_REFUSED = {
   regress: /^(or|irr|rrr|hr|nocnsr(e(p(o(rt?)?)?)?)?)$/,
+  // Stata's ivreg replays with level() and noheader only.
+  ivreg: /^(or|irr|rrr|hr|beta|eform|nocnsr(e(p(o(rt?)?)?)?)?)$/,
 };
 // An estimator whose fits another replays: logit shows a logistic fit as
 // coefficients.
@@ -422,6 +473,13 @@ function fitTable(lines) {
     )
   )
     k++;
+  // ivreg, first: the first-stage regressions are not part of the fit.
+  if (lines[k] === "First-stage regressions") {
+    const at = lines.findIndex((line) =>
+      line.startsWith("Instrumental variables 2SLS regression"),
+    );
+    if (at > k) return lines.slice(at);
+  }
   return lines.slice(k);
 }
 
@@ -543,9 +601,23 @@ export class Session {
             198,
             "A single = assigns; to compare two values, write ==.",
           );
+        // With a string anywhere in it, a literal or a string variable,
+        // Stata calls the expression a type mismatch instead.
+        const stringy =
+          /"/.test(text) ||
+          (text.match(/[\p{L}_][\w\u0080-\u{10FFFF}]*/gu) ?? []).some(
+            (word) => {
+              try {
+                const [name] = this.varlist(word);
+                return isStringType(this.data.get(name).type);
+              } catch {
+                return false;
+              }
+            },
+          );
         throw new StataError(
-          "invalid syntax",
-          198,
+          stringy ? "type mismatch" : "invalid syntax",
+          stringy ? 109 : 198,
           "A single = assigns; to compare two values, write ==.",
         );
       }
@@ -693,6 +765,8 @@ export class Session {
           "this do-file ran more commands than the browser allows",
           901,
         );
+      // A program the file never ends is not defined: Stata echoes its
+      // lines, numbered from 1, then the prompt for the line it never got.
       if (node.unclosed && node.kind === "program") {
         const error = new StataError("unexpected end of file", 612);
         error.recorded = true;
@@ -702,6 +776,21 @@ export class Session {
           ["unexpected end of file", "r(612);"],
           612,
         );
+        if (this.foldLoops && !this.inProgram && this.sourceLines) {
+          const source = this.sourceLines.at(-1)?.trim()
+            ? [...this.sourceLines, ""]
+            : this.sourceLines;
+          output.at(-1).echo = echoOf(
+            source,
+            node.line,
+            source.length,
+          ).echo.map((line) =>
+            line.replace(
+              /^\s*(\d+)\./,
+              (all, n) => `${String(n - 1).padStart(3)}.`,
+            ),
+          );
+        }
         throw error;
       }
       if (node.kind === "program") {
@@ -886,7 +975,10 @@ export class Session {
         flags.quiet = false;
         flags.noisy = true;
         rest = after.trim();
-      } else if (/^(by|bys(o(rt?)?)?)$/.test(word) && /:/.test(after)) {
+      } else if (/^(by|bys(o(rt?)?)?)$/.test(word) && !/:/.test(after))
+        // by g sum x: the prefix needs its colon.
+        throw new StataError(": required", 100);
+      else if (/^(by|bys(o(rt?)?)?)$/.test(word)) {
         const colon = after.indexOf(":");
         flags.by = this.byPrefix(after.slice(0, colon), word !== "by");
         rest = after.slice(colon + 1).trim();
@@ -899,6 +991,12 @@ export class Session {
     if (flags.noisy) this.quietDepth = 0;
     if (!rest) return;
     const word = /^[A-Za-z_#][A-Za-z_0-9]*/.exec(rest)?.[0];
+    // quietly { di 1 }: a block with its body on the brace's line.
+    if (/^\{\s*\S/.test(rest))
+      throw new StataError(
+        "program error:  code follows on the same line as open brace",
+        198,
+      );
     if (!word)
       throw new StataError(
         `${rest.split(/\s/)[0]} is not a valid command name`,
@@ -1077,9 +1175,20 @@ export class Session {
       return value;
     }
     if (this.programs.has(word)) return this.call(word, body, ctx);
-    // A loop typed without its opening brace.
+    // A loop typed without its opening brace, or with its body on the
+    // brace's line.
     if (/^(foreach|forv(a(l(u(es?)?)?)?)?|while)$/.test(word))
-      throw new StataError("{ required", 100);
+      throw /\{/.test(body)
+        ? new StataError(
+            "program error:  code follows on the same line as open brace",
+            198,
+          )
+        : new StataError("{ required", 100);
+    if (STATA_COMMANDS.has(word))
+      throw new StataError(
+        `${word} is a Stata command that the browser does not run yet`,
+        199,
+      );
     throw new StataError(`command ${word} is unrecognized`, 199);
   }
 
@@ -1173,28 +1282,51 @@ export class Session {
   }
 
   byPrefix(text, sort) {
-    const m = /^\s*([^(,]*?)\s*(?:\(([^)]*)\))?\s*(?:,\s*(\w+))?\s*$/.exec(
-      text,
-    );
+    const m = /^\s*([^(,]*?)\s*(?:\(([^)]*)\))?\s*(?:,(.*))?$/.exec(text);
     if (!m) throw new StataError("invalid by prefix", 198);
-    if (m[3] && !/^s(o(rt?)?)?$/.test(m[3]))
-      throw new StataError(`option ${m[3]} not allowed`, 198);
+    // by's options, sort and rc0, in either order.
+    let sorting = false,
+      rc0 = false;
+    for (const option of (m[3] ?? "").trim().split(/\s+/).filter(Boolean))
+      if (/^s(o(rt?)?)?$/.test(option)) sorting = true;
+      else if (option === "rc0") rc0 = true;
+      else throw new StataError(`option ${option} not allowed`, 198);
     const keys = this.varlist(m[1]),
       extra = m[2] ? this.varlist(m[2]) : [];
     if (!keys.length) throw new StataError("varlist required", 100);
     const all = [...keys, ...extra];
     const already = all.every((name, k) => this.data.sortedBy[k] === name);
     // Data already in this order are left alone, keeping any further keys.
-    if (sort || m[3]) {
+    if (sort || sorting) {
       if (!already) this.data.sort(all);
     } else if (!all.every((name, k) => this.data.sortedBy[k] === name))
       throw new StataError("not sorted", 5);
-    return { keys, groups: this.groupsOf(keys) };
+    return { keys, groups: this.groupsOf(keys), ...(rc0 ? { rc0 } : {}) };
   }
 
   runBlock(node, frame, output) {
-    // The file ended before the block's }: none of it runs.
-    if (node.unclosed) throw new StataError("unexpected end of file", 612);
+    // The file ended before the block's }. A loop in a do-file reads to
+    // the end of the file and stops there with r(612), having run none of
+    // it. Any other block, and a loop in a program, runs as far as the
+    // text goes (a loop for its first pass) and then stops with r(198).
+    // A } with more after it on its line ends the block the same way, once
+    // the block has run.
+    if (node.unclosed || node.trailing) {
+      const loop = LOOP_HEADER.test(prefixesOf(node.header).rest + " ");
+      if (node.unclosed && loop && !this.inProgram)
+        throw new StataError("unexpected end of file", 612);
+      this.runBlock(
+        { ...node, unclosed: false, trailing: false, once: loop },
+        frame,
+        output,
+      );
+      throw new StataError(
+        node.unclosed
+          ? "program error:  matching close brace not found"
+          : "program error:  code follows on the same line as close brace",
+        198,
+      );
+    }
     const prefixes = prefixesOf(node.header);
     if (
       prefixes.any &&
@@ -1227,10 +1359,13 @@ export class Session {
         if (!(error instanceof Signal && error.kind === "continue"))
           throw error;
       }
+      if (node.once) throw new Signal("break");
     };
-    if ((m = /^foreach\s+(\S+)\s+(in|of)\s+(.*)$/.exec(header))) {
-      if (!isMacroName(m[1])) throw new StataError(`${m[1]} invalid name`, 198);
-      const items = this.foreachList(m[2], m[3], frame);
+    if (/^foreach(\s|$)/.test(header)) {
+      m = /^foreach\s+(\S+)\s+(in|of)(?:\s+(.*)|$)/.exec(header);
+      if (!m) throw new StataError("invalid syntax", 198);
+      localName(m[1]);
+      const items = this.foreachList(m[2], m[3] ?? "", frame);
       loop(() => {
         for (const item of items) {
           frame.locals.set(m[1], item);
@@ -1239,17 +1374,13 @@ export class Session {
       });
       // The loop macro does not outlive the loop.
       frame.locals.delete(m[1]);
-    } else if (
-      (m = /^forv(?:a(?:l(?:u(?:es?)?)?)?)?\s+(\S+)\s*=\s*(.*)$/.exec(header))
-    ) {
-      if (!isMacroName(m[1])) throw new StataError(`${m[1]} invalid name`, 198);
-      // forvalues counts upward through a/b; unlike a numlist, 5/1 is empty.
-      const range = /^\s*(\S+)\s*\/\s*(\S+)\s*$/.exec(m[2]),
-        values = range
-          ? Number(range[1]) > Number(range[2])
-            ? []
-            : parseNumlist(`${range[1]}(1)${range[2]}`)
-          : parseNumlist(m[2]);
+    } else if (/^forv(?:a(?:l(?:u(?:es?)?)?)?)?(\s|$)/.test(header)) {
+      // forvalues = 1/3 takes = for the name.
+      if (/^forv\w*\s+=/.test(header)) localName("=");
+      m = /^forv\w*\s+([^\s=]+)\s*=\s*(.*)$/.exec(header);
+      if (m) localName(m[1]);
+      const values = m ? forvaluesRange(m[2]) : null;
+      if (!values) throw new StataError("invalid syntax", 198);
       loop(() => {
         for (const value of values) {
           frame.locals.set(m[1], formatNumber(value));
@@ -1275,14 +1406,25 @@ export class Session {
       if (taken) body();
       frame.lastIf = taken;
     } else if ((m = /^else(?:\s+if\s+(.*))?$/.exec(header))) {
-      if (frame.lastIf === null) throw new StataError("else without if", 198);
+      // An else with no if before it runs, as in Stata, and leaves the
+      // next else free to run too.
       if (!frame.lastIf) {
         const taken = m[1] === undefined ? true : this.truth(m[1]);
         if (taken) body();
-        frame.lastIf = taken;
+        if (frame.lastIf !== null) frame.lastIf = taken;
       }
-    } else
-      throw new StataError(`${header.split(/\s/)[0]} { is not supported`, 199);
+    } else if (!header)
+      // A block of its own, { ... }, runs its commands.
+      body();
+    else if (/^while$/.test(header))
+      throw new StataError("invalid syntax", 198);
+    else {
+      // Any other line ending in { is a command, brace and all; the lines
+      // after it are commands too, and the } that closes them is not one.
+      this.runLine(`${node.header} {`, frame, output);
+      this.runNodes(node.body, frame, output);
+      this.runLine("}", frame, output);
+    }
   }
 
   /**
@@ -1341,19 +1483,26 @@ export class Session {
 
   foreachList(keyword, text, frame) {
     if (keyword === "in") return macroWords(text).map((w) => w.text);
-    const m = /^(\w+)\s*(.*)$/.exec(text);
+    const m = /^(\w+)(?:\s+(.*)|$)/.exec(text);
     if (!m) throw new StataError("invalid syntax", 198);
-    const [, kind, rest] = m;
-    if (/^loc(al?)?$/.test(kind))
-      return macroWords(frame.locals.get(rest.trim()) ?? "").map((w) => w.text);
-    if (/^glo(b(al?)?)?$/.test(kind))
-      return macroWords(this.globals.get(rest.trim()) ?? "").map((w) => w.text);
+    const [, kind, rest = ""] = m;
+    // of local and of global name one macro; more words and Stata finds
+    // no { where it is due, none and it takes the { for the name.
+    if (/^(loc(al?)?|glo(b(al?)?)?)$/.test(kind)) {
+      const words = rest.trim().split(/\s+/).filter(Boolean);
+      if (words.length > 1) throw new StataError("{ required", 100);
+      localName(words[0] ?? "{");
+      return macroWords(
+        (kind.startsWith("l") ? frame.locals : this.globals).get(words[0]) ??
+          "",
+      ).map((w) => w.text);
+    }
     if (/^var(l(i(st?)?)?)?$/.test(kind)) return this.varlist(rest);
     if (/^new(l(i(st?)?)?)?$/.test(kind))
       return rest.split(/\s+/).filter(Boolean);
     if (/^num(l(i(st?)?)?)?$/.test(kind))
       return parseNumlist(rest).map(formatNumber);
-    throw new StataError(`foreach ... of ${kind} is not supported`, 198);
+    throw new StataError("invalid syntax", 198);
   }
 
   // ----- programs -----
@@ -1565,9 +1714,13 @@ export class Session {
       );
     // New variables that get no values are not created.
     if (!continuing && !rows.length && !adding) return done();
-    if (!adding) data.setObservations(start + rows.length);
+    // Observations with no variables yet keep their number when fewer
+    // rows are typed.
+    if (!adding) data.setObservations(Math.max(start + rows.length, data.n));
     specs.forEach((spec, k) => {
       const values = rows.map((row) => row[k]);
+      if (!continuing)
+        while (values.length < data.n) values.push(text[k] ? "" : MISSING);
       if (continuing) {
         // Values are stored as the variable's type holds them.
         const variable = data.get(spec.name),

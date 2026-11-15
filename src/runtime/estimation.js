@@ -102,6 +102,9 @@ export const quadratic = (v, m) =>
  */
 const FACTOR_OPERATOR =
   /^(c|i|ibn|i?b(?:\d+|\(\s*#?\d+\s*\)|\(\s*(?:first|last|freq)\s*\)))\.([A-Za-z_]\w*)$/;
+// A factor over some of its levels: i(2 3).g, i(1/3)b2.g.
+const RESTRICTED_FACTOR =
+  /^i\(([^()]*)\)(b(?:\d+|\(\s*#?\d+\s*\)|\(\s*(?:first|last|freq)\s*\)))?\.([A-Za-z_]\w*)$/;
 // A time-series operated variable: L., F., D. and S., each with an order
 // or a numlist in parentheses, combined as in LD.y or L(0/2).x.
 const SERIES_OPERATOR = /^((?:[LFDS](?:\d+|\([^()]*\))?)+)\.([A-Za-z_]\w*)$/i;
@@ -283,6 +286,13 @@ export function design(session, text, rows, constant = true, levelRows) {
       "Make the series first, as in generate dy = D.y, and use it as the dependent variable.",
     );
   const component = (word, inInteraction) => {
+    // i(numlist).g and i(numlist)b#.g: the factor over those levels only.
+    const restricted = RESTRICTED_FACTOR.exec(word);
+    if (restricted)
+      return {
+        ...component(`i${restricted[2] ?? ""}.${restricted[3]}`, inInteraction),
+        only: parseNumlist(restricted[1]),
+      };
     const m = FACTOR_OPERATOR.exec(word);
     if (!m && /[.()]/.test(word))
       throw new StataError(
@@ -371,7 +381,8 @@ export function design(session, text, rows, constant = true, levelRows) {
         .forEach(add);
     } else if (token.includes("#"))
       add(token.split("#").map((part) => component(restore(part), true)));
-    else if (FACTOR_OPERATOR.test(written)) add([component(written, false)]);
+    else if (FACTOR_OPERATOR.test(written) || RESTRICTED_FACTOR.test(written))
+      add([component(written, false)]);
     else if (LEVEL_INDICATOR.test(written)) {
       // 2.g: the indicator of one level, a column of its own named so.
       const [, level, name] = LEVEL_INDICATOR.exec(written),
@@ -428,8 +439,22 @@ export function design(session, text, rows, constant = true, levelRows) {
           `${c.variable.name}:  factor variables may not contain negative values`,
           452,
         );
-      levelsOf.set(c.variable, levels);
-      baseOf.set(c.variable, baseLevel(c.base, levels, c.variable, sample));
+      // i(2 3).g: only the levels listed, the first of them the base.
+      const kept = c.only
+        ? levels.filter((level) => c.only.includes(level))
+        : levels;
+      // ib9.g with no 9 in the sample: Stata keeps 9 as an empty base and
+      // omits another level for collinearity.
+      if (
+        c.base?.value !== undefined &&
+        kept.length &&
+        !kept.includes(c.base.value)
+      ) {
+        kept.push(c.base.value);
+        kept.sort((a, b) => a - b);
+      }
+      levelsOf.set(c.variable, kept);
+      baseOf.set(c.variable, baseLevel(c.base, kept, c.variable, sample));
     }
   // A factor's base is its first level, when it has more than one.
   const isBase = (variable, level) =>
@@ -531,7 +556,12 @@ export function design(session, text, rows, constant = true, levelRows) {
       made.forEach((column) => {
         column.base =
           made.length > 1 && column.level === baseOf.get(term.factor);
-        if (column.base) column.name = column.name.replace(".", "b.");
+        if (column.base) {
+          column.name = column.name.replace(".", "b.");
+          // A base no observation has (ib9.g) is shown as (empty).
+          if (!sample.some((i) => term.factor.data[i] === column.level))
+            column.empty = column.emptyCell = true;
+        }
         // A level that adds nothing, such as 2.g beside a dummy for g == 2,
         // is collinear; the likelihood fitters omit it.
         else if (!independent(column)) column.collinear = true;
@@ -3709,8 +3739,19 @@ const TABSTAT_WORDS = [
 ];
 function tabstatStatistics(text) {
   const names = [];
-  for (const word of (text || "mean").trim().split(/\s+/).filter(Boolean)) {
-    const typed = word.toLowerCase(),
+  // Statistics are separated by blanks. As Stata reads them, a comma after
+  // a statistic, stat(mean, sd), or a pair of them, stat(mean,,sd), also
+  // ends it; a single comma between two, stat(mean,sd), does not.
+  const words = (text || "mean")
+    .trim()
+    .split(/\s+/)
+    .flatMap((word) => word.split(/,{2,}/))
+    .filter(Boolean);
+  for (const typedWord of words) {
+    const word = /^[^,]+,+$/.test(typedWord)
+        ? typedWord.replace(/,+$/, "")
+        : typedWord,
+      typed = word.toLowerCase(),
       found = TABSTAT_WORDS.find(
         ([name, least]) =>
           typed === name ||

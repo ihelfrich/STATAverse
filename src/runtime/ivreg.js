@@ -5,12 +5,17 @@
 // the analysis-of-variance table. Recorded from Stata 19.
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
-import { Ftail } from "./distributions.js";
+import { Ftail, invttail } from "./distributions.js";
 import {
+  ESTIMATION_COMMANDS,
+  abbreviate,
   coefficientHeader,
   coefficientRows,
+  coefficientTest,
   invertSymmetric,
+  statisticCell,
   tableWidth,
+  termRows,
 } from "./estimation.js";
 import { ivregress } from "./models.js";
 import { count } from "./reports.js";
@@ -26,12 +31,14 @@ const OPTIONS = [
   [/^r(o(b(u(st?)?)?)?)?$/, "robust"],
   [/^cl(u(s(t(er?)?)?)?)?\(/, "cluster"],
   [/^l(e(v(el?)?)?)?\(/, "level"],
+  [/^first$/, "first"],
+  [/^beta$/, "beta"],
+  [/^nohe(a(d(er?)?)?)?$/, "noheader"],
+  [/^ef(o(rm?)?)?\(/, "eform"],
+  [/^dep(n(a(me?)?)?)?\(/, "depname"],
 ];
 const UNAVAILABLE = [
-  [/^first$/, "first"],
   [/^nocons(t(a(nt?)?)?)?$/, "noconstant"],
-  [/^beta$/, "beta"],
-  [/^dep(n(a(me?)?)?)?\(/, "depname()"],
   [/^mse1$/, "mse1"],
   [/^hasc(o(ns?)?)?$/, "hascons"],
 ];
@@ -57,28 +64,30 @@ function optionWords(text) {
 
 export function ivreg(session, text, ctx) {
   const [main, tail] = splitAtComma(text),
-    asked = { robust: false, cluster: null, level: null };
-  if (!main.trim()) {
-    if (session.estimates?.legacy !== "ivreg")
-      throw new StataError("last estimates not found", 301);
-    throw new StataError(
-      "ivreg typed alone, to show the last fit again, is not available in the browser yet; type the ivreg command again",
-      198,
-    );
-  }
+    asked = {
+      robust: false,
+      cluster: null,
+      level: null,
+      first: false,
+      beta: false,
+      noheader: false,
+      eform: null,
+      depname: null,
+    };
+  // Typed alone, ivreg shows the last fit again (see Session.replay).
+  if (!main.trim()) throw new StataError("last estimates not found", 301);
   for (const word of optionWords(tail ?? "")) {
-    const lower = word,
-      known = OPTIONS.find(([pattern]) => pattern.test(lower));
+    const known = OPTIONS.find(([pattern]) => pattern.test(word));
     if (known) {
       const inside = /\(([\s\S]*)\)$/.exec(word)?.[1]?.trim();
-      if (known[1] === "robust") asked.robust = true;
+      if (inside === undefined) asked[known[1]] = true;
       else asked[known[1]] = inside;
       continue;
     }
-    const missing = UNAVAILABLE.find(([pattern]) => pattern.test(lower));
+    const missing = UNAVAILABLE.find(([pattern]) => pattern.test(word));
     if (missing)
       throw new StataError(
-        `option ${missing[1]} of ivreg is not available in the browser yet; ivregress 2sls fits the same model`,
+        `option ${missing[1]} of ivreg is not available in the browser yet; leave it out, or fit the model another way`,
         198,
       );
     throw new StataError(
@@ -86,6 +95,8 @@ export function ivreg(session, text, ctx) {
       198,
     );
   }
+  if (asked.depname !== null && !/^[A-Za-z_]\w*$/.test(asked.depname))
+    throw new StataError(`${asked.depname} invalid name`, 198);
   const options = [
     asked.cluster
       ? `vce(cluster ${asked.cluster})`
@@ -99,6 +110,10 @@ export function ivreg(session, text, ctx) {
     ...ctx,
     out: () => {},
   });
+  // first: each endogenous variable regressed on all the exogenous ones,
+  // over the estimation sample, as regress shows it (never robust).
+  if (asked.first && !ctx.replaying)
+    firstStages(session, session.estimates, main, asked.level, ctx);
   const model = session.estimates,
     level =
       asked.level === null
@@ -198,7 +213,7 @@ export function ivreg(session, text, ctx) {
     footnote: "ivreg_footnote",
     title: "Instrumental-variables (2SLS) regression",
     instd,
-    depvar: model.depvar,
+    depvar: asked.depname ?? model.depvar,
     properties: "b V",
     model: "iv",
     predict: "regriv_p",
@@ -207,9 +222,10 @@ export function ivreg(session, text, ctx) {
   const p = isMissing(F) ? MISSING : Ftail(df_m, df_r, F);
   if (wtype === "aweight" || wtype === "pweight")
     ctx.out(`(sum of wgt is ${g(sumOf(session, model), "%18.0gc")})`);
-  ctx.out("");
   const fLabel = `F(${df_m}, ${df_r})`;
-  if (robust) {
+  if (asked.noheader);
+  else if (robust) {
+    ctx.out("");
     const side = (label, value) => `${label.padEnd(18)}=${value.padStart(11)}`,
       lines = [
         side("Number of obs", count(N)),
@@ -231,6 +247,7 @@ export function ivreg(session, text, ctx) {
         ),
       );
   } else {
+    ctx.out("");
     ctx.out("Instrumental variables 2SLS regression");
     ctx.out("");
     const stat = (label, value) =>
@@ -257,9 +274,17 @@ export function ivreg(session, text, ctx) {
     left.forEach((line, j) => ctx.out(line.padEnd(48) + side[j]));
     ctx.out("");
   }
-  const width = tableWidth(session, model);
-  coefficientHeader(model, level, model.depvar, width).forEach(ctx.out);
-  coefficientRows(session, model, level, width).forEach(ctx.out);
+  const width = tableWidth(session, model),
+    label = asked.depname ?? model.depvar;
+  if (asked.beta) betaTable(session, model, label, width).forEach(ctx.out);
+  else if (asked.eform !== null)
+    eformTable(session, model, level, label, width, asked.eform).forEach(
+      ctx.out,
+    );
+  else {
+    coefficientHeader(model, level, label, width).forEach(ctx.out);
+    coefficientRows(session, model, level, width).forEach(ctx.out);
+  }
   ctx.out("-".repeat(66 + width));
   // The lists, as ivregress shows them.
   const limit = Math.min(66 + width, session.settings?.linesize ?? 80) - 2,
@@ -275,6 +300,107 @@ export function ivreg(session, text, ctx) {
     };
   paragraph("Endogenous: ", model.iv.endogenous);
   paragraph("Exogenous:  ", [...model.iv.exogenous, ...model.iv.instruments]);
+}
+
+/** The first-stage regressions, shown as regress shows them. */
+function firstStages(session, model, main, level, ctx) {
+  const regress = ESTIMATION_COMMANDS.find((c) => c.name === "regress"),
+    weight = /\[[^\]]*\]/.exec(main)?.[0] ?? "",
+    regressors = [...model.iv.exogenous, ...model.iv.instruments].join(" "),
+    outer = session.panelRows,
+    e = session.results.e;
+  ctx.out("");
+  ctx.out("First-stage regressions");
+  ctx.out("-----------------------");
+  ctx.out("");
+  session.panelRows = new Set(model.sample);
+  try {
+    for (const endogenous of model.iv.endogenous) {
+      const shown = [];
+      regress.run(
+        session,
+        `${endogenous} ${regressors} ${weight}${level ? `, level(${level})` : ""}`,
+        { ...ctx, by: undefined, out: (line) => shown.push(line) },
+      );
+      while (shown.length && !shown[0]) shown.shift();
+      shown.forEach(ctx.out);
+    }
+  } finally {
+    session.panelRows = outer;
+    session.estimates = model;
+    session.results.e = e;
+  }
+}
+
+/** The standard deviation over the estimation sample. */
+function sd(values) {
+  const m = values.reduce((a, b) => a + b, 0) / values.length;
+  return Math.sqrt(
+    values.reduce((t, v) => t + (v - m) ** 2, 0) / (values.length - 1),
+  );
+}
+
+/** beta: the standardized coefficients in place of the interval. */
+function betaTable(session, model, label, width) {
+  const robust = model.vce !== "ols",
+    y = session.data.get(model.depvar).data,
+    sdY = sd(model.sample.map((i) => y[i]));
+  return [
+    "-".repeat(66 + width),
+    ...(robust
+      ? [
+          `${" ".repeat(width + 1)}|${" ".repeat(Math.max(0, 18 - model.vcetype.length / 2))}${model.vcetype}`,
+        ]
+      : []),
+    `${abbreviate(label, width).padStart(width)} | Coefficient  ${robust ? "std" : "Std"}. err.      t    P>|t|                     Beta`,
+    `${"-".repeat(width + 1)}+${"-".repeat(64)}`,
+    ...termRows(
+      session,
+      model,
+      (k) => {
+        const { se, t, p } = coefficientTest(model, k),
+          beta =
+            model.names[k] === "_cons"
+              ? MISSING
+              : (model.b[k] * sd(model.sample.map(model.columns[k].value))) /
+                sdY;
+        return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${statisticCell(t)}${applyFormat(p, "%8.3f")}${g(beta).padStart(25)}`;
+      },
+      width,
+      0,
+      "0".padStart(45),
+    ),
+  ];
+}
+
+/** eform(name): exp(b), its standard error by the delta method, exp(bounds). */
+function eformTable(session, model, level, label, width, name) {
+  const robust = model.vce !== "ols",
+    critical = invttail(model.df_r, (1 - level / 100) / 2),
+    heading = name.slice(0, 10) || "exp(b)";
+  return [
+    "-".repeat(66 + width),
+    ...(robust
+      ? [
+          `${" ".repeat(width + 1)}|${" ".repeat(Math.max(0, 18 - model.vcetype.length / 2))}${model.vcetype}`,
+        ]
+      : []),
+    `${abbreviate(label, width).padStart(width)} | ${heading.padStart(10)}   ${robust ? "std" : "Std"}. err.      t    P>|t|     [${g(level)}% conf. interval]`,
+    `${"-".repeat(width + 1)}+${"-".repeat(64)}`,
+    ...termRows(
+      session,
+      model,
+      (k) => {
+        const { se, t, p, missing } = coefficientTest(model, k),
+          b = model.b[k],
+          bound = (sign) =>
+            missing ? MISSING : Math.exp(b + sign * critical * se);
+        return `${g(Math.exp(b)).padStart(11)}${g(missing ? MISSING : Math.exp(b) * se).padStart(11)}${statisticCell(t)}${applyFormat(p, "%8.3f")}${g(bound(-1)).padStart(13)}${g(bound(1)).padStart(12)}`;
+      },
+      width,
+      1,
+    ),
+  ];
 }
 
 /** The sum of the weights as typed, over the estimation sample. */

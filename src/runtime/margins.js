@@ -397,9 +397,12 @@ export function marginsTable(
         continue;
       }
       // A variance that is zero, or below zero by rounding, leaves the
-      // standard error, the test and the interval missing, as in Stata.
+      // standard error, the test and the interval missing, as in Stata;
+      // so does one that is zero but for rounding, some 1e-20 of the
+      // squared margin (xtreg, fe's margin at the means).
       const v = variance(result.gradient),
-        known = v > 0 && !isMissing(v),
+        known =
+          v > 0 && !isMissing(v) && v > 1e-20 * result.value * result.value,
         se = known ? Math.sqrt(v) : MISSING,
         z = known ? result.value / se : MISSING,
         bound = (sign) =>
@@ -715,18 +718,61 @@ function margins(session, text, ctx) {
   // instead, the last varying fastest, whatever order at() names them in.
   const atNames = [];
   if (options.at) {
-    const entries = [];
-    for (const m of options.at.matchAll(
-      /(\w+)\s*=\s*(\((?:[^()]|\([^()]*\))*\)|\S+)/g,
-    )) {
-      const name = session.varlist(m[1])[0];
-      if (!covariates.includes(name))
-        throw new StataError(
-          `invalid at() option;\nvariable ${name} not found in list of covariates`,
+    const entries = [],
+      notCovariate = (word) =>
+        new StataError(
+          `invalid at() option;\nvariable ${word} not found in list of covariates`,
           322,
-        );
-      entries.push([name, parseNumlist(m[2].replace(/^\(|\)$/g, ""))]);
-      atNames.push(name);
+        ),
+      covariate = (word) => {
+        let name;
+        try {
+          [name] = session.varlist(word);
+        } catch {
+          throw notCovariate(word);
+        }
+        if (!covariates.includes(name)) throw notCovariate(name);
+        return name;
+      };
+    // Read in turn: name = value(s); (stat) before the names it sets; and
+    // a name alone, which takes the statistic in force, the mean unless
+    // one was given. A word that fits none is read as a name: at(x = 1 2)
+    // finds no variable 2.
+    let rest = options.at.trim(),
+      m;
+    while (rest) {
+      if ((m = /^\(\s*([^()]*?)\s*\)\s*/.exec(rest))) {
+        if (m[1] !== "mean")
+          throw /^(median|p\d+|min|max|zero|base|asbalanced|asobserved)$/.test(
+            m[1],
+          )
+            ? new StataError(
+                `margins, at((${m[1]}) ...) is not available yet; give the values with at(name = #)`,
+                198,
+              )
+            : new StataError(
+                `invalid at() option;\n(${m[1]}) invalid statistic`,
+                198,
+              );
+      } else if ((m = /^([A-Za-z_][\w*?~-]*)\s*=\s*/.exec(rest))) {
+        const name = covariate(m[1]);
+        rest = rest.slice(m[0].length);
+        const value = /^(\((?:[^()]|\([^()]*\))*\)|[^\s()]+)\s*/.exec(rest);
+        if (!value)
+          throw new StataError(
+            "invalid at() option;\n'' found where number expected",
+            7,
+          );
+        entries.push([name, parseNumlist(value[1].replace(/^\(|\)$/g, ""))]);
+        atNames.push(name);
+        m = value;
+      } else {
+        m = /^[^\s()=]+\s*/.exec(rest) ?? [rest];
+        const name = covariate(m[0].trim());
+        entries.push([name, ["mean"]]);
+        atNames.push(name);
+      }
+      rest = rest.slice(m[0].length);
     }
     if (!atNames.length) throw new StataError("invalid at() option", 198);
     entries

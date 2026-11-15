@@ -2,7 +2,8 @@
 // seeded as its reference implementation seeds it, which is what Stata's
 // default generator is: after the same set seed, runiform() returns the same
 // doubles as Stata, draw for draw. Stata turns each 64-bit output into a
-// double by dividing by 2^64 with rounding to nearest.
+// double in (0, 1) as genrand64_real3 does: its top 52 bits plus one half,
+// over 2^52.
 //
 // Only runiform() is matched to Stata. rnormal() and the other generators
 // here are built on runiform() by documented methods and give different
@@ -51,10 +52,10 @@ export class Generator {
   }
   /** A uniform draw on (0, 1), as Stata's runiform(). */
   uniform() {
-    for (;;) {
-      const value = Number(this.next()) / 2 ** 64;
-      if (value > 0 && value < 1) return value;
-    }
+    // The top 52 bits and a half, over 2^52: genrand64_real3 of the
+    // reference Mersenne Twister, which is what Stata's draws are to the
+    // last bit.
+    return (Number(this.next() >> 12n) + 0.5) / 2 ** 52;
   }
   normal() {
     return invnormal(this.uniform());

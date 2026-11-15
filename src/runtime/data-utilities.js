@@ -756,6 +756,13 @@ export function describe(session, text, ctx) {
     using = parsed.using !== undefined,
     linesize = session.settings.linesize ?? 80,
     print = ctx.out;
+  // describe _all with no variables in memory describes none, silently.
+  if (
+    !using &&
+    !session.data.variables.length &&
+    (parsed.anything ?? "").trim() === "_all"
+  )
+    return;
   // A line wider than the linesize goes on after "> ".
   ctx = { ...ctx, out: (line) => fold(line, linesize).forEach(print) };
   if (o.simple && Object.keys(o).length > 1)

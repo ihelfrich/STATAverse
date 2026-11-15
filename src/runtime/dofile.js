@@ -106,7 +106,8 @@ export function parseBlocks(commands) {
   let at = 0,
     // The line of the } that closed the block read last, -1 when the file
     // ended first.
-    closed = 0;
+    closed = 0,
+    trailing = false;
   const lastLine = commands.at(-1)?.line ?? 0;
   const block = (closing) => {
     const nodes = [];
@@ -114,8 +115,10 @@ export function parseBlocks(commands) {
       const { text, line } = commands[at];
       // A } that closes nothing is a command of its own, as Stata reads it,
       // and fails when it is reached; so does an end outside a program.
-      if (text === "}" && closing === "}") {
+      if (text.startsWith("}") && closing === "}") {
         closed = line;
+        // More on the line after the }: Stata runs the block, then stops.
+        trailing = text !== "}";
         at++;
         return nodes;
       }
@@ -163,7 +166,8 @@ export function parseBlocks(commands) {
         });
       } else if (OPENS.test(text)) {
         const body = block("}"),
-          unclosed = closed === -1;
+          unclosed = closed === -1,
+          more = !unclosed && trailing;
         nodes.push({
           kind: "block",
           header: text.replace(OPENS, "").trim(),
@@ -171,6 +175,7 @@ export function parseBlocks(commands) {
           line,
           end: unclosed ? lastLine : closed,
           ...(unclosed ? { unclosed } : {}),
+          ...(more ? { trailing: true } : {}),
         });
       } else nodes.push({ kind: "command", text, line });
     }

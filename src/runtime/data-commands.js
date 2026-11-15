@@ -9,6 +9,7 @@ import { count, list } from "./reports.js";
 import { applySyntax, splitAtComma } from "./syntax.js";
 import { Dataset } from "./store.js";
 import { findFile } from "./files.js";
+import { oldMerge } from "./merge-old.js";
 import {
   MAX_STRING_WIDTH,
   MISSING,
@@ -348,7 +349,7 @@ function paragraph(session, text) {
  * value labels of the using data come along, except those the master data
  * already define. Returns the names whose using values are dropped.
  */
-function reconcile(session, command, data, other, names, options, ctx) {
+export function reconcile(session, command, data, other, names, options, ctx) {
   // Stata goes through the shared variables in the using data's order.
   const shared = other.variables
       .filter((v) => names.includes(v.name) && data.has(v.name))
@@ -550,6 +551,9 @@ export function strLKey(session, key, where) {
 }
 function merge(session, text, ctx) {
   const m = /^\s*(1:1|m:1|1:m|m:m)\s+([\s\S]*)$/.exec(text);
+  // merge [varlist] using file, as Stata wrote it before version 11.
+  if (!m && /(^|\s)using(\s|$)/.test(splitAtComma(text)[0]))
+    return oldMerge(session, text, ctx);
   if (!m) throw invalid("merge needs 1:1, m:1, 1:m or m:m");
   if (m[1] === "m:m")
     throw invalid("merge m:m is not available; it rarely does what is wanted");

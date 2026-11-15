@@ -36,6 +36,10 @@ export function expandVarlist(text, names) {
     }
   for (const word of text.trim().split(/\s+/).filter(Boolean)) {
     if (word === "_all") out.push(...names);
+    // A parenthesis with no operator's period, as in ar(1), is read as
+    // Stata's recoding syntax.
+    else if (/[()]/.test(word) && !word.includes(".") && !word.includes("#"))
+      throw new StataError("coding operators not allowed", 198);
     else if (/^[\p{L}\p{Nd}_]*\.[\p{L}_#(]/u.test(word) || /[#()]/.test(word))
       throw new StataError(
         "factor-variable and time-series operators not allowed",

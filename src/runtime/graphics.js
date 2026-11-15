@@ -2317,6 +2317,13 @@ function twoway(session, text, ctx, single) {
 }
 
 function histogram(session, text, ctx) {
+  // Stata's histogram takes bins(#) for bin(#), but not both.
+  const binsOption = /(,\s*(?:[\s\S]*?[\s,])?)bins\(/;
+  if (binsOption.test(text)) {
+    if (/,\s*(?:[\s\S]*[\s,])?bin\(/.test(text))
+      throw new StataError("option bin() not allowed", 198);
+    text = text.replace(binsOption, "$1bin(");
+  }
   const parsed = parseGraph(
       session,
       `varname [if] [in] [fweight] [, BIN(real) Width(real) START(real 0) Discrete DENsity FRACtion FREQuency PERCent NORMal KDENsity GAP(real 0) COLor(string) ${LOOKS} | ADDLabels]`,
@@ -2880,19 +2887,35 @@ function graph(session, text, ctx) {
   throw new StataError(`graph ${m[1]} is not available yet`, 198);
 }
 
-const single = (kind) => (session, text, ctx) =>
-  twoway(session, text, ctx, kind);
+/**
+ * twoway and graph read their whole line first, and a parenthesis left
+ * open stops them there, as title(Hi does; histogram's own parser says
+ * ") required" instead. One closed twice is read further, as a plot type.
+ */
+const balanced = (run) => (session, text, ctx) => {
+  let depth = 0,
+    quote = false;
+  for (let i = 0; i < text.length && depth >= 0; i++) {
+    const c = text[i];
+    if (c === '"') quote = !quote;
+    else if (quote) continue;
+    else if (c === "(") depth++;
+    else if (c === ")") depth--;
+  }
+  if (depth > 0) throw new StataError("parentheses do not balance", 198);
+  return run(session, text, ctx);
+};
+const single = (kind) =>
+  balanced((session, text, ctx) => twoway(session, text, ctx, kind));
 export const GRAPH_COMMANDS = withStyleNotes([
   { name: "scatter", minimum: 2, run: single("scatter") },
   { name: "line", minimum: 4, run: single("line") },
   {
     name: "twoway",
     minimum: 2,
-    run: (session, text, ctx) => {
-      // twoway scatter y x || lfit y x, and twoway (scatter y x) (lfit y x)
-      return twoway(session, text, ctx);
-    },
+    // twoway scatter y x || lfit y x, and twoway (scatter y x) (lfit y x)
+    run: balanced((session, text, ctx) => twoway(session, text, ctx)),
   },
   { name: "histogram", minimum: 4, run: histogram },
-  { name: "graph", minimum: 2, run: graph },
+  { name: "graph", minimum: 2, run: balanced(graph) },
 ]);

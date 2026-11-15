@@ -6,9 +6,11 @@
 // A result that is not a finite number becomes system missing when the
 // expression stores it, as Stata returns missing outside a function's
 // domain.
-import { MISSING, isMissing } from "./values.js";
+import { DOUBLE_MAX, FLOAT_MAX, MISSING, isMissing } from "./values.js";
 import { ibeta, gammap, gammaq, lngamma } from "./distributions.js";
 import { normal } from "./functions-normal.js";
+import { parseFormat } from "./format.js";
+import { Generator } from "./random.js";
 
 const N = "numeric",
   S = "string";
@@ -486,6 +488,144 @@ function nbinomialp(n, k, p) {
   );
 }
 
+// ----- noncentral beta, F and t -----
+/** The Poisson(lambda/2) weights of a noncentral mixture, summed from the mode out. */
+function mixture(lambda, term) {
+  const half = lambda / 2,
+    mode = Math.floor(half),
+    weight = (j) => Math.exp(j * Math.log(half) - half - lnfact(j));
+  if (lambda === 0) return term(0);
+  let sum = 0;
+  for (let j = mode; j >= 0; j--) {
+    const t = weight(j) * term(j);
+    sum += t;
+    if (t < 1e-18 * sum && j < mode - 5) break;
+  }
+  for (let j = mode + 1; j < mode + 100000; j++) {
+    const w = weight(j),
+      t = w * term(j);
+    sum += t;
+    if (w < 1e-18 && t < 1e-18 * sum) break;
+  }
+  return sum;
+}
+function nibeta(a, b, lambda, x) {
+  if (!(a > 0 && b > 0 && lambda >= 0) || !(x >= 0 && x <= 1)) return MISSING;
+  if (x === 0) return 0;
+  if (x === 1) return 1;
+  return Math.min(
+    1,
+    mixture(lambda, (j) => ibeta(a + j, b, x)),
+  );
+}
+function nbetaden(a, b, lambda, x) {
+  if (!(a > 0 && b > 0 && lambda >= 0) || !(x >= 0 && x <= 1)) return MISSING;
+  return mixture(lambda, (j) => betaden(a + j, b, x));
+}
+function nF(df1, df2, lambda, f) {
+  if (!(df1 > 0 && df2 > 0 && lambda >= 0)) return MISSING;
+  if (f <= 0) return 0;
+  return nibeta(df1 / 2, df2 / 2, lambda, (df1 * f) / (df1 * f + df2));
+}
+function nFden(df1, df2, lambda, f) {
+  if (!(df1 > 0 && df2 > 0 && lambda >= 0)) return MISSING;
+  if (f < 0) return 0;
+  const d = df1 * f + df2;
+  return (
+    nbetaden(df1 / 2, df2 / 2, lambda, (df1 * f) / d) * ((df1 * df2) / (d * d))
+  );
+}
+/** The noncentral t distribution, P(T < t), by Lenth's algorithm AS 243. */
+function nt(df, delta, t) {
+  if (!(df > 0)) return MISSING;
+  let negative = false,
+    tt = t,
+    del = delta;
+  if (t < 0) {
+    negative = true;
+    tt = -t;
+    del = -delta;
+  }
+  const x = (tt * tt) / (tt * tt + df);
+  let tnc = 0;
+  if (x > 0) {
+    const lambda = del * del;
+    let p = 0.5 * Math.exp(-0.5 * lambda),
+      q = Math.sqrt(2 / Math.PI) * p * del,
+      s = 0.5 - p,
+      a = 0.5;
+    const b = 0.5 * df,
+      rxb = Math.pow(1 - x, b),
+      albeta = 0.5 * Math.log(Math.PI) + lngamma(b) - lngamma(0.5 + b);
+    let xodd = ibeta(a, b, x),
+      godd = 2 * rxb * Math.exp(a * Math.log(x) - albeta),
+      xeven = 1 - rxb,
+      geven = b * x * rxb;
+    tnc = p * xodd + q * xeven;
+    for (let en = 1; en <= 100000; en++) {
+      a += 1;
+      xodd -= godd;
+      xeven -= geven;
+      godd *= (x * (a + b - 1)) / a;
+      geven *= (x * (a + b - 0.5)) / (a + 0.5);
+      p *= lambda / (2 * en);
+      q *= lambda / (2 * en + 1);
+      s -= p;
+      tnc += p * xodd + q * xeven;
+      if (Math.abs(2 * s * (xodd - godd)) < 1e-15 && en > 2) break;
+    }
+  }
+  tnc += normal(-del);
+  tnc = Math.min(1, Math.max(0, tnc));
+  return negative ? 1 - tnc : tnc;
+}
+function ntden(df, delta, t) {
+  if (!(df > 0)) return MISSING;
+  if (Math.abs(t) > 1e-12)
+    return Math.max(
+      0,
+      (df / t) *
+        (nt(df + 2, delta, t * Math.sqrt(1 + 2 / df)) - nt(df, delta, t)),
+    );
+  return Math.exp(
+    lngamma((df + 1) / 2) -
+      lngamma(df / 2) -
+      0.5 * Math.log(Math.PI * df) -
+      (delta * delta) / 2,
+  );
+}
+
+// ----- recoding, rounding and the limits of the storage types -----
+/** recode(x, x1, ..., xn): the first xk not below x, else xn. */
+function recode(x, ...cuts) {
+  if (isMissing(x)) return MISSING;
+  for (const cut of cuts.slice(0, -1)) if (x <= cut) return cut;
+  return cuts.at(-1);
+}
+/** irecode(x, x1, ..., xn): how many of the cuts lie below x. */
+function irecode(x, ...cuts) {
+  if (isMissing(x)) return MISSING;
+  for (let k = 0; k < cuts.length; k++) if (x <= cuts[k]) return k;
+  return cuts.length;
+}
+/** autocode(x, n, lo, hi): the top of the one of n equal intervals holding x. */
+function autocode(x, n, lo, hi) {
+  if (isMissing(x)) return MISSING;
+  n = whole(n);
+  if (!(n >= 1) || !(hi > lo)) return MISSING;
+  const width = (hi - lo) / n;
+  for (let k = 1; k < n; k++) if (x <= lo + k * width) return lo + k * width;
+  return hi;
+}
+/** The display width of a format, or missing for one that is not valid. */
+function fmtwidth(format) {
+  const spec = parseFormat(format.trim());
+  if (!spec) return MISSING;
+  if (spec.kind === "date")
+    return spec.codes.reduce((total, code) => total + code.width, 0);
+  return spec.width ?? MISSING;
+}
+
 // ----- Unicode strings -----
 const characters = (s) => [...s];
 const SPACE = /^[\s\u0085᠎]+|[\s\u0085᠎]+$/gu;
@@ -697,7 +837,169 @@ function regexReplace(state, s, pattern, to, insensitive, all) {
   return out + s.slice(at);
 }
 
+/** A draw from Stata's uniform stream, which these transform. */
+const uniform = (state) => (state.rng ??= new Generator(state.seed)).uniform();
+/** A random-number function made from one uniform draw. */
+const drawn = (args, min, fn) => ({
+  args,
+  min,
+  returns: N,
+  state: true,
+  lenient: true,
+  fn: (state, ...a) => {
+    const value = fn(uniform(state), ...a);
+    return Number.isFinite(value) ? value : MISSING;
+  },
+});
+
 export const MORE_FUNCTIONS = {
+  // Closed-form draws, as Stata makes them from runiform().
+  rlogistic: drawn([N, N], 0, (u, a, b) => {
+    const [m, s] = b === undefined ? [0, a ?? 1] : [a, b];
+    return s > 0 && !isMissing(m) ? m + s * Math.log(u / (1 - u)) : MISSING;
+  }),
+  rcauchy: drawn([N, N], 2, (u, a, b) =>
+    b > 0 && !isMissing(a) ? a + b * Math.tan(Math.PI * (u - 0.5)) : MISSING,
+  ),
+  rlaplace: drawn([N, N], 2, (u, m, b) =>
+    b > 0 && !isMissing(m)
+      ? u < 0.5
+        ? m + b * Math.log(2 * u)
+        : m - b * Math.log(2 * (1 - u))
+      : MISSING,
+  ),
+  rweibull: drawn([N, N, N], 2, (u, a, b, g = 0) =>
+    a > 0 && b > 0 && !isMissing(g)
+      ? g + b * Math.pow(-Math.log(u), 1 / a)
+      : MISSING,
+  ),
+  rweibullph: drawn([N, N, N], 2, (u, a, b, g = 0) =>
+    a > 0 && b > 0 && !isMissing(g)
+      ? g + Math.pow(-Math.log(u) / b, 1 / a)
+      : MISSING,
+  ),
+
+  recode: { args: N, min: 3, returns: N, lenient: true, fn: recode },
+  irecode: { args: N, min: 2, returns: N, lenient: true, fn: irecode },
+  autocode: { args: [N, N, N, N], returns: N, lenient: true, fn: autocode },
+  chop: two((x, eps) =>
+    Math.abs(x - Math.round(x)) < eps ? Math.round(x) : x,
+  ),
+  epsdouble: { args: [], returns: N, fn: () => Number.EPSILON },
+  epsfloat: { args: [], returns: N, fn: () => 2 ** -23 },
+  smallestdouble: { args: [], returns: N, fn: () => 2 ** -1022 },
+  maxbyte: { args: [], returns: N, fn: () => 100 },
+  minbyte: { args: [], returns: N, fn: () => -127 },
+  maxint: { args: [], returns: N, fn: () => 32740 },
+  minint: { args: [], returns: N, fn: () => -32767 },
+  maxlong: { args: [], returns: N, fn: () => 2147483620 },
+  minlong: { args: [], returns: N, fn: () => -2147483647 },
+  maxfloat: { args: [], returns: N, fn: () => FLOAT_MAX },
+  minfloat: { args: [], returns: N, fn: () => -FLOAT_MAX },
+  maxdouble: { args: [], returns: N, fn: () => DOUBLE_MAX },
+  // The browser stores numbers low byte first, as Stata on Intel and Apple
+  // silicon does: 2.
+  byteorder: { args: [], returns: N, fn: () => 2 },
+  fmtwidth: { args: [S], returns: N, fn: fmtwidth },
+
+  nibeta: { args: [N, N, N, N], returns: N, fn: nibeta },
+  nbetaden: { args: [N, N, N, N], returns: N, fn: nbetaden },
+  invnibeta: {
+    args: [N, N, N, N],
+    returns: N,
+    fn: (a, b, lambda, p) =>
+      a > 0 && b > 0 && lambda >= 0 && probability(p)
+        ? solve((x) => nibeta(a, b, lambda, x), p, 0, 1)
+        : MISSING,
+  },
+  nF: { args: [N, N, N, N], returns: N, fn: nF },
+  nFden: { args: [N, N, N, N], returns: N, fn: nFden },
+  nFtail: {
+    args: [N, N, N, N],
+    returns: N,
+    fn: (df1, df2, lambda, f) => {
+      const p = nF(df1, df2, lambda, f);
+      return isMissing(p) ? p : 1 - p;
+    },
+  },
+  invnFtail: {
+    args: [N, N, N, N],
+    returns: N,
+    fn: (df1, df2, lambda, q) => {
+      if (!(df1 > 0 && df2 > 0 && lambda >= 0) || !(q > 0 && q < 1))
+        return MISSING;
+      const f = (x) => nF(df1, df2, lambda, x);
+      return solve(f, 1 - q, 0, above(f, 1 - q, 1));
+    },
+  },
+  npnF: {
+    args: [N, N, N, N],
+    returns: N,
+    fn: (df1, df2, x, p) => {
+      if (!(df1 > 0 && df2 > 0 && x > 0) || !(p > 0 && p < 1)) return MISSING;
+      const f = (lambda) => -nF(df1, df2, lambda, x);
+      if (-f(0) < p) return MISSING;
+      return solve(f, -p, 0, above(f, -p, x + 1));
+    },
+  },
+  nt: three(nt),
+  ntden: three(ntden),
+  nttail: three((df, delta, t) => {
+    const p = nt(df, delta, t);
+    return isMissing(p) ? p : 1 - p;
+  }),
+  invnttail: three((df, delta, q) => {
+    if (!(df > 0) || !(q > 0 && q < 1)) return MISSING;
+    const f = (t) => nt(df, delta, t);
+    let lo = -1,
+      hi = 1;
+    while (f(lo) > 1 - q && lo > -1e300) lo *= 2;
+    while (f(hi) < 1 - q && hi < 1e300) hi *= 2;
+    return solve(f, 1 - q, lo, hi);
+  }),
+  npnt: three((df, t, p) => {
+    if (!(df > 0) || !(p > 0 && p < 1)) return MISSING;
+    // nt falls as the noncentrality rises.
+    const f = (delta) => -nt(df, delta, t);
+    let lo = -1,
+      hi = 1;
+    while (f(lo) > -p && lo > -1e6) lo *= 2;
+    while (f(hi) < -p && hi < 1e6) hi *= 2;
+    return solve(f, -p, lo, hi);
+  }),
+  invigaussian: three((m, a, p) =>
+    m > 0 && a > 0 && p > 0 && p < 1
+      ? solve(
+          (x) => igaussian(m, a, x),
+          p,
+          0,
+          above((x) => igaussian(m, a, x), p, m),
+        )
+      : MISSING,
+  ),
+  invigaussiantail: three((m, a, q) =>
+    m > 0 && a > 0 && q > 0 && q < 1
+      ? solve(
+          (x) => igaussian(m, a, x),
+          1 - q,
+          0,
+          above((x) => igaussian(m, a, x), 1 - q, m),
+        )
+      : MISSING,
+  ),
+  // The probability of success at which nbinomial(n, k, q), or the tail,
+  // reaches p.
+  invnbinomial: three((n, k, p) => {
+    k = whole(k);
+    if (!(n > 0) || k < 0 || !(p > 0 && p < 1)) return MISSING;
+    return solve((q) => ibeta(n, k + 1, q), p, 0, 1);
+  }),
+  invnbinomialtail: three((n, k, p) => {
+    k = whole(k);
+    if (!(n > 0) || k < 1 || !(p > 0 && p < 1)) return MISSING;
+    return solve((q) => -ibeta(k, n, 1 - q), -p, 0, 1);
+  }),
+
   sin: one(Math.sin),
   cos: one(Math.cos),
   tan: one(Math.tan),
@@ -745,18 +1047,26 @@ export const MORE_FUNCTIONS = {
   invgammaptail: two(invgammaptail),
   invibeta: three(invibeta),
   invibetatail: three(invibetatail),
-  binomialp: three(binomialp),
-  binomial: three(binomial),
-  binomialtail: three(binomialtail),
-  invbinomial: three(invbinomial),
-  invbinomialtail: three(invbinomialtail),
-  poissonp: two(poissonp),
-  poisson: two(poisson),
-  poissontail: two(poissontail),
-  invpoisson: two(invpoisson),
-  invpoissontail: two(invpoissontail),
-  hypergeometricp: { args: [N, N, N, N], returns: N, fn: hypergeometricp },
-  hypergeometric: { args: [N, N, N, N], returns: N, fn: hypergeometric },
+  binomialp: three((n, k, p) => binomialp(whole(n), whole(k), p)),
+  binomial: three((n, k, p) => binomial(whole(n), whole(k), p)),
+  binomialtail: three((n, k, p) => binomialtail(whole(n), whole(k), p)),
+  invbinomial: three((n, k, p) => invbinomial(whole(n), whole(k), p)),
+  invbinomialtail: three((n, k, p) => invbinomialtail(whole(n), whole(k), p)),
+  poissonp: two((m, k) => poissonp(m, whole(k))),
+  poisson: two((m, k) => poisson(m, whole(k))),
+  poissontail: two((m, k) => poissontail(m, whole(k))),
+  invpoisson: two((k, p) => invpoisson(whole(k), p)),
+  invpoissontail: two((k, q) => invpoissontail(whole(k), q)),
+  hypergeometricp: {
+    args: [N, N, N, N],
+    returns: N,
+    fn: (...a) => hypergeometricp(...a.map(whole)),
+  },
+  hypergeometric: {
+    args: [N, N, N, N],
+    returns: N,
+    fn: (...a) => hypergeometric(...a.map(whole)),
+  },
   binormal: three(binormal),
   nchi2: three(nchi2),
   invnchi2: three(invnchi2),
@@ -867,23 +1177,23 @@ export const MORE_FUNCTIONS = {
   weibullphden: WEIBULLPH.den,
   invweibullph: WEIBULLPH.inverse,
   invweibullphtail: WEIBULLPH.inverseTail,
-  nbinomialp: three(nbinomialp),
+  nbinomialp: three((n, k, p) => nbinomialp(n, whole(k), p)),
   nbinomial: three((n, k, p) =>
     n > 0 && p > 0 && p <= 1
       ? k < 0
         ? 0
         : p === 1
           ? 1
-          : ibeta(n, Math.floor(k) + 1, p)
+          : ibeta(n, whole(k) + 1, p)
       : MISSING,
   ),
   nbinomialtail: three((n, k, p) =>
     n > 0 && p > 0 && p <= 1
-      ? Math.ceil(k) <= 0
+      ? whole(k) <= 0
         ? 1
         : p === 1
           ? 0
-          : ibeta(Math.ceil(k), n, 1 - p)
+          : ibeta(whole(k), n, 1 - p)
       : MISSING,
   ),
 
@@ -1095,11 +1405,8 @@ for (const [alias, name] of Object.entries({
  */
 export const UNAVAILABLE_FUNCTIONS = new Set(
   `ustrsortkey ustrsortkeyex ustrcompareex ustrto ustrfrom collatorlocale
-  collatorversion wordbreaklocale regexcapturenamed fileexists filereadable
-  fileread filewrite hash1 nbetaden nibeta invnibeta nF nFden nFtail invnFtail
-  npnF nt ntden nttail invnttail npnt lnwishartden lniwishartden
-  lnmvnormalden lnmvtden invigaussian invigaussiantail rbeta rchi2 rgamma
-  rhypergeometric rigaussian rlogistic rnbinomial rt rweibull rweibullph
-  rcauchy rlaplace invnbinomial invnbinomialtail dunnettprob invdunnettprob
-  tukeyprob invtukeyprob`.split(/\s+/),
+  collatorversion wordbreaklocale regexcapturenamed fileexists fileread
+  filewrite lnwishartden lniwishartden lnmvnormalden lnmvtden rbeta rchi2
+  rgamma rhypergeometric rigaussian rnbinomial rt dunnettprob invdunnettprob
+  tukeyprob invtukeyprob _caller`.split(/\s+/),
 );
