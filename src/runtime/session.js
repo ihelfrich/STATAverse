@@ -716,6 +716,16 @@ const heldScalars = new WeakSet();
  */
 const posted = (staged) => Object.fromEntries(Object.entries(staged).reverse());
 
+/**
+ * What a quiet command shows: the messages Stata prints even under
+ * quietly, and what display writes after one (see dispatch).
+ */
+function loudLines(lines, flags) {
+  return lines.filter(
+    (_, k) => flags.loudAt?.has(k) || k >= (flags.loudFrom ?? lines.length),
+  );
+}
+
 export class Session {
   constructor() {
     this.data = new Dataset();
@@ -1501,7 +1511,7 @@ export class Session {
       const reported = flags.leadAt !== undefined && error.recorded,
         // quietly hides what the command printed before it failed, as
         // "(analytic weights assumed)", but not the error.
-        before = flags.quiet ? [] : lines;
+        before = flags.quiet ? loudLines(lines, flags) : lines;
       if (flags.capture) {
         this.rc = error.code;
         // The message is shown in the error style, as Stata shows it.
@@ -1531,9 +1541,14 @@ export class Session {
     }
     this.quietDepth = quietDepth;
     if (flags.capture) this.rc = 0;
-    // quietly silences text, not graphs.
+    // quietly silences text, not graphs, and not what follows a message
+    // Stata prints even under quietly.
     put(
-      flags.quiet || (flags.capture && !flags.noisy) ? [] : lines,
+      flags.capture && !flags.noisy
+        ? []
+        : flags.quiet
+          ? loudLines(lines, flags)
+          : lines,
       0,
       flags.graph,
     );
@@ -1674,8 +1689,30 @@ export class Session {
       this.postedSample = null;
       // A function's message while an expression is evaluated, as regexs()
       // gives for a group it does not have, goes to this command's output.
-      const outerNote = this.state.note;
-      this.state.note = ctx.out;
+      const outerNote = this.state.note,
+        outerLoud = this.state.loud;
+      // Some messages of the regular-expression functions Stata prints
+      // even under quietly: a "shown" one itself, an "unmuting" one, as
+      // regexm() gives for a pattern it cannot read, with the messages
+      // after it. loud() keeps the lines from here on, for display, which
+      // shows what it writes after such a message, and says whether the
+      // command is quiet.
+      this.state.loud = (keep) => {
+        if (keep) flags.loudFrom ??= lines.length ?? 0;
+        return !!flags.quiet;
+      };
+      this.state.note = (text, kind) => {
+        if (kind === "unmuting") flags.unmuted = true;
+        // count, alone of the commands, then shows its result too.
+        if (kind === "unmuting" && command.name === "count")
+          flags.loudFrom ??= lines.length ?? 0;
+        // A message wider than the line goes on after "> ".
+        for (const line of fold(text, this.settings.linesize ?? 79)) {
+          if (kind || flags.unmuted)
+            (flags.loudAt ??= new Set()).add(lines.length ?? 0);
+          ctx.out(line);
+        }
+      };
       try {
         if (replayed) value = this.replay(command, body, ctx, lines);
         else if (recall) {
@@ -1736,6 +1773,7 @@ export class Session {
         throw error;
       } finally {
         this.state.note = outerNote;
+        this.state.loud = outerLoud;
         // Once the data have changed they stay changed until use, save or
         // clear, even if a later command changes them back.
         if (!READ_ONLY.has(command.name)) markChanged(this);

@@ -708,7 +708,15 @@ export function displayText(session, text, asMacro = false, errors = null) {
         throw new StataError("too few quotes", 132);
       if (rest[token.length] === "(")
         throw new StataError(`unknown function ${sign}${token}()`, 133);
-      throw new StataError(`${sign}${token} invalid name`, 198);
+      // A value-label name after the string is named with it: display
+      // "a" + "b":gl is +"b":gl invalid name.
+      const label = opensString(rest, 0)
+        ? /^\s*:\s*([^\s\-+*/^<>=!~&|(),[\]]*)/.exec(rest.slice(token.length))
+        : null;
+      throw new StataError(
+        `${sign}${token}${label ? `:${label[1]}` : ""} invalid name`,
+        198,
+      );
     }
     if (!opensString(expression, 0)) checkQuotes(expression);
     checkBrackets(expression);
@@ -734,8 +742,22 @@ export function displayText(session, text, asMacro = false, errors = null) {
   // for a pattern Stata cannot read, is written where display has got to:
   // display "x " regexm("a", "*") shows x regexp: ?+* follows nothing.
   const outerNote = session.state.note;
+  let unmuted = false;
   if (!asMacro)
-    session.state.note = (text) => {
+    session.state.note = (text, kind) => {
+      // Under quietly, a message that unmutes shows display's output from
+      // there on: quietly display "x" regexm("a", "(") "y" shows the
+      // message and 0y; one that is only shown is shown alone.
+      if (kind && session.state.loud && !unmuted) {
+        const quiet = session.state.loud(kind === "unmuting");
+        if (quiet && kind !== "unmuting") return outerNote?.(text, kind);
+        if (quiet) {
+          out = "";
+          styled.length = 0;
+          line = 0;
+        }
+        unmuted = kind === "unmuting";
+      }
       out += `${text}\n`;
       (styled[line] ??= {}).other = true;
       line++;
@@ -1033,18 +1055,25 @@ function sortCommand(session, text) {
   session.data.sort(parsed.varlist);
 }
 function gsort(session, text) {
-  const keys = text
-    .split(/\s+/)
-    .filter(Boolean)
-    .flatMap((word) => {
-      // A sign with no name after it.
-      if (/^[+-]$/.test(word)) throw invalid();
-      const m = /^([+-]?)(.+)$/.exec(word);
-      // Each variable a name stands for is a key, in the same direction.
-      return session
-        .varlist(m[2])
-        .map((name) => ({ name, descending: m[1] === "-" }));
-    });
+  // A sign may stand apart from its name: gsort x1 - x2 sorts x2
+  // descending. A sign before another sign is named.
+  const words = [];
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const last = words.at(-1);
+    if (/^[+-]$/.test(last ?? "") && /^[+-]/.test(word))
+      throw new StataError(`${last} invalid name`, 198);
+    if (/^[+-]$/.test(last ?? "")) words[words.length - 1] += word;
+    else words.push(word);
+  }
+  const keys = words.flatMap((word) => {
+    // A sign with no name after it.
+    if (/^[+-]$/.test(word)) throw invalid();
+    const m = /^([+-]?)(.+)$/.exec(word);
+    // Each variable a name stands for is a key, in the same direction.
+    return session
+      .varlist(m[2])
+      .map((name) => ({ name, descending: m[1] === "-" }));
+  });
   if (!keys.length) throw new StataError("varlist required", 100);
   session.data.sort(keys);
 }
@@ -2335,7 +2364,15 @@ function assertCommand(session, text, ctx) {
     }
     throw error;
   }
-  const compiled = session.compile(parsed.anything);
+  // An expression that ends in an operator just before the options is read
+  // with the comma, as an if is: assert x == 1 & , is 1& invalid name, and
+  // assert s == "a" & , is assert s == "a".
+  const expression =
+    splitAtComma(text)[1] !== null &&
+    /(?:[-+*/^&|<>!~]|==|[<>!~]=)\s*$/.test(parsed.anything)
+      ? `${parsed.anything},`
+      : parsed.anything;
+  const compiled = session.compile(expression);
   if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
   let checked = 0,
     failed = 0;
@@ -2344,7 +2381,7 @@ function assertCommand(session, text, ctx) {
     if (compiled.evaluate(i, env) === 0) failed++;
   });
   // With no observations Stata still evaluates the expression once.
-  if (!session.data.n && session.scalar(parsed.anything) === 0)
+  if (!session.data.n && session.scalar(expression) === 0)
     throw new StataError("assertion is false", 9);
   // Stata counts the contradictions unless one observation was checked,
   // or the expression, with no if or in, is the same in every observation
@@ -2888,7 +2925,8 @@ function collapse(session, text, ctx) {
       (/\b(if|in)\b[\s\S]*$/.exec(head)?.[0] ?? "") +
         (optionText ? "," + optionText : ""),
     ),
-    spec = head.replace(/\b(if|in)\b[\s\S]*$/, ""),
+    // A range may be written with blanks beside its hyphen: x1 - x3.
+    spec = head.replace(/\b(if|in)\b[\s\S]*$/, "").replace(/\s*-\s*/g, "-"),
     data = session.data,
     targets = [];
   let stat = "mean";

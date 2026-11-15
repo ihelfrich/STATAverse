@@ -26,6 +26,108 @@ const two = (fn) => ({ args: [N, N], returns: N, fn });
 const three = (fn) => ({ args: [N, N, N], returns: N, fn });
 const isInteger = (x) => Number.isInteger(x);
 
+// ----- the derivatives of gammap(a, x) in a -----
+/**
+ * [dP/da, d2P/da2] for the regularized lower incomplete gamma P(a, x),
+ * as Stata's dgammapda() and dgammapdada() give them: 0 where x <= 0.
+ * Below a + 1 they are the series P = sum of x^(a+n) e^-x / G(a+n+1),
+ * differentiated term by term; above, minus those of Q = 1 - P, from
+ * Legendre's continued fraction for G(a, x), its convergents carried with
+ * their derivatives in a.
+ */
+function gammapDerivatives(a, x) {
+  if (!(a > 0) || isMissing(a) || isMissing(x)) return [MISSING, MISSING];
+  if (x <= 0) return [0, 0];
+  const lx = Math.log(x);
+  if (x < a + 1) {
+    let term = Math.exp(a * lx - x - lngamma(a + 1)),
+      psi = digamma(a + 1),
+      psi1 = trigamma(a + 1),
+      first = 0,
+      second = 0;
+    for (let n = 0; n < 100000; n++) {
+      const d = lx - psi,
+        add1 = term * d,
+        add2 = term * (d * d - psi1);
+      first += add1;
+      second += add2;
+      if (
+        Math.abs(add1) <= 1e-17 * Math.abs(first) &&
+        Math.abs(add2) <= 1e-17 * Math.abs(second)
+      )
+        break;
+      const k = a + n + 1;
+      term *= x / k;
+      psi += 1 / k;
+      psi1 -= 1 / (k * k);
+    }
+    return [first, second];
+  }
+  // F = b0 + a1/(b1 + a2/(b2 + ...)), b_n = x + 2n + 1 - a, a_n = -n(n - a),
+  // and G(a, x) = x^a e^-x / F. Each convergent A/B is kept with its first
+  // and second derivatives in a, rescaled by B as it goes.
+  let A0 = 1,
+    A1 = x + 1 - a,
+    dA0 = 0,
+    dA1 = -1,
+    ddA0 = 0,
+    ddA1 = 0,
+    B0 = 0,
+    B1 = 1,
+    dB0 = 0,
+    dB1 = 0,
+    ddB0 = 0,
+    ddB1 = 0,
+    f = A1,
+    df = -1,
+    ddf = 0;
+  // Rounding builds up as it goes on, so it stops once the three agree
+  // with the step before to a few units in the last place.
+  for (let n = 1; n < 2000; n++) {
+    const an = -n * (n - a),
+      dan = n,
+      bn = x + 2 * n + 1 - a,
+      dbn = -1;
+    const A2 = bn * A1 + an * A0,
+      B2 = bn * B1 + an * B0,
+      dA2 = dbn * A1 + bn * dA1 + dan * A0 + an * dA0,
+      dB2 = dbn * B1 + bn * dB1 + dan * B0 + an * dB0,
+      ddA2 = 2 * dbn * dA1 + bn * ddA1 + 2 * dan * dA0 + an * ddA0,
+      ddB2 = 2 * dbn * dB1 + bn * ddB1 + 2 * dan * dB0 + an * ddB0;
+    [A0, A1, dA0, dA1, ddA0, ddA1] = [A1, A2, dA1, dA2, ddA1, ddA2];
+    [B0, B1, dB0, dB1, ddB0, ddB1] = [B1, B2, dB1, dB2, ddB1, ddB2];
+    const scale = 1 / B1;
+    A0 *= scale;
+    A1 *= scale;
+    dA0 *= scale;
+    dA1 *= scale;
+    ddA0 *= scale;
+    ddA1 *= scale;
+    B0 *= scale;
+    dB0 *= scale;
+    ddB0 *= scale;
+    dB1 *= scale;
+    ddB1 *= scale;
+    B1 = 1;
+    // With B = 1: F = A, F' = A' - A B', F'' = A'' - A B'' - 2 B' F'.
+    const g = A1,
+      dg = dA1 - A1 * dB1,
+      ddg = ddA1 - A1 * ddB1 - 2 * dB1 * dg;
+    const done =
+      Math.abs(g - f) <= 1e-15 * Math.abs(g) &&
+      Math.abs(dg - df) <= 1e-15 * Math.abs(dg) &&
+      Math.abs(ddg - ddf) <= 1e-14 * Math.abs(ddg);
+    f = g;
+    df = dg;
+    ddf = ddg;
+    if (done) break;
+  }
+  const q = Math.exp(a * lx - x - Math.log(f) - lngamma(a)),
+    l1 = lx - df / f - digamma(a),
+    l2 = -(ddf / f - (df / f) ** 2) - trigamma(a);
+  return [-q * l1, -q * (l1 * l1 + l2)];
+}
+
 // ----- digamma and trigamma -----
 function digamma(x) {
   if (x <= 0 && isInteger(x)) return MISSING;
@@ -1184,6 +1286,8 @@ export const MORE_FUNCTIONS = {
     const density = gammaden(a, 1, 0, x);
     return x > 0 && !isMissing(density) ? density * ((a - 1) / x - 1) : MISSING;
   }),
+  dgammapda: two((a, x) => gammapDerivatives(a, x)[0]),
+  dgammapdada: two((a, x) => gammapDerivatives(a, x)[1]),
   dgammapdadx: two((a, x) => {
     const density = gammaden(a, 1, 0, x);
     return x > 0 && !isMissing(density)
@@ -1569,6 +1673,6 @@ export const UNAVAILABLE_FUNCTIONS = new Set(
   collatorversion wordbreaklocale regexcapturenamed fileexists fileread
   filewrite lnwishartden lniwishartden lnmvnormalden lnmvtden rbeta rchi2
   rgamma rhypergeometric rigaussian rnbinomial rt dunnettprob invdunnettprob
-  tukeyprob invtukeyprob dgammapda dgammapdada filereaderror frval _frval
+  tukeyprob invtukeyprob filereaderror frval _frval
   replay _byn1 _byn2 _bylastcall matrix`.split(/\s+/),
 );

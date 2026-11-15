@@ -185398,6 +185398,738 @@
       ]
     },
     {
+      "id": "expr-label-dereference-codes",
+      "source": "clear\ninput g\n1\n2\n3\n.a\nend\nlabel define gl 1 \"low\" 2 \"mid\" 3 \"high\" .a \"na\" 4 \"mid\"\nlabel values g gl\ncount if g == \"na\":gl\ndisplay (\"na\":gl)\ndisplay 0 + \"na\":gl\ngen y = \"na\":gl\nlist\nlabel define h 4 \"dup\" 2 \"dup\"\ndisplay 0 + \"dup\":h\nlabel define gl 0 \"mid\", add\ncount if g == \"mid\":gl\ndisplay (\"mid\":gl)\nlabel define k .b \"x\" .a \"x\" 7 \"z\" .c \"z\"\ndisplay (\"x\":k) \" \" (\"z\":k)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input g",
+          "lines": [
+            "             g",
+            "  1. 1",
+            "  2. 2",
+            "  3. 3",
+            "  4. .a",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "label define gl 1 \"low\" 2 \"mid\" 3 \"high\" .a \"na\" 4 \"mid\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        { "command": "count if g == \"na\":gl", "lines": ["  1"] },
+        { "command": "display (\"na\":gl)", "lines": [".a"] },
+        { "command": "display 0 + \"na\":gl", "lines": ["."] },
+        {
+          "command": "gen y = \"na\":gl",
+          "lines": ["(4 missing values generated)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------+",
+            "     |    g    y |",
+            "     |-----------|",
+            "  1. |  low   .a |",
+            "  2. |  mid   .a |",
+            "  3. | high   .a |",
+            "  4. |   na   .a |",
+            "     +-----------+"
+          ]
+        },
+        { "command": "label define h 4 \"dup\" 2 \"dup\"", "lines": [] },
+        { "command": "display 0 + \"dup\":h", "lines": ["2"] },
+        { "command": "label define gl 0 \"mid\", add", "lines": [] },
+        { "command": "count if g == \"mid\":gl", "lines": ["  0"] },
+        { "command": "display (\"mid\":gl)", "lines": ["0"] },
+        {
+          "command": "label define k .b \"x\" .a \"x\" 7 \"z\" .c \"z\"",
+          "lines": []
+        },
+        { "command": "display (\"x\":k) \" \" (\"z\":k)", "lines": [".a 7"] }
+      ]
+    },
+    {
+      "id": "expr-label-dereference-errors",
+      "source": "clear\nset obs 3\ngen g = _n\ngen str3 s = \"a\"\nlabel define gl 1 \"low\" 2 \"mid\" 3 \"high\"\ndisplay g[\"high\":gl]\ndisplay g[ \"high\":gl ]\ndisplay g[\"mid\":gl + 1]\ncapture noisily count if s == \"a\":gl\ncapture noisily display (\"a\" + \"b\":gl)\ncapture noisily display \"a\" + \"b\":gl\ncapture noisily display \"a\" + \"mid\" : gl\nmatrix M = (1,2,3)\ncapture noisily display M[1, \"mid\":gl]\ncapture noisily display M[\"mid\":gl, 1]\ndisplay M[1, (\"mid\":gl)]\ncapture noisily count if g == \"a\":gl & zz\ncapture noisily count if zz & g == \"a\":gl\ncapture noisily gen y = max(g == \"a\":gl, zz)\ncapture noisily gen y = max(zz, g == \"a\":gl)\ncapture noisily gen y = max(\"q\", g == \"a\":gl)\ncapture noisily count if g == \"high\":gl[1\ncapture noisily count if g == \"high\":gl[1]\ncapture noisily count if g == \"a\":gl & 1 +\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "gen g = _n", "lines": [] },
+        { "command": "gen str3 s = \"a\"", "lines": [] },
+        {
+          "command": "label define gl 1 \"low\" 2 \"mid\" 3 \"high\"",
+          "lines": []
+        },
+        { "command": "display g[\"high\":gl]", "lines": ["3"] },
+        { "command": "display g[ \"high\":gl ]", "lines": ["3"] },
+        { "command": "display g[\"mid\":gl + 1]", "lines": ["3"] },
+        {
+          "command": "capture noisily count if s == \"a\":gl",
+          "lines": [
+            "(value label dereference \"a\":gl not found)",
+            "type mismatch"
+          ]
+        },
+        {
+          "command": "capture noisily display (\"a\" + \"b\":gl)",
+          "lines": [
+            "(value label dereference \"b\":gl not found)",
+            "type mismatch"
+          ]
+        },
+        {
+          "command": "capture noisily display \"a\" + \"b\":gl",
+          "lines": ["a+\"b\":gl invalid name"]
+        },
+        {
+          "command": "capture noisily display \"a\" + \"mid\" : gl",
+          "lines": ["a+\"mid\":gl invalid name"]
+        },
+        { "command": "matrix M = (1,2,3)", "lines": [] },
+        {
+          "command": "capture noisily display M[1, \"mid\":gl]",
+          "lines": ["\"mid\":gl not found"]
+        },
+        {
+          "command": "capture noisily display M[\"mid\":gl, 1]",
+          "lines": ["\"mid\":gl not found"]
+        },
+        { "command": "display M[1, (\"mid\":gl)]", "lines": ["2"] },
+        {
+          "command": "capture noisily count if g == \"a\":gl & zz",
+          "lines": [
+            "(value label dereference \"a\":gl not found)",
+            "zz not found"
+          ]
+        },
+        {
+          "command": "capture noisily count if zz & g == \"a\":gl",
+          "lines": ["zz not found"]
+        },
+        {
+          "command": "capture noisily gen y = max(g == \"a\":gl, zz)",
+          "lines": ["zz not found"]
+        },
+        {
+          "command": "capture noisily gen y = max(zz, g == \"a\":gl)",
+          "lines": [
+            "(value label dereference \"a\":gl not found)",
+            "zz not found"
+          ]
+        },
+        {
+          "command": "capture noisily gen y = max(\"q\", g == \"a\":gl)",
+          "lines": [
+            "(value label dereference \"a\":gl not found)",
+            "type mismatch"
+          ]
+        },
+        {
+          "command": "capture noisily count if g == \"high\":gl[1",
+          "lines": ["too few ')' or ']'"]
+        },
+        {
+          "command": "capture noisily count if g == \"high\":gl[1]",
+          "lines": ["(value label dereference \"high\":gl[1] not found)", "  0"]
+        },
+        {
+          "command": "capture noisily count if g == \"a\":gl & 1 +",
+          "lines": ["invalid syntax"]
+        }
+      ]
+    },
+    {
+      "id": "expr-arguments-last-first",
+      "source": "clear\nset obs 3\ngen x = _n\ngen str3 s = \"a\"\ncapture noisily gen y = foo(bb)\ncapture noisily gen y = max(aa, foo(bb))\ncapture noisily gen y = max(aa,,bb)\ncapture noisily gen y = max(x, , aa)\ncapture noisily gen y = max(aa, x, )\ncapture noisily gen y = max(\"a\" + 1, aa)\ncapture noisily gen y = max(aa, \"a\" + 1)\ncapture noisily gen y = max(1 +, aa)\ncapture noisily gen y = max(aa, min(1 +, bb))\ncapture noisily gen y = substr(s, 1 +, aa)\ncapture noisily gen y = max(s + 1, aa)\ncapture noisily gen y = max(1 & , aa)\ncapture noisily gen y = max(.z_, aa)\ncapture noisily gen y = max(x, aa, .z_)\ncapture noisily gen y = max(strlen(1), aa)\ncapture noisily gen y = cond(x>1, \"a\", aa)\ncapture noisily gen y = cond(x>1, \"a\", 2) + aa\ncapture noisily gen y = max(aa, bb, x[)\ncapture noisily gen y = max(x[, aa)\ncapture noisily gen y = max(x[1), aa)\ncapture noisily gen y = (x[1)]\ncapture noisily gen y = zz + (1\ncapture noisily gen y = aa + 1 +\ncapture noisily gen y = aa + .z_\ncapture noisily gen y = .z_ + aa\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "gen x = _n", "lines": [] },
+        { "command": "gen str3 s = \"a\"", "lines": [] },
+        {
+          "command": "capture noisily gen y = foo(bb)",
+          "lines": ["unknown function foo()"]
+        },
+        {
+          "command": "capture noisily gen y = max(aa, foo(bb))",
+          "lines": ["unknown function foo()"]
+        },
+        {
+          "command": "capture noisily gen y = max(aa,,bb)",
+          "lines": ["bb not found"]
+        },
+        {
+          "command": "capture noisily gen y = max(x, , aa)",
+          "lines": ["aa not found"]
+        },
+        {
+          "command": "capture noisily gen y = max(aa, x, )",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily gen y = max(\"a\" + 1, aa)",
+          "lines": ["aa not found"]
+        },
+        {
+          "command": "capture noisily gen y = max(aa, \"a\" + 1)",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "capture noisily gen y = max(1 +, aa)",
+          "lines": ["aa not found"]
+        },
+        {
+          "command": "capture noisily gen y = max(aa, min(1 +, bb))",
+          "lines": ["bb not found"]
+        },
+        {
+          "command": "capture noisily gen y = substr(s, 1 +, aa)",
+          "lines": ["aa not found"]
+        },
+        {
+          "command": "capture noisily gen y = max(s + 1, aa)",
+          "lines": ["aa not found"]
+        },
+        {
+          "command": "capture noisily gen y = max(1 & , aa)",
+          "lines": ["aa not found"]
+        },
+        {
+          "command": "capture noisily gen y = max(.z_, aa)",
+          "lines": ["aa not found"]
+        },
+        {
+          "command": "capture noisily gen y = max(x, aa, .z_)",
+          "lines": [".z_ invalid name"]
+        },
+        {
+          "command": "capture noisily gen y = max(strlen(1), aa)",
+          "lines": ["aa not found"]
+        },
+        {
+          "command": "capture noisily gen y = cond(x>1, \"a\", aa)",
+          "lines": ["aa not found"]
+        },
+        {
+          "command": "capture noisily gen y = cond(x>1, \"a\", 2) + aa",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "capture noisily gen y = max(aa, bb, x[)",
+          "lines": ["too few ')' or ']'"]
+        },
+        {
+          "command": "capture noisily gen y = max(x[, aa)",
+          "lines": ["too few ')' or ']'"]
+        },
+        {
+          "command": "capture noisily gen y = max(x[1), aa)",
+          "lines": ["too many ')' or ']'"]
+        },
+        {
+          "command": "capture noisily gen y = (x[1)]",
+          "lines": ["unknown function ()"]
+        },
+        {
+          "command": "capture noisily gen y = zz + (1",
+          "lines": ["too few ')' or ']'"]
+        },
+        {
+          "command": "capture noisily gen y = aa + 1 +",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily gen y = aa + .z_",
+          "lines": ["aa not found"]
+        },
+        {
+          "command": "capture noisily gen y = .z_ + aa",
+          "lines": [".z_ invalid name"]
+        }
+      ]
+    },
+    {
+      "id": "expr-operator-before-comma",
+      "source": "clear\nset obs 3\ngen x1 = _n\ngen x2 = mod(_n,2)\ngen str3 s = \"a\"\ncapture noisily count if x1 > 5 & x1 < 7.5 & ,\ncapture noisily count if x2 == .a & ,\ncapture noisily count if x1 >= 1.5 & x2 == . & ,\ncapture noisily count if x1 == 1e3 & ,\ncapture noisily count if x2 == .a | ,\ncapture noisily count if x2 == 1.5 | ,\ncapture noisily count if x1 * 1.5 * ,\ncapture noisily count if x1 + 1.5 + ,\ncapture noisily count if x1 / 1.5 / ,\ncapture noisily count if x1 > 1.5 > ,\ncapture noisily count if x1 + 1e3 * ,\ncapture noisily count if x1[1] + ,\ncapture noisily count if x1[_n - 1] * ,\nmatrix M = (1,2\\3,4)\ncapture noisily display M[1,1] + ,\ncapture noisily display (1e3 + )\ncapture noisily display (1.5e3 + )\ncapture noisily display (1.5e3 & )\ncapture noisily display (.a * )\ncapture noisily display (1.5 ^ )\ncapture noisily list x1 if x2 == .a | , clean\ncapture noisily assert 1 == 1 & , fast\ncapture noisily assert x1 == 1.5 & ,\nassert s == \"a\" & ,\ncapture noisily gen y = x1 * if x2 == 1\ncapture noisily gen y = x1 + in 1\ncapture noisily gen y = x1 == if x2 == 1\ncapture noisily gen y = (x1 * if x2 == 1)\ncapture noisily replace x1 = x1 * if x2 == 1\ncapture noisily count if x1 * if x2 == 1\nlist x1* if x2 == 1, clean\nsummarize x1 if s == \"a\" & , detail\nlist x1 if s == \"a\" | , clean\nlist x1 if s == \"b\" & , clean\ncapture noisily count if s == \"a\" & ,\ncapture noisily count if x1 == 1 ,\ncapture noisily count ,\ndisplay (\"a\" + )\ndisplay (\"a\" * )\ndisplay (\"a\" < )\ndisplay (\"a\" + \"b\" + )\ncapture noisily display (\"a\" == )\ncapture noisily display (1 + \"a\" + )\ngen z = (\"a\" + )\nlist z, clean\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "gen x1 = _n", "lines": [] },
+        { "command": "gen x2 = mod(_n,2)", "lines": [] },
+        { "command": "gen str3 s = \"a\"", "lines": [] },
+        {
+          "command": "capture noisily count if x1 > 5 & x1 < 7.5 & ,",
+          "lines": ["7.5& invalid name"]
+        },
+        {
+          "command": "capture noisily count if x2 == .a & ,",
+          "lines": [".a& invalid name"]
+        },
+        {
+          "command": "capture noisily count if x1 >= 1.5 & x2 == . & ,",
+          "lines": [".& invalid name"]
+        },
+        {
+          "command": "capture noisily count if x1 == 1e3 & ,",
+          "lines": ["1e3& invalid name"]
+        },
+        {
+          "command": "capture noisily count if x2 == .a | ,",
+          "lines": ["invalid varname"]
+        },
+        {
+          "command": "capture noisily count if x2 == 1.5 | ,",
+          "lines": ["invalid varname"]
+        },
+        {
+          "command": "capture noisily count if x1 * 1.5 * ,",
+          "lines": ["invalid varname"]
+        },
+        {
+          "command": "capture noisily count if x1 + 1.5 + ,",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily count if x1 / 1.5 / ,",
+          "lines": ["1.5/ invalid name"]
+        },
+        {
+          "command": "capture noisily count if x1 > 1.5 > ,",
+          "lines": ["1.5> invalid name"]
+        },
+        {
+          "command": "capture noisily count if x1 + 1e3 * ,",
+          "lines": ["1e3* invalid name"]
+        },
+        {
+          "command": "capture noisily count if x1[1] + ,",
+          "lines": ["equation [1] not found"]
+        },
+        {
+          "command": "capture noisily count if x1[_n - 1] * ,",
+          "lines": ["equation [_n-1] not found"]
+        },
+        { "command": "matrix M = (1,2\\3,4)", "lines": [] },
+        {
+          "command": "capture noisily display M[1,1] + ,",
+          "lines": ["M not found"]
+        },
+        {
+          "command": "capture noisily display (1e3 + )",
+          "lines": ["1e3+ invalid name"]
+        },
+        {
+          "command": "capture noisily display (1.5e3 + )",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display (1.5e3 & )",
+          "lines": ["1.5e3& invalid name"]
+        },
+        {
+          "command": "capture noisily display (.a * )",
+          "lines": ["invalid varname"]
+        },
+        {
+          "command": "capture noisily display (1.5 ^ )",
+          "lines": ["1.5^ invalid name"]
+        },
+        {
+          "command": "capture noisily list x1 if x2 == .a | , clean",
+          "lines": ["invalid varname"]
+        },
+        {
+          "command": "capture noisily assert 1 == 1 & , fast",
+          "lines": ["1& invalid name"]
+        },
+        {
+          "command": "capture noisily assert x1 == 1.5 & ,",
+          "lines": ["1.5& invalid name"]
+        },
+        { "command": "assert s == \"a\" & ,", "lines": [] },
+        {
+          "command": "capture noisily gen y = x1 * if x2 == 1",
+          "lines": ["if not found"]
+        },
+        {
+          "command": "capture noisily gen y = x1 + in 1",
+          "lines": ["in not found"]
+        },
+        {
+          "command": "capture noisily gen y = x1 == if x2 == 1",
+          "lines": ["if not found"]
+        },
+        {
+          "command": "capture noisily gen y = (x1 * if x2 == 1)",
+          "lines": ["ifx2 not found"]
+        },
+        {
+          "command": "capture noisily replace x1 = x1 * if x2 == 1",
+          "lines": ["if not found"]
+        },
+        {
+          "command": "capture noisily count if x1 * if x2 == 1",
+          "lines": ["if not found"]
+        },
+        {
+          "command": "list x1* if x2 == 1, clean",
+          "lines": ["       x1", "  1.    1", "  3.    3"]
+        },
+        {
+          "command": "summarize x1 if s == \"a\" & , detail",
+          "lines": [
+            "                             x1",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%            1              1",
+            " 5%            1              2",
+            "10%            1              3       Obs                   3",
+            "25%            1              .       Sum of wgt.           3",
+            "",
+            "50%            2                      Mean                  2",
+            "                        Largest       Std. dev.             1",
+            "75%            3              .",
+            "90%            3              1       Variance              1",
+            "95%            3              2       Skewness              0",
+            "99%            3              3       Kurtosis            1.5"
+          ]
+        },
+        {
+          "command": "list x1 if s == \"a\" | , clean",
+          "lines": ["       x1", "  1.    1", "  2.    2", "  3.    3"]
+        },
+        { "command": "list x1 if s == \"b\" & , clean", "lines": [] },
+        {
+          "command": "capture noisily count if s == \"a\" & ,",
+          "lines": ["options not allowed"]
+        },
+        {
+          "command": "capture noisily count if x1 == 1 ,",
+          "lines": ["options not allowed"]
+        },
+        {
+          "command": "capture noisily count ,",
+          "lines": ["options not allowed"]
+        },
+        { "command": "display (\"a\" + )", "lines": ["a"] },
+        { "command": "display (\"a\" * )", "lines": ["a"] },
+        { "command": "display (\"a\" < )", "lines": ["a"] },
+        { "command": "display (\"a\" + \"b\" + )", "lines": ["ab"] },
+        {
+          "command": "capture noisily display (\"a\" == )",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display (1 + \"a\" + )",
+          "lines": ["type mismatch"]
+        },
+        { "command": "gen z = (\"a\" + )", "lines": [] },
+        {
+          "command": "list z, clean",
+          "lines": ["       z", "  1.   a", "  2.   a", "  3.   a"]
+        }
+      ]
+    },
+    {
+      "id": "expr-regex-long-strings",
+      "source": "clear\nset obs 1\ngen strL s = \"x\" + 40000*\"a\"\ncount if regexm(s, \".*x$\")\ncount if regexm(s, \".*x\")\ndisplay strlen(regexs(0))\nreplace s = 5000*\"abcdefgh\"\ncount if regexm(s, \"[a-z ]*[0-9]$\")\ncount if regexm(s, \"[a-z ]*[0-9]\")\ncount if regexm(s, \"(a|b)+ c\")\ncount if regexm(s, \"^[a-h]*$\")\nreplace s = 3000*\"a\" + \"x\" + 3000*\"a\"\ncount if regexm(s, \".*x.*b\")\ncount if regexm(s, \"a*xa*$\")\ndisplay strlen(regexs(0))\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "gen strL s = \"x\" + 40000*\"a\"", "lines": [] },
+        { "command": "count if regexm(s, \".*x$\")", "lines": ["  0"] },
+        { "command": "count if regexm(s, \".*x\")", "lines": ["  1"] },
+        { "command": "display strlen(regexs(0))", "lines": ["1"] },
+        {
+          "command": "replace s = 5000*\"abcdefgh\"",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "count if regexm(s, \"[a-z ]*[0-9]$\")",
+          "lines": ["  0"]
+        },
+        { "command": "count if regexm(s, \"[a-z ]*[0-9]\")", "lines": ["  0"] },
+        { "command": "count if regexm(s, \"(a|b)+ c\")", "lines": ["  0"] },
+        { "command": "count if regexm(s, \"^[a-h]*$\")", "lines": ["  1"] },
+        {
+          "command": "replace s = 3000*\"a\" + \"x\" + 3000*\"a\"",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "count if regexm(s, \".*x.*b\")", "lines": ["  0"] },
+        { "command": "count if regexm(s, \"a*xa*$\")", "lines": ["  1"] },
+        { "command": "display strlen(regexs(0))", "lines": ["6001"] }
+      ]
+    },
+    {
+      "id": "expr-regex-quietly",
+      "source": "clear\nset obs 2\ngen s = \"abc\"\ngen x = _n\nquietly gen q = regexm(s, \"(\")\nquietly gen z = regexm(s, \"(\") + .\nquietly replace x = regexm(s, \"(\")\nquietly summarize x if regexm(s, \"(\")\nquietly di regexm(\"a\", \"(\")\nquietly di \"x\" regexm(\"a\", \"(\") \"y\"\nquietly di \"x\" _n regexm(\"a\", \"(\") _n \"y\"\nquietly local m = regexm(\"a\", \"(\")\ncapture quietly gen q4 = regexm(s, \"(\")\nquietly gen r = regexs(1)\nquietly replace s = regexs(1)\nquietly di regexm(\"abc\", \"b\") regexs(5)\nquietly di \"x\" regexs(5) \"y\"\nquietly gen q5 = regexs(5)\nquietly {\n  gen q2 = regexm(s, \"(\")\n  gen q3 = 1\n}\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "gen s = \"abc\"", "lines": [] },
+        { "command": "gen x = _n", "lines": [] },
+        {
+          "command": "quietly gen q = regexm(s, \"(\")",
+          "lines": ["regexp: unterminated ()", "regexp: unterminated ()"]
+        },
+        {
+          "command": "quietly gen z = regexm(s, \"(\") + .",
+          "lines": ["regexp: unterminated ()", "regexp: unterminated ()"]
+        },
+        {
+          "command": "quietly replace x = regexm(s, \"(\")",
+          "lines": ["regexp: unterminated ()", "regexp: unterminated ()"]
+        },
+        {
+          "command": "quietly summarize x if regexm(s, \"(\")",
+          "lines": ["regexp: unterminated ()", "regexp: unterminated ()"]
+        },
+        {
+          "command": "quietly di regexm(\"a\", \"(\")",
+          "lines": ["regexp: unterminated ()", "0"]
+        },
+        {
+          "command": "quietly di \"x\" regexm(\"a\", \"(\") \"y\"",
+          "lines": ["regexp: unterminated ()", "0y"]
+        },
+        {
+          "command": "quietly di \"x\" _n regexm(\"a\", \"(\") _n \"y\"",
+          "lines": ["regexp: unterminated ()", "0", "y"]
+        },
+        {
+          "command": "quietly local m = regexm(\"a\", \"(\")",
+          "lines": ["regexp: unterminated ()"]
+        },
+        { "command": "capture quietly gen q4 = regexm(s, \"(\")", "lines": [] },
+        {
+          "command": "quietly gen r = regexs(1)",
+          "lines": [
+            "regexm required",
+            "a regular expression match function must be executed prior to retrieving a subexpression",
+            "regexm required"
+          ]
+        },
+        {
+          "command": "quietly replace s = regexs(1)",
+          "lines": [
+            "regexm required",
+            "a regular expression match function must be executed prior to retrieving a subexpression",
+            "regexm required"
+          ]
+        },
+        {
+          "command": "quietly di regexm(\"abc\", \"b\") regexs(5)",
+          "lines": ["invalid number, outside of allowed range"]
+        },
+        {
+          "command": "quietly di \"x\" regexs(5) \"y\"",
+          "lines": ["invalid number, outside of allowed range"]
+        },
+        {
+          "command": "quietly gen q5 = regexs(5)",
+          "lines": [
+            "invalid number, outside of allowed range",
+            "invalid number, outside of allowed range"
+          ]
+        },
+        {
+          "command": "quietly {",
+          "lines": ["regexp: unterminated ()", "regexp: unterminated ()"]
+        }
+      ]
+    },
+    {
+      "id": "expr-regex-byte-pieces",
+      "source": "clear\nset obs 1\ngen s = \"é\"\ndisplay regexm(s, \"^(.)(.)$\")\ndisplay (regexs(1) + regexs(2)) == \"é\"\ngen a = regexs(1)\ngen b = regexs(2)\ngen c = a + b\ndisplay strlen(a) \" \" strlen(c) \" \" (c == \"é\") \" \" ustrlen(c)\ndisplay regexr(\"naïve\", \"a.\", \"A\") + \"|\"\ndisplay strtoname(\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀\")\ndisplay substr(\"é\", 1, 1) + substr(\"é\", 2, 1) == \"é\"\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "gen s = \"é\"", "lines": [] },
+        { "command": "display regexm(s, \"^(.)(.)$\")", "lines": ["1"] },
+        {
+          "command": "display (regexs(1) + regexs(2)) == \"é\"",
+          "lines": ["1"]
+        },
+        { "command": "gen a = regexs(1)", "lines": [] },
+        { "command": "gen b = regexs(2)", "lines": [] },
+        { "command": "gen c = a + b", "lines": [] },
+        {
+          "command": "display strlen(a) \" \" strlen(c) \" \" (c == \"é\") \" \" ustrlen(c)",
+          "lines": ["1 2 1 1"]
+        },
+        {
+          "command": "display regexr(\"naïve\", \"a.\", \"A\") + \"|\"",
+          "lines": ["nA�ve|"]
+        },
+        {
+          "command": "display strtoname(\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀\")",
+          "lines": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa�"]
+        },
+        {
+          "command": "display substr(\"é\", 1, 1) + substr(\"é\", 2, 1) == \"é\"",
+          "lines": ["1"]
+        }
+      ]
+    },
+    {
+      "id": "expr-gammap-derivatives-eprop",
+      "source": "display dgammapda(2, 1.5) \" \" dgammapdada(2, 1.5)\ndisplay dgammapda(1, 1) \" \" dgammapdada(1, 1)\ndisplay dgammapda(10, 9) \" \" dgammapdada(10, 9)\ndisplay dgammapda(50, 45) \" \" dgammapdada(50, 45)\ndisplay dgammapda(3, .5) \" \" dgammapdada(3, .5)\ndisplay dgammapda(.01, 20) \" \" dgammapdada(.01, 20)\ndisplay dgammapda(200, 210) \" \" dgammapdada(200, 210)\ndisplay dgammapda(5, 0) \" \" dgammapdada(5, -1) \" \" dgammapda(0, 2) \" \" dgammapdada(-1, 2)\ncapture noisily display dgammapda(2)\ncapture noisily display dgammapda(\"a\", 1)\nclear\nset seed 1\nset obs 20\ngen x = runiform()\ngen y = x + runiform()\nquietly regress y x\ndisplay has_eprop(b) has_eprop(\"V\") has_eprop() has_eprop(1) has_eprop(1+2) has_eprop(b V) has_eprop(.a) has_eprop(nosuch)\n",
+      "commands": [
+        {
+          "command": "display dgammapda(2, 1.5) \" \" dgammapdada(2, 1.5)",
+          "lines": ["-.31348864 .1005892"]
+        },
+        {
+          "command": "display dgammapda(1, 1) \" \" dgammapdada(1, 1)",
+          "lines": ["-.43172971 .03361804"]
+        },
+        {
+          "command": "display dgammapda(10, 9) \" \" dgammapdada(10, 9)",
+          "lines": ["-.12703651 .01360469"]
+        },
+        {
+          "command": "display dgammapda(50, 45) \" \" dgammapdada(50, 45)",
+          "lines": ["-.04554329 .004808"]
+        },
+        {
+          "command": "display dgammapda(3, .5) \" \" dgammapdada(3, .5)",
+          "lines": ["-.02852024 .05268861"]
+        },
+        {
+          "command": "display dgammapda(.01, 20) \" \" dgammapdada(.01, 20)",
+          "lines": ["-1.056e-10 -7.463e-10"]
+        },
+        {
+          "command": "display dgammapda(200, 210) \" \" dgammapdada(200, 210)",
+          "lines": ["-.02161988 -.00105523"]
+        },
+        {
+          "command": "display dgammapda(5, 0) \" \" dgammapdada(5, -1) \" \" dgammapda(0, 2) \" \" dgammapdada(-1, 2)",
+          "lines": ["0 0 . ."]
+        },
+        {
+          "command": "capture noisily display dgammapda(2)",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily display dgammapda(\"a\", 1)",
+          "lines": ["type mismatch"]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 1", "lines": [] },
+        {
+          "command": "set obs 20",
+          "lines": ["Number of observations (_N) was 0, now 20."]
+        },
+        { "command": "gen x = runiform()", "lines": [] },
+        { "command": "gen y = x + runiform()", "lines": [] },
+        { "command": "quietly regress y x", "lines": [] },
+        {
+          "command": "display has_eprop(b) has_eprop(\"V\") has_eprop() has_eprop(1) has_eprop(1+2) has_eprop(b V) has_eprop(.a) has_eprop(nosuch)",
+          "lines": ["11000000"]
+        }
+      ]
+    },
+    {
+      "id": "expr-varlist-ranges-spaced",
+      "source": "clear\ninput x1 x2 x3\n1 5 9\n2 5 8\n1 7 7\n2 3 6\nend\ngsort x1 - x2\nlist, clean noobs\ngsort - x1 + x3\nlist, clean noobs\ncapture noisily gsort x1 - - x2\ncapture noisily gsort x1 - -x2\ngen y = x1 + 2*x2 - x3\nregress y x1 - x2\ncollapse (mean) x1 - x3\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input x1 x2 x3",
+          "lines": [
+            "            x1         x2         x3",
+            "  1. 1 5 9",
+            "  2. 2 5 8",
+            "  3. 1 7 7",
+            "  4. 2 3 6",
+            "  5. end"
+          ]
+        },
+        { "command": "gsort x1 - x2", "lines": [] },
+        {
+          "command": "list, clean noobs",
+          "lines": [
+            "    x1   x2   x3",
+            "     1    7    7",
+            "     1    5    9",
+            "     2    5    8",
+            "     2    3    6"
+          ]
+        },
+        { "command": "gsort - x1 + x3", "lines": [] },
+        {
+          "command": "list, clean noobs",
+          "lines": [
+            "    x1   x2   x3",
+            "     2    3    6",
+            "     2    5    8",
+            "     1    7    7",
+            "     1    5    9"
+          ]
+        },
+        {
+          "command": "capture noisily gsort x1 - - x2",
+          "lines": ["- invalid name"]
+        },
+        {
+          "command": "capture noisily gsort x1 - -x2",
+          "lines": ["- invalid name"]
+        },
+        { "command": "gen y = x1 + 2*x2 - x3", "lines": [] },
+        {
+          "command": "regress y x1 - x2",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =         4",
+            "-------------+----------------------------------   F(2, 1)         =      2.50",
+            "       Model |          20         2          10   Prob > F        =    0.4082",
+            "    Residual |           4         1           4   R-squared       =    0.8333",
+            "-------------+----------------------------------   Adj R-squared   =    0.5000",
+            "       Total |          24         3           8   Root MSE        =         2",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |          2   2.828427     0.71   0.608    -33.93857    37.93857",
+            "          x2 |          2          1     2.00   0.295     -10.7062     14.7062",
+            "       _cons |         -9   8.602325    -1.05   0.486    -118.3029    100.3029",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "collapse (mean) x1 - x3", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------------+",
+            "     |  x1   x2    x3 |",
+            "     |----------------|",
+            "  1. | 1.5    5   7.5 |",
+            "     +----------------+"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

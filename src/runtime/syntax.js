@@ -307,7 +307,17 @@ export function clauses(head, expAllowed = true) {
   const word =
     /(?<![\w\u0080-\u{10FFFF}.])(if|in|using(?!\.))(?![\w\u0080-\u{10FFFF}])/gu;
   for (let m; (m = word.exec(head));)
-    if (flags[m.index])
+    if (
+      flags[m.index] &&
+      // After an operator in an expression, if and in are names: gen y =
+      // x * if x == 1 is if not found. (After a varlist, x* if is not.)
+      !(
+        m[1] !== "using" &&
+        /(?:[-+*/^&|<>!~]|[=!~<>]=)\s*$/.test(head.slice(0, m.index)) &&
+        (found.some((clause) => clause.kind === "if") ||
+          /(?:^|[^=!~<>])=(?!=)/.test(head.slice(0, m.index)))
+      )
+    )
       found.push({ kind: m[1], at: m.index, after: m.index + m[1].length });
   found.sort((a, b) => a.at - b.at);
   // =exp can only come before every other clause.
@@ -721,7 +731,9 @@ export function applySyntax(declaration, text, context) {
     if (clause.kind === "if") {
       context.expression?.(beforeComma(clause), "if");
       locals.if = decl.if.bare ? clause.text : "if " + clause.text;
-      result.if = clause.text;
+      // Read with the comma, an operator after a string is passed over:
+      // summarize x if s == "a" & , detail is summarize x if s == "a".
+      result.if = beforeComma(clause);
     } else if (clause.kind === "in") {
       const [first, last] = range(clause.text, context.n ?? 0);
       locals.in = (decl.in.bare ? "" : "in ") + `${first}/${last}`;
@@ -737,7 +749,7 @@ export function applySyntax(declaration, text, context) {
         throw new StataError("invalid syntax", 198);
       context.expression?.(beforeComma(clause), "exp");
       locals.exp = decl.exp.bare ? clause.text : "= " + clause.text;
-      result.exp = clause.text;
+      result.exp = beforeComma(clause);
     } else {
       const inner = unquote(clause.text);
       if (inner === null && /\s/.test(clause.text))
@@ -763,7 +775,9 @@ export function applySyntax(declaration, text, context) {
 
   // Options.
   const items = optionText === null ? [] : optionItems(optionText);
-  if (items.length && !decl.hasOptions) throw notAllowed("options");
+  // A comma is an option list, empty or not: count , is options not
+  // allowed.
+  if (optionText !== null && !decl.hasOptions) throw notAllowed("options");
   const seen = new Set(),
     extra = [];
   for (const item of items) {

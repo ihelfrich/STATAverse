@@ -216,6 +216,18 @@ function assemble(tree) {
   };
   emit(tree);
   code.push({ op: "match" });
+  // What must hold just after a repeat for the match to go on, when the
+  // next step tests one byte or the end: Spencer's STAR tries a count only
+  // where the next byte is the one wanted, and this does the same for a
+  // byte, a set or the end, so a repeat backs off at once over the counts
+  // that cannot match. (".*x$" on a long string is then quick, as in
+  // Stata.)
+  code.forEach((step, k) => {
+    if (step.op !== "repeat") return;
+    const next = code[k + 1];
+    if (next.op === "lit" || next.op === "set" || next.op === "eol")
+      step.follow = next;
+  });
   // The bytes every match must hold, as regcomp() keeps them to pass over
   // a string quickly: the literal runs of a pattern of one branch.
   const must =
@@ -231,6 +243,10 @@ function assemble(tree) {
 
 // Steps one match may take before the browser gives up on it.
 const STEPS = 50_000_000;
+// Above this length, the runs of a repeated atom and the places where the
+// step after a repeat can match are read once for the whole string, so
+// that trying each start costs no more than a step.
+const SHORT = 64;
 
 const holds = (s, bytes) => {
   outer: for (let i = 0; i + bytes.length <= s.length; i++) {
@@ -250,11 +266,53 @@ function execute({ code, must, anchored }, s) {
   const length = s.length;
   if (!must.every((bytes) => holds(s, bytes))) return null;
   let steps = 0;
-  const single = (atom, pos) => {
-    if (pos >= length) return false;
-    if (atom.t === "any") return true;
-    if (atom.t === "lit") return s[pos] === atom.bytes[0];
-    return !!atom.set[s[pos]] !== atom.negated;
+  const tooComplex = () =>
+    new StataError("regular expression too complex for the browser", 901);
+  const test = (atom, pos) =>
+    pos < length &&
+    (atom.t === "any" ||
+      (atom.t === "lit"
+        ? s[pos] === atom.bytes[0]
+        : !!atom.set[s[pos]] !== atom.negated));
+  const tables = new Map();
+  // For each position, how many bytes from there the atom matches.
+  const runs = (atom) => {
+    let table = tables.get(atom);
+    if (!table) {
+      table = new Int32Array(length + 1);
+      for (let p = length - 1; p >= 0; p--)
+        table[p] = test(atom, p) ? table[p + 1] + 1 : 0;
+      tables.set(atom, table);
+    }
+    return table;
+  };
+  // For each position, the last at or before it where the step matches.
+  const places = (step) => {
+    let table = tables.get(step);
+    if (!table) {
+      table = new Int32Array(length + 1);
+      for (let p = 0, last = -1; p <= length; p++)
+        table[p] = last = test(step, p) ? p : last;
+      tables.set(step, table);
+    }
+    return table;
+  };
+  // How many bytes from pos the repeated atom matches, all there are.
+  const run = (atom, pos) => {
+    if (atom.t === "any") return length - pos;
+    if (length > SHORT) return runs(atom)[pos];
+    let count = 0;
+    while (test(atom, pos + count)) count++;
+    return count;
+  };
+  // The largest count, from count down to least, after which the step
+  // that follows the repeat can match; -1 when there is none.
+  const fit = (follow, base, count, least) => {
+    if (!follow || count < least) return count < least ? -1 : count;
+    if (follow.op === "eol") return base + count === length ? count : -1;
+    if (length > SHORT) count = places(follow)[base + count] - base;
+    else while (count >= least && !test(follow, base + count)) count--;
+    return count < least ? -1 : count;
   };
   for (let start = 0; start <= (anchored ? 0 : length); start++) {
     const slots = new Array(2 * NSUBEXP).fill(-1),
@@ -262,11 +320,7 @@ function execute({ code, must, anchored }, s) {
     let pc = 0,
       pos = start;
     for (;;) {
-      if (++steps > STEPS)
-        throw new StataError(
-          "regular expression too complex for the browser",
-          901,
-        );
+      if (++steps > STEPS) throw tooComplex();
       const step = code[pc];
       let ok = true;
       switch (step.op) {
@@ -317,9 +371,8 @@ function execute({ code, must, anchored }, s) {
           break;
         case "repeat": {
           // As many as there are, then one fewer at a time.
-          let count = 0;
-          while (single(step.atom, pos + count)) count++;
-          if (count < step.least) ok = false;
+          const count = fit(step.follow, pos, run(step.atom, pos), step.least);
+          if (count < 0) ok = false;
           else {
             if (count > step.least)
               stack.push({
@@ -327,6 +380,7 @@ function execute({ code, must, anchored }, s) {
                 base: pos,
                 count: count - 1,
                 least: step.least,
+                follow: step.follow,
                 slots: slots.slice(),
               });
             pos += count;
@@ -336,18 +390,29 @@ function execute({ code, must, anchored }, s) {
         }
       }
       if (ok) continue;
-      const choice = stack.pop();
+      let choice;
+      while ((choice = stack.pop())) {
+        if (choice.base === undefined) {
+          pos = choice.pos;
+          break;
+        }
+        const count = fit(
+          choice.follow,
+          choice.base,
+          choice.count,
+          choice.least,
+        );
+        if (count < 0) continue;
+        pos = choice.base + count;
+        if (count > choice.least) {
+          choice.count = count - 1;
+          stack.push(choice);
+        }
+        break;
+      }
       if (!choice) break;
       pc = choice.pc;
       for (let k = 0; k < slots.length; k++) slots[k] = choice.slots[k];
-      if (choice.base === undefined) pos = choice.pos;
-      else {
-        pos = choice.base + choice.count;
-        if (choice.count > choice.least) {
-          choice.count--;
-          stack.push(choice);
-        }
-      }
     }
   }
   return null;

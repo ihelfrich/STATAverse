@@ -14,6 +14,8 @@ import {
   DOUBLE_MAX,
   MISSING,
   canonical,
+  decodeBytes,
+  encodeText,
   isMissing,
   missingValue,
 } from "./values.js";
@@ -60,6 +62,12 @@ const SYSTEM_NAMES = new Set(
 
 const N = "numeric",
   S = "string";
+// Two strings joined: bytes of one character cut apart, as regexs() and
+// substr() can leave them, join back into the character, as in Stata.
+const joinText = (a, b) => {
+  const text = a + b;
+  return /[\uDC80-\uDCFF]/.test(text) ? decodeBytes(encodeText(text)) : text;
+};
 const mismatch = () => new StataError("type mismatch", 109);
 const invalid = (message = "invalid syntax") => new StataError(message, 198);
 // Any result outside the range of a double is system missing.
@@ -149,8 +157,10 @@ function tokenize(source) {
     });
   // "text":lblname after a string, blanks allowed around the colon, is the
   // value that value label gives text: "mid":gl. The name runs to a blank
-  // or an operator, so "mid":gl[1] names a label gl[1]; with no name at
-  // all, as in "mid": -x, it names none. Returns where the scan resumes.
+  // or an operator, so "mid":gl[1] names a label gl[1], and to a closing
+  // parenthesis or bracket it did not open, so x["mid":gl] is x[2]; with
+  // no name at all, as in "mid": -x, it names none. Returns where the scan
+  // resumes.
   const labelled = (from) => {
     const colon = /^\s*:\s*/.exec(source.slice(from));
     if (!colon) return from;
@@ -158,9 +168,9 @@ function tokenize(source) {
       depth = 0;
     for (; to < source.length; to++) {
       const c = source[to];
-      if (c === "(") depth++;
-      else if (c === ")" && depth) depth--;
-      else if (/[\s+\-*/^<>=!~&|),]/.test(c)) break;
+      if (c === "(" || c === "[") depth++;
+      else if ((c === ")" || c === "]") && depth) depth--;
+      else if (/[\s+\-*/^<>=!~&|)\],]/.test(c)) break;
     }
     const name = source.slice(from + colon[0].length, to);
     if (!name && to >= source.length) throw invalid();
@@ -242,6 +252,7 @@ function tokenize(source) {
       i += m[0].length;
     } else if ((m = /^\.([a-z])?(?![\p{L}\p{Nd}_.])/u.exec(rest))) {
       push("number", missingValue(m[1] ?? ""), i);
+      tokens.at(-1).missingCode = true;
       i += m[0].length;
     } else if (
       (m = /^\[\s*([^\]]+?)\s*\]\s*(_b|_se)\[\s*([^\]]+?)\s*\]/.exec(rest))
@@ -362,9 +373,15 @@ function tokenize(source) {
       while (from > 0 && !operator.test(source[from - 1])) from--;
       if (across) while (/\s/.test(source[to] ?? "")) to++;
       while (to < source.length && !operator.test(source[to])) to++;
-      throw invalid(
+      const error = invalid(
         `${source.slice(from, to).replace(/\s+/g, "")} invalid name`,
       );
+      if (across || from < i) throw error;
+      // A word of its own is an error where Stata reads it, which in a
+      // function's arguments may be after a later one: max(.z_, aa) is aa
+      // not found.
+      push("error", error, i);
+      i = to;
     }
   }
   if (tokens.length && tokens.at(-1).end === undefined) tokens.at(-1).end = i;
@@ -420,6 +437,9 @@ export function compileExpression(source, scope = {}) {
     state = scope.state ?? (scope.state = {});
   let at = 0,
     sums = 0;
+  // The notes of the value-label dereferences read so far, printed if the
+  // expression turns out to be in error.
+  const pending = [];
   const peek = () => tokens[at],
     isOp = (value) => peek()?.type === "op" && peek().value === value,
     take = (value) => (isOp(value) ? (at++, true) : false);
@@ -485,47 +505,80 @@ export function compileExpression(source, scope = {}) {
   };
   // An operator that cannot begin a value, where one is wanted, after the
   // operator at index k whose left side began at from. ++ is one symbol to
-  // Stata, so a + after a + is one of these.
+  // Stata, so a + after a + is one of these. Returns true when Stata passes
+  // over the operator, as it does after a string before a closing
+  // parenthesis or comma: ("a" + ) is "a".
   const misplaced = (from, k) => {
     const first = tokens[k],
       second = peek();
-    if (second?.type !== "op") return;
+    if (second?.type !== "op") return false;
     const value = second.value,
       closing = value === ")" || value === "," || value === "]";
     const binary =
       BINDING.includes(value) &&
       value !== "-" &&
       (value !== "+" || first.value === "+");
-    if (!closing && !binary) return;
+    if (!closing && !binary) return false;
     if (closing || BINDING.indexOf(value) <= BINDING.indexOf(first.value)) {
       // Stata names the word before the operator joined to it: x + 2 & )
       // is 2& invalid name. After a parenthesis it looks for a function,
-      // as in (x) ** 2; a comparison of two characters, a number with a
-      // decimal point or a missing code there is invalid syntax.
+      // as in (x) ** 2, and after a subscript for an equation, as in
+      // x[1] + , ; a comparison of two characters there is invalid syntax.
       const before = tokens[k - 1];
       if (before?.type === "op" && before.value === ")")
         throw new StataError("unknown function ()", 133);
       if (closing && first.value.length > 1) throw invalid();
+      if (closing && before?.type === "op" && before.value === "]") {
+        let open = k - 2;
+        for (let depth = 0; open >= 0; open--) {
+          const t = tokens[open];
+          if (t.type !== "op") continue;
+          if (t.value === "]" || t.value === ")") depth++;
+          else if ((t.value === "[" || t.value === "(") && !depth--) break;
+        }
+        // A matrix's two subscripts are read as part of its name:
+        // M[1,1] + , is M not found.
+        const inside = squeezed(tokens[open].end, before.start);
+        if (open > 0 && inside.includes(","))
+          throw new StataError(
+            `${tokens[open - 1].raw ?? tokens[open - 1].value} not found`,
+            111,
+          );
+        if (open >= 0)
+          throw new StataError(`equation [${inside}] not found`, 303);
+      }
+      // After a number with a decimal point or a missing code, + - and *
+      // and | are not named: (1.5 +) is invalid syntax, (.a *) and
+      // (1.5 |) invalid varname, where (1.5 &) and (1e3 +) are named.
       if (
         closing &&
         before?.type === "number" &&
-        !/^\d+$/.test(before.raw ?? "")
-      )
-        throw invalid();
-      if (closing && before?.type === "string") throw mismatch();
+        (before.missingCode || (before.raw ?? "").includes("."))
+      ) {
+        if (first.value === "+" || first.value === "-") throw invalid();
+        if (first.value === "*" || first.value === "|")
+          throw invalid("invalid varname");
+      }
+      if (closing && before?.type === "string") return true;
       const start =
         before && before.type !== "op" ? before.start : (from ?? first.start);
       throw invalid(`${squeezed(start, first.end)} invalid name`);
     }
     throw invalid(`${operatorWord(at)} invalid name`);
   };
+  // Where an operator was passed over before a comma, the comma ends the
+  // expression: count if s == "a" & , is count if s == "a" , .
+  let passedComma = -1;
   function binaryLevel(operators, next, build) {
     return function level() {
       const from = peek()?.start ?? source.length;
       let left = next();
       while (peek()?.type === "op" && operators.includes(peek().value)) {
         const op = tokens[at++].value;
-        misplaced(from, at - 1);
+        if (misplaced(from, at - 1)) {
+          if (isOp(",")) passedComma = at;
+          continue;
+        }
         left = build(op, left, next());
       }
       return left;
@@ -569,6 +622,7 @@ export function compileExpression(source, scope = {}) {
   const primary = () => {
     const token = tokens[at++];
     if (!token) throw invalid();
+    if (token.type === "error") throw token.value;
     if (token.type === "number") {
       const value = token.value;
       return node(N, () => value);
@@ -667,9 +721,11 @@ export function compileExpression(source, scope = {}) {
 
   /**
    * "text":lblname, the value whose label in lblname is text, exactly as
-   * written. A label or text that is not there is missing, and Stata says
-   * so once, when the expression is first evaluated (the runtime may
-   * compile an expression twice); a label for .a gives missing as well.
+   * written; of several codes with that text, the smallest, and a missing
+   * code such as .a when that is the one. A label or text that is not there
+   * is missing, and Stata says so as it reads the expression: here once,
+   * when the expression is first evaluated (the runtime may compile an
+   * expression twice), or before the error if the expression has one.
    */
   function dereference({ text, name }) {
     const labels = dataset?.valueLabels?.get(name);
@@ -677,17 +733,16 @@ export function compileExpression(source, scope = {}) {
       told = false;
     if (labels)
       for (const [code, label] of labels)
-        if (label === text) {
-          value = isMissing(code) ? MISSING : code;
+        if (label === text && (!told || code < value)) {
+          value = code;
           told = true;
-          break;
         }
+    const note = `(value label dereference "${text}":${name || " "} not found)`;
+    if (!told) pending.push(note);
     return node(N, () => {
       if (!told) {
         told = true;
-        state.note?.(
-          `(value label dereference "${text}":${name || " "} not found)`,
-        );
+        state.note?.(note);
       }
       return value;
     });
@@ -747,13 +802,30 @@ export function compileExpression(source, scope = {}) {
    */
   function element(name) {
     at++;
-    const row = or().evaluate;
+    // A row or column named by a value-label dereference alone is looked
+    // for as the name it is written as: M[1, "mid":gl] is "mid":gl not
+    // found.
+    const subscript = () => {
+      const token = peek(),
+        after = tokens[at + 1];
+      if (
+        token?.type === "label" &&
+        after?.type === "op" &&
+        (after.value === "," || after.value === "]")
+      )
+        throw new StataError(
+          `"${token.value.text}":${token.value.name} not found`,
+          111,
+        );
+      return or().evaluate;
+    };
+    const row = subscript();
     // One subscript, or three, is not how Stata reads a matrix: b[1] is
     // b not found, and e(b)[1] invalid syntax.
     const wrong = () =>
       name.includes("(") ? invalid() : new StataError(`${name} not found`, 111);
     if (!take(",")) throw wrong();
-    const column = or().evaluate;
+    const column = subscript();
     if (isOp(",")) throw wrong();
     if (!take("]")) throw new StataError("too few ')' or ']'", 132);
     // Found when the expression is compiled, so a wrong name stops it.
@@ -801,6 +873,9 @@ export function compileExpression(source, scope = {}) {
     if (isOp("]")) throw new StataError(`${name} not found`, 111);
     const index = numeric(or());
     if (isOp(",")) throw new StataError(`${name} not found`, 111);
+    // A subscript closed by a parenthesis, as in (x[1)], is read as a
+    // function's.
+    if (isOp(")")) throw new StataError("unknown function ()", 133);
     if (!take("]")) throw new StataError("too few ')' or ']'", 132);
     return node(text ? S : N, (i, env) => {
       const k = index(i, env),
@@ -914,16 +989,28 @@ export function compileExpression(source, scope = {}) {
       return node(N, () => scope.system?.("version") ?? 17);
     }
     if (name === "has_eprop") {
-      // The name may be written bare or in quotes, or left out (0).
-      const inner = take(")") ? null : tokens[at++];
-      if (inner && (!/^(name|string)$/.test(inner.type) || !take(")")))
-        throw invalid();
+      // What is between the parentheses is the word looked for, written
+      // bare or in quotes: has_eprop(b) is 1 after regress, and anything
+      // else, has_eprop(1) or has_eprop(b V), is 0, as is has_eprop().
+      const begin = at;
+      for (let depth = 0; at < tokens.length; at++) {
+        const t = tokens[at];
+        if (t.type !== "op") continue;
+        if (t.value === "(" || t.value === "[") depth++;
+        else if ((t.value === ")" || t.value === "]") && !depth--) break;
+      }
+      if (at >= tokens.length) throw new StataError("too few ')' or ']'", 132);
+      const word =
+        at - begin === 1 && tokens[begin].type === "string"
+          ? tokens[begin].value
+          : source.slice(tokens[begin].start, tokens[at].start).trim();
+      at++;
       return node(N, () =>
         Number(
-          !!inner &&
+          word !== "" &&
             String(scope.results?.e?.properties ?? "")
               .split(/\s+/)
-              .includes(inner.value),
+              .includes(word),
         ),
       );
     }
@@ -1020,35 +1107,55 @@ export function compileExpression(source, scope = {}) {
     }
     const args = [];
     if (at >= tokens.length) throw new StataError("too few ')' or ']'", 132);
+    // Stata looks the function up before it reads the arguments: foo(bb)
+    // is unknown function foo().
     const known = FUNCTIONS[name];
+    if (
+      !known &&
+      !UNAVAILABLE_FUNCTIONS.has(name) &&
+      name !== "sum" &&
+      !((name === "string" || name === "strofreal") && scope.format)
+    )
+      throw new StataError(`unknown function ${name}()`, 133);
     if (known && (known.max ?? known.args.length) === 1) commaInOne(at - 1);
     if (!take(")")) {
-      // Of the names in the arguments that are not found, or functions
-      // that are not known, Stata reports the last: max(aa, bb) is bb not
-      // found. Any other error stops it where it is.
-      let unresolved = null;
+      // Stata reads the arguments last to first and stops at the first
+      // error it meets: max(aa, bb) is bb not found, max("a" + 1, aa) aa
+      // not found. Here they are read first to last and the error of the
+      // last argument that has one is reported, with the notes Stata
+      // would have printed on its way there.
+      let failed = null;
+      const marks = [];
       do {
-        // An argument left empty: mod(1,), mod(,1).
-        if (isOp(",") || isOp(")")) throw invalid();
-        const begin = at;
+        const begin = at,
+          end = argumentEnd(begin);
+        marks.push(pending.length);
         try {
+          // An argument left empty, as in mod(1,) or mod(,1), or one
+          // with more after its value.
+          if (isOp(",") || isOp(")")) throw invalid();
           args.push(or());
+          if (at !== end) throw invalid();
         } catch (error) {
-          if (
-            !(error instanceof StataError) ||
-            (error.code !== 111 && error.code !== 133)
-          )
-            throw error;
-          unresolved = error;
-          at = argumentEnd(begin);
+          if (!(error instanceof StataError)) throw error;
+          failed = { error, k: marks.length - 1 };
         }
+        at = end;
       } while (take(","));
       if (!take(")")) {
         if (at >= tokens.length)
           throw new StataError("too few ')' or ']'", 132);
         throw invalid();
       }
-      if (unresolved) throw unresolved;
+      if (failed) {
+        const first = marks[0],
+          mine = marks[failed.k],
+          next = marks[failed.k + 1] ?? pending.length,
+          own = pending.slice(mine, next),
+          later = pending.slice(next);
+        pending.splice(first, pending.length - first, ...later, ...own);
+        throw failed.error;
+      }
     }
     if (name === "sum") {
       if (args.length !== 1) throw invalid("sum() takes one argument");
@@ -1063,18 +1170,14 @@ export function compileExpression(source, scope = {}) {
         return number(total);
       });
     }
-    if (name === "string" || name === "strofreal") {
-      if (!scope.format)
-        throw new StataError(`unknown function ${name}()`, 133);
+    if (name === "string" || name === "strofreal")
       return scope.format(args, { node, numeric, mismatch, invalid });
-    }
     const definition = FUNCTIONS[name];
-    if (!definition && UNAVAILABLE_FUNCTIONS.has(name))
+    if (!definition)
       throw new StataError(
         `${name}() is a Stata function that is not available in the browser yet`,
         198,
       );
-    if (!definition) throw new StataError(`unknown function ${name}()`, 133);
     const variadic = !Array.isArray(definition.args),
       maximum = definition.max ?? (variadic ? 255 : definition.args.length),
       minimum = definition.min ?? (variadic ? 1 : definition.args.length);
@@ -1146,7 +1249,10 @@ export function compileExpression(source, scope = {}) {
     const from = peek()?.start ?? source.length;
     let left = primary();
     while (take("^")) {
-      misplaced(from, at - 1);
+      if (misplaced(from, at - 1)) {
+        if (isOp(",")) passedComma = at;
+        continue;
+      }
       left = arithmetic(left, powerOperand(), power);
     }
     return left;
@@ -1181,7 +1287,7 @@ export function compileExpression(source, scope = {}) {
     if (l.type === S && r.type === S) {
       const a = l.evaluate,
         b = r.evaluate;
-      return node(S, (i, env) => a(i, env) + b(i, env));
+      return node(S, (i, env) => joinText(a(i, env), b(i, env)));
     }
     return arithmetic(l, r, (x, y) => x + y);
   });
@@ -1194,44 +1300,66 @@ export function compileExpression(source, scope = {}) {
   const or = binaryLevel(["|"], and, logical);
 
   if (!tokens.length) throw invalid("expression is empty");
-  // A closing parenthesis or bracket with nothing of its kind open is
-  // Stata's "too many", whatever else the expression holds: 1], (1+2].
-  const open = [];
+  // A closing parenthesis or bracket with none of its kind open is Stata's
+  // "too many", whatever else the expression holds: 1], (1+2], x[1); one
+  // left open is "too few": max(x[, aa). Parentheses and brackets are
+  // counted apart, those in a value label's name included.
+  let parens = 0,
+    brackets = 0;
+  const count = (c) => {
+    if (c === "(") parens++;
+    else if (c === "[") brackets++;
+    else if ((c === ")" && !parens--) || (c === "]" && !brackets--))
+      throw new StataError("too many ')' or ']'", 132);
+  };
   for (const token of tokens)
-    if (token.type !== "op") continue;
-    else if (token.value === "(" || token.value === "[") open.push(token.value);
-    else if (
-      (token.value === ")" || token.value === "]") &&
-      open.pop() !== (token.value === ")" ? "(" : "[")
-    )
-      throw new StataError("too many ')' or ']'", 132);
-  const root = or();
-  if (at < tokens.length) {
-    const extra = tokens[at];
-    if (extra.type === "op" && extra.value === ",")
-      throw new StataError("options not allowed", 101);
-    if (extra.type === "op" && extra.value === "(" && !extra.spaced)
-      throw new StataError("unknown function ()", 133);
-    if (extra.type === "op" && extra.value === ")")
-      throw new StataError("too many ')' or ']'", 132);
-    // A ! after a value joins it and what follows into one name, x!1; at
-    // the end it is invalid syntax.
-    if (extra.type === "op" && extra.value === "!") {
-      const after = tokens[at + 1];
-      if (!after) throw invalid();
-      throw invalid(
-        `${squeezed(tokens[at - 1].start, after.end ?? source.length)} invalid name`,
-      );
+    if (token.type === "op") count(token.value);
+    else if (token.type === "label")
+      for (const c of token.value.name.replace(/[^()[\]]/g, "")) count(c);
+  if (parens > 0 || brackets > 0)
+    throw new StataError("too few ')' or ']'", 132);
+  // An operator at the end is invalid syntax before any name is looked
+  // for: aa + 1 + is invalid syntax, not aa not found.
+  const last = tokens.at(-1);
+  if (last.type === "op" && !/^[)\],]$/.test(last.value)) throw invalid();
+  let root;
+  try {
+    root = or();
+    if (
+      at < tokens.length &&
+      !(at === passedComma && at === tokens.length - 1)
+    ) {
+      const extra = tokens[at];
+      if (extra.type === "op" && extra.value === ",")
+        throw new StataError("options not allowed", 101);
+      if (extra.type === "op" && extra.value === "(" && !extra.spaced)
+        throw new StataError("unknown function ()", 133);
+      if (extra.type === "op" && extra.value === ")")
+        throw new StataError("too many ')' or ']'", 132);
+      // A ! after a value joins it and what follows into one name, x!1; at
+      // the end it is invalid syntax.
+      if (extra.type === "op" && extra.value === "!") {
+        const after = tokens[at + 1];
+        if (!after) throw invalid();
+        throw invalid(
+          `${squeezed(tokens[at - 1].start, after.end ?? source.length)} invalid name`,
+        );
+      }
+      // Stata names the word as it was typed, a missing code such as .a
+      // included, and drops a string's closing quote: invalid '"a'.
+      const typed =
+        extra.type === "string"
+          ? `"${extra.value}`
+          : source
+              .slice(extra.start, tokens[at + 1]?.start ?? source.length)
+              .trim();
+      throw invalid(`invalid '${typed}' `);
     }
-    // Stata names the word as it was typed, a missing code such as .a
-    // included, and drops a string's closing quote: invalid '"a'.
-    const typed =
-      extra.type === "string"
-        ? `"${extra.value}`
-        : source
-            .slice(extra.start, tokens[at + 1]?.start ?? source.length)
-            .trim();
-    throw invalid(`invalid '${typed}' `);
+  } catch (error) {
+    // The notes of the value-label dereferences read before the error,
+    // which Stata prints as it reads them.
+    for (const text of pending) state.note?.(text);
+    throw error;
   }
   return { type: root.type, evaluate: root.evaluate, usesSum: sums > 0 };
 }

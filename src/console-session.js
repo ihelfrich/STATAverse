@@ -9,7 +9,7 @@ import { LIBRARY } from "./console-datasets.js";
 import { readDta, writeDta } from "./console-dta.js";
 import { binaryKind, checkForeign } from "./runtime/foreign.js";
 import { applyFormat } from "./runtime/format.js";
-import { isMissing, parseNumber } from "./runtime/values.js";
+import { isMissing, parseNumber, readableBytes } from "./runtime/values.js";
 import { echoOf, fileEcho } from "./runtime/echo.js";
 import { parseBlocks, splitCommands } from "./runtime/dofile.js";
 import { createLogs, isLogMark } from "./console-log.js";
@@ -578,9 +578,7 @@ export function createConsoleSession() {
       // A byte that is not UTF-8 (text from an old file, or cut out of a
       // character) is shown as U+FFFD, where Stata prints the raw byte.
       for (const block of output)
-        block.lines = block.lines.map((line) =>
-          line.replace(/(?<![\uD800-\uDBFF])[\uDC80-\uDCFF]/g, "\uFFFD"),
-        );
+        block.lines = block.lines.map((line) => readableBytes(line));
       logs.take(output, logged, output.length);
       logs.settle();
       // The lines in the error style: which they are, and their text.

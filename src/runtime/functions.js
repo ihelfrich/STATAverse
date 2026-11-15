@@ -180,7 +180,9 @@ function wildcard(pattern) {
 function stataProgram(state, pattern) {
   const { program, error } = stataPattern(pattern);
   if (program) return program;
-  state.note?.(`regexp: ${error}`);
+  // Stata prints this message even under quietly, and the messages after
+  // it.
+  state.note?.(`regexp: ${error}`, "unmuting");
   state.match = undefined;
   return null;
 }
@@ -832,12 +834,12 @@ export const FUNCTIONS = {
         state.note?.(
           "a regular expression match function must be executed prior to retrieving a subexpression",
         );
-        state.note?.("regexm required");
+        state.note?.("regexm required", "unmuting");
         return "";
       }
       const k = isMissing(n) ? -1 : whole(n);
       if (!match || !(k >= 0 && k < 10) || match.starts[k] < 0) {
-        state.note?.("invalid number, outside of allowed range");
+        state.note?.("invalid number, outside of allowed range", "shown");
         return "";
       }
       return bytesText(match.bytes, match.starts[k], match.ends[k]);

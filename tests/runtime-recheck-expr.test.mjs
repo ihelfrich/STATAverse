@@ -165,6 +165,84 @@ test("the derivatives of gammap() in x", () => {
 });
 
 test("a function Stata has that the browser does not is refused, not unknown", () => {
-  const output = run("capture noisily display dgammapda(2, 1.5)\ndisplay _rc");
+  const output = run(
+    "capture noisily display tukeyprob(3, 10, 2)\ndisplay _rc",
+  );
   assert.deepEqual(output.at(-1).lines, ["198"]);
+});
+
+test("the derivatives of gammap() in a", () => {
+  // Stata 19, list with %21.0g. Where Stata's own figure is off (as at
+  // a = 3, x = 10, by 3e-7, against a 40-digit evaluation), it is not
+  // used here.
+  const cases = [
+    [2, 1.5, -0.3134886378250792971, 0.1005891983926435751],
+    [0.5, 0.1, -0.8229360977954037759, 1.658631294712176851],
+    [1, 1, -0.4317297106348987334, 0.0336180353001021837],
+    [3, 0.5, -0.0285202358788289347, 0.0526886081780657406],
+    [10, 9, -0.1270365119242686802, 0.01360468958046019],
+    [0.01, 0.5, -0.565545911588379524, -0.5677203173183332785],
+    [50, 45, -0.0455432921401243973, 0.0048080033241702062],
+    [50, 60, -0.0212849927863494673, -0.0038864838466260987],
+    [200, 210, -0.0216198810145952908, -0.001055232261780864],
+  ];
+  for (const [a, x, first, second] of cases) {
+    close(call("dgammapda", a, x), first, 1e-9);
+    close(call("dgammapdada", a, x), second, 1e-8);
+  }
+  // Below x = 0 both are 0; a <= 0 is missing.
+  assert.equal(call("dgammapda", 5, -1), 0);
+  assert.equal(call("dgammapdada", 5, 0), 0);
+  assert.ok(call("dgammapda", 0, 2) > 8e307);
+});
+
+test("a repeat before a byte, a set or the end backs off at once", () => {
+  // Stata 19 counts 0 for each at once; the browser refused the first two
+  // as too complex.
+  const started = Date.now(),
+    output = run(`clear
+set obs 1
+gen strL s = "x" + 40000*"a"
+count if regexm(s, ".*x$")
+replace s = 5000*"abcdefgh"
+count if regexm(s, "[a-z ]*[0-9]$")
+count if regexm(s, "[a-z ]*[0-9]")`);
+  assert.deepEqual(
+    output.filter((o) => o.command.startsWith("count")).map((o) => o.lines),
+    [["  0"], ["  0"], ["  0"]],
+  );
+  assert.ok(Date.now() - started < 5000);
+});
+
+test("bytes of one character cut apart join back into it", () => {
+  // Stata 19: 1, and 1 2 1 1.
+  const output = run(`clear
+set obs 1
+gen s = "é"
+display regexm(s, "^(.)(.)$")
+display (regexs(1) + regexs(2)) == "é"
+gen a = regexs(1)
+gen b = regexs(2)
+gen c = a + b
+display strlen(a) " " strlen(c) " " (c == "é") " " ustrlen(c)`);
+  assert.deepEqual(output.at(-5).lines, ["1"]);
+  assert.deepEqual(output.at(-1).lines, ["1 2 1 1"]);
+});
+
+test("under quietly, regexm()'s messages show, and count's result after them", () => {
+  // Stata 19 prints the messages for each of these; count alone of them
+  // goes on to print its result.
+  const output = run(`clear
+set obs 2
+gen s = "abc"
+gen x = _n
+quietly count if regexm(s, "(") | 1
+quietly summarize x if regexm(s, "(") | 1
+quietly tab x if regexm(s, "(") | 1
+quietly scalar k = regexm("a", "(")`);
+  const message = "regexp: unterminated ()";
+  assert.deepEqual(output.at(-4).lines, [message, message, "  2"]);
+  assert.deepEqual(output.at(-3).lines, [message, message]);
+  assert.deepEqual(output.at(-2).lines, [message, message]);
+  assert.deepEqual(output.at(-1).lines, [message]);
 });
