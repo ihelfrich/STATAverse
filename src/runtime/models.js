@@ -4,7 +4,13 @@
 // post-estimation commands here read only that object.
 import { least, greatest } from "./extremes.js";
 import { firstStage, ivDiagnostic, sweptColumns } from "./more-estimators.js";
-import { estimatesStats, estimatesTable, lrtest } from "./comparisons.js";
+import {
+  estimatesDir,
+  estimatesStats,
+  estimatesTable,
+  informationCriteria,
+  lrtest,
+} from "./comparisons.js";
 import { regressDiagnostic } from "./diagnostics.js";
 import { StataError } from "./errors.js";
 import { abbreviateAmong, applyFormat } from "./format.js";
@@ -1819,6 +1825,14 @@ function predict(session, text, ctx) {
   const model = estimates(session);
   if (model.noPredict)
     throw new StataError(`predict is not allowed after ${model.command}`, 301);
+  // A prefix's results from a command that is not an estimator (bootstrap
+  // r(mean): summarize) have no fit to predict from.
+  const e = session.results.e ?? {};
+  if (!model.columns && e.prefix && e.cmdname)
+    throw new StataError(
+      `predict is not allowed after ${e.prefix}:${e.cmdname}`,
+      301,
+    );
   // Models with predictions of their own, such as xtlogit's pu0 and
   // clogit's pc1, bring them.
   if (model.predictor) return model.predictor(session, text, ctx);
@@ -2165,46 +2179,25 @@ function estat(session, text, ctx) {
   const model = estimates(session),
     what = text.trim().split(/[\s,]/)[0];
   if (what === "ic") {
-    const ll0 =
-        model.command === "regress"
-          ? // As regress stores e(ll_0), which weights count in.
-            model.constant && !isMissing(model.ll) && !isMissing(model.r2)
-            ? model.ll + (model.N / 2) * Math.log(1 - model.r2)
-            : MISSING
-          : (model.ll_0 ?? MISSING),
-      k = model.rank,
-      aic = -2 * model.ll + 2 * k,
-      bic = -2 * model.ll + k * Math.log(model.N);
     if (model.ll === undefined || model.command === "newey")
       throw new StataError(
         "likelihood information not found in last estimation results",
         321,
       );
-    ctx.out("");
-    ctx.out(
-      "Akaike's information criterion and Bayesian information criterion",
+    // The active results are named as they were last stored or restored,
+    // and . when they are not stored, with the options of estimates stats.
+    informationCriteria(
+      session,
+      [
+        {
+          label: model.storedName ?? ".",
+          model,
+          e: session.results.e,
+        },
+      ],
+      text.trim().slice(what.length).replace(/^\s*,/, ""),
+      ctx,
     );
-    ctx.out("");
-    ctx.out("-".repeat(77));
-    ctx.out(
-      "       Model |          N   ll(null)  ll(model)      df        AIC        BIC",
-    );
-    ctx.out(
-      "-------------+---------------------------------------------------------------",
-    );
-    ctx.out(
-      `${".".padStart(12)} |${applyFormat(model.N, "%10.0fc").padStart(11)}${g(ll0).padStart(11)}${g(model.ll).padStart(11)}${String(k).padStart(8)}${g(aic).padStart(11)}${g(bic).padStart(11)}`,
-    );
-    ctx.out("-".repeat(77));
-    ctx.out("Note: BIC uses N = number of observations. See [R] IC note.");
-    ctx.out("");
-    session.results.r = {
-      "matrix:S": {
-        rowNames: ["."],
-        colNames: ["N", "ll0", "ll", "df", "AIC", "BIC"],
-        values: [[model.N, ll0, model.ll, k, aic, bic]],
-      },
-    };
   } else if (what === "vif") {
     if (model.command !== "regress")
       throw new StataError(`estat ${what} not valid`, 321);
@@ -2213,6 +2206,12 @@ function estat(session, text, ctx) {
     const s2 = model.rss / model.dfResidual,
       rows = model.sample,
       vifs = [];
+    if (!rows.length) {
+      ctx.out("");
+      ctx.out("    Variable |       VIF       1/VIF  ");
+      ctx.out("-------------+----------------------");
+      throw new StataError("no observations", 2000);
+    }
     model.names.forEach((name, k) => {
       if (name === "_cons" || !model.estimable[k]) return;
       const values = rows
@@ -2222,6 +2221,29 @@ function estat(session, text, ctx) {
         ss = values.reduce((t, v) => t + (v - mean) ** 2, 0);
       vifs.push([name, (model.V[k][k] * ss) / s2]);
     });
+    // Once observations of the sample are dropped, e(V) no longer gives
+    // them: vif.ado regresses each regressor on the others over the
+    // observations of e(sample) left, and VIF is 1/(1 - R2), which is
+    // SST_k times the kth diagonal of the inverse of the centred, weighted
+    // cross products.
+    if (model.reducedSample) {
+      const used = model.names
+          .map((name, k) => k)
+          .filter((k) => model.names[k] !== "_cons" && model.estimable[k]),
+        w = model.weights ?? rows.map(() => 1),
+        total = w.reduce((t, v) => t + v, 0),
+        x = used.map((k) => {
+          const values = rows.map(model.columns[k].value),
+            m = values.reduce((t, v, r) => t + w[r] * v, 0) / total;
+          return values.map((v) => v - m);
+        }),
+        A = x.map((a) =>
+          x.map((b) => a.reduce((t, v, r) => t + w[r] * v * b[r], 0)),
+        ),
+        inverse = invertSymmetric(A);
+      if (inverse)
+        used.forEach((k, j) => (vifs[j][1] = A[j][j] * inverse[j][j]));
+    }
     // vif.ado sorts by VIF, largest first, unless the model has factor
     // variables. It keeps each VIF in a float variable.
     const factors = model.columns.some(
@@ -2692,26 +2714,38 @@ function estimatesAction(session, text, ctx) {
       ctx.out("");
       lines.forEach((line) => ctx.out(line));
     }
-  } else if (action === "dir") {
-    if (!stored.size) return;
-    // The table is as wide as its longest title.
-    const titleOf = ({ model, title }) =>
-        title ?? model.title ?? "Linear regression",
-      width =
-        47 + Math.max(8, ...[...stored.values()].map((s) => titleOf(s).length));
-    ctx.out("");
-    ctx.out("-".repeat(width));
-    ctx.out("             |           Dependent  Number of        ");
-    ctx.out("        Name | Command    variable     param.  Title ");
-    ctx.out(`-------------+${"-".repeat(width - 14)}`);
-    for (const [key, entry] of stored) {
-      const { model } = entry;
-      ctx.out(
-        `${abbreviateAmong(key, 12).padStart(12)} | ${model.command.padEnd(7)}${model.depvar.padStart(12)}${String(model.rank).padStart(11)}  ${titleOf(entry)}`,
+  } else if (/^des(c(r(i(be?)?)?)?)?$/.test(action)) {
+    if (/\busing\b/.test(name))
+      throw new StataError(
+        "estimates describe using is not available in the browser yet",
+        198,
+        "Describe the active results, or results kept with estimates store.",
       );
-    }
-    ctx.out("-".repeat(width));
-  } else if (/^tab(le?)?$/.test(action)) estimatesTable(session, rest, ctx);
+    if (name && !/^[A-Za-z_.]\w*$/.test(name))
+      throw new StataError("invalid name", 198);
+    const entry =
+      name && name !== "."
+        ? stored.get(name)
+        : session.estimates
+          ? { model: session.estimates, e: session.results.e }
+          : null;
+    if (!entry)
+      throw name && name !== "."
+        ? new StataError(`estimation result ${name} not found`, 111)
+        : new StataError("last estimates not found", 301);
+    const { model, e } = entry,
+      cmdline =
+        e?.cmdline ??
+        (model.shownFit
+          ? `${model.shownFit.command} ${model.shownFit.body.trim()}`
+          : (model.command ?? ""));
+    ctx.out("");
+    ctx.out("  Estimation results produced by");
+    ctx.out("");
+    ctx.out(`     . ${cmdline}`);
+    session.results.r = { cmdline, title: "" };
+  } else if (action === "dir") estimatesDir(session, rest, ctx);
+  else if (/^tab(le?)?$/.test(action)) estimatesTable(session, rest, ctx);
   else if (/^stats?$/.test(action)) estimatesStats(session, rest, ctx);
   else if (action === "clear") {
     for (const key of stored.keys())

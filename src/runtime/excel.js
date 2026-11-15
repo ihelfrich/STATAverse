@@ -1783,7 +1783,9 @@ function putexcelDescribe(session, ctx) {
     ["Open file handle", state.open ? "yes" : "no"],
   ];
   ctx.out("");
-  ctx.out(`  ${"-".repeat(17)}+${"-".repeat(14)}`);
+  // putexcel.ado's rule is as wide as the file's name, from 11 to 60.
+  const width = Math.min(60, Math.max(11, state.name.length));
+  ctx.out(`  ${"-".repeat(17)}+${"-".repeat(width + 3)}`);
   for (const [key, value] of rows) ctx.out(`  ${key.padEnd(17)}|  ${value}`);
 }
 
@@ -1915,8 +1917,9 @@ function putexcelCells(session, text, ctx) {
       if (!sheet.rows.has(r)) sheet.rows.set(r, new Map());
       sheet.rows.get(r).set(c, { ...cell, keepStyle: true });
     }
+  // sheet(name, replace) replaces the sheet at every putexcel that
+  // writes to it, as Stata 19 does, not only at the first.
   state.mode = "modify";
-  state.replaceSheet = false;
   // A workbook held open is saved by putexcel save or putexcel close.
   if (state.open) {
     state.book = book;
@@ -1924,6 +1927,158 @@ function putexcelCells(session, text, ctx) {
   }
   saveBook(session, state.name, book);
   ctx.out(`file ${state.name} saved`);
+}
+
+/**
+ * putexcel's result sets, as putexcel.ado reads them: rscalars, escalars,
+ * rmacros, emacros, rmatrices, ematrices (each from its first four
+ * letters), r* and e*, and their names (rscalarnames, enames and the
+ * rest). Returns { cat, kind, names } or null.
+ */
+function resultSet(value) {
+  const word = value.trim();
+  if (word === "e*" || word === "r*")
+    return { cat: word[0], kind: "all", names: false };
+  const m =
+    /^([er])(scal(?:a(?:rs?)?)?|mac(?:r(?:os?)?)?|mat(?:r(?:i(?:c(?:es?)?)?)?)?|scalarn(?:a(?:m(?:es?)?)?)?|macron(?:a(?:m(?:es?)?)?)?|matrixn(?:a(?:m(?:es?)?)?)?|na(?:m(?:es?)?)?)$/.exec(
+      word,
+    );
+  if (!m) return null;
+  const [, cat, rest] = m,
+    names = /n/.test(rest.slice(3)) || rest.startsWith("na");
+  return {
+    cat,
+    names,
+    kind: rest.startsWith("na")
+      ? "all"
+      : rest.startsWith("scal")
+        ? "numscalar"
+        : rest.startsWith("mac")
+          ? "macro"
+          : "matrix",
+  };
+}
+
+/**
+ * The cells a result set writes: each value below the last (a matrix
+ * whole, with a blank row after it), or, for the names, each name; r* and
+ * e* write the scalars, then the macros, then the matrices, a blank row
+ * between.
+ */
+function resultSetCells(session, { cat, kind, names }) {
+  const results = session.results[cat] ?? {},
+    entries = Object.entries(results),
+    scalars = entries.filter(([, v]) => typeof v === "number"),
+    macros = entries.filter(
+      ([key, v]) => typeof v === "string" && !key.includes(":"),
+    ),
+    // e(b) and e(V) come from the fit, before the matrices e() holds.
+    matrices = [
+      ...(cat === "e" && session.estimates ? ["b", "V"] : []),
+      ...entries
+        .filter(([key, v]) => key.startsWith("matrix:") && v?.values)
+        .map(([key]) => key.slice(7)),
+    ].filter((name, k, all) => all.indexOf(name) === k),
+    kinds = kind === "all" ? ["numscalar", "macro", "matrix"] : [kind],
+    out = [];
+  let row = 0;
+  if (names) {
+    for (const each of kinds)
+      (each === "numscalar"
+        ? scalars.map(([key]) => key)
+        : each === "macro"
+          ? macros.map(([key]) => key)
+          : matrices
+      ).forEach((name) =>
+        out.push({ dr: row++, dc: 0, cell: { t: "s", v: name } }),
+      );
+    return out;
+  }
+  for (const each of kinds) {
+    const before = row;
+    if (each === "numscalar")
+      for (const [, v] of scalars)
+        out.push({
+          dr: row++,
+          dc: 0,
+          cell: isMissing(v) ? { t: "z" } : { t: "n", v },
+        });
+    else if (each === "macro")
+      for (const [, v] of macros)
+        out.push({ dr: row++, dc: 0, cell: { t: "s", v } });
+    else
+      for (const name of matrices) {
+        const matrix = matrixExpression(session, `${cat}(${name})`);
+        matrix.values.forEach((values, i) =>
+          values.forEach((v, j) =>
+            out.push({
+              dr: row + i,
+              dc: j,
+              cell: isMissing(v) ? { t: "z" } : { t: "n", v },
+            }),
+          ),
+        );
+        row += matrix.values.length + 1;
+      }
+    // putexcel.ado leaves a row between the kinds of r* and e*.
+    if (row > before && each !== "matrix") row++;
+  }
+  return out;
+}
+
+/**
+ * etable: the coefficient table of the last estimation as it was shown,
+ * its heads in the first row and each coefficient's row after them, the
+ * numbers as they were displayed. A table with rows of factor levels,
+ * equations or notes is not written here.
+ */
+function etableCells(session) {
+  // The table must be the last one shown: not after quietly, nor after
+  // another command left its own r().
+  const shown = session.estimates?.shownFit,
+    lines =
+      shown && !shown.quiet && session.results.r?.["matrix:table"]
+        ? shown.lines
+        : [],
+    head = lines.findIndex((line) => /\|.*conf\. interval\]\s*$/.test(line));
+  if (head < 0)
+    throw new StataError(
+      "information for the estimation table not found;\n    replay estimation results and try again.",
+      111,
+    );
+  const unavailable = () =>
+      new StataError(
+        "putexcel etable for this table is not available in the browser yet",
+        198,
+        "Write the coefficients with putexcel A1 = matrix(r(table)'), names.",
+      ),
+    at = head + 2,
+    end = lines.findIndex((line, k) => k >= at && /^-+$/.test(line)),
+    // The first bar divides the names from the heads (P>|t| has others).
+    bar = lines[head].indexOf("|"),
+    label = lines[head].slice(0, bar),
+    heads = lines[head].slice(bar + 1),
+    out = [];
+  if (end < 0) throw unavailable();
+  [label.trim(), ...heads.trim().split(/\s{2,}/)].forEach((v, dc) =>
+    out.push({ dr: 0, dc, cell: { t: "s", v } }),
+  );
+  lines.slice(at, end).forEach((line, k) => {
+    const name = line.slice(0, Math.max(0, line.indexOf("|"))),
+      rest = line.slice(line.indexOf("|") + 1),
+      numbers = rest.trim().split(/\s+/);
+    if (!name.trim() || numbers.length !== 6) throw unavailable();
+    out.push({ dr: k + 1, dc: 0, cell: { t: "s", v: name.trim() } });
+    numbers.forEach((text, j) => {
+      const v = Number(text);
+      out.push({
+        dr: k + 1,
+        dc: j + 1,
+        cell: text === "." || !Number.isFinite(v) ? { t: "z" } : { t: "n", v },
+      });
+    });
+  });
+  return out;
 }
 
 /** The cells one putexcel value writes, relative to its upper-left cell. */
@@ -1937,6 +2092,9 @@ function putValue(session, value, options) {
         : { t: "n", v: result };
   if (value.startsWith('"') || value.startsWith('`"'))
     return one({ t: "s", v: unquote(value) });
+  const set = resultSet(value);
+  if (set) return resultSetCells(session, set);
+  if (value.trim() === "etable") return etableCells(session);
   const call = /^([A-Za-z_]\w*)\(([\s\S]*)\)$/.exec(value);
   if (call && !value.startsWith("(")) {
     const [, kind, inside] = call;

@@ -19,10 +19,19 @@ const dot = (a, b) => a.reduce((t, v, i) => t + v * b[i], 0);
  * in turn, leaving out any that add nothing. Returns the rank excluding the
  * constant, and the explained, residual and total sums of squares.
  */
-export function project(columns, y) {
-  const centre = (v) => {
-      const m = mean(v);
-      return v.map((value) => value - m);
+export function project(columns, y, weights = null) {
+  // With weights, each value is centred at the weighted mean and scaled by
+  // the square root of its weight, which makes the sums of squares
+  // weighted ones.
+  const total = weights ? weights.reduce((t, v) => t + v, 0) : 0,
+    root = weights ? weights.map((v) => Math.sqrt(v)) : null,
+    centre = (v) => {
+      if (!weights) {
+        const m = mean(v);
+        return v.map((value) => value - m);
+      }
+      const m = v.reduce((t, value, i) => t + weights[i] * value, 0) / total;
+      return v.map((value, i) => (value - m) * root[i]);
     },
     yc = centre(y),
     basis = [];
@@ -57,6 +66,9 @@ export function project(columns, y) {
 
 /** The estimation sample as plain arrays: y, fitted values and residuals. */
 export function sampleFrame(model, session) {
+  // No observation of the sample is left in the data (they were dropped,
+  // or the data read in again).
+  if (!model.sample?.length) throw new StataError("no observations", 2000);
   const dependent = session.data.get(model.depvar),
     used = model.names.map((_, k) => k).filter((k) => model.estimable[k]),
     rows = model.sample,
@@ -108,9 +120,21 @@ function hettest(session, model, text, ctx, typed = "hettest") {
           frame.rows.map((i) => session.data.get(name).data[i]),
         )
       : [frame.fitted],
-    s2 = model.rss / n,
+    // e(rss)/e(N), as the fit stored them, even when observations of its
+    // sample have been dropped since (hettest.ado).
+    s2 = model.rss / (model.N ?? n),
     scaled = frame.residuals.map((e) => (e * e) / s2),
-    result = project(columns, scaled),
+    // The auxiliary regression takes the fit's weights; analytic weights
+    // are scaled to sum to its number of observations, as regress scales
+    // them.
+    raw = model.wtype && model.weights?.length === n ? model.weights : null,
+    sum = raw ? raw.reduce((t, v) => t + v, 0) : 0,
+    weights = raw
+      ? model.wtype === "aweight"
+        ? raw.map((v) => (v * n) / sum)
+        : raw
+      : null,
+    result = project(columns, scaled, weights),
     chi2 = result.ess / 2,
     df = result.rank,
     p = chi2tail(df, chi2);
@@ -170,6 +194,7 @@ function ovtest(session, model, text, ctx, typed = "ovtest") {
 
 function imtest(session, model, text, ctx, typed = "imtest") {
   onlyRegress(model, typed);
+  if (model.wtype) throw new StataError("imtest does not support weights", 101);
   const parsed = session.parse("[, White | Preserve]", text),
     frame = sampleFrame(model, session),
     n = frame.rows.length,
@@ -178,7 +203,8 @@ function imtest(session, model, text, ctx, typed = "imtest") {
     // in single precision, and centres the regressors before multiplying.
     f = Math.fround,
     e = frame.residuals.map(f),
-    s2 = model.rss / n,
+    // e(rss)/e(N), as the fit stored them (imtest.ado).
+    s2 = model.rss / (model.N ?? n),
     centred = x.map((column) => {
       const m = mean(column);
       return column.map((v) => v - m);
@@ -830,6 +856,9 @@ export function regressDiagnostic(session, model, what, text, ctx) {
  * predict's statistics that need the leverage. Returns the values for every
  * observation, or null when the option is not one of these.
  */
+/** A square root, missing (2^1023, as Stata stores it) for a negative. */
+const rootOrMissing = (value) => (value < 0 ? MISSING : Math.sqrt(value));
+
 export function leverageStatistic(session, model, option) {
   const labels = {
     hat: "Leverage",
@@ -881,10 +910,15 @@ export function leverageStatistic(session, model, option) {
     else if (option === "stdr") values[i] = Math.sqrt(s2 * (1 - h));
     else if (option === "hat" || option === "leverage") values[i] = h;
     else if (isMissing(e)) continue;
-    else if (option === "rstandard") values[i] = e / Math.sqrt(s2 * (1 - h));
+    // Outside the sample the leverage can pass 1. Stata's _predict then
+    // takes the square root of a negative number for missing, the double
+    // 2^1023, and divides by it, which leaves a residual of almost zero
+    // rather than a missing value; the same arithmetic gives the same.
+    else if (option === "rstandard")
+      values[i] = e / (Math.sqrt(s2) * rootOrMissing(1 - h));
     else if (option === "rstudent") {
       const without = (model.rss - (e * e) / (1 - h)) / (n - k - 1);
-      values[i] = e / Math.sqrt(without * (1 - h));
+      values[i] = e / rootOrMissing(without * (1 - h));
     } else if (option === "covratio") {
       const r2 = (e * e) / (s2 * (1 - h));
       values[i] = ((n - k - r2) / (n - k - 1)) ** k / (1 - h);
@@ -916,6 +950,24 @@ export function influence(session, model, k, option) {
     p = model.names.length,
     n = model.N,
     values = new Array(session.data.n).fill(MISSING);
+  // Once observations of the sample are dropped, (X'X)^-1 no longer
+  // describes the rest: dfbeta, as regres_p.ado computes it, scales the
+  // studentized residual by the residual of the regressor on the others
+  // over the observations left, DFBETA = t r / sqrt((1 - h) sum r^2).
+  let partial = null;
+  if (k !== null && model.reducedSample) {
+    const others = model.names
+        .map((name, j) => j)
+        .filter(
+          (j) => j !== k && model.names[j] !== "_cons" && model.estimable[j],
+        )
+        .map((j) => model.sample.map(model.columns[j].value)),
+      fitted = project(others, model.sample.map(model.columns[k].value));
+    partial = {
+      at: new Map(model.sample.map((i, r) => [i, fitted.residuals[r]])),
+      sum: fitted.rss,
+    };
+  }
   for (const i of new Set(model.sample)) {
     const row = model.names.map((name, j) =>
       name === "_cons" ? 1 : model.columns[j].value(i),
@@ -930,7 +982,10 @@ export function influence(session, model, k, option) {
     values[i] =
       k === null
         ? (e / Math.sqrt(s2 * (1 - h))) * Math.sqrt(h / (1 - h))
-        : (lean[k] * e) / (1 - h) / Math.sqrt(s2 * model.xtxInverse[k][k]);
+        : partial
+          ? ((e / Math.sqrt(s2 * (1 - h))) * partial.at.get(i)) /
+            Math.sqrt((1 - h) * partial.sum)
+          : (lean[k] * e) / (1 - h) / Math.sqrt(s2 * model.xtxInverse[k][k]);
   }
   return values;
 }

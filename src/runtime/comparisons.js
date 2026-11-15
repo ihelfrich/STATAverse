@@ -65,6 +65,33 @@ export function lrtest(session, text, ctx) {
   if (!names.length || names.length > 2)
     throw new StataError("lrtest takes one or two stored models", 198);
   if (names.length === 1) names.push(".");
+  // lrtest's options: df(), force, stats, dir and asis.
+  const chosen = {};
+  for (const { word, inside } of optionWords(options)) {
+    if (/^df?$/.test(word) && inside !== undefined) chosen.df = inside.trim();
+    else if (word === "force" && inside === undefined) chosen.force = true;
+    else if (/^st(a(ts?)?)?$/.test(word) && inside === undefined)
+      chosen.stats = true;
+    else if (/^di(r)?$/.test(word) && inside === undefined) chosen.dir = true;
+    else if (word === "asis" && inside === undefined) chosen.asis = true;
+    else
+      throw new StataError(
+        `option ${word}${inside === undefined ? "" : "()"} not allowed`,
+        198,
+      );
+  }
+  let typedDf = null;
+  if (chosen.df !== undefined) {
+    typedDf = Number(chosen.df);
+    if (!chosen.df || !Number.isFinite(typedDf))
+      throw new StataError(`'${chosen.df}' found where number expected`, 7);
+    if (!(typedDf > 0))
+      throw new StataError("option df() should be positive", 198);
+    if (!Number.isInteger(typedDf))
+      ctx.out(
+        `note: specified degrees of freedom (${chosen.df}) is not an integer.`,
+      );
+  }
   const entries = names.map((name) => entry(session, name)),
     [a, b] = entries.map((found) => found.model),
     // e(cmd), which lrtest compares: clogit after xtlogit, fe.
@@ -82,16 +109,24 @@ export function lrtest(session, text, ctx) {
   // likelihood a pseudolikelihood; Stata refuses unless told to force.
   if (
     [a, b].some((model) => /^(robust|cluster)$/.test(model.vce)) &&
-    !/\bforce\b/.test(options ?? "")
+    !chosen.force
   )
     throw new StataError(
       "LR test likely invalid for models with robust VCE",
       498,
     );
-  const force = /\bforce\b/.test(options ?? ""),
-    [small, large] = a.rank <= b.rank ? [a, b] : [b, a],
-    df = large.rank - small.rank;
-  if (!df)
+  // The first model is taken for the unrestricted one unless it has fewer
+  // degrees of freedom than the second (and asis is not given), as in
+  // lrtest.ado; df() replaces the difference.
+  const force = Boolean(chosen.force),
+    [large, small] = a.rank < b.rank && !chosen.asis ? [b, a] : [a, b],
+    df = typedDf ?? large.rank - small.rank;
+  if (!force && df < 0)
+    throw new StataError(
+      `df(unrestricted) < df(restricted): ${large.rank} < ${small.rank}`,
+      498,
+    );
+  if (!force && df === 0)
     throw new StataError(
       "df(unrestricted) = df(restricted) = " + large.rank,
       498,
@@ -171,8 +206,15 @@ export function lrtest(session, text, ctx) {
   ctx.out("Likelihood-ratio test");
   ctx.out(`Assumption: ${shown(small)} nested within ${shown(large)}`);
   ctx.out("");
-  ctx.out(`${`LR chi2(${df})`.padStart(11)} =${applyFormat(chi2, "%7.2f")}`);
-  ctx.out(`Prob > chi2 = ${applyFormat(p, "%6.4f")}`);
+  // The labels end in one column, and the numbers too, each as wide as the
+  // wider of the two.
+  const label = `LR chi2(${g(df)})`,
+    shownChi2 = applyFormat(chi2, "%10.2f").trim(),
+    shownP = applyFormat(p, "%9.4f").trim(),
+    left = Math.max(label.length, "Prob > chi2".length),
+    right = Math.max(shownChi2.length, shownP.length);
+  ctx.out(`${label.padStart(left)} = ${shownChi2.padStart(right)}`);
+  ctx.out(`${"Prob > chi2".padStart(left)} = ${shownP.padStart(right)}`);
   // Stata's notes are paragraphs, wrapped at the line size.
   const note = (text) =>
     renderSmcl(`{p 0 6 2}${text}{p_end}`, session.settings.linesize ?? 79)
@@ -190,7 +232,32 @@ export function lrtest(session, text, ctx) {
       "Note: LR tests based on REML are valid only when the fixed-effects specification is identical for both models.",
     );
   }
-  ctx.out("");
+  // stats and dir show the two models, the restricted one first, with the
+  // names they were given.
+  const typedName = (model) => (model === a ? names[0] : names[1]);
+  if (chosen.stats) {
+    const lines = [];
+    informationCriteria(
+      session,
+      [small, large].map((model) => ({
+        label: typedName(model),
+        model,
+        e: entries[model === a ? 0 : 1].e,
+      })),
+      "",
+      { ...ctx, out: (line) => lines.push(line) },
+    );
+    // The table's closing blank line is dir's opening one.
+    if (chosen.dir) lines.pop();
+    lines.forEach((line) => ctx.out(line));
+  }
+  if (chosen.dir)
+    estimatesDir(
+      session,
+      `${typedName(small)} ${typedName(large)}, width(78)`,
+      ctx,
+    );
+  if (!chosen.stats) ctx.out("");
   session.results.r = { p, chi2, df };
 }
 
@@ -657,42 +724,289 @@ const normalise = (text) =>
     .replace(/\bse\s*\(/, "se2(")
     .replace(/\bb\s*\(/, "b2(");
 
-export function estimatesStats(session, text, ctx) {
-  const [head] = splitAtComma(text),
-    all = session.storedEstimates ?? new Map(),
-    names = head.trim()
-      ? head
-          .trim()
-          .split(/\s+/)
-          .flatMap((name) =>
-            name === "_all" || name === "*" ? [...all.keys()] : [name],
-          )
-      : ["."];
-  ctx.out("");
-  ctx.out("Akaike's information criterion and Bayesian information criterion");
-  ctx.out("");
-  ctx.out("-".repeat(77));
-  ctx.out(
-    "       Model |          N   ll(null)  ll(model)      df        AIC        BIC",
-  );
-  ctx.out(
-    "-------------+---------------------------------------------------------------",
-  );
-  for (const name of names) {
-    const { model } = entry(session, name);
-    if (model.ll === undefined)
-      throw new StataError(
-        "estimates stats is not available after this estimator",
-        321,
-      );
-    const k = model.rank,
-      aic = -2 * model.ll + 2 * k,
-      bic = -2 * model.ll + k * Math.log(model.N);
-    ctx.out(
-      `${name.padStart(12)} |${count(model.N).padStart(11)}${g(nullLikelihood(model)).padStart(11)}${g(model.ll).padStart(11)}${String(k).padStart(8)}${g(aic).padStart(11)}${g(bic).padStart(11)}`,
+/** The names an estimates command lists, _all and * standing for all. */
+function listedNames(session, head, fallback) {
+  const all = session.storedEstimates ?? new Map(),
+    typed = head.trim();
+  if (!typed) return fallback === "_all" ? [...all.keys()] : [fallback];
+  return typed
+    .split(/\s+/)
+    .flatMap((name) =>
+      name === "_all" || name === "*" ? [...all.keys()] : [name],
     );
+}
+
+/** Options written name or name(...), split as Stata's syntax reads them. */
+const optionWords = (text) =>
+  (
+    (text ?? "").match(/[A-Za-z_]\w*\s*(\((?:[^()]|\([^()]*\))*\))?/g) ?? []
+  ).map((option) => ({
+    word: /^\w+/.exec(option)[0],
+    inside: /^\w+\s*\(([\s\S]*)\)$/.exec(option)?.[1],
+  }));
+
+/** The options of estimates stats and estat ic. */
+function icOptions(text) {
+  const options = { df: null, n: null, kind: "AIC", all: false },
+    chosen = [];
+  for (const { word, inside } of optionWords(text)) {
+    if (/^df?$/.test(word) && inside !== undefined) options.df = inside.trim();
+    else if (word === "n" && inside !== undefined) {
+      const value = Number(inside.trim());
+      if (!inside.trim() || !Number.isFinite(value))
+        throw new StataError("invalid numlist", 121);
+      if (!(value > 0))
+        throw new StataError(
+          "n() invalid -- invalid numlist has elements outside of allowed range",
+          125,
+        );
+      options.n = value;
+    } else if (
+      /^aiccor(r(e(c(t(ed?)?)?)?)?)?$/.test(word) &&
+      inside === undefined
+    )
+      chosen.push("aiccorrected");
+    else if (
+      /^aiccon(s(i(s(t(e(nt?)?)?)?)?)?)?$/.test(word) &&
+      inside === undefined
+    )
+      chosen.push("aicconsistent");
+    else if (word === "all" && inside === undefined) chosen.push("all");
+    else if (word === "estat" && inside === undefined) continue;
+    else if (/^(bic|ic)detail$/.test(word) && inside === undefined)
+      throw new StataError(
+        `option ${word} is not available in the browser yet`,
+        198,
+        "Leave it out to see the criteria with N = number of observations.",
+      );
+    else
+      throw new StataError(
+        `option ${word}${inside === undefined ? "" : "()"} not allowed`,
+        198,
+      );
   }
-  ctx.out("-".repeat(77));
-  ctx.out("Note: BIC uses N = number of observations. See [R] IC note.");
+  const kinds = [...new Set(chosen)];
+  if (kinds.length > 1)
+    throw new StataError(
+      "only one of options aiccorrected, aicconsistent, or all is allowed",
+      198,
+    );
+  if (kinds[0] === "aiccorrected") options.kind = "AICc";
+  else if (kinds[0] === "aicconsistent") options.kind = "CAIC";
+  else if (kinds[0] === "all") options.all = true;
+  return options;
+}
+
+/**
+ * The table of estimates stats and estat ic: for each model its N, the log
+ * likelihoods, the degrees of freedom and the information criteria, as
+ * estimates.ado lays them out. rows are { label, model, e }.
+ */
+export function informationCriteria(session, rows, text, ctx) {
+  const options = icOptions(text),
+    values = rows.map(({ model, e }) => {
+      let df = model.rank;
+      if (options.df !== null) {
+        const typed = Number(options.df);
+        if (options.df !== "" && Number.isFinite(typed)) df = typed;
+        else if (typeof e?.[options.df] === "number") df = e[options.df];
+        else throw new StataError("df() invalid -- invalid number", 121);
+      } else if (typeof e?.df_ic === "number") df = e.df_ic;
+      const N = options.n ?? (typeof e?.N_ic === "number" ? e.N_ic : model.N),
+        ll = model.ll;
+      return {
+        N,
+        ll0: nullLikelihood(model),
+        ll,
+        df,
+        AIC: -2 * ll + 2 * df,
+        BIC: -2 * ll + Math.log(N) * df,
+        AICc: -2 * ll + 2 * df * (N / (N - df - 1)),
+        CAIC: -2 * ll + df * (Math.log(N) + 1),
+      };
+    }),
+    label = (row) =>
+      (row.label === "." ? "." : abbreviate(row.label, 12)).padStart(12),
+    cell = (value, width) => g(value).padStart(width),
+    legend = [
+      "Legend: AIC is Akaike's information criterion.",
+      "        BIC is Bayesian information criterion.",
+      "        AICc is corrected Akaike's information criterion.",
+      "        CAIC is consistent Akaike's information criterion.",
+    ];
+  if (options.all) {
+    ctx.out("");
+    ctx.out("Information criteria");
+    ctx.out("");
+    ctx.out("-".repeat(57));
+    ctx.out("       Model |          N   ll(null)  ll(model)        df");
+    ctx.out(`-------------+${"-".repeat(43)}`);
+    rows.forEach((row, k) => {
+      const v = values[k];
+      ctx.out(
+        `${label(row)} |${applyFormat(v.N, "%10.0fc").padStart(11)}${cell(v.ll0, 11)}${cell(v.ll, 11)}${applyFormat(v.df, "%6.0f").padStart(10)}`,
+      );
+    });
+    ctx.out("-".repeat(57));
+    if (options.n === null) {
+      ctx.out("Note: BIC, AICc, and CAIC use N = number of observations.");
+      ctx.out("      See [R] IC note.");
+    }
+    ctx.out("");
+    ctx.out("-".repeat(68));
+    ctx.out(
+      "       Model |          AIC          BIC          AICc          CAIC",
+    );
+    ctx.out(`-------------+${"-".repeat(54)}`);
+    rows.forEach((row, k) => {
+      const v = values[k];
+      ctx.out(
+        `${label(row)} |${cell(v.AIC, 13)}${cell(v.BIC, 13)}${cell(v.AICc, 14)}${cell(v.CAIC, 14)}`,
+      );
+    });
+    ctx.out("-".repeat(68));
+    legend.forEach((line) => ctx.out(line));
+    ctx.out("");
+  } else {
+    const kind = options.kind,
+      title =
+        kind === "AICc"
+          ? "Corrected Akaike's information criterion"
+          : kind === "CAIC"
+            ? "Consistent Akaike's information criterion"
+            : "Akaike's information criterion";
+    ctx.out("");
+    ctx.out(`${title} and Bayesian information criterion`);
+    ctx.out("");
+    ctx.out("-".repeat(77));
+    ctx.out(
+      `       Model |          N   ll(null)  ll(model)      df${kind.padStart(11)}        BIC`,
+    );
+    ctx.out(`-------------+${"-".repeat(63)}`);
+    rows.forEach((row, k) => {
+      const v = values[k];
+      ctx.out(
+        `${label(row)} |${applyFormat(v.N, "%10.0fc").padStart(11)}${cell(v.ll0, 11)}${cell(v.ll, 11)}${applyFormat(v.df, "%6.0f").padStart(8)}${cell(v[kind], 11)}${cell(v.BIC, 11)}`,
+      );
+    });
+    ctx.out("-".repeat(77));
+    if (options.n === null)
+      ctx.out(
+        kind === "AIC"
+          ? "Note: BIC uses N = number of observations. See [R] IC note."
+          : `Note: ${kind} and BIC use N = number of observations. See [R] IC note.`,
+      );
+    ctx.out("");
+  }
+  const columns = options.all
+    ? ["N", "ll0", "ll", "df", "AIC", "BIC", "AICc", "CAIC"]
+    : ["N", "ll0", "ll", "df", options.kind, "BIC"];
+  session.results.r = {
+    "matrix:S": {
+      rowNames: rows.map((row) => row.label),
+      colNames: columns,
+      values: values.map((v) => columns.map((name) => v[name])),
+    },
+  };
+}
+
+export function estimatesStats(session, text, ctx) {
+  const [head, options] = splitAtComma(text),
+    rows = listedNames(session, head, ".").map((name) => {
+      const found = entry(session, name);
+      if (found.model.ll === undefined)
+        throw new StataError(
+          "estimates stats is not available after this estimator",
+          321,
+        );
+      return { label: name, model: found.model, e: found.e };
+    });
+  informationCriteria(session, rows, options, ctx);
+}
+
+/** A title cut into pieces of at most width characters, at blanks. */
+function pieces(text, width) {
+  const out = [];
+  let line = "";
+  for (let word of text.split(/\s+/).filter(Boolean)) {
+    while (word.length > width) {
+      if (line) out.push(line);
+      line = "";
+      out.push(word.slice(0, width));
+      word = word.slice(width);
+    }
+    if (!word) continue;
+    if (!line) line = word;
+    else if (line.length + 1 + word.length <= width) line += ` ${word}`;
+    else {
+      out.push(line);
+      line = word;
+    }
+  }
+  if (line) out.push(line);
+  return out;
+}
+
+/** estimates dir: the stored results named, or all of them. */
+export function estimatesDir(session, text, ctx) {
+  const [head, typed] = splitAtComma(text);
+  let width = -1;
+  // estimates dir takes width() and lets any other option pass.
+  for (const { word, inside } of optionWords(typed))
+    if (/^w(i(d(th?)?)?)?$/.test(word) && inside !== undefined) {
+      const value = Number(inside.trim());
+      if (!inside.trim() || !Number.isInteger(value))
+        throw new StataError(`option ${word}() incorrectly specified`, 198);
+      width = value;
+    }
+  const names = listedNames(session, head, "_all");
+  if (!names.length) return;
+  const rows = names.map((name) => {
+      const { model, e, title } = entry(session, name);
+      return {
+        name,
+        model,
+        e,
+        // e(estimates_title), or e(title), which xtreg does not set.
+        title:
+          title ??
+          (typeof e?.title === "string"
+            ? e.title
+            : model.kind === "xtreg"
+              ? ""
+              : (model.title ?? "")),
+      };
+    }),
+    longest = Math.max(8, ...rows.map((row) => row.title.length)),
+    piece =
+      width === -1
+        ? Math.min((session.settings.linesize ?? 79) - 47, longest)
+        : Math.max(width, 60) - 48,
+    rule = 33 + piece;
   ctx.out("");
+  ctx.out("-".repeat(14 + rule));
+  ctx.out("             |           Dependent  Number of        ");
+  ctx.out("        Name | Command    variable     param.  Title ");
+  ctx.out(`-------------+${"-".repeat(rule)}`);
+  for (const row of rows) {
+    const depvars = String(row.model.depvar ?? row.e?.depvar ?? "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean),
+      depn = !depvars.length
+        ? "no depvar"
+        : depvars.length === 1
+          ? abbreviate(depvars[0], 12)
+          : "mult. depvar",
+      command = String(row.model.command ?? "").padEnd(10),
+      parameters = row.model.names?.length ?? row.model.rank,
+      [first = "", ...rest] = pieces(row.title, piece),
+      name = row.name === "." ? "." : abbreviate(row.name, 12);
+    ctx.out(
+      `${name.padStart(12)} | ${command}${depn.padStart(9)}${applyFormat(parameters, "%4.0f").padStart(11)}  ${first}`,
+    );
+    for (const more of rest)
+      ctx.out(`${" ".repeat(13)}|${" ".repeat(33)}${more}`);
+  }
+  ctx.out("-".repeat(14 + rule));
 }

@@ -617,6 +617,79 @@ function markSample(session, owner, rows) {
   data.esampleOf = owner;
 }
 
+/**
+ * The terms of a fit's design: those of its columns, and of the columns
+ * ivregress keeps for its first stages.
+ */
+function fitTerms(model) {
+  const terms = new Set(),
+    take = (columns) => {
+      if (Array.isArray(columns)) {
+        for (const c of columns) if (c?.term?.components) terms.add(c.term);
+      } else if (columns && typeof columns === "object")
+        for (const list of Object.values(columns))
+          if (Array.isArray(list)) take(list);
+    };
+  take(model.columns);
+  take(model.iv?.columns);
+  return terms;
+}
+
+/**
+ * Notes, for each variable a fit's columns read that is a variable of the
+ * data (not a lag or an indicator the fit made), its name. A column holds
+ * the variable it was fitted from; once the data are restored, read in
+ * again or reshaped, that object is no longer the data's.
+ */
+function nameFitVariables(model, data) {
+  if (model.variablesNamed) return;
+  model.variablesNamed = true;
+  const present = new Set(data.variables);
+  for (const term of fitTerms(model))
+    for (const c of term.components)
+      if (present.has(c.variable)) c.dataName = c.variable.name;
+}
+
+/**
+ * Points a fit's columns at the variables of the data as they are now, by
+ * name, as Stata's predict, margins and estat read the variables named in
+ * e(b) from the data in memory. A variable no longer there is one that
+ * stops the command when it is read, as Stata stops with r(111).
+ */
+function bindFitVariables(model, data) {
+  if (!model?.variablesNamed) return;
+  for (const term of fitTerms(model)) {
+    let changed = false;
+    for (const c of term.components) {
+      if (!c.dataName) continue;
+      const now = data.variables.find((v) => v.name === c.dataName);
+      if (now === c.variable || (!now && c.variable.absent)) continue;
+      c.variable = now ?? absentVariable(c.dataName);
+      changed = true;
+    }
+    if (!changed) continue;
+    const [only] = term.components;
+    term.variables = term.components.map((c) => c.variable);
+    if (term.variable) term.variable = only.variable;
+    if (term.factor) term.factor = only.variable;
+  }
+}
+
+/** A variable a fit read that the data no longer have. */
+function absentVariable(name) {
+  return {
+    name,
+    type: "double",
+    format: "%9.0g",
+    label: "",
+    valueLabel: "",
+    absent: true,
+    get data() {
+      throw new StataError(`variable ${name} not found`, 111);
+    },
+  };
+}
+
 // The e() results whose scalars have been posted again by a command that
 // holds the estimates (see dispatch).
 const heldScalars = new WeakSet();
@@ -1416,11 +1489,16 @@ export class Session {
                 if (!outer || outer.has(i)) rows.add(i);
               start.at = lines.length ?? 0;
               this.panelRows = rows;
+              const previous = this.estimates;
               try {
                 const value = command.run(this, text, {
                   ...inner,
                   by: undefined,
                 });
+                // The group a fit was made on, which a replay with display
+                // options fits again.
+                if (this.estimates && this.estimates !== previous)
+                  this.estimates.fitGroupRows = rows;
                 // by leaves a blank line before the next group's rule, which
                 // an estimator whose table ends in a rule does not print.
                 if (Array.isArray(lines) && lines.length && lines.at(-1) !== "")
@@ -1497,6 +1575,9 @@ export class Session {
         model.fitRowIds = this.data.ensureRowIds().slice();
         model.fitSortedBy = [...this.data.sortedBy];
       }
+      // The variables the fit's columns read, known by name, so that a
+      // command after it reads them as the data now have them.
+      if (model && model !== before) nameFitVariables(model, this.data);
       if (model && model !== before && !model.fitData) {
         // Only fits that can still be replayed are kept: the active one
         // and those stored.
@@ -1521,6 +1602,8 @@ export class Session {
           command: command.name,
           body,
           lines: Array.isArray(lines) ? fitTable(lines.slice(start.at)) : [],
+          // Whether the table was shown, which putexcel's etable needs.
+          quiet: Boolean(flags.quiet || (flags.capture && !flags.noisy)),
         };
       // A fit's weight expression, which estat summarize weights with, kept
       // where the command did not keep it.
@@ -1589,12 +1672,18 @@ export class Session {
     const model = this.estimates,
       { shownFit: replay } = model,
       kept = [];
+    // regress, noheader shows the coefficient table alone.
+    let noHeader = false;
     for (const option of splitAtComma(body)[1]?.match(
       /[A-Za-z_]\w*(\((?:[^()]|\([^()]*\))*\))?/g,
     ) ?? []) {
       const name = /^\w+/.exec(option)[0],
         parens = option.includes("(") ? "()" : "";
       if (REPLAY_IGNORED[command.name]?.test(name)) continue;
+      if (command.name === "regress" && /^nohe(a(d(er?)?)?)?$/.test(name)) {
+        noHeader = true;
+        continue;
+      }
       if (
         REPLAY_REFUSED[command.name]?.test(name) ||
         (!REPLAY_OPTIONS.test(name) &&
@@ -1614,18 +1703,30 @@ export class Session {
       shownWith = typedOptions.some(display);
     // Shown as the fit was, unless another estimator's fit is shown its
     // own way (logit after logistic).
+    const table = (lines) =>
+      noHeader
+        ? lines.slice(
+            Math.max(
+              0,
+              lines.findIndex((line) => /^-+$/.test(line)),
+            ),
+          )
+        : lines;
     if (!options && !shownWith && command.name === replay.command) {
-      for (const line of ["", ...replay.lines]) ctx.out(line);
+      for (const line of ["", ...table(replay.lines)]) ctx.out(line);
       return;
     }
     const e = this.results.e,
       data = this.data,
       shown = [];
-    // The fit is made again from the data it was made from.
+    // The fit is made again from the data it was made from, and from the
+    // group of them it was made on under by.
     if (model.fitData) {
       this.data = new Dataset();
       this.data.restore(model.fitData);
     }
+    const groupRows = this.panelRows;
+    if (model.fitGroupRows) this.panelRows = model.fitGroupRows;
     try {
       // The fit's own options, without those that only showed it.
       const before = typedOptions
@@ -1639,6 +1740,7 @@ export class Session {
     } finally {
       const refit = this.estimates,
         N = this.results.e?.N;
+      this.panelRows = groupRows;
       this.data = data;
       this.estimates = model;
       this.results.e = e;
@@ -1656,7 +1758,7 @@ export class Session {
           198,
         );
     }
-    for (const line of ["", ...fitTable(shown)]) ctx.out(line);
+    for (const line of ["", ...table(fitTable(shown))]) ctx.out(line);
   }
 
   /**
@@ -1671,19 +1773,25 @@ export class Session {
   inFitLayout(run) {
     const model = this.estimates,
       data = this.data,
-      fit = model?.fitRowIds,
-      ids = data.rowIds;
+      fit = model?.fitRowIds;
+    if (this.layoutRows) return run();
+    if (model) bindFitVariables(model, data);
+    if (!fit || !model.sample) return run();
+    // Observations with no identity were read in or made since the fit
+    // (use, import, reshape, contract), and none of them is in its
+    // sample, as e(sample) is 0 in all of them in Stata. Data that lost
+    // their identities but still carry this fit's marker keep the rows the
+    // fit has.
+    let ids = data.rowIds?.length === data.n ? data.rowIds : null;
     if (
-      this.layoutRows ||
-      !fit ||
-      !ids ||
-      ids.length !== data.n ||
-      !model.sample
+      !ids &&
+      data.esampleOf === model &&
+      data.esample?.some((mark) => mark === 1)
     )
       return run();
     const n = data.n,
       N0 = fit.length;
-    let same = n === N0;
+    let same = Boolean(ids) && n === N0;
     for (let i = 0; same && i < n; i++) same = ids[i] === fit[i];
     if (same) return run();
     const at = (model.fitRowIndex ??= new Map(
@@ -1691,14 +1799,14 @@ export class Session {
       )),
       from = new Int32Array(n).fill(-1);
     let mapped = 0;
-    for (let i = 0; i < n; i++) {
-      const f = at.get(ids[i]);
-      if (f !== undefined) {
-        from[i] = f;
-        mapped++;
+    if (ids)
+      for (let i = 0; i < n; i++) {
+        const f = at.get(ids[i]);
+        if (f !== undefined) {
+          from[i] = f;
+          mapped++;
+        }
       }
-    }
-    if (!mapped) return run();
     const rows = Array.from({ length: n }, (_, i) => i),
       order = [
         ...rows.filter((i) => from[i] >= 0).sort((a, b) => from[a] - from[b]),
@@ -1729,9 +1837,17 @@ export class Session {
       }
       saved.set("sample", sample);
       model.sample = Array.from(sample, (r) => place[r]).filter((r) => r >= 0);
-      if (typeof model.N === "number" && model.N === length) {
-        saved.set("N", model.N);
-        model.N = model.sample.length;
+      // e(N), e(rss) and the rest stay as the fit stored them, as Stata's
+      // do; what reads the sample again knows that it is smaller.
+      saved.set("reducedSample", model.reducedSample);
+      model.reducedSample = model.sample.length < length;
+    }
+    // Data with none of the fit's observations are left as they are.
+    if (!mapped) {
+      try {
+        return run();
+      } finally {
+        for (const [key, value] of saved) model[key] = value;
       }
     }
     const sortedBy = data.sortedBy,

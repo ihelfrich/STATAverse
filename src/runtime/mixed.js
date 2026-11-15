@@ -2309,6 +2309,9 @@ function mixedPredict(session, text, ctx) {
     throw new StataError("only one statistic may be requested", 198);
   const what = chosen[0] ?? "xb";
   if (!chosen.length) ctx.out("(option xb assumed)");
+  // mixed's predict posts the estimates again, and the active results lose
+  // the name they were stored under (estat ic shows them as .).
+  model.storedName = undefined;
   const wanted = what === "reffects" || what === "reses" ? effects : 1,
     names = parsed.varlist;
   if (names.length > wanted)

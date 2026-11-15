@@ -25345,3 +25345,560 @@ end
 capture noisily cut20
 count
 program drop cut10 cut20
+=== seams-estimation-restore-predict
+clear
+input id str5 school year gpa hours income female str9 major weight score
+1 "North" 2019 3.2 10 45000 1 "Economics" 2 78
+1 "North" 2020 3.4 12 47000 1 "Economics" 2 81
+1 "North" 2021 3.5 11 . 1 "Economics" 2 84
+2 "South" 2019 2.8 5 38000 0 "Biology" 1 65
+2 "South" 2020 2.9 7 39000 0 "Biology" 1 68
+2 "South" 2021 3.0 8 41000 0 "Biology" 1 .
+3 "North" 2019 3.9 20 62000 1 "Math" 3 95
+3 "North" 2020 3.8 18 61000 1 "Math" 3 93
+3 "North" 2021 4.0 22 65000 1 "Math" 3 97
+4 "East" 2019 2.5 3 30000 0 "" 1 55
+4 "East" 2020 2.7 4 32000 0 "" 1 59
+4 "East" 2021 2.6 6 31000 0 "" 1 60
+5 "South" 2019 3.1 9 44000 1 "Economics" 2 74
+5 "South" 2020 . 10 46000 1 "Economics" 2 77
+5 "South" 2021 3.3 13 48000 1 "Economics" 2 80
+6 "East" 2019 3.6 15 55000 0 "Math" 4 88
+6 "East" 2020 3.7 16 56000 0 "Math" 4 90
+6 "East" 2021 3.5 14 54000 0 "Math" 4 87
+7 "North" 2019 2.9 6 40000 1 "Biology" 1 66
+7 "North" 2020 3.0 8 42000 1 "Biology" 1 70
+7 "North" 2021 3.2 9 43000 1 "Biology" 1 73
+8 "West" 2019 3.4 12 50000 0 "Economics" 2 79
+8 "West" 2020 3.3 11 49000 0 "Economics" 2 78
+8 "West" 2021 3.6 14 52000 0 "Economics" 2 83
+end
+regress score gpa hours
+preserve
+gsort -score
+replace gpa = gpa * 10
+restore
+predict p1
+summarize p1
+list id year gpa hours p1 in 1/4
+margins
+encode school, generate(sch)
+regress score gpa hours i.sch
+preserve
+keep if female == 1
+restore
+predict p2
+summarize p2
+margins sch
+=== seams-estimation-reread
+clear
+input id str5 school year gpa hours income female str9 major weight score
+1 "North" 2019 3.2 10 45000 1 "Economics" 2 78
+1 "North" 2020 3.4 12 47000 1 "Economics" 2 81
+1 "North" 2021 3.5 11 . 1 "Economics" 2 84
+2 "South" 2019 2.8 5 38000 0 "Biology" 1 65
+2 "South" 2020 2.9 7 39000 0 "Biology" 1 68
+2 "South" 2021 3.0 8 41000 0 "Biology" 1 .
+3 "North" 2019 3.9 20 62000 1 "Math" 3 95
+3 "North" 2020 3.8 18 61000 1 "Math" 3 93
+3 "North" 2021 4.0 22 65000 1 "Math" 3 97
+4 "East" 2019 2.5 3 30000 0 "" 1 55
+4 "East" 2020 2.7 4 32000 0 "" 1 59
+4 "East" 2021 2.6 6 31000 0 "" 1 60
+5 "South" 2019 3.1 9 44000 1 "Economics" 2 74
+5 "South" 2020 . 10 46000 1 "Economics" 2 77
+5 "South" 2021 3.3 13 48000 1 "Economics" 2 80
+6 "East" 2019 3.6 15 55000 0 "Math" 4 88
+6 "East" 2020 3.7 16 56000 0 "Math" 4 90
+6 "East" 2021 3.5 14 54000 0 "Math" 4 87
+7 "North" 2019 2.9 6 40000 1 "Biology" 1 66
+7 "North" 2020 3.0 8 42000 1 "Biology" 1 70
+7 "North" 2021 3.2 9 43000 1 "Biology" 1 73
+8 "West" 2019 3.4 12 50000 0 "Economics" 2 79
+8 "West" 2020 3.3 11 49000 0 "Economics" 2 78
+8 "West" 2021 3.6 14 52000 0 "Economics" 2 83
+end
+save seams_reread, replace
+regress score gpa hours
+use seams_reread, clear
+gsort -score
+predict p4
+generate r4 = score - p4
+summarize r4
+capture noisily margins
+capture noisily estat hettest
+estat ic
+keep id year score gpa hours
+regress score gpa hours
+reshape wide score gpa hours, i(id) j(year)
+reshape long
+predict p
+summarize p
+capture noisily margins
+regress score gpa hours
+rename gpa GPA
+capture noisily predict p3
+rename GPA gpa
+regress score gpa hours
+stack score gpa hours score gpa hours, into(a b c) clear
+capture noisily predict p8
+=== seams-estimation-iv-drops
+clear
+input id str5 school year gpa hours income female str9 major weight score
+1 "North" 2019 3.2 10 45000 1 "Economics" 2 78
+1 "North" 2020 3.4 12 47000 1 "Economics" 2 81
+1 "North" 2021 3.5 11 . 1 "Economics" 2 84
+2 "South" 2019 2.8 5 38000 0 "Biology" 1 65
+2 "South" 2020 2.9 7 39000 0 "Biology" 1 68
+2 "South" 2021 3.0 8 41000 0 "Biology" 1 .
+3 "North" 2019 3.9 20 62000 1 "Math" 3 95
+3 "North" 2020 3.8 18 61000 1 "Math" 3 93
+3 "North" 2021 4.0 22 65000 1 "Math" 3 97
+4 "East" 2019 2.5 3 30000 0 "" 1 55
+4 "East" 2020 2.7 4 32000 0 "" 1 59
+4 "East" 2021 2.6 6 31000 0 "" 1 60
+5 "South" 2019 3.1 9 44000 1 "Economics" 2 74
+5 "South" 2020 . 10 46000 1 "Economics" 2 77
+5 "South" 2021 3.3 13 48000 1 "Economics" 2 80
+6 "East" 2019 3.6 15 55000 0 "Math" 4 88
+6 "East" 2020 3.7 16 56000 0 "Math" 4 90
+6 "East" 2021 3.5 14 54000 0 "Math" 4 87
+7 "North" 2019 2.9 6 40000 1 "Biology" 1 66
+7 "North" 2020 3.0 8 42000 1 "Biology" 1 70
+7 "North" 2021 3.2 9 43000 1 "Biology" 1 73
+8 "West" 2019 3.4 12 50000 0 "Economics" 2 79
+8 "West" 2020 3.3 11 49000 0 "Economics" 2 78
+8 "West" 2021 3.6 14 52000 0 "Economics" 2 83
+end
+save seams_iv, replace
+replace score = . in 24
+quietly ivregress 2sls score income (gpa = hours)
+estat endogenous
+drop if missing(income)
+estat endogenous
+estat firststage
+use seams_iv, clear
+keep if year > 2019
+quietly ivregress 2sls score (gpa = hours income)
+drop if id == 1
+estat endogenous
+estat overid
+=== seams-estimation-hausman
+clear
+input id str5 school year gpa hours income female str9 major weight score
+1 "North" 2019 3.2 10 45000 1 "Economics" 2 78
+1 "North" 2020 3.4 12 47000 1 "Economics" 2 81
+1 "North" 2021 3.5 11 . 1 "Economics" 2 84
+2 "South" 2019 2.8 5 38000 0 "Biology" 1 65
+2 "South" 2020 2.9 7 39000 0 "Biology" 1 68
+2 "South" 2021 3.0 8 41000 0 "Biology" 1 .
+3 "North" 2019 3.9 20 62000 1 "Math" 3 95
+3 "North" 2020 3.8 18 61000 1 "Math" 3 93
+3 "North" 2021 4.0 22 65000 1 "Math" 3 97
+4 "East" 2019 2.5 3 30000 0 "" 1 55
+4 "East" 2020 2.7 4 32000 0 "" 1 59
+4 "East" 2021 2.6 6 31000 0 "" 1 60
+5 "South" 2019 3.1 9 44000 1 "Economics" 2 74
+5 "South" 2020 . 10 46000 1 "Economics" 2 77
+5 "South" 2021 3.3 13 48000 1 "Economics" 2 80
+6 "East" 2019 3.6 15 55000 0 "Math" 4 88
+6 "East" 2020 3.7 16 56000 0 "Math" 4 90
+6 "East" 2021 3.5 14 54000 0 "Math" 4 87
+7 "North" 2019 2.9 6 40000 1 "Biology" 1 66
+7 "North" 2020 3.0 8 42000 1 "Biology" 1 70
+7 "North" 2021 3.2 9 43000 1 "Biology" 1 73
+8 "West" 2019 3.4 12 50000 0 "Economics" 2 79
+8 "West" 2020 3.3 11 49000 0 "Economics" 2 78
+8 "West" 2021 3.6 14 52000 0 "Economics" 2 83
+end
+xtset id year
+quietly xtreg score gpa, fe
+estimates store fe1
+quietly xtreg score gpa, re
+estimates store re1
+hausman fe1 re1
+hausman fe1 re1, sigmamore
+hausman fe1 ., sigmaless
+quietly xtreg score gpa hours income, fe
+estimates store fe
+quietly xtreg score gpa hours income, re
+estimates store re
+hausman fe re
+hausman fe re, sigmamore
+hausman fe re, constant
+hausman fe re, df(5) tconsistent(Fixed) tefficient(Random)
+capture noisily hausman fe fe
+capture noisily hausman fe re, bogus
+quietly regress score gpa hours, vce(robust)
+estimates store rob
+capture noisily hausman rob re
+quietly regress score gpa hours
+hausman . re
+display r(chi2) " " r(df) " " r(rank) " " r(p)
+=== seams-estimation-lrtest-ic
+clear
+input id str5 school year gpa hours income female str9 major weight score
+1 "North" 2019 3.2 10 45000 1 "Economics" 2 78
+1 "North" 2020 3.4 12 47000 1 "Economics" 2 81
+1 "North" 2021 3.5 11 . 1 "Economics" 2 84
+2 "South" 2019 2.8 5 38000 0 "Biology" 1 65
+2 "South" 2020 2.9 7 39000 0 "Biology" 1 68
+2 "South" 2021 3.0 8 41000 0 "Biology" 1 .
+3 "North" 2019 3.9 20 62000 1 "Math" 3 95
+3 "North" 2020 3.8 18 61000 1 "Math" 3 93
+3 "North" 2021 4.0 22 65000 1 "Math" 3 97
+4 "East" 2019 2.5 3 30000 0 "" 1 55
+4 "East" 2020 2.7 4 32000 0 "" 1 59
+4 "East" 2021 2.6 6 31000 0 "" 1 60
+5 "South" 2019 3.1 9 44000 1 "Economics" 2 74
+5 "South" 2020 . 10 46000 1 "Economics" 2 77
+5 "South" 2021 3.3 13 48000 1 "Economics" 2 80
+6 "East" 2019 3.6 15 55000 0 "Math" 4 88
+6 "East" 2020 3.7 16 56000 0 "Math" 4 90
+6 "East" 2021 3.5 14 54000 0 "Math" 4 87
+7 "North" 2019 2.9 6 40000 1 "Biology" 1 66
+7 "North" 2020 3.0 8 42000 1 "Biology" 1 70
+7 "North" 2021 3.2 9 43000 1 "Biology" 1 73
+8 "West" 2019 3.4 12 50000 0 "Economics" 2 79
+8 "West" 2020 3.3 11 49000 0 "Economics" 2 78
+8 "West" 2021 3.6 14 52000 0 "Economics" 2 83
+end
+quietly logit female gpa hours
+estimates store full
+quietly logit female gpa
+estimates store small
+lrtest full small, stats
+lrtest full small, dir
+lrtest full small, df(3)
+lrtest full small, df(2.5)
+capture noisily lrtest full small, df(0)
+capture noisily lrtest full small, bogus
+capture noisily lrtest small full, asis
+estimates dir small full, width(70)
+estimates restore full
+estat ic, n(10)
+estat ic, all
+estat ic, aiccorrected
+estat ic, aicconsistent
+estat ic, df(7)
+capture noisily estat ic, all aicc
+capture noisily estat ic, bogus
+estimates stats full small, all
+estimates stats full small, n(12) aicconsistent
+estimates describe
+estimates describe small
+=== seams-estimation-reduced-sample
+clear
+input id str5 school year gpa hours income female str9 major weight score
+1 "North" 2019 3.2 10 45000 1 "Economics" 2 78
+1 "North" 2020 3.4 12 47000 1 "Economics" 2 81
+1 "North" 2021 3.5 11 . 1 "Economics" 2 84
+2 "South" 2019 2.8 5 38000 0 "Biology" 1 65
+2 "South" 2020 2.9 7 39000 0 "Biology" 1 68
+2 "South" 2021 3.0 8 41000 0 "Biology" 1 .
+3 "North" 2019 3.9 20 62000 1 "Math" 3 95
+3 "North" 2020 3.8 18 61000 1 "Math" 3 93
+3 "North" 2021 4.0 22 65000 1 "Math" 3 97
+4 "East" 2019 2.5 3 30000 0 "" 1 55
+4 "East" 2020 2.7 4 32000 0 "" 1 59
+4 "East" 2021 2.6 6 31000 0 "" 1 60
+5 "South" 2019 3.1 9 44000 1 "Economics" 2 74
+5 "South" 2020 . 10 46000 1 "Economics" 2 77
+5 "South" 2021 3.3 13 48000 1 "Economics" 2 80
+6 "East" 2019 3.6 15 55000 0 "Math" 4 88
+6 "East" 2020 3.7 16 56000 0 "Math" 4 90
+6 "East" 2021 3.5 14 54000 0 "Math" 4 87
+7 "North" 2019 2.9 6 40000 1 "Biology" 1 66
+7 "North" 2020 3.0 8 42000 1 "Biology" 1 70
+7 "North" 2021 3.2 9 43000 1 "Biology" 1 73
+8 "West" 2019 3.4 12 50000 0 "Economics" 2 79
+8 "West" 2020 3.3 11 49000 0 "Economics" 2 78
+8 "West" 2021 3.6 14 52000 0 "Economics" 2 83
+end
+save seams_reduced, replace
+encode school, generate(sch)
+regress score gpa hours i.sch
+drop if id == 4
+estat ic
+margins sch
+use seams_reduced, clear
+encode school, generate(sch)
+regress score gpa hours i.sch income
+drop if id == 5
+estat hettest
+estat vif
+use seams_reduced, clear
+regress score gpa hours income
+keep if id != 5
+estat imtest
+predict rs, rstudent
+predict cv, covratio
+summarize rs cv
+dfbeta gpa
+summarize _dfbeta_1
+use seams_reduced, clear
+quietly regress score gpa hours [aweight=weight]
+estat hettest
+drop if year == 2021
+estat hettest
+estat vif
+capture noisily estat imtest
+use seams_reduced, clear
+replace score = . in 24
+xtset id year
+quietly xtreg score gpa hours, re
+drop if missing(income)
+xttest0
+use seams_reduced, clear
+generate died = female
+stset hours, failure(died)
+quietly stcox gpa
+sort score
+estat phtest
+replace gpa = gpa + 1 if id == 2
+capture noisily estat phtest
+replace gpa = gpa - 1 if id == 2
+drop if id == 1
+capture noisily estat phtest
+=== seams-estimation-by-replay
+clear
+input id str5 school year gpa hours income female str9 major weight score
+1 "North" 2019 3.2 10 45000 1 "Economics" 2 78
+1 "North" 2020 3.4 12 47000 1 "Economics" 2 81
+1 "North" 2021 3.5 11 . 1 "Economics" 2 84
+2 "South" 2019 2.8 5 38000 0 "Biology" 1 65
+2 "South" 2020 2.9 7 39000 0 "Biology" 1 68
+2 "South" 2021 3.0 8 41000 0 "Biology" 1 .
+3 "North" 2019 3.9 20 62000 1 "Math" 3 95
+3 "North" 2020 3.8 18 61000 1 "Math" 3 93
+3 "North" 2021 4.0 22 65000 1 "Math" 3 97
+4 "East" 2019 2.5 3 30000 0 "" 1 55
+4 "East" 2020 2.7 4 32000 0 "" 1 59
+4 "East" 2021 2.6 6 31000 0 "" 1 60
+5 "South" 2019 3.1 9 44000 1 "Economics" 2 74
+5 "South" 2020 . 10 46000 1 "Economics" 2 77
+5 "South" 2021 3.3 13 48000 1 "Economics" 2 80
+6 "East" 2019 3.6 15 55000 0 "Math" 4 88
+6 "East" 2020 3.7 16 56000 0 "Math" 4 90
+6 "East" 2021 3.5 14 54000 0 "Math" 4 87
+7 "North" 2019 2.9 6 40000 1 "Biology" 1 66
+7 "North" 2020 3.0 8 42000 1 "Biology" 1 70
+7 "North" 2021 3.2 9 43000 1 "Biology" 1 73
+8 "West" 2019 3.4 12 50000 0 "Economics" 2 79
+8 "West" 2020 3.3 11 49000 0 "Economics" 2 78
+8 "West" 2021 3.6 14 52000 0 "Economics" 2 83
+end
+by female, sort: regress score gpa
+regress
+regress, level(90)
+xtset id year
+regress, level(80)
+=== seams-estimation-rstudent-outside
+clear
+input id str5 school year gpa hours income female str9 major weight score
+1 "North" 2019 3.2 10 45000 1 "Economics" 2 78
+1 "North" 2020 3.4 12 47000 1 "Economics" 2 81
+1 "North" 2021 3.5 11 . 1 "Economics" 2 84
+2 "South" 2019 2.8 5 38000 0 "Biology" 1 65
+2 "South" 2020 2.9 7 39000 0 "Biology" 1 68
+2 "South" 2021 3.0 8 41000 0 "Biology" 1 .
+3 "North" 2019 3.9 20 62000 1 "Math" 3 95
+3 "North" 2020 3.8 18 61000 1 "Math" 3 93
+3 "North" 2021 4.0 22 65000 1 "Math" 3 97
+4 "East" 2019 2.5 3 30000 0 "" 1 55
+4 "East" 2020 2.7 4 32000 0 "" 1 59
+4 "East" 2021 2.6 6 31000 0 "" 1 60
+5 "South" 2019 3.1 9 44000 1 "Economics" 2 74
+5 "South" 2020 . 10 46000 1 "Economics" 2 77
+5 "South" 2021 3.3 13 48000 1 "Economics" 2 80
+6 "East" 2019 3.6 15 55000 0 "Math" 4 88
+6 "East" 2020 3.7 16 56000 0 "Math" 4 90
+6 "East" 2021 3.5 14 54000 0 "Math" 4 87
+7 "North" 2019 2.9 6 40000 1 "Biology" 1 66
+7 "North" 2020 3.0 8 42000 1 "Biology" 1 70
+7 "North" 2021 3.2 9 43000 1 "Biology" 1 73
+8 "West" 2019 3.4 12 50000 0 "Economics" 2 79
+8 "West" 2020 3.3 11 49000 0 "Economics" 2 78
+8 "West" 2021 3.6 14 52000 0 "Economics" 2 83
+end
+regress score gpa hours if female == 1
+predict r, rstudent
+predict s, rstandard
+predict h, hat
+predict cd, cooksd
+summarize r s h cd
+=== seams-estimation-names
+clear
+input id str5 school year gpa hours income female str9 major weight score
+1 "North" 2019 3.2 10 45000 1 "Economics" 2 78
+1 "North" 2020 3.4 12 47000 1 "Economics" 2 81
+1 "North" 2021 3.5 11 . 1 "Economics" 2 84
+2 "South" 2019 2.8 5 38000 0 "Biology" 1 65
+2 "South" 2020 2.9 7 39000 0 "Biology" 1 68
+2 "South" 2021 3.0 8 41000 0 "Biology" 1 .
+3 "North" 2019 3.9 20 62000 1 "Math" 3 95
+3 "North" 2020 3.8 18 61000 1 "Math" 3 93
+3 "North" 2021 4.0 22 65000 1 "Math" 3 97
+4 "East" 2019 2.5 3 30000 0 "" 1 55
+4 "East" 2020 2.7 4 32000 0 "" 1 59
+4 "East" 2021 2.6 6 31000 0 "" 1 60
+5 "South" 2019 3.1 9 44000 1 "Economics" 2 74
+5 "South" 2020 . 10 46000 1 "Economics" 2 77
+5 "South" 2021 3.3 13 48000 1 "Economics" 2 80
+6 "East" 2019 3.6 15 55000 0 "Math" 4 88
+6 "East" 2020 3.7 16 56000 0 "Math" 4 90
+6 "East" 2021 3.5 14 54000 0 "Math" 4 87
+7 "North" 2019 2.9 6 40000 1 "Biology" 1 66
+7 "North" 2020 3.0 8 42000 1 "Biology" 1 70
+7 "North" 2021 3.2 9 43000 1 "Biology" 1 73
+8 "West" 2019 3.4 12 50000 0 "Economics" 2 79
+8 "West" 2020 3.3 11 49000 0 "Economics" 2 78
+8 "West" 2021 3.6 14 52000 0 "Economics" 2 83
+end
+encode school, generate(sch)
+regress score gpa hours
+estimates store m1
+estat ic
+sort score
+estat ic
+regress score gpa i.sch
+estimates store b
+estimates dir
+estimates describe m1
+estimates describe
+quietly mixed score gpa hours || id:
+estimates store mx
+estat ic
+predict re, reffects
+estat ic
+=== seams-estimation-prefixes
+clear
+input id str5 school year gpa hours income female str9 major weight score
+1 "North" 2019 3.2 10 45000 1 "Economics" 2 78
+1 "North" 2020 3.4 12 47000 1 "Economics" 2 81
+1 "North" 2021 3.5 11 . 1 "Economics" 2 84
+2 "South" 2019 2.8 5 38000 0 "Biology" 1 65
+2 "South" 2020 2.9 7 39000 0 "Biology" 1 68
+2 "South" 2021 3.0 8 41000 0 "Biology" 1 .
+3 "North" 2019 3.9 20 62000 1 "Math" 3 95
+3 "North" 2020 3.8 18 61000 1 "Math" 3 93
+3 "North" 2021 4.0 22 65000 1 "Math" 3 97
+4 "East" 2019 2.5 3 30000 0 "" 1 55
+4 "East" 2020 2.7 4 32000 0 "" 1 59
+4 "East" 2021 2.6 6 31000 0 "" 1 60
+5 "South" 2019 3.1 9 44000 1 "Economics" 2 74
+5 "South" 2020 . 10 46000 1 "Economics" 2 77
+5 "South" 2021 3.3 13 48000 1 "Economics" 2 80
+6 "East" 2019 3.6 15 55000 0 "Math" 4 88
+6 "East" 2020 3.7 16 56000 0 "Math" 4 90
+6 "East" 2021 3.5 14 54000 0 "Math" 4 87
+7 "North" 2019 2.9 6 40000 1 "Biology" 1 66
+7 "North" 2020 3.0 8 42000 1 "Biology" 1 70
+7 "North" 2021 3.2 9 43000 1 "Biology" 1 73
+8 "West" 2019 3.4 12 50000 0 "Economics" 2 79
+8 "West" 2020 3.3 11 49000 0 "Economics" 2 78
+8 "West" 2021 3.6 14 52000 0 "Economics" 2 83
+end
+drop if missing(score, gpa)
+xtset id year
+bootstrap, reps(10) seed(1): xtreg score gpa, fe
+capture noisily estat bootstrap
+jackknife: xtreg score gpa, fe
+capture noisily bootstrap, reps(10) seed(1) cluster(id) idcluster(nid): xtreg score gpa, fe
+xtset id
+bootstrap, reps(5) seed(1) cluster(id): xtreg score gpa, fe
+generate t = _n
+tsset t
+jackknife: newey score gpa hours, lag(0)
+bootstrap, reps(5) seed(1): newey score gpa hours, lag(0)
+jackknife: newey score gpa, lag(1)
+quietly bootstrap r(mean), reps(10) seed(2): summarize income
+capture noisily predict p3
+capture noisily margins
+=== seams-estimation-weights-collapse
+clear
+input id str5 school year gpa hours income female str9 major weight score
+1 "North" 2019 3.2 10 45000 1 "Economics" 2 78
+1 "North" 2020 3.4 12 47000 1 "Economics" 2 81
+1 "North" 2021 3.5 11 . 1 "Economics" 2 84
+2 "South" 2019 2.8 5 38000 0 "Biology" 1 65
+2 "South" 2020 2.9 7 39000 0 "Biology" 1 68
+2 "South" 2021 3.0 8 41000 0 "Biology" 1 .
+3 "North" 2019 3.9 20 62000 1 "Math" 3 95
+3 "North" 2020 3.8 18 61000 1 "Math" 3 93
+3 "North" 2021 4.0 22 65000 1 "Math" 3 97
+4 "East" 2019 2.5 3 30000 0 "" 1 55
+4 "East" 2020 2.7 4 32000 0 "" 1 59
+4 "East" 2021 2.6 6 31000 0 "" 1 60
+5 "South" 2019 3.1 9 44000 1 "Economics" 2 74
+5 "South" 2020 . 10 46000 1 "Economics" 2 77
+5 "South" 2021 3.3 13 48000 1 "Economics" 2 80
+6 "East" 2019 3.6 15 55000 0 "Math" 4 88
+6 "East" 2020 3.7 16 56000 0 "Math" 4 90
+6 "East" 2021 3.5 14 54000 0 "Math" 4 87
+7 "North" 2019 2.9 6 40000 1 "Biology" 1 66
+7 "North" 2020 3.0 8 42000 1 "Biology" 1 70
+7 "North" 2021 3.2 9 43000 1 "Biology" 1 73
+8 "West" 2019 3.4 12 50000 0 "Economics" 2 79
+8 "West" 2020 3.3 11 49000 0 "Economics" 2 78
+8 "West" 2021 3.6 14 52000 0 "Economics" 2 83
+end
+generate w3 = weight - 2
+regress score gpa [aweight=w3]
+regress score gpa [pweight=w3]
+regress score gpa [fweight=w3]
+capture noisily regress score gpa [iweight=w3]
+capture noisily mean gpa [aweight=w3]
+regress score gpa hours
+collapse (mean) score gpa hours, by(school)
+count if e(sample)
+=== seams-estimation-putexcel
+clear
+input id str5 school year gpa hours income female str9 major weight score
+1 "North" 2019 3.2 10 45000 1 "Economics" 2 78
+1 "North" 2020 3.4 12 47000 1 "Economics" 2 81
+1 "North" 2021 3.5 11 . 1 "Economics" 2 84
+2 "South" 2019 2.8 5 38000 0 "Biology" 1 65
+2 "South" 2020 2.9 7 39000 0 "Biology" 1 68
+2 "South" 2021 3.0 8 41000 0 "Biology" 1 .
+3 "North" 2019 3.9 20 62000 1 "Math" 3 95
+3 "North" 2020 3.8 18 61000 1 "Math" 3 93
+3 "North" 2021 4.0 22 65000 1 "Math" 3 97
+4 "East" 2019 2.5 3 30000 0 "" 1 55
+4 "East" 2020 2.7 4 32000 0 "" 1 59
+4 "East" 2021 2.6 6 31000 0 "" 1 60
+5 "South" 2019 3.1 9 44000 1 "Economics" 2 74
+5 "South" 2020 . 10 46000 1 "Economics" 2 77
+5 "South" 2021 3.3 13 48000 1 "Economics" 2 80
+6 "East" 2019 3.6 15 55000 0 "Math" 4 88
+6 "East" 2020 3.7 16 56000 0 "Math" 4 90
+6 "East" 2021 3.5 14 54000 0 "Math" 4 87
+7 "North" 2019 2.9 6 40000 1 "Biology" 1 66
+7 "North" 2020 3.0 8 42000 1 "Biology" 1 70
+7 "North" 2021 3.2 9 43000 1 "Biology" 1 73
+8 "West" 2019 3.4 12 50000 0 "Economics" 2 79
+8 "West" 2020 3.3 11 49000 0 "Economics" 2 78
+8 "West" 2021 3.6 14 52000 0 "Economics" 2 83
+end
+regress score gpa hours
+putexcel set seams_px1.xlsx, replace
+summarize gpa
+putexcel B5 = rscalars
+putexcel set seams_px3.xlsx, replace
+regress score gpa hours
+putexcel A1 = etable
+putexcel describe
+putexcel set seams_px4.xlsx, replace
+putexcel A1 = 1
+putexcel set seams_px4.xlsx, sheet("T", replace) modify
+summarize gpa
+putexcel B5 = rscalars
+putexcel C1 = "x"
+putexcel set seams_px5.xlsx, replace
+capture noisily putexcel A1 = etable
+import excel seams_px1.xlsx, clear allstring
+list in 1/3
+import excel seams_px3.xlsx, clear allstring
+list A B C D E
+import excel seams_px4.xlsx, sheet("T") clear allstring
+list

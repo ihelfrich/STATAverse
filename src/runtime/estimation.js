@@ -729,7 +729,15 @@ export function fit(session, parsed, by) {
   if (wtype) {
     const all = evaluateAll(session.compile(parsed.weight.exp), session.data.n);
     obs = obs.filter((i) => !isMissing(all[i]) && all[i] !== 0);
-    if (obs.some((i) => all[i] < 0))
+    // regress leaves out the observations whose frequency, analytic or
+    // sampling weight is negative, as it leaves out zero weights; only
+    // importance weights may be negative.
+    if (parsed.positiveWeights && wtype !== "iweight")
+      obs = obs.filter((i) => all[i] > 0);
+    if (
+      !(parsed.positiveWeights && wtype === "iweight") &&
+      obs.some((i) => all[i] < 0)
+    )
       throw new StataError("negative weights encountered", 402);
     sumW = accurateSum(obs, (i) => all[i]);
     if (wtype === "fweight") {
@@ -757,6 +765,11 @@ export function fit(session, parsed, by) {
       sample: obs,
     });
   const n = counted ? sumW : obs.length;
+  // Importance weights, which may be negative, can sum to less than two.
+  if (counted && !(n >= 2))
+    throw Object.assign(new StataError("insufficient observations", 2001), {
+      sample: obs,
+    });
   const y = obs.map((i) => dependent.data[i]),
     active = columns.filter((c) => !c.base && !c.forcedOmit),
     x = active.map((c) => obs.map(c.value)),
@@ -1489,7 +1502,7 @@ export const hooks = { resamplingVce: null };
  */
 function regressFit(session, parsed) {
   try {
-    return fit(session, parsed, null);
+    return fit(session, { ...parsed, positiveWeights: true }, null);
   } catch (error) {
     if (error instanceof StataError && error.empty) forgetEstimates(session);
     if (error instanceof StataError && error.sample) {
@@ -1916,7 +1929,9 @@ export function predict(session, text, ctx) {
     return;
   }
   const data = session.data,
-    dependent = data.get(model.depvar),
+    // Only residuals read the dependent variable: the linear prediction
+    // needs the regressors alone.
+    dependent = options.residuals ? data.get(model.depvar) : null,
     values = new Array(data.n).fill(MISSING);
   let missing = 0;
   session.select(parsed, null, (i) => {
