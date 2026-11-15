@@ -21,6 +21,7 @@ import { applySyntax, clauses, loneEquals, splitAtComma } from "./syntax.js";
 import { renderSmcl, stringEnd } from "./smcl.js";
 import { ESTIMATION_COMMANDS, coefficientSpace } from "./estimation.js";
 import { MODEL_COMMANDS } from "./models.js";
+import { IVREG_COMMANDS } from "./ivreg.js";
 import { MIXED_COMMANDS } from "./mixed.js";
 import { PANEL_COMMANDS } from "./panel.js";
 import { XT_MODEL_COMMANDS } from "./xt-models.js";
@@ -383,13 +384,18 @@ function topLevelWords(text) {
  * it reads as a name.
  */
 function checkBrackets(word) {
-  let depth = 0,
-    quote = false;
+  let depth = 0;
   const opened = [];
   for (let i = 0; i < word.length; i++) {
     const c = word[i];
-    if (c === '"') quote = !quote;
-    if (quote) continue;
+    // A string, plain or compound, is passed over whole: a compound one
+    // may hold quotes and brackets of its own.
+    if (c === '"' || (c === "`" && word[i + 1] === '"')) {
+      const end = stringEnd(word, i);
+      if (end < 0) break;
+      i = end - 1;
+      continue;
+    }
     if (c === "(" || c === "[") {
       depth++;
       opened.push({
@@ -2939,6 +2945,8 @@ export const COMMANDS = [
   // Before MODEL_COMMANDS: predict and estat after mixed are its own, and
   // hand any other model on.
   ...MIXED_COMMANDS,
+  // ivreg before ivregress, of which it would read as an abbreviation.
+  ...IVREG_COMMANDS,
   // Listed first so that test, lincom and predict choose by distribution.
   ...MODEL_COMMANDS,
   ...SVY_COMMANDS,

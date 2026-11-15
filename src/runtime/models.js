@@ -954,7 +954,7 @@ function ivColumns(listed, rows) {
 export const bareWeight = (text) =>
   /(?:^|\s)\[\s*w(?:e(?:i(?:g(?:ht?)?)?)?)?\s*=/.test(splitAtComma(text)[0]);
 
-function ivregress(session, text, ctx) {
+export function ivregress(session, text, ctx) {
   // A weight, [pweight=w], may stand anywhere after the varlist; it is
   // taken out before the varlist is read and handed to the parser.
   let weightClause = "";

@@ -26,10 +26,14 @@ export function resolveVariable(word, names) {
 
 export function expandVarlist(text, names) {
   const out = [];
-  // With no variables in memory, any name is Stata's "no variables
-  // defined".
-  if (!names.length && text.trim() && text.trim() !== "_all")
-    throw new StataError("no variables defined", 111);
+  // With no variables in memory a name or a range is Stata's "no variables
+  // defined", a wildcard "variable x* not found", and _all stands for none.
+  if (!names.length)
+    for (const word of text.trim().split(/\s+/).filter(Boolean)) {
+      if (word === "_all") continue;
+      if (/[*?~]/.test(word) && !/[#().]/.test(word)) throw notFound(word);
+      throw new StataError("no variables defined", 111);
+    }
   for (const word of text.trim().split(/\s+/).filter(Boolean)) {
     if (word === "_all") out.push(...names);
     else if (/^[\p{L}\p{Nd}_]*\.[\p{L}_#(]/u.test(word) || /[#()]/.test(word))

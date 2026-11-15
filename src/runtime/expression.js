@@ -8,6 +8,7 @@
 // that running sums and regexm keep between observations.
 import { StataError } from "./errors.js";
 import { FUNCTIONS, dateLiteral } from "./functions.js";
+import { UNAVAILABLE_FUNCTIONS } from "./functions-more.js";
 import { resolveVariable } from "./varlist.js";
 import {
   DOUBLE_MAX,
@@ -402,6 +403,11 @@ export function compileExpression(source, scope = {}) {
       return scope.format(args, { node, numeric, mismatch, invalid });
     }
     const definition = FUNCTIONS[name];
+    if (!definition && UNAVAILABLE_FUNCTIONS.has(name))
+      throw new StataError(
+        `${name}() is a Stata function that is not available in the browser yet`,
+        198,
+      );
     if (!definition) throw new StataError(`unknown function ${name}()`, 133);
     const variadic = !Array.isArray(definition.args),
       maximum = definition.max ?? (variadic ? 255 : definition.args.length),

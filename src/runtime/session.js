@@ -325,6 +325,7 @@ const BY_RECALL = new Set([
   "qreg",
   "cloglog",
   "ivregress",
+  "ivreg",
   "areg",
 ]);
 // Estimation commands that, typed alone, show the last fit again; with no
@@ -692,6 +693,17 @@ export class Session {
           "this do-file ran more commands than the browser allows",
           901,
         );
+      if (node.unclosed && node.kind === "program") {
+        const error = new StataError("unexpected end of file", 612);
+        error.recorded = true;
+        this.record(
+          output,
+          node.text,
+          ["unexpected end of file", "r(612);"],
+          612,
+        );
+        throw error;
+      }
       if (node.kind === "program") {
         if (this.programs.has(node.name))
           throw new StataError(`program ${node.name} already defined`, 110);
@@ -748,10 +760,16 @@ export class Session {
     } finally {
       this.folding--;
     }
-    const { command, echo } = echoOf(
-        this.sourceLines ?? [],
+    // A block the file never closes echoes to the end of the file, and
+    // Stata's prompt for the line it never got.
+    const source =
+        node.unclosed && this.sourceLines?.at(-1)?.trim()
+          ? [...this.sourceLines, ""]
+          : (this.sourceLines ?? []),
+      { command, echo } = echoOf(
+        source,
         node.line,
-        node.end || node.line,
+        node.unclosed ? source.length : node.end || node.line,
       ),
       lines = inner.flatMap((record) => record.lines);
     let rc = 0;
@@ -1049,8 +1067,11 @@ export class Session {
         model &&
         !NO_TABLE.has(command.name) &&
         (model !== before ||
-          (!splitAtComma(body)[0].trim() &&
-            [model.command, model.kind].includes(command.name)))
+          // Only the model's own command may replay it; another's text,
+          // such as display's, is not read here, where a quote it leaves
+          // open would be taken for an error.
+          ([model.command, model.kind].includes(command.name) &&
+            !splitAtComma(body)[0].trim()))
       )
         this.results.r = tableResults(this, model, body, command.name);
       return value;
@@ -1172,6 +1193,8 @@ export class Session {
   }
 
   runBlock(node, frame, output) {
+    // The file ended before the block's }: none of it runs.
+    if (node.unclosed) throw new StataError("unexpected end of file", 612);
     const prefixes = prefixesOf(node.header);
     if (
       prefixes.any &&
@@ -1529,11 +1552,19 @@ export class Session {
     // Stata reads that many rows and no end.
     if (adding && rows.length !== data.n)
       throw new StataError("input must supply every observation", 198);
+    // A file that ends before end leaves the rows read so far, then stops
+    // with r(612), as Stata does.
+    const open = node.unclosed && !adding,
+      done = () => {
+        if (!open) return this.record(output, node.text, lines, 0);
+        throw new StataError("unexpected end of file", 612);
+      };
     if (!adding)
-      lines.push(`${String(start + rows.length + 1).padStart(3)}. end`);
+      lines.push(
+        `${String(start + rows.length + 1).padStart(3)}.${open ? "" : " end"}`,
+      );
     // New variables that get no values are not created.
-    if (!continuing && !rows.length && !adding)
-      return this.record(output, node.text, lines, 0);
+    if (!continuing && !rows.length && !adding) return done();
     if (!adding) data.setObservations(start + rows.length);
     specs.forEach((spec, k) => {
       const values = rows.map((row) => row[k]);
@@ -1569,10 +1600,13 @@ export class Session {
         }
       }
     });
-    this.record(output, node.text, lines, 0);
+    done();
     // Rows past the observations are commands, and so is end.
     if (adding)
-      for (const extra of [...node.rows.slice(r), "end"])
+      for (const extra of [
+        ...node.rows.slice(r),
+        ...(node.unclosed ? [] : ["end"]),
+      ])
         this.runLine(extra, frame, output);
   }
 }

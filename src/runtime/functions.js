@@ -39,6 +39,7 @@ import { density, invnormal, normal } from "./functions-normal.js";
 import { Generator } from "./random.js";
 import { civilFromDays, daysFromCivil, mdy, readLiteral } from "./datetime.js";
 import { DATETIME_FUNCTIONS } from "./functions-datetime.js";
+import { MORE_FUNCTIONS } from "./functions-more.js";
 
 export { invnormal, normal };
 
@@ -517,12 +518,21 @@ export const FUNCTIONS = {
       return at < 0 ? 0 : byteLength(s.slice(0, at)) + 1;
     },
   },
+  // From the nth character, n below 1 read as 1; nothing is found past
+  // the end, and an empty string is never found.
   ustrpos: {
-    args: [S, S],
+    args: [S, S, N],
+    min: 2,
     returns: N,
-    fn: (s, find) => {
-      const at = s.indexOf(find);
-      return at < 0 ? 0 : [...s.slice(0, at)].length + 1;
+    lenient: true,
+    fn: (s, find, n = 1) => {
+      if (find === "") return 0;
+      const list = [...s],
+        start = isMissing(n) ? 1 : Math.max(1, whole(n));
+      if (start > list.length) return 0;
+      const tail = list.slice(start - 1).join(""),
+        at = tail.indexOf(find);
+      return at < 0 ? 0 : start + [...tail.slice(0, at)].length;
     },
   },
   strrpos: {
@@ -633,4 +643,5 @@ for (const [alias, name] of Object.entries({
   reverse: "strreverse",
 }))
   FUNCTIONS[alias] = FUNCTIONS[name];
-Object.assign(FUNCTIONS, DATETIME_FUNCTIONS);
+Object.assign(FUNCTIONS, DATETIME_FUNCTIONS, MORE_FUNCTIONS);
+FUNCTIONS.bsubstr = FUNCTIONS.substr;
