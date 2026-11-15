@@ -2340,7 +2340,12 @@ export function linear(model, text, session) {
   // Spaces may stand around # and after a level's dot: 1.female # c.x, 2. reg.
   let source = text
     .replace(/\s*#\s*/g, "#")
-    .replace(/(?<![\w.])(\d+[A-Za-z]*)\s*\.\s*(?=[A-Za-z_])/g, "$1.");
+    .replace(/(?<![\w.])(\d+[A-Za-z]*)\s*\.\s*(?=[A-Za-z_])/g, "$1.")
+    // [/athrho], a free parameter in brackets, is _b[/athrho].
+    .replace(
+      /(?<!_(?:b|coef|se)\s*)\[\s*\/\s*([A-Za-z_]\w*)\s*\](?![\w(])/g,
+      "_b[/$1]",
+    );
   // _b[name], _b[eq:name], _b[[eq]name], _b[/name] for a parameter of the
   // equation "/", and [eq]_b[name], which names the equation outside. A
   // name alone is a coefficient of the main equations, never of "/".
@@ -2605,6 +2610,9 @@ export function coefficientValue(model, kind, name) {
     space = coefficientSpace(model),
     read = (entry) => {
       const at = space.entries.indexOf(entry);
+      // A model's own e(b) is read as it stands, which nlcom moves.
+      if (kind === "_b" && model.stripe && !model.space)
+        return model.b[entry.index];
       return kind === "_b" ? space.b[at] : Math.sqrt(space.V[at][at]);
     },
     slash = /^\/\s*(?::\s*)?(.+)$/.exec(text),

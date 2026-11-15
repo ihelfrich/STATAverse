@@ -2870,17 +2870,40 @@ function linearAt(model, i, constant = true) {
 }
 
 function survivalPredict(session, text, ctx) {
-  const declaration = `newvarname [if] [in] [, XB STDP HR | BASESurv BASEChazard BASEHC MGale CSNell DEViance SCHoenfeld SCAledsch ESR DFBeta LDisplace LMax EFFects Median MEAN Surv CHazard Hazard Time LNTime SCores PARTial]`,
+  const declaration = `newvarname [if] [in] [, XB STDP HR SCHoenfeld SCAledsch | BASESurv BASEChazard BASEHC MGale CSNell DEViance ESR DFBeta LDisplace LMax EFFects Median MEAN Surv CHazard Hazard Time LNTime SCores PARTial]`,
     [head, tail] = splitAtComma(text),
-    names = head.replace(/(^|\s)(if|in)\s[\s\S]*$/, "").trim();
+    names = head.replace(/(^|\s)(if|in)\s[\s\S]*$/, "").trim(),
+    qualifier = head.trim().slice(names.length),
+    several = names.includes("*") || /\s/.test(names);
   // schoenfeld, scaledsch, esr, dfbeta and scores make a variable for each
   // covariate, named stub* or listed; such a list meets the refusal of
   // the statistic, not an error in the names.
-  if (tail !== null && (names.includes("*") || /\s/.test(names)))
-    session.parse(declaration, `__predicted, ${tail}`);
+  const statistic =
+    tail === null
+      ? {}
+      : session.parse(declaration, `__predicted, ${tail}`).options;
   const model = estimates(session),
-    cox = model.kind === "stcox",
-    parsed = session.parse(declaration, text),
+    cox = model.kind === "stcox";
+  if (statistic.schoenfeld || statistic.scaledsch)
+    return schoenfeldPredict(
+      session,
+      model,
+      names,
+      session.parse(
+        declaration,
+        `__predicted ${qualifier}${tail === null ? "" : `, ${tail}`}`,
+      ),
+      ctx,
+    );
+  // Several names for one statistic: Stata assumes hr first.
+  if (
+    several &&
+    cox &&
+    !["xb", "stdp", "hr"].some((name) => statistic[name]) &&
+    !names.includes("*")
+  )
+    ctx.out("(option hr assumed; predicted hazard ratio)");
+  const parsed = session.parse(declaration, text),
     o = parsed.options,
     asked = ["xb", "stdp", "hr"].filter((name) => o[name]);
   if (asked.length > 1) throw invalid("only one statistic may be specified");
@@ -2936,6 +2959,72 @@ function survivalPredict(session, text, ctx) {
       : kind === "hr"
         ? "Predicted hazard ratio"
         : "S.E. of the prediction";
+}
+
+/**
+ * predict stub* or one name per covariate, schoenfeld or scaledsch after
+ * stcox: the Schoenfeld residuals at each failure, or scaled, b + d V r
+ * for d failures, as stcox_p makes them.
+ */
+function schoenfeldPredict(session, model, names, parsed, ctx) {
+  const o = parsed.options,
+    scaled = !!o.scaledsch;
+  if (o.schoenfeld && o.scaledsch)
+    throw invalid("only one statistic may be specified");
+  if (model.kind !== "stcox")
+    throw invalid(`option ${scaled ? "scaledsch" : "schoenfeld"} not allowed`);
+  if (model.survival.method === "marginal")
+    throw new StataError(
+      "Schoenfeld residuals not available after estimation using option exactm or\nexactp with command stcox",
+      322,
+    );
+  const k = model.names.length,
+    stub = /^(\S+)\*$/.exec(names),
+    list = stub
+      ? Array.from({ length: k }, (_, j) => `${stub[1]}${j + 1}`)
+      : names.split(/\s+/).filter(Boolean);
+  if (!stub && names.includes("*")) throw invalid(`${names} invalid name`);
+  // The names are checked before their number.
+  const data = session.data;
+  for (const name of list) {
+    if (!/^[A-Za-z_]\w{0,31}$/.test(name))
+      throw invalid(`${name} invalid name`);
+    if (data.has(name))
+      throw new StataError(`variable ${name} already defined`, 110);
+  }
+  if (list.length > k)
+    throw new StataError(`you must specify ${k} new variables`, 103);
+  if (list.length < k)
+    throw list.length > 1
+      ? new StataError(
+          `too few variables specified\n    The current estimation results for cox have ${k} equations so you must specify ${k} new variables, or you can use the equation() option and specify one variable at a time.`,
+          102,
+        )
+      : new StataError(`you must specify ${k} new variables`, 102);
+  const { theta, V, active } = model.survival,
+    residuals = schoenfeld(model),
+    failures = residuals.length,
+    wanted = new Set(session.rows(parsed, null)),
+    columns = list.map(() => new Array(data.n).fill(MISSING));
+  for (const x of residuals) {
+    const row = model.sample[x.i];
+    if (!wanted.has(row)) continue;
+    const r = scaled
+      ? theta.map(
+          (b, a) =>
+            b + failures * V[a].reduce((t, v, c) => t + v * x.residual[c], 0),
+        )
+      : x.residual;
+    model.names.forEach((name, j) => {
+      const a = active.indexOf(name);
+      if (a >= 0) columns[j][row] = r[a];
+    });
+  }
+  list.forEach((name, j) => {
+    data.generate(name, columns[j], { type: "float" });
+    data.get(name).label =
+      `${scaled ? "Scaled Schoenfeld" : "Schoenfeld"} residual, ${model.names[j]}`;
+  });
 }
 
 /** Schoenfeld residuals at each failure, as stcox_p computes them. */

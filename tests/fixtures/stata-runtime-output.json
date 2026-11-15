@@ -156684,6 +156684,2974 @@
       ]
     },
     {
+      "id": "pass8-rcs-bootstrap-heckman",
+      "source": "clear\nset seed 4242\nset obs 800\ngenerate educ = 8 + floor(runiform()*10)\ngenerate age = 20 + floor(runiform()*40)\ngenerate kids = floor(runiform()*7)\ngenerate married = runiform() < .5\ngenerate u1 = invnormal(runiform())\ngenerate u2 = 0.6*u1 + 0.8*invnormal(runiform())\ngenerate s = (-1 + 0.1*educ - 0.3*kids + 0.5*married + 0.02*age + u1) > 0\ngenerate wage = 1 + 0.08*educ + 0.02*age + u2 if s\nbootstrap, reps(20) seed(1): heckman wage educ age, select(educ kids married age) twostep\nestat bootstrap, percentile\nbootstrap, reps(10) seed(2): heckman wage educ age, select(educ kids married age) nolog\ndisplay e(N_reps) \" \" e(chi2) \" \" e(df_m) \" \" e(k_eq)\njackknife, nodots: heckman wage educ age, select(educ kids married age) twostep\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 800",
+          "lines": ["Number of observations (_N) was 0, now 800."]
+        },
+        { "command": "generate educ = 8 + floor(runiform()*10)", "lines": [] },
+        { "command": "generate age = 20 + floor(runiform()*40)", "lines": [] },
+        { "command": "generate kids = floor(runiform()*7)", "lines": [] },
+        { "command": "generate married = runiform() < .5", "lines": [] },
+        { "command": "generate u1 = invnormal(runiform())", "lines": [] },
+        {
+          "command": "generate u2 = 0.6*u1 + 0.8*invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate s = (-1 + 0.1*educ - 0.3*kids + 0.5*married + 0.02*age + u1) > 0",
+          "lines": []
+        },
+        {
+          "command": "generate wage = 1 + 0.08*educ + 0.02*age + u2 if s",
+          "lines": ["(308 missing values generated)"]
+        },
+        {
+          "command": "bootstrap, reps(20) seed(1): heckman wage educ age, select(educ kids married age) twostep",
+          "lines": [
+            "(running heckman on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Heckman selection model -- two-step estimates   Number of obs     =        800",
+            "(regression model with sample selection)              Selected    =        492",
+            "                                                      Nonselected =        308",
+            "",
+            "                                                Wald chi2(2)      =      90.82",
+            "                                                Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "        wage | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "wage         |",
+            "        educ |   .0565788   .0161043     3.51   0.000      .025015    .0881426",
+            "         age |    .018251   .0019187     9.51   0.000     .0144905    .0220116",
+            "       _cons |   1.382799   .2685812     5.15   0.000     .8563899    1.909209",
+            "-------------+----------------------------------------------------------------",
+            "select       |",
+            "        educ |   .0851418   .0182368     4.67   0.000     .0493984    .1208853",
+            "        kids |  -.3521611   .0232262   -15.16   0.000    -.3976836   -.3066386",
+            "     married |   .5604697   .0858097     6.53   0.000     .3922859    .7286535",
+            "         age |   .0152532   .0042866     3.56   0.000     .0068516    .0236548",
+            "       _cons |  -.5684704    .294407    -1.93   0.053    -1.145498    .0085568",
+            "-------------+----------------------------------------------------------------",
+            "/mills       |",
+            "      lambda |   .5963669   .0932418     6.40   0.000     .4136164    .7791175",
+            "-------------+----------------------------------------------------------------",
+            "         rho |    0.63234",
+            "       sigma |  .94311398",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat bootstrap, percentile",
+          "lines": [
+            "Heckman selection model -- two-step estimates   Number of obs     =        800",
+            "                                                Replications      =         20",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |    Observed               Bootstrap",
+            "        wage | coefficient       Bias    std. err.  [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "wage         |",
+            "        educ |   .05657881  -.0041919   .01610429    .0191299   .0842827   (P)",
+            "         age |   .01825104   .0002663   .00191869    .0147933   .0211801   (P)",
+            "       _cons |   1.3827994    .038167    .2685812    .7919716   2.011337   (P)",
+            "-------------+----------------------------------------------------------------",
+            "select       |",
+            "        educ |   .08514184  -.0065724    .0182368    .0497034   .1218488   (P)",
+            "        kids |  -.35216114  -.0083566    .0232262   -.3975597   -.330389   (P)",
+            "     married |   .56046969  -.0114307   .08580965    .3544918   .7126856   (P)",
+            "         age |   .01525318  -.0011187   .00428661    .0065294   .0249242   (P)",
+            "       _cons |  -.56847042   .1686243   .29440703    -1.04324   .2353154   (P)",
+            "-------------+----------------------------------------------------------------",
+            "/mills       |",
+            "      lambda |   .59636695   .0121675   .09324177    .3965526    .736402   (P)",
+            "------------------------------------------------------------------------------",
+            "Key: P: Percentile"
+          ]
+        },
+        {
+          "command": "bootstrap, reps(10) seed(2): heckman wage educ age, select(educ kids married age) nolog",
+          "lines": [
+            "(running heckman on estimation sample)",
+            "",
+            "Bootstrap replications (10): .........10 done",
+            "",
+            "Heckman selection model                         Number of obs     =        800",
+            "(regression model with sample selection)              Selected    =        492",
+            "                                                      Nonselected =        308",
+            "",
+            "                                                Wald chi2(2)      =      36.19",
+            "Log likelihood = -1028.038                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "        wage | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "wage         |",
+            "        educ |   .0585428   .0149674     3.91   0.000     .0292073    .0878783",
+            "         age |   .0182863   .0043313     4.22   0.000      .009797    .0267755",
+            "       _cons |   1.338446   .2478526     5.40   0.000     .8526639    1.824228",
+            "-------------+----------------------------------------------------------------",
+            "select       |",
+            "        educ |   .0809246    .021124     3.83   0.000     .0395224    .1223269",
+            "        kids |  -.3557028   .0184367   -19.29   0.000     -.391838   -.3195675",
+            "     married |   .5852832   .1065372     5.49   0.000     .3764742    .7940922",
+            "         age |   .0162997   .0047895     3.40   0.001     .0069124     .025687",
+            "       _cons |  -.5515021   .2890706    -1.91   0.056     -1.11807    .0150659",
+            "-------------+----------------------------------------------------------------",
+            "     /athrho |    .801246   .0822431     9.74   0.000     .6400525    .9624394",
+            "    /lnsigma |  -.0490769   .0296512    -1.66   0.098    -.1071922    .0090383",
+            "-------------+----------------------------------------------------------------",
+            "         rho |   .6647328   .0459024                      .5649353     .745363",
+            "       sigma |   .9521079   .0282311                       .898353    1.009079",
+            "      lambda |   .6328973   .0504529                      .5340115    .7317831",
+            "------------------------------------------------------------------------------",
+            "LR test of indep. eqns. (rho = 0): chi2(1) = 29.85        Prob > chi2 = 0.0000"
+          ]
+        },
+        {
+          "command": "display e(N_reps) \" \" e(chi2) \" \" e(df_m) \" \" e(k_eq)",
+          "lines": ["10 36.187124 2 4"]
+        },
+        {
+          "command": "jackknife, nodots: heckman wage educ age, select(educ kids married age) twostep",
+          "lines": [
+            "Heckman selection model -- two-step estimates   Number of obs     =        800",
+            "(regression model with sample selection)              Selected    =        492",
+            "                                                      Nonselected =        308",
+            "",
+            "                                                F(   2,    799)   =      18.33",
+            "                                                Prob > F          =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "        wage | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "wage         |",
+            "        educ |   .0565788   .0146906     3.85   0.000     .0277421    .0854156",
+            "         age |    .018251   .0035263     5.18   0.000     .0113291     .025173",
+            "       _cons |   1.382799   .2770135     4.99   0.000     .8390392     1.92656",
+            "-------------+----------------------------------------------------------------",
+            "select       |",
+            "        educ |   .0851418   .0183343     4.64   0.000     .0491528    .1211309",
+            "        kids |  -.3521611   .0276302   -12.75   0.000    -.4063975   -.2979248",
+            "     married |   .5604697    .103086     5.44   0.000     .3581184     .762821",
+            "         age |   .0152532   .0042981     3.55   0.000     .0068162    .0236902",
+            "       _cons |  -.5684704   .3012081    -1.89   0.059    -1.159723    .0227821",
+            "-------------+----------------------------------------------------------------",
+            "/mills       |",
+            "      lambda |   .5963669   .1197142     4.98   0.000     .3613754    .8313585",
+            "-------------+----------------------------------------------------------------",
+            "         rho |    0.63234",
+            "       sigma |  .94311398",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-rcs-bootstrap-teffects-survival",
+      "source": "clear\nset seed 4243\nset obs 600\ngenerate x1 = invnormal(runiform())\ngenerate x2 = runiform()*4\ngenerate t = runiform() < invlogit(-0.3 + 0.6*x1 - 0.2*x2)\ngenerate y = 1 + 0.5*x1 + 0.3*x2 + 1.5*t + invnormal(runiform())\nbootstrap, reps(10) seed(3): teffects ra (y x1 x2) (t)\nclear\nset seed 4244\nset obs 300\ngenerate id = _n\ngenerate drug = runiform() < .5\ngenerate age = 40 + floor(runiform()*30)\ngenerate female = runiform() < .5\ngenerate time = -ln(runiform()) / (0.05*exp(-0.7*drug + 0.03*(age-55) + 0.2*female))\ngenerate fail = runiform() < .75\nreplace time = ceil(time*10)/10\nstset time, failure(fail)\nbootstrap, reps(10) seed(4): stcox drug age\nbootstrap, reps(10) seed(4) nodots: streg drug age, distribution(weibull) nolog\njackknife, nodots: stcox drug age\njackknife, nodots: streg drug age, distribution(weibull) nolog nohr\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4243", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate x2 = runiform()*4", "lines": [] },
+        {
+          "command": "generate t = runiform() < invlogit(-0.3 + 0.6*x1 - 0.2*x2)",
+          "lines": []
+        },
+        {
+          "command": "generate y = 1 + 0.5*x1 + 0.3*x2 + 1.5*t + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "bootstrap, reps(10) seed(3): teffects ra (y x1 x2) (t)",
+          "lines": [
+            "(running teffects on estimation sample)",
+            "",
+            "Bootstrap replications (10): .........10 done",
+            "",
+            "Treatment-effects estimation                    Number of obs     =        600",
+            "Estimator      : regression adjustment",
+            "Outcome model  : linear",
+            "Treatment model: none",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "ATE          |",
+            "           t |",
+            "   (1 vs 0)  |   1.422133   .1009209    14.09   0.000     1.224332    1.619935",
+            "-------------+----------------------------------------------------------------",
+            "POmean       |",
+            "           t |",
+            "          0  |   1.623625   .0615947    26.36   0.000     1.502902    1.744349",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4244", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate drug = runiform() < .5", "lines": [] },
+        { "command": "generate age = 40 + floor(runiform()*30)", "lines": [] },
+        { "command": "generate female = runiform() < .5", "lines": [] },
+        {
+          "command": "generate time = -ln(runiform()) / (0.05*exp(-0.7*drug + 0.03*(age-55) + 0.2*female))",
+          "lines": []
+        },
+        { "command": "generate fail = runiform() < .75", "lines": [] },
+        {
+          "command": "replace time = ceil(time*10)/10",
+          "lines": ["(300 real changes made)"]
+        },
+        {
+          "command": "stset time, failure(fail)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: fail!=0 & fail<.",
+            "Observed time interval: (0, time]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "        300  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "        300  observations remaining, representing",
+            "        222  failures in single-record/single-failure data",
+            "    8,526.9  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =     244.4"
+          ]
+        },
+        {
+          "command": "bootstrap, reps(10) seed(4): stcox drug age",
+          "lines": [
+            "(running stcox on estimation sample)",
+            "",
+            "Bootstrap replications (10): .........10 done",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "Bootstrap results",
+            "",
+            "No. of subjects =     300                               Number of obs =    300",
+            "No. of failures =     222",
+            "Time at risk    = 8,526.9",
+            "                                                        Wald chi2(2)  =  81.15",
+            "Log likelihood = -1032.1268                             Prob > chi2   = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "          _t | haz. ratio   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        drug |   .5153829   .1058509    -3.23   0.001      .344594    .7708188",
+            "         age |   1.037805   .0067451     5.71   0.000     1.024669     1.05111",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bootstrap, reps(10) seed(4) nodots: streg drug age, distribution(weibull) nolog",
+          "lines": [
+            "Weibull PH regression",
+            "",
+            "No. of subjects =     300                               Number of obs =    300",
+            "No. of failures =     222",
+            "Time at risk    = 8,526.9",
+            "                                                        Wald chi2(2)  =  61.35",
+            "Log likelihood = -430.13224                             Prob > chi2   = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "          _t | haz. ratio   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        drug |   .5221145   .1031864    -3.29   0.001     .3544389     .769113",
+            "         age |    1.03664   .0078048     4.78   0.000     1.021455    1.052051",
+            "       _cons |   .0067432    .003317   -10.16   0.000     .0025714    .0176835",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |  -.0458021   .0221289    -2.07   0.038     -.089174   -.0024302",
+            "-------------+----------------------------------------------------------------",
+            "           p |    .955231   .0211382                      .9146864    .9975728",
+            "         1/p |   1.046867   .0231661                      1.002433    1.093271",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline hazard."
+          ]
+        },
+        {
+          "command": "jackknife, nodots: stcox drug age",
+          "lines": [
+            "Cox regression with Breslow method for ties",
+            "",
+            "Jackknife results",
+            "",
+            "No. of subjects =     300                               Number of obs =    300",
+            "No. of failures =     222",
+            "Time at risk    = 8,526.9",
+            "                                                        F(2, 299)     =  19.95",
+            "Log likelihood = -1032.1268                             Prob > F      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "          _t | Haz. ratio   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        drug |   .5153829   .0769142    -4.44   0.000     .3842226    .6913167",
+            "         age |   1.037805   .0091458     4.21   0.000     1.019962     1.05596",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife, nodots: streg drug age, distribution(weibull) nolog nohr",
+          "lines": [
+            "Weibull PH regression",
+            "",
+            "No. of subjects =     300                               Number of obs =    300",
+            "No. of failures =     222",
+            "Time at risk    = 8,526.9",
+            "                                                        F(2, 299)     =  20.56",
+            "Log likelihood = -430.13224                             Prob > F      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "          _t | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        drug |  -.6498683   .1443769    -4.50   0.000    -.9339919   -.3657447",
+            "         age |   .0359849   .0087009     4.14   0.000     .0188622    .0531075",
+            "       _cons |  -4.999217   .5158044    -9.69   0.000    -6.014284   -3.984151",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |  -.0458021   .0513011    -0.89   0.373     -.146759    .0551549",
+            "-------------+----------------------------------------------------------------",
+            "           p |    .955231   .0490044                       .863502    1.056704",
+            "         1/p |   1.046867   .0537054                      .9463386    1.158075",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-rcs-free-parameter-brackets",
+      "source": "clear\nset seed 4242\nset obs 800\ngenerate educ = 8 + floor(runiform()*10)\ngenerate age = 20 + floor(runiform()*40)\ngenerate kids = floor(runiform()*7)\ngenerate married = runiform() < .5\ngenerate u1 = invnormal(runiform())\ngenerate u2 = 0.6*u1 + 0.8*invnormal(runiform())\ngenerate s = (-1 + 0.1*educ - 0.3*kids + 0.5*married + 0.02*age + u1) > 0\ngenerate wage = 1 + 0.08*educ + 0.02*age + u2 if s\nheckman wage educ age, select(educ kids married age) nolog\ndisplay [/athrho]\ndisplay [/athrho]+1\ndisplay [wage]educ\ndisplay [select]_cons\ndisplay [ wage ]educ\ndisplay [/ athrho]\nlincom [/athrho] + [/lnsigma]\ntest [/athrho] = 0\nnlcom exp([/athrho])\ncapture noisily display [/nosuch]\ncapture noisily display [wage]nosuch\ncapture noisily display [/athrho]_cons\nregress wage educ age\ncapture noisily display [wage]educ\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 800",
+          "lines": ["Number of observations (_N) was 0, now 800."]
+        },
+        { "command": "generate educ = 8 + floor(runiform()*10)", "lines": [] },
+        { "command": "generate age = 20 + floor(runiform()*40)", "lines": [] },
+        { "command": "generate kids = floor(runiform()*7)", "lines": [] },
+        { "command": "generate married = runiform() < .5", "lines": [] },
+        { "command": "generate u1 = invnormal(runiform())", "lines": [] },
+        {
+          "command": "generate u2 = 0.6*u1 + 0.8*invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate s = (-1 + 0.1*educ - 0.3*kids + 0.5*married + 0.02*age + u1) > 0",
+          "lines": []
+        },
+        {
+          "command": "generate wage = 1 + 0.08*educ + 0.02*age + u2 if s",
+          "lines": ["(308 missing values generated)"]
+        },
+        {
+          "command": "heckman wage educ age, select(educ kids married age) nolog",
+          "lines": [
+            "Heckman selection model                         Number of obs     =        800",
+            "(regression model with sample selection)              Selected    =        492",
+            "                                                      Nonselected =        308",
+            "",
+            "                                                Wald chi2(2)      =      39.98",
+            "Log likelihood = -1028.038                      Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "wage         |",
+            "        educ |   .0585428   .0148662     3.94   0.000     .0294056    .0876799",
+            "         age |   .0182863   .0035253     5.19   0.000     .0113768    .0251957",
+            "       _cons |   1.338446   .2621452     5.11   0.000     .8246509    1.852241",
+            "-------------+----------------------------------------------------------------",
+            "select       |",
+            "        educ |   .0809246   .0177755     4.55   0.000     .0460852     .115764",
+            "        kids |  -.3557028   .0263762   -13.49   0.000    -.4073991   -.3040064",
+            "     married |   .5852832   .0940916     6.22   0.000     .4008671    .7696993",
+            "         age |   .0162997   .0043367     3.76   0.000        .0078    .0247994",
+            "       _cons |  -.5515021   .2894248    -1.91   0.057    -1.118764      .01576",
+            "-------------+----------------------------------------------------------------",
+            "     /athrho |    .801246   .1443257     5.55   0.000     .5183728    1.084119",
+            "    /lnsigma |  -.0490769     .04217    -1.16   0.245    -.1317287    .0335748",
+            "-------------+----------------------------------------------------------------",
+            "         rho |   .6647328   .0805525                      .4764432    .7947216",
+            "       sigma |   .9521079   .0401504                      .8765788    1.034145",
+            "      lambda |   .6328973   .0964083                      .4439406    .8218541",
+            "------------------------------------------------------------------------------",
+            "LR test of indep. eqns. (rho = 0): chi2(1) = 29.85        Prob > chi2 = 0.0000"
+          ]
+        },
+        { "command": "display [/athrho]", "lines": [".80124599"] },
+        { "command": "display [/athrho]+1", "lines": ["1.801246"] },
+        { "command": "display [wage]educ", "lines": [".05854279"] },
+        { "command": "display [select]_cons", "lines": ["-.55150212"] },
+        { "command": "display [ wage ]educ", "lines": [".05854279"] },
+        { "command": "display [/ athrho]", "lines": [".80124599"] },
+        {
+          "command": "lincom [/athrho] + [/lnsigma]",
+          "lines": [
+            " ( 1)  [/]athrho + [/]lnsigma = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |    .752169   .1750335     4.30   0.000     .4091098    1.095228",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test [/athrho] = 0",
+          "lines": [
+            " ( 1)  [/]athrho = 0",
+            "",
+            "           chi2(  1) =   30.82",
+            "         Prob > chi2 =    0.0000"
+          ]
+        },
+        {
+          "command": "nlcom exp([/athrho])",
+          "lines": [
+            "       _nl_1: exp([/athrho])",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _nl_1 |   2.228316   .3216032     6.93   0.000     1.597985    2.858646",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily display [/nosuch]",
+          "lines": ["[/nosuch] not found"]
+        },
+        {
+          "command": "capture noisily display [wage]nosuch",
+          "lines": ["[nosuch] not found"]
+        },
+        {
+          "command": "capture noisily display [/athrho]_cons",
+          "lines": ["equation [/athrho] not found"]
+        },
+        {
+          "command": "regress wage educ age",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       492",
+            "-------------+----------------------------------   F(2, 489)       =     13.60",
+            "       Model |  21.1111914         2  10.5555957   Prob > F        =    0.0000",
+            "    Residual |  379.615302       489  .776309412   R-squared       =    0.0527",
+            "-------------+----------------------------------   Adj R-squared   =    0.0488",
+            "       Total |  400.726494       491  .816143572   Root MSE        =    .88108",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .0420659   .0141456     2.97   0.003     .0142721    .0698596",
+            "         age |   .0148808   .0033797     4.40   0.000     .0082403    .0215214",
+            "       _cons |   1.982976   .2341761     8.47   0.000     1.522861    2.443092",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily display [wage]educ",
+          "lines": ["equation [wage] not found"]
+        },
+        { "command": "display _rc", "lines": ["303"] }
+      ]
+    },
+    {
+      "id": "pass8-rcs-heckman-clusters-and-robust",
+      "source": "clear\nset seed 4242\nset obs 800\ngenerate educ = 8 + floor(runiform()*10)\ngenerate age = 20 + floor(runiform()*40)\ngenerate kids = floor(runiform()*7)\ngenerate married = runiform() < .5\ngenerate u1 = invnormal(runiform())\ngenerate u2 = 0.6*u1 + 0.8*invnormal(runiform())\ngenerate s = (-1 + 0.1*educ - 0.3*kids + 0.5*married + 0.02*age + u1) > 0\ngenerate wage = 1 + 0.08*educ + 0.02*age + u2 if s\nheckman wage educ age, select(educ kids married age) vce(cluster kids) nolog\ndisplay e(rank) \" \" e(df_m) \" \" e(chi2) \" \" e(p)\ngenerate c11 = mod(_n, 11)\nheckman wage educ age, select(educ kids married age) vce(cluster c11) nolog\ndisplay e(rank) \" \" e(df_m) \" \" e(chi2) \" \" e(p)\ngenerate c12 = mod(_n, 12)\nheckman wage educ age, select(educ kids married age) vce(cluster c12) nolog\ncapture noisily heckman wage educ age, select(educ kids married age) vce(cluster kids) twostep\nheckman wage educ age, select(educ kids married age) vce(robust)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 800",
+          "lines": ["Number of observations (_N) was 0, now 800."]
+        },
+        { "command": "generate educ = 8 + floor(runiform()*10)", "lines": [] },
+        { "command": "generate age = 20 + floor(runiform()*40)", "lines": [] },
+        { "command": "generate kids = floor(runiform()*7)", "lines": [] },
+        { "command": "generate married = runiform() < .5", "lines": [] },
+        { "command": "generate u1 = invnormal(runiform())", "lines": [] },
+        {
+          "command": "generate u2 = 0.6*u1 + 0.8*invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate s = (-1 + 0.1*educ - 0.3*kids + 0.5*married + 0.02*age + u1) > 0",
+          "lines": []
+        },
+        {
+          "command": "generate wage = 1 + 0.08*educ + 0.02*age + u2 if s",
+          "lines": ["(308 missing values generated)"]
+        },
+        {
+          "command": "heckman wage educ age, select(educ kids married age) vce(cluster kids) nolog",
+          "lines": [
+            "Heckman selection model                         Number of obs     =        800",
+            "(regression model with sample selection)              Selected    =        492",
+            "                                                      Nonselected =        308",
+            "",
+            "                                                Wald chi2(0)      =          .",
+            "Log pseudolikelihood = -1028.038                Prob > chi2       =          .",
+            "",
+            "                                   (Std. err. adjusted for 7 clusters in kids)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "        wage | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "wage         |",
+            "        educ |   .0585428    .014554     4.02   0.000     .0300176     .087068",
+            "         age |   .0182863   .0029529     6.19   0.000     .0124986    .0240739",
+            "       _cons |   1.338446   .2505348     5.34   0.000     .8474068    1.829485",
+            "-------------+----------------------------------------------------------------",
+            "select       |",
+            "        educ |   .0809246   .0085158     9.50   0.000     .0642341    .0976152",
+            "        kids |  -.3557028   .0211982   -16.78   0.000    -.3972505    -.314155",
+            "     married |   .5852832   .1116111     5.24   0.000     .3665295    .8040369",
+            "         age |   .0162997   .0040342     4.04   0.000     .0083928    .0242066",
+            "       _cons |  -.5515021   .0686755    -8.03   0.000    -.6861037   -.4169006",
+            "-------------+----------------------------------------------------------------",
+            "     /athrho |    .801246   .1858714     4.31   0.000     .4369447    1.165547",
+            "    /lnsigma |  -.0490769   .0542205    -0.91   0.365    -.1553472    .0571933",
+            "-------------+----------------------------------------------------------------",
+            "         rho |   .6647328   .1037405                      .4111087    .8228395",
+            "       sigma |   .9521079   .0516238                      .8561179     1.05886",
+            "      lambda |   .6328973   .1266832                      .3846028    .8811918",
+            "------------------------------------------------------------------------------",
+            "Wald test of indep. eqns. (rho = 0): chi2(1) = 18.58      Prob > chi2 = 0.0000"
+          ]
+        },
+        {
+          "command": "display e(rank) \" \" e(df_m) \" \" e(chi2) \" \" e(p)",
+          "lines": ["6 0 . ."]
+        },
+        { "command": "generate c11 = mod(_n, 11)", "lines": [] },
+        {
+          "command": "heckman wage educ age, select(educ kids married age) vce(cluster c11) nolog",
+          "lines": [
+            "Heckman selection model                         Number of obs     =        800",
+            "(regression model with sample selection)              Selected    =        492",
+            "                                                      Nonselected =        308",
+            "",
+            "                                                Wald chi2(2)      =      46.95",
+            "Log pseudolikelihood = -1028.038                Prob > chi2       =     0.0000",
+            "",
+            "                                   (Std. err. adjusted for 11 clusters in c11)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "        wage | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "wage         |",
+            "        educ |   .0585428   .0136511     4.29   0.000     .0317871    .0852985",
+            "         age |   .0182863   .0037019     4.94   0.000     .0110306    .0255419",
+            "       _cons |   1.338446   .2363853     5.66   0.000     .8751393    1.801753",
+            "-------------+----------------------------------------------------------------",
+            "select       |",
+            "        educ |   .0809246   .0175855     4.60   0.000     .0464578    .1153915",
+            "        kids |  -.3557028    .020676   -17.20   0.000    -.3962269   -.3151786",
+            "     married |   .5852832   .1155324     5.07   0.000     .3588438    .8117226",
+            "         age |   .0162997   .0052535     3.10   0.002     .0060029    .0265964",
+            "       _cons |  -.5515021   .3004034    -1.84   0.066    -1.140282    .0372778",
+            "-------------+----------------------------------------------------------------",
+            "     /athrho |    .801246   .1072906     7.47   0.000     .5909603    1.011532",
+            "    /lnsigma |  -.0490769   .0376333    -1.30   0.192    -.1228368    .0246829",
+            "-------------+----------------------------------------------------------------",
+            "         rho |   .6647328   .0598821                      .5305859    .7663948",
+            "       sigma |   .9521079   .0358309                       .884408     1.02499",
+            "      lambda |   .6328973   .0743939                      .4870879    .7787067",
+            "------------------------------------------------------------------------------",
+            "Wald test of indep. eqns. (rho = 0): chi2(1) = 55.77      Prob > chi2 = 0.0000"
+          ]
+        },
+        {
+          "command": "display e(rank) \" \" e(df_m) \" \" e(chi2) \" \" e(p)",
+          "lines": ["10 2 46.954563 6.367e-11"]
+        },
+        { "command": "generate c12 = mod(_n, 12)", "lines": [] },
+        {
+          "command": "heckman wage educ age, select(educ kids married age) vce(cluster c12) nolog",
+          "lines": [
+            "Heckman selection model                         Number of obs     =        800",
+            "(regression model with sample selection)              Selected    =        492",
+            "                                                      Nonselected =        308",
+            "",
+            "                                                Wald chi2(2)      =      72.33",
+            "Log pseudolikelihood = -1028.038                Prob > chi2       =     0.0000",
+            "",
+            "                                   (Std. err. adjusted for 12 clusters in c12)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "        wage | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "wage         |",
+            "        educ |   .0585428   .0141143     4.15   0.000     .0308793    .0862063",
+            "         age |   .0182863   .0027041     6.76   0.000     .0129864    .0235862",
+            "       _cons |   1.338446   .2486108     5.38   0.000     .8511779    1.825714",
+            "-------------+----------------------------------------------------------------",
+            "select       |",
+            "        educ |   .0809246     .01628     4.97   0.000     .0490163    .1128329",
+            "        kids |  -.3557028   .0233361   -15.24   0.000    -.4014406   -.3099649",
+            "     married |   .5852832   .0954237     6.13   0.000     .3982563    .7723102",
+            "         age |   .0162997   .0026939     6.05   0.000     .0110197    .0215797",
+            "       _cons |  -.5515021   .2726395    -2.02   0.043    -1.085866   -.0171386",
+            "-------------+----------------------------------------------------------------",
+            "     /athrho |    .801246   .0872503     9.18   0.000     .6302386    .9722533",
+            "    /lnsigma |  -.0490769   .0197175    -2.49   0.013    -.0877226   -.0104313",
+            "-------------+----------------------------------------------------------------",
+            "         rho |   .6647328    .048697                      .5582165    .7496928",
+            "       sigma |   .9521079   .0187732                       .916015    .9896229",
+            "      lambda |   .6328973   .0528764                      .5292614    .7365332",
+            "------------------------------------------------------------------------------",
+            "Wald test of indep. eqns. (rho = 0): chi2(1) = 84.33      Prob > chi2 = 0.0000"
+          ]
+        },
+        {
+          "command": "capture noisily heckman wage educ age, select(educ kids married age) vce(cluster kids) twostep",
+          "lines": ["vcetype cluster not allowed"]
+        },
+        {
+          "command": "heckman wage educ age, select(educ kids married age) vce(robust)",
+          "lines": [
+            "Iteration 0:  Log pseudolikelihood = -1028.2392",
+            "Iteration 1:  Log pseudolikelihood = -1028.0379",
+            "Iteration 2:  Log pseudolikelihood = -1028.0377",
+            "Iteration 3:  Log pseudolikelihood = -1028.0377",
+            "",
+            "Heckman selection model                         Number of obs     =        800",
+            "(regression model with sample selection)              Selected    =        492",
+            "                                                      Nonselected =        308",
+            "",
+            "                                                Wald chi2(2)      =      39.13",
+            "Log pseudolikelihood = -1028.038                Prob > chi2       =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "        wage | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "wage         |",
+            "        educ |   .0585428    .014498     4.04   0.000     .0301273    .0869583",
+            "         age |   .0182863   .0035007     5.22   0.000     .0114251    .0251475",
+            "       _cons |   1.338446   .2645035     5.06   0.000     .8200288    1.856863",
+            "-------------+----------------------------------------------------------------",
+            "select       |",
+            "        educ |   .0809246   .0178183     4.54   0.000     .0460014    .1158478",
+            "        kids |  -.3557028    .026675   -13.33   0.000    -.4079849   -.3034207",
+            "     married |   .5852832   .0947845     6.17   0.000      .399509    .7710574",
+            "         age |   .0162997   .0041735     3.91   0.000     .0081198    .0244795",
+            "       _cons |  -.5515021   .2902585    -1.90   0.057    -1.120398    .0173941",
+            "-------------+----------------------------------------------------------------",
+            "     /athrho |    .801246   .1327758     6.03   0.000     .5410103    1.061482",
+            "    /lnsigma |  -.0490769   .0406543    -1.21   0.227    -.1287579     .030604",
+            "-------------+----------------------------------------------------------------",
+            "         rho |   .6647328   .0741062                      .4937523    .7862303",
+            "       sigma |   .9521079   .0387073                      .8791868    1.031077",
+            "      lambda |   .6328973   .0885623                      .4593183    .8064763",
+            "------------------------------------------------------------------------------",
+            "Wald test of indep. eqns. (rho = 0): chi2(1) = 36.42      Prob > chi2 = 0.0000"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-rcs-didregress-granger-and-collinear-groups",
+      "source": "clear\nset seed 4245\nset obs 1000\ngenerate id = _n\ngenerate treated = id > 500\nexpand 8\nbysort id: generate year = 1999 + _n\ngenerate x = invnormal(runiform())\ngenerate d = treated & year >= 2006\ngenerate y = 0.5*x + 0.3*treated + 0.1*(year-2000) + 2*d + invnormal(runiform())\ndidregress (y x) (d), time(year) group(treated)\nestat granger\nreturn list\ngenerate g4 = 1 + mod(id, 4)\nreplace d = g4 >= 3 & year >= 2004\ndidregress (y x) (d), time(year) group(g4)\nestat ptrends\nestat granger\nclear\nset seed 4246\nset obs 3000\ngenerate state = 1 + floor(runiform()*25)\ngenerate year = 2000 + floor(runiform()*12)\ngenerate x = invnormal(runiform())\ngenerate treated = state <= 8\ngenerate d = treated & year >= 2007\ngenerate y = 1 + 0.5*x + 0.05*state + 0.1*(year-2000) + 1.9*d + invnormal(runiform())\ndidregress (y x i.state) (d), group(state) time(year)\ndisplay _se[r1vs0.d]\nmatrix b = e(b)\ndisplay b[1,3] \" \" b[1,4]\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4245", "lines": [] },
+        {
+          "command": "set obs 1000",
+          "lines": ["Number of observations (_N) was 0, now 1,000."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate treated = id > 500", "lines": [] },
+        { "command": "expand 8", "lines": ["(7,000 observations created)"] },
+        { "command": "bysort id: generate year = 1999 + _n", "lines": [] },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate d = treated & year >= 2006", "lines": [] },
+        {
+          "command": "generate y = 0.5*x + 0.3*treated + 0.1*(year-2000) + 2*d + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "didregress (y x) (d), time(year) group(treated)",
+          "lines": [
+            "Treatment and time information",
+            "",
+            "Time variable: year",
+            "Control:       d = 0",
+            "Treatment:     d = 1",
+            "-----------------------------------",
+            "             |   Control  Treatment",
+            "-------------+---------------------",
+            "Group        |",
+            "     treated |         1          1",
+            "-------------+---------------------",
+            "Time         |",
+            "     Minimum |      2000       2006",
+            "     Maximum |      2000       2006",
+            "-----------------------------------",
+            "",
+            "Difference-in-differences regression                     Number of obs = 8,000",
+            "Data type: Repeated cross-sectional",
+            "",
+            "                                (Std. err. adjusted for 2 clusters in treated)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "ATET         |",
+            "           d |",
+            "   (1 vs 0)  |   2.016259   .0000105  1.9e+05   0.000     2.016125    2.016393",
+            "------------------------------------------------------------------------------",
+            "Note: ATET estimate adjusted for covariates, group effects, and time effects."
+          ]
+        },
+        {
+          "command": "estat granger",
+          "lines": [
+            "Granger causality test",
+            "H0: No effect in anticipation of treatment",
+            "",
+            " F(1, 1) = 249712.76",
+            "Prob > F =    0.0013"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  8000",
+            "                  r(F) =  249712.7631742527",
+            "               r(df_r) =  1",
+            "                  r(p) =  .0012739699176228",
+            "                 r(df) =  1"
+          ]
+        },
+        { "command": "generate g4 = 1 + mod(id, 4)", "lines": [] },
+        {
+          "command": "replace d = g4 >= 3 & year >= 2004",
+          "lines": ["(2,000 real changes made)"]
+        },
+        {
+          "command": "didregress (y x) (d), time(year) group(g4)",
+          "lines": [
+            "Treatment and time information",
+            "",
+            "Time variable: year",
+            "Control:       d = 0",
+            "Treatment:     d = 1",
+            "-----------------------------------",
+            "             |   Control  Treatment",
+            "-------------+---------------------",
+            "Group        |",
+            "          g4 |         2          2",
+            "-------------+---------------------",
+            "Time         |",
+            "     Minimum |      2000       2004",
+            "     Maximum |      2000       2004",
+            "-----------------------------------",
+            "",
+            "Difference-in-differences regression                     Number of obs = 8,000",
+            "Data type: Repeated cross-sectional",
+            "",
+            "                                     (Std. err. adjusted for 4 clusters in g4)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "ATET         |",
+            "           d |",
+            "   (1 vs 0)  |  -.0091504   .0266837    -0.34   0.754    -.0940699    .0757691",
+            "------------------------------------------------------------------------------",
+            "Note: ATET estimate adjusted for covariates, group effects, and time effects."
+          ]
+        },
+        {
+          "command": "estat ptrends",
+          "lines": [
+            "Parallel-trends test (pretreatment time period)",
+            "H0: Linear trends are parallel",
+            "",
+            " F(1, 3) =   0.00",
+            "Prob > F = 0.9894"
+          ]
+        },
+        {
+          "command": "estat granger",
+          "lines": [
+            "Granger causality test",
+            "H0: No effect in anticipation of treatment",
+            "",
+            " F(3, 3) = 195.60",
+            "Prob > F = 0.0006"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4246", "lines": [] },
+        {
+          "command": "set obs 3000",
+          "lines": ["Number of observations (_N) was 0, now 3,000."]
+        },
+        { "command": "generate state = 1 + floor(runiform()*25)", "lines": [] },
+        {
+          "command": "generate year = 2000 + floor(runiform()*12)",
+          "lines": []
+        },
+        { "command": "generate x = invnormal(runiform())", "lines": [] },
+        { "command": "generate treated = state <= 8", "lines": [] },
+        { "command": "generate d = treated & year >= 2007", "lines": [] },
+        {
+          "command": "generate y = 1 + 0.5*x + 0.05*state + 0.1*(year-2000) + 1.9*d + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "didregress (y x i.state) (d), group(state) time(year)",
+          "lines": [
+            "note: 2.state omitted because of collinearity.",
+            "note: 3.state omitted because of collinearity.",
+            "note: 4.state omitted because of collinearity.",
+            "note: 5.state omitted because of collinearity.",
+            "note: 6.state omitted because of collinearity.",
+            "note: 7.state omitted because of collinearity.",
+            "note: 8.state omitted because of collinearity.",
+            "note: 9.state omitted because of collinearity.",
+            "note: 10.state omitted because of collinearity.",
+            "note: 11.state omitted because of collinearity.",
+            "note: 12.state omitted because of collinearity.",
+            "note: 13.state omitted because of collinearity.",
+            "note: 14.state omitted because of collinearity.",
+            "note: 15.state omitted because of collinearity.",
+            "note: 16.state omitted because of collinearity.",
+            "note: 17.state omitted because of collinearity.",
+            "note: 18.state omitted because of collinearity.",
+            "note: 19.state omitted because of collinearity.",
+            "note: 20.state omitted because of collinearity.",
+            "note: 21.state omitted because of collinearity.",
+            "note: 22.state omitted because of collinearity.",
+            "note: 23.state omitted because of collinearity.",
+            "note: 24.state omitted because of collinearity.",
+            "note: 25.state omitted because of collinearity.",
+            "",
+            "Treatment and time information",
+            "",
+            "Time variable: year",
+            "Control:       d = 0",
+            "Treatment:     d = 1",
+            "-----------------------------------",
+            "             |   Control  Treatment",
+            "-------------+---------------------",
+            "Group        |",
+            "       state |        17          8",
+            "-------------+---------------------",
+            "Time         |",
+            "     Minimum |      2000       2007",
+            "     Maximum |      2000       2007",
+            "-----------------------------------",
+            "",
+            "Difference-in-differences regression                     Number of obs = 3,000",
+            "Data type: Repeated cross-sectional",
+            "",
+            "                                 (Std. err. adjusted for 25 clusters in state)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "ATET         |",
+            "           d |",
+            "   (1 vs 0)  |   1.933171   .0578763    33.40   0.000     1.813721    2.052622",
+            "------------------------------------------------------------------------------",
+            "Note: ATET estimate adjusted for covariates, group effects, and time effects."
+          ]
+        },
+        { "command": "display _se[r1vs0.d]", "lines": [".05787632"] },
+        { "command": "matrix b = e(b)", "lines": [] },
+        { "command": "display b[1,3] \" \" b[1,4]", "lines": ["0 0"] }
+      ]
+    },
+    {
+      "id": "pass8-rcs-stcox-schoenfeld-and-names",
+      "source": "clear\nset seed 4244\nset obs 300\ngenerate id = _n\ngenerate drug = runiform() < .5\ngenerate age = 40 + floor(runiform()*30)\ngenerate female = runiform() < .5\ngenerate time = -ln(runiform()) / (0.05*exp(-0.7*drug + 0.03*(age-55) + 0.2*female))\ngenerate fail = runiform() < .75\nreplace time = ceil(time*10)/10\nstset time, failure(fail) id(id)\nstcox drug age female, nolog\npredict sc*, schoenfeld\npredict q1 q2 q3, scaledsch\ndescribe sc1 sc2 sc3 q1 q2 q3\nsummarize sc1 sc2 sc3 q1 q2 q3\nlist sc1 sc2 q3 in 1/4\ncapture noisily predict k*, xb\ncapture noisily predict k l, xb\ncapture noisily predict k l\ncapture noisily predict k l m n, schoenfeld\ndisplay _rc\ncapture noisily predict k l, schoenfeld\ndisplay _rc\ncapture noisily predict k, scaledsch\ndisplay _rc\ncapture noisily predict q1 k l, scaledsch\ndisplay _rc\nstcox drug age, efron nolog\npredict e*, schoenfeld\nsummarize e1 e2\npredict k1 k2 if drug, scaledsch\nsummarize k1 k2\nstcox drug, nolog\npredict one, schoenfeld\npredict two, scaledsch\nsummarize one two\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4244", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate drug = runiform() < .5", "lines": [] },
+        { "command": "generate age = 40 + floor(runiform()*30)", "lines": [] },
+        { "command": "generate female = runiform() < .5", "lines": [] },
+        {
+          "command": "generate time = -ln(runiform()) / (0.05*exp(-0.7*drug + 0.03*(age-55) + 0.2*female))",
+          "lines": []
+        },
+        { "command": "generate fail = runiform() < .75", "lines": [] },
+        {
+          "command": "replace time = ceil(time*10)/10",
+          "lines": ["(300 real changes made)"]
+        },
+        {
+          "command": "stset time, failure(fail) id(id)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "           ID variable: id",
+            "         Failure event: fail!=0 & fail<.",
+            "Observed time interval: (time[_n-1], time]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "        300  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "        300  observations remaining, representing",
+            "        300  subjects",
+            "        222  failures in single-failure-per-subject data",
+            "    8,526.9  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =     244.4"
+          ]
+        },
+        {
+          "command": "stcox drug age female, nolog",
+          "lines": [
+            "        Failure _d: fail",
+            "  Analysis time _t: time",
+            "       ID variable: id",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =     300                               Number of obs =    300",
+            "No. of failures =     222",
+            "Time at risk    = 8,526.9",
+            "                                                        LR chi2(3)    =  51.65",
+            "Log likelihood = -1028.6278                             Prob > chi2   = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        drug |   .5073875   .0717207    -4.80   0.000     .3846095    .6693597",
+            "         age |   1.037187   .0087541     4.33   0.000      1.02017    1.054487",
+            "      female |   1.433129   .1943534     2.65   0.008     1.098626     1.86948",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "predict sc*, schoenfeld", "lines": [] },
+        { "command": "predict q1 q2 q3, scaledsch", "lines": [] },
+        {
+          "command": "describe sc1 sc2 sc3 q1 q2 q3",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "sc1             float   %9.0g                 Schoenfeld residual, drug",
+            "sc2             float   %9.0g                 Schoenfeld residual, age",
+            "sc3             float   %9.0g                 Schoenfeld residual, female",
+            "q1              float   %9.0g                 Scaled Schoenfeld residual, drug",
+            "q2              float   %9.0g                 Scaled Schoenfeld residual, age",
+            "q3              float   %9.0g                 Scaled Schoenfeld residual, female"
+          ]
+        },
+        {
+          "command": "summarize sc1 sc2 sc3 q1 q2 q3",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "         sc1 |        222   -6.71e-10    .4690631  -.7662296   .6697978",
+            "         sc2 |        222   -1.40e-08    8.225218  -16.01721   15.73587",
+            "         sc3 |        222    1.07e-09    .4963207  -.5620874   .6184264",
+            "          q1 |        222   -.6784802    2.084875   -3.94142   2.625438",
+            "          q2 |        222    .0365122    .1305648  -.2301974   .2892483",
+            "-------------+---------------------------------------------------------",
+            "          q3 |        222    .3598605    2.015831  -2.074949   2.898388"
+          ]
+        },
+        {
+          "command": "list sc1 sc2 q3 in 1/4",
+          "lines": [
+            "     +----------------------------------+",
+            "     |       sc1         sc2         q3 |",
+            "     |----------------------------------|",
+            "  1. |         .           .          . |",
+            "  2. |  .6303968    -8.93654   2.203849 |",
+            "  3. |         .           .          . |",
+            "  4. | -.4015166   -3.017206   2.477515 |",
+            "     +----------------------------------+"
+          ]
+        },
+        {
+          "command": "capture noisily predict k*, xb",
+          "lines": ["* invalid name"]
+        },
+        {
+          "command": "capture noisily predict k l, xb",
+          "lines": ["too many variables specified"]
+        },
+        {
+          "command": "capture noisily predict k l",
+          "lines": [
+            "(option hr assumed; predicted hazard ratio)",
+            "too many variables specified"
+          ]
+        },
+        {
+          "command": "capture noisily predict k l m n, schoenfeld",
+          "lines": ["you must specify 3 new variables"]
+        },
+        { "command": "display _rc", "lines": ["103"] },
+        {
+          "command": "capture noisily predict k l, schoenfeld",
+          "lines": [
+            "too few variables specified",
+            "    The current estimation results for cox have 3 equations so you must specify 3 new variables, or you can use the equation() option and specify one variable at a time."
+          ]
+        },
+        { "command": "display _rc", "lines": ["102"] },
+        {
+          "command": "capture noisily predict k, scaledsch",
+          "lines": ["you must specify 3 new variables"]
+        },
+        { "command": "display _rc", "lines": ["102"] },
+        {
+          "command": "capture noisily predict q1 k l, scaledsch",
+          "lines": ["variable q1 already defined"]
+        },
+        { "command": "display _rc", "lines": ["110"] },
+        {
+          "command": "stcox drug age, efron nolog",
+          "lines": [
+            "        Failure _d: fail",
+            "  Analysis time _t: time",
+            "       ID variable: id",
+            "",
+            "Cox regression with Efron method for ties",
+            "",
+            "No. of subjects =     300                               Number of obs =    300",
+            "No. of failures =     222",
+            "Time at risk    = 8,526.9",
+            "                                                        LR chi2(2)    =  44.72",
+            "Log likelihood = -1031.9207                             Prob > chi2   = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        drug |   .5152975   .0728616    -4.69   0.000     .3905716    .6798538",
+            "         age |   1.037855   .0088076     4.38   0.000     1.020736    1.055262",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "predict e*, schoenfeld", "lines": [] },
+        {
+          "command": "summarize e1 e2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          e1 |        222   -6.71e-10    .4687658  -.7453293   .6721972",
+            "          e2 |        222   -1.28e-09    8.227492  -15.98522   15.41897"
+          ]
+        },
+        { "command": "predict k1 k2 if drug, scaledsch", "lines": [] },
+        {
+          "command": "summarize k1 k2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          k1 |        110    1.334974    .7879918  -.8309412   2.543779",
+            "          k2 |        110    .0485485    .1252708  -.2032803   .2907591"
+          ]
+        },
+        {
+          "command": "stcox drug, nolog",
+          "lines": [
+            "        Failure _d: fail",
+            "  Analysis time _t: time",
+            "       ID variable: id",
+            "",
+            "Cox regression with Breslow method for ties",
+            "",
+            "No. of subjects =     300                               Number of obs =    300",
+            "No. of failures =     222",
+            "Time at risk    = 8,526.9",
+            "                                                        LR chi2(1)    =  25.53",
+            "Log likelihood = -1041.6904                             Prob > chi2   = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Haz. ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        drug |   .4894583   .0689662    -5.07   0.000     .3713461     .645138",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "predict one, schoenfeld", "lines": [] },
+        { "command": "predict two, scaledsch", "lines": [] },
+        {
+          "command": "summarize one two",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "         one |        222   -6.71e-11    .4694323   -.774073   .6698976",
+            "         two |        222   -.7144559    2.069029  -4.126193   2.238127"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-rcs-lrtest-estimators",
+      "source": "clear\nset seed 4244\nset obs 300\ngenerate id = _n\ngenerate drug = runiform() < .5\ngenerate age = 40 + floor(runiform()*30)\ngenerate female = runiform() < .5\ngenerate time = -ln(runiform()) / (0.05*exp(-0.7*drug + 0.03*(age-55) + 0.2*female))\ngenerate fail = runiform() < .75\nreplace time = ceil(time*10)/10\nstset time, failure(fail)\nstreg drug age, distribution(exponential) nolog nohr\nestimates store e1\nstreg drug age, distribution(weibull) nolog nohr\nestimates store w1\ncapture noisily lrtest e1 w1\ndisplay _rc\nlrtest e1 w1, force\ncapture noisily lrtest w1 e1\nstreg drug, distribution(exponential) nolog nohr\nestimates store e0\nlrtest e0 e1\nstreg drug age, distribution(gompertz) nolog nohr\nestimates store g1\ncapture noisily lrtest g1 e1\nlogit fail drug age\nestimates store l1\nprobit fail drug age\nestimates store p1\ncapture noisily lrtest l1 p1\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4244", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate drug = runiform() < .5", "lines": [] },
+        { "command": "generate age = 40 + floor(runiform()*30)", "lines": [] },
+        { "command": "generate female = runiform() < .5", "lines": [] },
+        {
+          "command": "generate time = -ln(runiform()) / (0.05*exp(-0.7*drug + 0.03*(age-55) + 0.2*female))",
+          "lines": []
+        },
+        { "command": "generate fail = runiform() < .75", "lines": [] },
+        {
+          "command": "replace time = ceil(time*10)/10",
+          "lines": ["(300 real changes made)"]
+        },
+        {
+          "command": "stset time, failure(fail)",
+          "lines": [
+            "Survival-time data settings",
+            "",
+            "         Failure event: fail!=0 & fail<.",
+            "Observed time interval: (0, time]",
+            "     Exit on or before: failure",
+            "",
+            "--------------------------------------------------------------------------",
+            "        300  total observations",
+            "          0  exclusions",
+            "--------------------------------------------------------------------------",
+            "        300  observations remaining, representing",
+            "        222  failures in single-record/single-failure data",
+            "    8,526.9  total analysis time at risk and under observation",
+            "                                                At risk from t =         0",
+            "                                     Earliest observed entry t =         0",
+            "                                          Last observed exit t =     244.4"
+          ]
+        },
+        {
+          "command": "streg drug age, distribution(exponential) nolog nohr",
+          "lines": [
+            "        Failure _d: fail",
+            "  Analysis time _t: time",
+            "",
+            "Exponential PH regression",
+            "",
+            "No. of subjects =     300                               Number of obs =    300",
+            "No. of failures =     222",
+            "Time at risk    = 8,526.9",
+            "                                                        LR chi2(2)    =  52.05",
+            "Log likelihood = -430.51802                             Prob > chi2   = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        drug |  -.6756776   .1358937    -4.97   0.000    -.9420243   -.4093309",
+            "         age |   .0372992   .0082399     4.53   0.000     .0211494    .0534491",
+            "       _cons |  -5.221362   .4674975   -11.17   0.000     -6.13764   -4.305083",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store e1", "lines": [] },
+        {
+          "command": "streg drug age, distribution(weibull) nolog nohr",
+          "lines": [
+            "        Failure _d: fail",
+            "  Analysis time _t: time",
+            "",
+            "Weibull PH regression",
+            "",
+            "No. of subjects =     300                               Number of obs =    300",
+            "No. of failures =     222",
+            "Time at risk    = 8,526.9",
+            "                                                        LR chi2(2)    =  44.43",
+            "Log likelihood = -430.13224                             Prob > chi2   = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        drug |  -.6498683   .1389416    -4.68   0.000    -.9221889   -.3775477",
+            "         age |   .0359849   .0083544     4.31   0.000     .0196106    .0523591",
+            "       _cons |  -4.999217   .5286503    -9.46   0.000    -6.035353   -3.963082",
+            "-------------+----------------------------------------------------------------",
+            "       /ln_p |  -.0458021    .052744    -0.87   0.385    -.1491784    .0575742",
+            "-------------+----------------------------------------------------------------",
+            "           p |    .955231   .0503827                      .8614154    1.059264",
+            "         1/p |   1.046867    .055216                      .9440518     1.16088",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store w1", "lines": [] },
+        {
+          "command": "capture noisily lrtest e1 w1",
+          "lines": ["test involves different estimators: weibull vs. ereg"]
+        },
+        { "command": "display _rc", "lines": ["498"] },
+        {
+          "command": "lrtest e1 w1, force",
+          "lines": [
+            "Likelihood-ratio test",
+            "Assumption: e1 nested within w1",
+            "",
+            " LR chi2(1) =   0.77",
+            "Prob > chi2 = 0.3797"
+          ]
+        },
+        {
+          "command": "capture noisily lrtest w1 e1",
+          "lines": ["test involves different estimators: weibull vs. ereg"]
+        },
+        {
+          "command": "streg drug, distribution(exponential) nolog nohr",
+          "lines": [
+            "        Failure _d: fail",
+            "  Analysis time _t: time",
+            "",
+            "Exponential PH regression",
+            "",
+            "No. of subjects =     300                               Number of obs =    300",
+            "No. of failures =     222",
+            "Time at risk    = 8,526.9",
+            "                                                        LR chi2(1)    =  31.77",
+            "Log likelihood = -440.65751                             Prob > chi2   = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        drug |   -.764797   .1342367    -5.70   0.000    -1.027896    -.501698",
+            "       _cons |  -3.197798   .0944911   -33.84   0.000    -3.382997   -3.012599",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store e0", "lines": [] },
+        {
+          "command": "lrtest e0 e1",
+          "lines": [
+            "Likelihood-ratio test",
+            "Assumption: e0 nested within e1",
+            "",
+            " LR chi2(1) =  20.28",
+            "Prob > chi2 = 0.0000"
+          ]
+        },
+        {
+          "command": "streg drug age, distribution(gompertz) nolog nohr",
+          "lines": [
+            "        Failure _d: fail",
+            "  Analysis time _t: time",
+            "",
+            "Gompertz PH regression",
+            "",
+            "No. of subjects =     300                               Number of obs =    300",
+            "No. of failures =     222",
+            "Time at risk    = 8,526.9",
+            "                                                        LR chi2(2)    =  45.92",
+            "Log likelihood = -430.51216                             Prob > chi2   = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "          _t | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        drug |  -.6721342   .1397373    -4.81   0.000    -.9460142   -.3982542",
+            "         age |   .0370835   .0084739     4.38   0.000     .0204749    .0536921",
+            "       _cons |  -5.204196     .49335   -10.55   0.000    -6.171144   -4.237247",
+            "-------------+----------------------------------------------------------------",
+            "      /gamma |  -.0002635   .0024388    -0.11   0.914    -.0050434    .0045164",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store g1", "lines": [] },
+        {
+          "command": "capture noisily lrtest g1 e1",
+          "lines": ["test involves different estimators: gompertz vs. ereg"]
+        },
+        {
+          "command": "logit fail drug age",
+          "lines": [
+            "Iteration 0:  Log likelihood = -171.91708",
+            "Iteration 1:  Log likelihood = -170.53784",
+            "Iteration 2:  Log likelihood = -170.53387",
+            "Iteration 3:  Log likelihood = -170.53387",
+            "",
+            "Logistic regression                                     Number of obs =    300",
+            "                                                        LR chi2(2)    =   2.77",
+            "                                                        Prob > chi2   = 0.2508",
+            "Log likelihood = -170.53387                             Pseudo R2     = 0.0080",
+            "",
+            "------------------------------------------------------------------------------",
+            "        fail | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        drug |   .0251536   .2656816     0.09   0.925    -.4955728      .54588",
+            "         age |   .0258423   .0156691     1.65   0.099    -.0048686    .0565532",
+            "       _cons |  -.3453019   .8620584    -0.40   0.689    -2.034905    1.344302",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store l1", "lines": [] },
+        {
+          "command": "probit fail drug age",
+          "lines": [
+            "Iteration 0:  Log likelihood = -171.91708",
+            "Iteration 1:  Log likelihood = -170.53572",
+            "Iteration 2:  Log likelihood = -170.53503",
+            "Iteration 3:  Log likelihood = -170.53503",
+            "",
+            "Probit regression                                       Number of obs =    300",
+            "                                                        LR chi2(2)    =   2.76",
+            "                                                        Prob > chi2   = 0.2511",
+            "Log likelihood = -170.53503                             Pseudo R2     = 0.0080",
+            "",
+            "------------------------------------------------------------------------------",
+            "        fail | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        drug |   .0163892   .1575451     0.10   0.917    -.2923935     .325172",
+            "         age |   .0152833   .0092351     1.65   0.098    -.0028171    .0333837",
+            "       _cons |  -.1816385   .5120418    -0.35   0.723    -1.185222    .8219449",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "estimates store p1", "lines": [] },
+        {
+          "command": "capture noisily lrtest l1 p1",
+          "lines": ["df(unrestricted) = df(restricted) = 3"]
+        }
+      ]
+    },
+    {
+      "id": "pass8-rcs-resampled-variance",
+      "source": "clear\nset seed 4247\nset obs 302\ngenerate a = invnormal(runiform())\ngenerate b = invnormal(runiform())\ngenerate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))\nbootstrap _b, reps(30) seed(5): regress y a b\nmatrix list e(V)\ntest a = 2\nlincom a - b\nestat vce\nestimates table, se\nmargins, dydx(a)\ndisplay e(rank) \" \" e(N) \" \" e(df_r)\nregress y a b, vce(bootstrap, reps(30) seed(5))\ntest a = 2\nlincom a - b\njackknife, nodots: regress y a b\nmatrix list e(V)\ntest a b\ntest a = 2\nlincom a - b\nregress y a b, vce(jackknife)\ntest a b\nmargins, dydx(a)\npredict p\nsummarize p\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4247", "lines": [] },
+        {
+          "command": "set obs 302",
+          "lines": ["Number of observations (_N) was 0, now 302."]
+        },
+        { "command": "generate a = invnormal(runiform())", "lines": [] },
+        { "command": "generate b = invnormal(runiform())", "lines": [] },
+        {
+          "command": "generate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))",
+          "lines": []
+        },
+        {
+          "command": "bootstrap _b, reps(30) seed(5): regress y a b",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (30): .........10.........20.........30 done",
+            "",
+            "Linear regression                                       Number of obs =    302",
+            "                                                        Replications  =     30",
+            "                                                        Wald chi2(2)  = 180.24",
+            "                                                        Prob > chi2   = 0.0000",
+            "                                                        R-squared     = 0.5423",
+            "                                                        Adj R-squared = 0.5393",
+            "                                                        Root MSE      = 1.9791",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.168783   .2001536    10.84   0.000      1.77649    2.561077",
+            "           b |  -.5496616   .0994538    -5.53   0.000    -.7445875   -.3547357",
+            "       _cons |   .9192683   .0931548     9.87   0.000     .7366882    1.101848",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[3,3]",
+            "                a           b       _cons",
+            "    a   .04006148",
+            "    b   .00409672   .00989106",
+            "_cons  -.00338362  -.00192443   .00867782"
+          ]
+        },
+        {
+          "command": "test a = 2",
+          "lines": [
+            " ( 1)  a = 2",
+            "",
+            "           chi2(  1) =    0.71",
+            "         Prob > chi2 =    0.3991"
+          ]
+        },
+        {
+          "command": "lincom a - b",
+          "lines": [
+            " ( 1)  a - b = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   2.718445   .2043504    13.30   0.000     2.317926    3.118964",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of regress model",
+            "",
+            "        e(V) |          a           b       _cons",
+            "-------------+-----------------------------------",
+            "           a |  .04006148",
+            "           b |  .00409672   .00989106",
+            "       _cons | -.00338362  -.00192443   .00867782"
+          ]
+        },
+        {
+          "command": "estimates table, se",
+          "lines": [
+            "---------------------------",
+            "    Variable |   Active",
+            "-------------+-------------",
+            "           a |  2.1687835",
+            "             |  .20015363",
+            "           b | -.54966159",
+            "             |  .09945383",
+            "       _cons |  .91926829",
+            "             |  .09315481",
+            "---------------------------",
+            "               Legend: b/se"
+          ]
+        },
+        {
+          "command": "margins, dydx(a)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 302",
+            "Model VCE: Bootstrap",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  a",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.168783   .2001536    10.84   0.000      1.77649    2.561077",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(rank) \" \" e(N) \" \" e(df_r)",
+          "lines": ["3 302 ."]
+        },
+        {
+          "command": "regress y a b, vce(bootstrap, reps(30) seed(5))",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (30): .........10.........20.........30 done",
+            "",
+            "Linear regression                                       Number of obs =    302",
+            "                                                        Replications  =     30",
+            "                                                        Wald chi2(2)  = 180.24",
+            "                                                        Prob > chi2   = 0.0000",
+            "                                                        R-squared     = 0.5423",
+            "                                                        Adj R-squared = 0.5393",
+            "                                                        Root MSE      = 1.9791",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.168783   .2001536    10.84   0.000      1.77649    2.561077",
+            "           b |  -.5496616   .0994538    -5.53   0.000    -.7445875   -.3547357",
+            "       _cons |   .9192683   .0931548     9.87   0.000     .7366882    1.101848",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test a = 2",
+          "lines": [
+            " ( 1)  a = 2",
+            "",
+            "           chi2(  1) =    0.71",
+            "         Prob > chi2 =    0.3991"
+          ]
+        },
+        {
+          "command": "lincom a - b",
+          "lines": [
+            " ( 1)  a - b = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   2.718445   .2043504    13.30   0.000     2.317926    3.118964",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife, nodots: regress y a b",
+          "lines": [
+            "Linear regression                                       Number of obs =    302",
+            "                                                        Replications  =    302",
+            "                                                        F(2, 301)     = 102.29",
+            "                                                        Prob > F      = 0.0000",
+            "                                                        R-squared     = 0.5423",
+            "                                                        Adj R-squared = 0.5393",
+            "                                                        Root MSE      = 1.9791",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.168783   .1729953    12.54   0.000      1.82835    2.509217",
+            "           b |  -.5496616   .1134662    -4.84   0.000    -.7729491    -.326374",
+            "       _cons |   .9192683   .1148787     8.00   0.000     .6932011    1.145335",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[3,3]",
+            "                a           b       _cons",
+            "    a   .02992736",
+            "    b   .00306368   .01287459",
+            "_cons  -.00402551  -.00381808   .01319712"
+          ]
+        },
+        {
+          "command": "test a b",
+          "lines": [
+            " ( 1)  a = 0",
+            " ( 2)  b = 0",
+            "",
+            "       F(  2,   301) =  102.29",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "test a = 2",
+          "lines": [
+            " ( 1)  a = 2",
+            "",
+            "       F(  1,   301) =    0.95",
+            "            Prob > F =    0.3300"
+          ]
+        },
+        {
+          "command": "lincom a - b",
+          "lines": [
+            " ( 1)  a - b = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   2.718445   .1915061    14.20   0.000     2.341585    3.095305",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y a b, vce(jackknife)",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Jackknife replications (302): .........10.........20.........30.........40.........50.........60.........70.........80.........90.........100.........110.........120.........130.........140.........15",
+            "> 0.........160.........170.........180.........190.........200.........210.........220.........230.........240.........250.........260.........270.........280.........290.........300.. done",
+            "",
+            "Linear regression                                       Number of obs =    302",
+            "                                                        Replications  =    302",
+            "                                                        F(2, 301)     = 102.29",
+            "                                                        Prob > F      = 0.0000",
+            "                                                        R-squared     = 0.5423",
+            "                                                        Adj R-squared = 0.5393",
+            "                                                        Root MSE      = 1.9791",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.168783   .1729953    12.54   0.000      1.82835    2.509217",
+            "           b |  -.5496616   .1134662    -4.84   0.000    -.7729491    -.326374",
+            "       _cons |   .9192683   .1148787     8.00   0.000     .6932011    1.145335",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test a b",
+          "lines": [
+            " ( 1)  a = 0",
+            " ( 2)  b = 0",
+            "",
+            "       F(  2,   301) =  102.29",
+            "            Prob > F =    0.0000"
+          ]
+        },
+        {
+          "command": "margins, dydx(a)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 302",
+            "Model VCE: Jackknife",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  a",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.168783   .1729953    12.54   0.000      1.82835    2.509217",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "predict p",
+          "lines": ["(option xb assumed; fitted values)"]
+        },
+        {
+          "command": "summarize p",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           p |        302     .856933    2.147283  -5.024497   8.080043"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-rcs-statistics-as-estimates",
+      "source": "clear\nset seed 4247\nset obs 302\ngenerate a = invnormal(runiform())\ngenerate b = invnormal(runiform())\ngenerate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))\ngenerate g = mod(_n, 3)\ngenerate cl = mod(_n, 40)\nbootstrap m=r(mean), reps(30) seed(5): summarize b\ntest m = 1\nlincom m - 1\nbootstrap r(mean), reps(30) seed(5): summarize b\ntest _bs_1 = 1\nbootstrap sa=_b[a], reps(30) seed(5): regress y a b\ntest sa = 2\nlincom sa - 2\ncapture noisily nlcom sa^2\nnlcom _b[sa]^2\ndisplay _b[sa] \" \" _se[sa]\njackknife r(mean): summarize a\ntest _jk_1 = 0\nlincom _jk_1\ndisplay e(title)\nbootstrap _b[a], reps(40) seed(3): regress y a b\ndisplay e(title)\nbootstrap _b[a], reps(40) seed(3) strata(g) cluster(cl): regress y a b\nbootstrap diff=(_b[a]-_b[b]), reps(40) seed(3): regress y a b\njackknife diff=(_b[a]-_b[b]): regress y a b\ndisplay e(title)\nbootstrap m=r(mean) s=r(sd), reps(20) seed(2): summarize a\ntest m s\ntest (m = 0) (s = 1)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4247", "lines": [] },
+        {
+          "command": "set obs 302",
+          "lines": ["Number of observations (_N) was 0, now 302."]
+        },
+        { "command": "generate a = invnormal(runiform())", "lines": [] },
+        { "command": "generate b = invnormal(runiform())", "lines": [] },
+        {
+          "command": "generate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))",
+          "lines": []
+        },
+        { "command": "generate g = mod(_n, 3)", "lines": [] },
+        { "command": "generate cl = mod(_n, 40)", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(30) seed(5): summarize b",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (30): .........10.........20.........30 done",
+            "",
+            "Bootstrap results                                          Number of obs = 302",
+            "                                                           Replications  =  30",
+            "",
+            "      Command: summarize b",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .0300271   .0548801     0.55   0.584     -.077536    .1375901",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test m = 1",
+          "lines": [
+            " ( 1)  m = 1",
+            "",
+            "           chi2(  1) =  312.38",
+            "         Prob > chi2 =    0.0000"
+          ]
+        },
+        {
+          "command": "lincom m - 1",
+          "lines": [
+            " ( 1)  m = 1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.9699729   .0548801   -17.67   0.000    -1.077536   -.8624099",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bootstrap r(mean), reps(30) seed(5): summarize b",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (30): .........10.........20.........30 done",
+            "",
+            "Bootstrap results                                          Number of obs = 302",
+            "                                                           Replications  =  30",
+            "",
+            "      Command: summarize b",
+            "        _bs_1: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _bs_1 |   .0300271   .0548801     0.55   0.584     -.077536    .1375901",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test _bs_1 = 1",
+          "lines": [
+            " ( 1)  _bs_1 = 1",
+            "",
+            "           chi2(  1) =  312.38",
+            "         Prob > chi2 =    0.0000"
+          ]
+        },
+        {
+          "command": "bootstrap sa=_b[a], reps(30) seed(5): regress y a b",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (30): .........10.........20.........30 done",
+            "",
+            "Linear regression                                          Number of obs = 302",
+            "                                                           Replications  =  30",
+            "",
+            "      Command: regress y a b",
+            "           sa: _b[a]",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          sa |   2.168783   .2001536    10.84   0.000      1.77649    2.561077",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test sa = 2",
+          "lines": [
+            " ( 1)  sa = 2",
+            "",
+            "           chi2(  1) =    0.71",
+            "         Prob > chi2 =    0.3991"
+          ]
+        },
+        {
+          "command": "lincom sa - 2",
+          "lines": [
+            " ( 1)  sa = 2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .1687835   .2001536     0.84   0.399    -.2235104    .5610774",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "capture noisily nlcom sa^2", "lines": ["sa not found"] },
+        {
+          "command": "nlcom _b[sa]^2",
+          "lines": [
+            "       _nl_1: _b[sa]^2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _nl_1 |   4.703622   .8681798     5.42   0.000     3.002021    6.405223",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display _b[sa] \" \" _se[sa]",
+          "lines": ["2.1687835 .20015363"]
+        },
+        {
+          "command": "jackknife r(mean): summarize a",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "Jackknife replications (302): .........10.........20.........30.........40.........50.........60.........70.........80.........90.........100.........110.........120.........130.........140.........15",
+            "> 0.........160.........170.........180.........190.........200.........210.........220.........230.........240.........250.........260.........270.........280.........290.........300.. done",
+            "",
+            "Jackknife results                                          Number of obs = 302",
+            "                                                           Replications  = 302",
+            "",
+            "      Command: summarize a",
+            "        _jk_1: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _jk_1 |  -.0211319   .0553315    -0.38   0.703    -.1300174    .0877535",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test _jk_1 = 0",
+          "lines": [
+            " ( 1)  _jk_1 = 0",
+            "",
+            "       F(  1,   301) =    0.15",
+            "            Prob > F =    0.7028"
+          ]
+        },
+        {
+          "command": "lincom _jk_1",
+          "lines": [
+            " ( 1)  _jk_1 = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.0211319   .0553315    -0.38   0.703    -.1300174    .0877535",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display e(title)", "lines": ["Jackknife results"] },
+        {
+          "command": "bootstrap _b[a], reps(40) seed(3): regress y a b",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (40): .........10.........20.........30.........40 done",
+            "",
+            "Linear regression                                          Number of obs = 302",
+            "                                                           Replications  =  40",
+            "",
+            "      Command: regress y a b",
+            "        _bs_1: _b[a]",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _bs_1 |   2.168783   .1851814    11.71   0.000     1.805835    2.531732",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display e(title)", "lines": ["Linear regression"] },
+        {
+          "command": "bootstrap _b[a], reps(40) seed(3) strata(g) cluster(cl): regress y a b",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (40): .........10.........20.........30.........40 done",
+            "",
+            "Linear regression",
+            "",
+            "Number of strata = 3                                       Number of obs = 302",
+            "                                                           Replications  =  40",
+            "",
+            "      Command: regress y a b",
+            "        _bs_1: _b[a]",
+            "",
+            "                                    (Replications based on 120 clusters in cl)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _bs_1 |   2.168783   .1467396    14.78   0.000     1.881179    2.456388",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bootstrap diff=(_b[a]-_b[b]), reps(40) seed(3): regress y a b",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (40): .........10.........20.........30.........40 done",
+            "",
+            "Linear regression                                          Number of obs = 302",
+            "                                                           Replications  =  40",
+            "",
+            "      Command: regress y a b",
+            "         diff: _b[a]-_b[b]",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        diff |   2.718445   .2292227    11.86   0.000     2.269177    3.167713",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife diff=(_b[a]-_b[b]): regress y a b",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Jackknife replications (302): .........10.........20.........30.........40.........50.........60.........70.........80.........90.........100.........110.........120.........130.........140.........15",
+            "> 0.........160.........170.........180.........190.........200.........210.........220.........230.........240.........250.........260.........270.........280.........290.........300.. done",
+            "",
+            "Linear regression                                          Number of obs = 302",
+            "                                                           Replications  = 302",
+            "",
+            "      Command: regress y a b",
+            "         diff: _b[a]-_b[b]",
+            "          n(): e(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        diff |   2.718445   .1915061    14.20   0.000     2.341585    3.095305",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display e(title)", "lines": ["Linear regression"] },
+        {
+          "command": "bootstrap m=r(mean) s=r(sd), reps(20) seed(2): summarize a",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Bootstrap results                                          Number of obs = 302",
+            "                                                           Replications  =  20",
+            "",
+            "      Command: summarize a",
+            "            m: r(mean)",
+            "            s: r(sd)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |  -.0211319   .0545254    -0.39   0.698    -.1279997    .0857358",
+            "           s |   .9615582   .0376601    25.53   0.000     .8877458    1.035371",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test m s",
+          "lines": [
+            " ( 1)  m = 0",
+            " ( 2)  s = 0",
+            "",
+            "           chi2(  2) =  818.33",
+            "         Prob > chi2 =    0.0000"
+          ]
+        },
+        {
+          "command": "test (m = 0) (s = 1)",
+          "lines": [
+            " ( 1)  m = 0",
+            " ( 2)  s = 1",
+            "",
+            "           chi2(  2) =    1.98",
+            "         Prob > chi2 =    0.3709"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-rcs-estat-bootstrap",
+      "source": "clear\nset seed 4247\nset obs 302\ngenerate a = invnormal(runiform())\ngenerate b = invnormal(runiform())\ngenerate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))\ngenerate g = mod(_n, 3)\ngenerate cl = mod(_n, 40)\nbootstrap m=r(mean), reps(30) seed(5): summarize b\nestat bootstrap\nestat bootstrap, all\nestat bootstrap, percentile\nestat bootstrap, normal\nestat bootstrap, bc percentile noheader\nestat bootstrap, nolegend\nbootstrap _b, reps(30) seed(5): regress y a b\nestat bootstrap\nestat bootstrap, all\nbootstrap m=r(mean) s=r(sd), reps(20) seed(2) level(90): summarize a\nestat bootstrap, all\ncapture noisily estat bootstrap, bca\njackknife r(mean), nodots: summarize a\ncapture noisily estat bootstrap\nbootstrap _b, reps(30) seed(5) strata(g) cluster(cl): regress y a b\nestat bootstrap\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4247", "lines": [] },
+        {
+          "command": "set obs 302",
+          "lines": ["Number of observations (_N) was 0, now 302."]
+        },
+        { "command": "generate a = invnormal(runiform())", "lines": [] },
+        { "command": "generate b = invnormal(runiform())", "lines": [] },
+        {
+          "command": "generate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))",
+          "lines": []
+        },
+        { "command": "generate g = mod(_n, 3)", "lines": [] },
+        { "command": "generate cl = mod(_n, 40)", "lines": [] },
+        {
+          "command": "bootstrap m=r(mean), reps(30) seed(5): summarize b",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (30): .........10.........20.........30 done",
+            "",
+            "Bootstrap results                                          Number of obs = 302",
+            "                                                           Replications  =  30",
+            "",
+            "      Command: summarize b",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .0300271   .0548801     0.55   0.584     -.077536    .1375901",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat bootstrap",
+          "lines": [
+            "Bootstrap results                               Number of obs     =        302",
+            "                                                Replications      =         30",
+            "",
+            "      Command: summarize b",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |    Observed               Bootstrap",
+            "             | coefficient       Bias    std. err.  [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .03002707  -.0117249   .05488011   -.0338584   .1428489  (BC)",
+            "------------------------------------------------------------------------------",
+            "Key: BC: Bias-corrected"
+          ]
+        },
+        {
+          "command": "estat bootstrap, all",
+          "lines": [
+            "Bootstrap results                               Number of obs     =        302",
+            "                                                Replications      =         30",
+            "",
+            "      Command: summarize b",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |    Observed               Bootstrap",
+            "             | coefficient       Bias    std. err.  [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .03002707  -.0117249   .05488011    -.077536   .1375901   (N)",
+            "             |                                       -.081427   .1428489   (P)",
+            "             |                                      -.0338584   .1428489  (BC)",
+            "------------------------------------------------------------------------------",
+            "Key:  N: Normal",
+            "      P: Percentile",
+            "     BC: Bias-corrected"
+          ]
+        },
+        {
+          "command": "estat bootstrap, percentile",
+          "lines": [
+            "Bootstrap results                               Number of obs     =        302",
+            "                                                Replications      =         30",
+            "",
+            "      Command: summarize b",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |    Observed               Bootstrap",
+            "             | coefficient       Bias    std. err.  [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .03002707  -.0117249   .05488011    -.081427   .1428489   (P)",
+            "------------------------------------------------------------------------------",
+            "Key: P: Percentile"
+          ]
+        },
+        {
+          "command": "estat bootstrap, normal",
+          "lines": [
+            "Bootstrap results                               Number of obs     =        302",
+            "                                                Replications      =         30",
+            "",
+            "      Command: summarize b",
+            "            m: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |    Observed               Bootstrap",
+            "             | coefficient       Bias    std. err.  [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .03002707  -.0117249   .05488011    -.077536   .1375901   (N)",
+            "------------------------------------------------------------------------------",
+            "Key: N: Normal"
+          ]
+        },
+        {
+          "command": "estat bootstrap, bc percentile noheader",
+          "lines": [
+            "------------------------------------------------------------------------------",
+            "             |    Observed               Bootstrap",
+            "             | coefficient       Bias    std. err.  [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .03002707  -.0117249   .05488011    -.081427   .1428489   (P)",
+            "             |                                      -.0338584   .1428489  (BC)",
+            "------------------------------------------------------------------------------",
+            "Key:  P: Percentile",
+            "     BC: Bias-corrected"
+          ]
+        },
+        {
+          "command": "estat bootstrap, nolegend",
+          "lines": [
+            "Bootstrap results                               Number of obs     =        302",
+            "                                                Replications      =         30",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |    Observed               Bootstrap",
+            "             | coefficient       Bias    std. err.  [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |   .03002707  -.0117249   .05488011   -.0338584   .1428489  (BC)",
+            "------------------------------------------------------------------------------",
+            "Key: BC: Bias-corrected"
+          ]
+        },
+        {
+          "command": "bootstrap _b, reps(30) seed(5): regress y a b",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (30): .........10.........20.........30 done",
+            "",
+            "Linear regression                                       Number of obs =    302",
+            "                                                        Replications  =     30",
+            "                                                        Wald chi2(2)  = 180.24",
+            "                                                        Prob > chi2   = 0.0000",
+            "                                                        R-squared     = 0.5423",
+            "                                                        Adj R-squared = 0.5393",
+            "                                                        Root MSE      = 1.9791",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.168783   .2001536    10.84   0.000      1.77649    2.561077",
+            "           b |  -.5496616   .0994538    -5.53   0.000    -.7445875   -.3547357",
+            "       _cons |   .9192683   .0931548     9.87   0.000     .7366882    1.101848",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat bootstrap",
+          "lines": [
+            "Linear regression                               Number of obs     =        302",
+            "                                                Replications      =         30",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |    Observed               Bootstrap",
+            "           y | coefficient       Bias    std. err.  [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.1687835  -.0142259   .20015363    1.850562   2.554312  (BC)",
+            "           b |  -.54966159  -.0194531   .09945383   -.6823293  -.4115945  (BC)",
+            "       _cons |   .91926829  -.0113736   .09315481     .776817   1.110441  (BC)",
+            "------------------------------------------------------------------------------",
+            "Key: BC: Bias-corrected"
+          ]
+        },
+        {
+          "command": "estat bootstrap, all",
+          "lines": [
+            "Linear regression                               Number of obs     =        302",
+            "                                                Replications      =         30",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |    Observed               Bootstrap",
+            "           y | coefficient       Bias    std. err.  [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.1687835  -.0142259   .20015363     1.77649   2.561077   (N)",
+            "             |                                       1.824893   2.554312   (P)",
+            "             |                                       1.850562   2.554312  (BC)",
+            "           b |  -.54966159  -.0194531   .09945383   -.7445875  -.3547357   (N)",
+            "             |                                       -.824965  -.4115945   (P)",
+            "             |                                      -.6823293  -.4115945  (BC)",
+            "       _cons |   .91926829  -.0113736   .09315481    .7366882   1.101848   (N)",
+            "             |                                       .7621569   1.110441   (P)",
+            "             |                                        .776817   1.110441  (BC)",
+            "------------------------------------------------------------------------------",
+            "Key:  N: Normal",
+            "      P: Percentile",
+            "     BC: Bias-corrected"
+          ]
+        },
+        {
+          "command": "bootstrap m=r(mean) s=r(sd), reps(20) seed(2) level(90): summarize a",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Bootstrap results                                          Number of obs = 302",
+            "                                                           Replications  =  20",
+            "",
+            "      Command: summarize a",
+            "            m: r(mean)",
+            "            s: r(sd)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |  -.0211319   .0545254    -0.39   0.698    -.1108182    .0685543",
+            "           s |   .9615582   .0376601    25.53   0.000     .8996129    1.023504",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat bootstrap, all",
+          "lines": [
+            "Bootstrap results                               Number of obs     =        302",
+            "                                                Replications      =         20",
+            "",
+            "      Command: summarize a",
+            "            m: r(mean)",
+            "            s: r(sd)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |    Observed               Bootstrap",
+            "             | coefficient       Bias    std. err.  [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |  -.02113193  -.0000742   .05452537   -.1108182   .0685543   (N)",
+            "             |                                      -.1175653   .0723069   (P)",
+            "             |                                      -.1033808   .0929182  (BC)",
+            "           s |   .96155823   .0039906   .03766008    .8996129   1.023504   (N)",
+            "             |                                       .9011074   1.026424   (P)",
+            "             |                                       .8929617    1.02316  (BC)",
+            "------------------------------------------------------------------------------",
+            "Key:  N: Normal",
+            "      P: Percentile",
+            "     BC: Bias-corrected"
+          ]
+        },
+        {
+          "command": "capture noisily estat bootstrap, bca",
+          "lines": [
+            "option bca requires BCa confidence intervals to be saved by the bootstrap prefix command"
+          ]
+        },
+        {
+          "command": "jackknife r(mean), nodots: summarize a",
+          "lines": [
+            "Jackknife results                                          Number of obs = 302",
+            "                                                           Replications  = 302",
+            "",
+            "      Command: summarize a",
+            "        _jk_1: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _jk_1 |  -.0211319   .0553315    -0.38   0.703    -.1300174    .0877535",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily estat bootstrap",
+          "lines": ["last estimates not found"]
+        },
+        {
+          "command": "bootstrap _b, reps(30) seed(5) strata(g) cluster(cl): regress y a b",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (30): .........10.........20.........30 done",
+            "",
+            "Linear regression",
+            "",
+            "Number of strata = 3                                    Number of obs =    302",
+            "                                                        Replications  =     30",
+            "                                                        Wald chi2(2)  = 637.97",
+            "                                                        Prob > chi2   = 0.0000",
+            "                                                        R-squared     = 0.5423",
+            "                                                        Adj R-squared = 0.5393",
+            "                                                        Root MSE      = 1.9791",
+            "",
+            "                                    (Replications based on 120 clusters in cl)",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.168783   .1392225    15.58   0.000     1.895912    2.441655",
+            "           b |  -.5496616   .1102629    -4.99   0.000     -.765773   -.3335502",
+            "       _cons |   .9192683    .137177     6.70   0.000     .6504063     1.18813",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat bootstrap",
+          "lines": [
+            "Linear regression",
+            "Number of strata   =          3                 Number of obs     =        302",
+            "                                                Replications      =         30",
+            "",
+            "                                    (Replications based on 120 clusters in cl)",
+            "------------------------------------------------------------------------------",
+            "             |    Observed               Bootstrap",
+            "           y | coefficient       Bias    std. err.  [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.1687835   .0326813    .1392225    1.961645   2.345381  (BC)",
+            "           b |  -.54966159  -.0314252   .11026294   -.7315934   -.366926  (BC)",
+            "       _cons |   .91926829   .0358514     .137177     .625042   1.055923  (BC)",
+            "------------------------------------------------------------------------------",
+            "Key: BC: Bias-corrected"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-rcs-resampling-time-series",
+      "source": "clear\nset seed 4248\nset obs 200\ngenerate t = _n\ngenerate e = invnormal(runiform())\ngenerate y = e in 1\nreplace y = 0.4*y[_n-1] + e in 2/l\ntsset t\ncapture noisily bootstrap _b, reps(10) seed(1): arima y, ar(1)\ndisplay _rc\ncapture noisily bootstrap _b, reps(10) seed(1): regress y L.y\ndisplay _rc\ncapture noisily bootstrap _b, reps(10) seed(1): regress y l.y\ncapture noisily bootstrap _b, reps(10) seed(1): regress D.y t\nbootstrap, reps(10) seed(1): regress y t\ncapture noisily bootstrap _b, reps(10) seed(1): newey y t, lag(1)\ncapture noisily bootstrap _b, reps(10) seed(1): prais y t\njackknife _b: regress y L.y\ncapture noisily bootstrap r(mean), reps(10) seed(1): summarize L.y\ncapture noisily regress y L.y, vce(bootstrap, reps(10) seed(1))\ngenerate y1 = L.y\nbootstrap _b, reps(10) seed(1) nodots: regress y y1\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4248", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "generate e = invnormal(runiform())", "lines": [] },
+        {
+          "command": "generate y = e in 1",
+          "lines": ["(199 missing values generated)"]
+        },
+        {
+          "command": "replace y = 0.4*y[_n-1] + e in 2/l",
+          "lines": ["(199 real changes made)"]
+        },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 200", "        Delta: 1 unit"]
+        },
+        {
+          "command": "capture noisily bootstrap _b, reps(10) seed(1): arima y, ar(1)",
+          "lines": [
+            "(running arima on estimation sample)",
+            "",
+            "Bootstrap replications (10): xxxxxxxxxx done",
+            "x: Error occurred when bootstrap executed arima.",
+            "insufficient observations to compute bootstrap standard errors; no results will be saved"
+          ]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily bootstrap _b, reps(10) seed(1): regress y L.y",
+          "lines": [
+            "time-series operators are not allowed with bootstrap without panels, see tsset"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily bootstrap _b, reps(10) seed(1): regress y l.y",
+          "lines": [
+            "time-series operators are not allowed with bootstrap without panels, see tsset"
+          ]
+        },
+        {
+          "command": "capture noisily bootstrap _b, reps(10) seed(1): regress D.y t",
+          "lines": [
+            "time-series operators are not allowed with bootstrap without panels, see tsset"
+          ]
+        },
+        {
+          "command": "bootstrap, reps(10) seed(1): regress y t",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (10): .........10 done",
+            "",
+            "Linear regression                                       Number of obs =    200",
+            "                                                        Replications  =     10",
+            "                                                        Wald chi2(1)  =   4.74",
+            "                                                        Prob > chi2   = 0.0295",
+            "                                                        R-squared     = 0.0223",
+            "                                                        Adj R-squared = 0.0174",
+            "                                                        Root MSE      = 1.0107",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           t |  -.0026332   .0012098    -2.18   0.030    -.0050043   -.0002621",
+            "       _cons |   .2509105   .1706757     1.47   0.142    -.0836079    .5854288",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily bootstrap _b, reps(10) seed(1): newey y t, lag(1)",
+          "lines": [
+            "(running newey on estimation sample)",
+            "",
+            "Bootstrap replications (10): xxxxxxxxxx done",
+            "x: Error occurred when bootstrap executed newey.",
+            "insufficient observations to compute bootstrap standard errors; no results will be saved"
+          ]
+        },
+        {
+          "command": "capture noisily bootstrap _b, reps(10) seed(1): prais y t",
+          "lines": [
+            "(running prais on estimation sample)",
+            "",
+            "Bootstrap replications (10): xxxxxxxxxx done",
+            "x: Error occurred when bootstrap executed prais.",
+            "insufficient observations to compute bootstrap standard errors; no results will be saved"
+          ]
+        },
+        {
+          "command": "jackknife _b: regress y L.y",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Jackknife replications (199): .........10.........20.........30.........40.........50.........60.........70.........80.........90.........100.........110.........120.........130.........140.........15",
+            "> 0.........160.........170.........180.........190......... done",
+            "",
+            "Linear regression                                       Number of obs =    199",
+            "                                                        Replications  =    199",
+            "                                                        F(1, 198)     =  21.40",
+            "                                                        Prob > F      = 0.0000",
+            "                                                        R-squared     = 0.0857",
+            "                                                        Adj R-squared = 0.0811",
+            "                                                        Root MSE      = 0.9794",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           y |",
+            "         L1. |   .2934138   .0634333     4.63   0.000     .1683223    .4185054",
+            "             |",
+            "       _cons |  -.0104866   .0694398    -0.15   0.880    -.1474231    .1264499",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily bootstrap r(mean), reps(10) seed(1): summarize L.y",
+          "lines": [
+            "time-series operators are not allowed with bootstrap without panels, see tsset"
+          ]
+        },
+        {
+          "command": "capture noisily regress y L.y, vce(bootstrap, reps(10) seed(1))",
+          "lines": [
+            "time-series operators are not allowed with bootstrap without panels, see tsset"
+          ]
+        },
+        {
+          "command": "generate y1 = L.y",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "bootstrap _b, reps(10) seed(1) nodots: regress y y1",
+          "lines": [
+            "Linear regression                                       Number of obs =    199",
+            "                                                        Replications  =     10",
+            "                                                        Wald chi2(1)  =  17.81",
+            "                                                        Prob > chi2   = 0.0000",
+            "                                                        R-squared     = 0.0857",
+            "                                                        Adj R-squared = 0.0811",
+            "                                                        Root MSE      = 0.9794",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          y1 |   .2934138   .0695252     4.22   0.000      .157147    .4296807",
+            "       _cons |  -.0104866   .0759808    -0.14   0.890    -.1594063     .138433",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-rcs-prefix-options-weights-equations",
+      "source": "clear\nset seed 4247\nset obs 302\ngenerate a = invnormal(runiform())\ngenerate b = invnormal(runiform())\ngenerate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))\ngenerate wt = 1 + floor(runiform()*3)\nreplace a = . in 1/57\nbootstrap r(mean), reps(20) seed(3) nowarn: summarize a\njackknife r(mean) [fweight=wt]: summarize a\njackknife r(mean): summarize a [fweight=wt]\njackknife m=r(mean) [fweight=wt], nodots: summarize a\ndisplay e(N) \" \" e(N_reps) \" \" e(N_misreps) \" \" _se[m]\njackknife _b [fweight=wt], nodots: regress y b\ncapture noisily jackknife _b [pweight=wt], nodots: regress y b\njackknife _b, nodots: regress y b [fweight=wt]\ncapture noisily bootstrap r(mean) [fweight=wt], reps(5) seed(1): summarize a\nbootstrap (a: r(mean)) (b: r(sd)), reps(20) seed(2): summarize b\nmatrix list e(b)\ntest _b[a:_bs_1] = 0\njackknife (a: r(mean)) (b: r(sd)), nodots: summarize b\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4247", "lines": [] },
+        {
+          "command": "set obs 302",
+          "lines": ["Number of observations (_N) was 0, now 302."]
+        },
+        { "command": "generate a = invnormal(runiform())", "lines": [] },
+        { "command": "generate b = invnormal(runiform())", "lines": [] },
+        {
+          "command": "generate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))",
+          "lines": []
+        },
+        { "command": "generate wt = 1 + floor(runiform()*3)", "lines": [] },
+        {
+          "command": "replace a = . in 1/57",
+          "lines": ["(57 real changes made, 57 to missing)"]
+        },
+        {
+          "command": "bootstrap r(mean), reps(20) seed(3) nowarn: summarize a",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Bootstrap results                                          Number of obs = 302",
+            "                                                           Replications  =  20",
+            "",
+            "      Command: summarize a",
+            "        _bs_1: r(mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _bs_1 |  -.0577836   .0687712    -0.84   0.401    -.1925726    .0770054",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife r(mean) [fweight=wt]: summarize a",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "Jackknife replications (302): nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn..60.........70.........80.........90.........100.........110.........120.........130.........140.........150....",
+            "> .....160.........170.........180.........190.........200.........210.........220.........230.........240.........250.........260.........270.........280.........290.........300.. done",
+            "n: Sample size for the replicate did not equal the expected sample size.",
+            "",
+            "Jackknife results                                          Number of obs = 490",
+            "                                                           Replications  = 245",
+            "",
+            "      Command: summarize a [fweight= wt]",
+            "        _jk_1: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _jk_1 |  -.0841306    .042479    -1.98   0.048    -.1675944   -.0006667",
+            "------------------------------------------------------------------------------",
+            "Note: One or more parameters could not be estimated in 57 jackknife replicates;",
+            "      standard-error estimates include only complete replications."
+          ]
+        },
+        {
+          "command": "jackknife r(mean): summarize a [fweight=wt]",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "Jackknife replications (302): nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn..60.........70.........80.........90.........100.........110.........120.........130.........140.........150....",
+            "> .....160.........170.........180.........190.........200.........210.........220.........230.........240.........250.........260.........270.........280.........290.........300.. done",
+            "n: Sample size for the replicate did not equal the expected sample size.",
+            "",
+            "Jackknife results                                          Number of obs = 490",
+            "                                                           Replications  = 245",
+            "",
+            "      Command: summarize a [fweight= wt]",
+            "        _jk_1: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _jk_1 |  -.0841306    .042479    -1.98   0.048    -.1675944   -.0006667",
+            "------------------------------------------------------------------------------",
+            "Note: One or more parameters could not be estimated in 57 jackknife replicates;",
+            "      standard-error estimates include only complete replications."
+          ]
+        },
+        {
+          "command": "jackknife m=r(mean) [fweight=wt], nodots: summarize a",
+          "lines": [
+            "Jackknife results                                          Number of obs = 490",
+            "                                                           Replications  = 245",
+            "",
+            "      Command: summarize a [fweight= wt]",
+            "            m: r(mean)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           m |  -.0841306    .042479    -1.98   0.048    -.1675944   -.0006667",
+            "------------------------------------------------------------------------------",
+            "Note: One or more parameters could not be estimated in 57 jackknife replicates;",
+            "      standard-error estimates include only complete replications."
+          ]
+        },
+        {
+          "command": "display e(N) \" \" e(N_reps) \" \" e(N_misreps) \" \" _se[m]",
+          "lines": ["490 245 57 .042479"]
+        },
+        {
+          "command": "jackknife _b [fweight=wt], nodots: regress y b",
+          "lines": [
+            "Linear regression                                       Number of obs =    613",
+            "                                                        Replications  =    302",
+            "                                                        F(1, 612)     =  10.46",
+            "                                                        Prob > F      = 0.0013",
+            "                                                        R-squared     = 0.0204",
+            "                                                        Adj R-squared = 0.0188",
+            "                                                        Root MSE      = 2.8682",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           b |  -.3944528   .1219816    -3.23   0.001    -.6340061   -.1548996",
+            "       _cons |   .9050283   .1175817     7.70   0.000     .6741157    1.135941",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily jackknife _b [pweight=wt], nodots: regress y b",
+          "lines": [
+            "Linear regression                                       Number of obs =    302",
+            "                                                        Replications  =    302",
+            "                                                        F(1, 301)     =   4.07",
+            "                                                        Prob > F      = 0.0446",
+            "                                                        R-squared     = 0.0204",
+            "                                                        Adj R-squared = 0.0172",
+            "                                                        Root MSE      = 2.8730",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           b |  -.3944528   .1955941    -2.02   0.045    -.7793579   -.0095478",
+            "       _cons |   .9050283   .1822607     4.97   0.000     .5463619    1.263695",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife _b, nodots: regress y b [fweight=wt]",
+          "lines": [
+            "Linear regression                                       Number of obs =    613",
+            "                                                        Replications  =    302",
+            "                                                        F(1, 612)     =  10.46",
+            "                                                        Prob > F      = 0.0013",
+            "                                                        R-squared     = 0.0204",
+            "                                                        Adj R-squared = 0.0188",
+            "                                                        Root MSE      = 2.8682",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           b |  -.3944528   .1219816    -3.23   0.001    -.6340061   -.1548996",
+            "       _cons |   .9050283   .1175817     7.70   0.000     .6741157    1.135941",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily bootstrap r(mean) [fweight=wt], reps(5) seed(1): summarize a",
+          "lines": ["weights not allowed with bootstrap estimation"]
+        },
+        {
+          "command": "bootstrap (a: r(mean)) (b: r(sd)), reps(20) seed(2): summarize b",
+          "lines": [
+            "(running summarize on estimation sample)",
+            "",
+            "warning: summarize does not set e(sample), so no observations will be excluded from the resampling because of missing values or other reasons. To exclude observations, press Break, save the data,",
+            "         drop any observations that are to be excluded, and rerun bootstrap.",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Bootstrap results                                          Number of obs = 302",
+            "                                                           Replications  =  20",
+            "",
+            "      Command: summarize b",
+            "     [a]_bs_1: r(mean)",
+            "     [b]_bs_1: r(sd)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "             | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "a            |",
+            "       _bs_1 |   .0300271   .0561134     0.54   0.593    -.0799531    .1400073",
+            "-------------+----------------------------------------------------------------",
+            "b            |",
+            "       _bs_1 |    1.04597   .0384629    27.19   0.000      .970584    1.121356",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(b)",
+          "lines": [
+            "e(b)[1,2]",
+            "            a:         b:",
+            "        _bs_1      _bs_1",
+            "y1  .03002707  1.0459698"
+          ]
+        },
+        {
+          "command": "test _b[a:_bs_1] = 0",
+          "lines": [
+            " ( 1)  [a]_bs_1 = 0",
+            "",
+            "           chi2(  1) =    0.29",
+            "         Prob > chi2 =    0.5926"
+          ]
+        },
+        {
+          "command": "jackknife (a: r(mean)) (b: r(sd)), nodots: summarize b",
+          "lines": [
+            "Jackknife results                                          Number of obs = 302",
+            "                                                           Replications  = 302",
+            "",
+            "      Command: summarize b",
+            "     [a]_jk_1: r(mean)",
+            "     [b]_jk_1: r(sd)",
+            "          n(): r(N)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "             | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "a            |",
+            "       _jk_1 |   .0300271   .0601888     0.50   0.618    -.0884171    .1484712",
+            "-------------+----------------------------------------------------------------",
+            "b            |",
+            "       _jk_1 |    1.04597   .0454925    22.99   0.000     .9564463    1.135493",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-rcs-bootstrap-header-widths",
+      "source": "clear\nset seed 11\nset obs 200\ngenerate a = invnormal(runiform())\ngenerate b = invnormal(runiform())\ngenerate y = 1 + 2*a - 1.5*b + 0.5*invnormal(runiform())\nbootstrap, reps(40) seed(3): regress y a b\nbootstrap _b, reps(25) seed(7) nodots: regress y a b\nregress y a b, vce(bootstrap, reps(30) seed(5) nodots)\njackknife, nodots: regress y a b\ngenerate z = invnormal(runiform())\nbootstrap, reps(20) seed(3) nodots: regress z a\njackknife, nodots: regress z a\nclear\nset seed 4242\nset obs 9718\ngenerate age = 18 + floor(runiform()*50)\ngenerate female = runiform() < .5\ngenerate wage = 8 + 0.3*age - 2*female + invnormal(runiform())*4\nset seed 1\nbootstrap _b, reps(20) nodots: regress wage age female\njackknife _b, nodots: regress wage age female\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 11", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate a = invnormal(runiform())", "lines": [] },
+        { "command": "generate b = invnormal(runiform())", "lines": [] },
+        {
+          "command": "generate y = 1 + 2*a - 1.5*b + 0.5*invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "bootstrap, reps(40) seed(3): regress y a b",
+          "lines": [
+            "(running regress on estimation sample)",
+            "",
+            "Bootstrap replications (40): .........10.........20.........30.........40 done",
+            "",
+            "Linear regression                                      Number of obs =     200",
+            "                                                       Replications  =      40",
+            "                                                       Wald chi2(2)  = 5496.51",
+            "                                                       Prob > chi2   =  0.0000",
+            "                                                       R-squared     =  0.9606",
+            "                                                       Adj R-squared =  0.9602",
+            "                                                       Root MSE      =  0.5118",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.039952   .0319357    63.88   0.000     1.977359    2.102544",
+            "           b |  -1.513691   .0328376   -46.10   0.000    -1.578051    -1.44933",
+            "       _cons |   1.017493   .0399251    25.49   0.000     .9392409    1.095744",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bootstrap _b, reps(25) seed(7) nodots: regress y a b",
+          "lines": [
+            "Linear regression                                      Number of obs =     200",
+            "                                                       Replications  =      25",
+            "                                                       Wald chi2(2)  = 7252.40",
+            "                                                       Prob > chi2   =  0.0000",
+            "                                                       R-squared     =  0.9606",
+            "                                                       Adj R-squared =  0.9602",
+            "                                                       Root MSE      =  0.5118",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.039952    .030723    66.40   0.000     1.979735    2.100168",
+            "           b |  -1.513691   .0366606   -41.29   0.000    -1.585544   -1.441837",
+            "       _cons |   1.017493   .0390978    26.02   0.000     .9408623    1.094123",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y a b, vce(bootstrap, reps(30) seed(5) nodots)",
+          "lines": [
+            "Linear regression                                      Number of obs =     200",
+            "                                                       Replications  =      30",
+            "                                                       Wald chi2(2)  = 6132.86",
+            "                                                       Prob > chi2   =  0.0000",
+            "                                                       R-squared     =  0.9606",
+            "                                                       Adj R-squared =  0.9602",
+            "                                                       Root MSE      =  0.5118",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           y | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.039952   .0353489    57.71   0.000     1.970669    2.109234",
+            "           b |  -1.513691   .0349693   -43.29   0.000    -1.582229   -1.445152",
+            "       _cons |   1.017493   .0301285    33.77   0.000     .9584419    1.076543",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife, nodots: regress y a b",
+          "lines": [
+            "Linear regression                                      Number of obs =     200",
+            "                                                       Replications  =     200",
+            "                                                       F(2, 199)     = 2777.79",
+            "                                                       Prob > F      =  0.0000",
+            "                                                       R-squared     =  0.9606",
+            "                                                       Adj R-squared =  0.9602",
+            "                                                       Root MSE      =  0.5118",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   2.039952   .0322465    63.26   0.000     1.976363     2.10354",
+            "           b |  -1.513691   .0358578   -42.21   0.000    -1.584401   -1.442981",
+            "       _cons |   1.017493   .0362781    28.05   0.000     .9459537    1.089031",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate z = invnormal(runiform())", "lines": [] },
+        {
+          "command": "bootstrap, reps(20) seed(3) nodots: regress z a",
+          "lines": [
+            "Linear regression                                      Number of obs =     200",
+            "                                                       Replications  =      20",
+            "                                                       Wald chi2(1)  =    1.05",
+            "                                                       Prob > chi2   =  0.3058",
+            "                                                       R-squared     =  0.0015",
+            "                                                       Adj R-squared = -0.0035",
+            "                                                       Root MSE      =  1.0021",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "           z | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   .0395176   .0385876     1.02   0.306    -.0361128     .115148",
+            "       _cons |   .0159599    .090302     0.18   0.860    -.1610288    .1929485",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife, nodots: regress z a",
+          "lines": [
+            "Linear regression                                      Number of obs =     200",
+            "                                                       Replications  =     200",
+            "                                                       F(1, 199)     =    0.39",
+            "                                                       Prob > F      =  0.5343",
+            "                                                       R-squared     =  0.0015",
+            "                                                       Adj R-squared = -0.0035",
+            "                                                       Root MSE      =  1.0021",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "           z | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   .0395176   .0634735     0.62   0.534    -.0856493    .1646845",
+            "       _cons |   .0159599    .070588     0.23   0.821    -.1232366    .1551563",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 9718",
+          "lines": ["Number of observations (_N) was 0, now 9,718."]
+        },
+        { "command": "generate age = 18 + floor(runiform()*50)", "lines": [] },
+        { "command": "generate female = runiform() < .5", "lines": [] },
+        {
+          "command": "generate wage = 8 + 0.3*age - 2*female + invnormal(runiform())*4",
+          "lines": []
+        },
+        { "command": "set seed 1", "lines": [] },
+        {
+          "command": "bootstrap _b, reps(20) nodots: regress wage age female",
+          "lines": [
+            "Linear regression                                     Number of obs =    9,718",
+            "                                                      Replications  =       20",
+            "                                                      Wald chi2(2)  = 16630.65",
+            "                                                      Prob > chi2   =   0.0000",
+            "                                                      R-squared     =   0.5393",
+            "                                                      Adj R-squared =   0.5392",
+            "                                                      Root MSE      =   4.0173",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |   Observed   Bootstrap                         Normal-based",
+            "        wage | coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         age |   .2941691     .00235   125.18   0.000     .2895632     .298775",
+            "      female |  -2.011216   .0844116   -23.83   0.000     -2.17666   -1.845773",
+            "       _cons |   8.220088   .1162519    70.71   0.000     7.992238    8.447937",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife _b, nodots: regress wage age female",
+          "lines": [
+            "Linear regression                                      Number of obs =   9,718",
+            "                                                       Replications  =   9,718",
+            "                                                       F(2, 9717)    = 5772.78",
+            "                                                       Prob > F      =  0.0000",
+            "                                                       R-squared     =  0.5393",
+            "                                                       Adj R-squared =  0.5392",
+            "                                                       Root MSE      =  4.0173",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |              Jackknife",
+            "        wage | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         age |   .2941691   .0027938   105.29   0.000     .2886927    .2996455",
+            "      female |  -2.011216   .0815244   -24.67   0.000    -2.171021   -1.851412",
+            "       _cons |   8.220088   .1304265    63.02   0.000     7.964425    8.475751",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

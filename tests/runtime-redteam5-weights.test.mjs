@@ -195,18 +195,29 @@ test("weighted models refuse what Stata refuses, with its codes", () => {
   assert.equal(code("predict r, residuals"), 135);
 });
 
-test("jackknife after frequency or importance weights is refused, not approximated", () => {
-  // Stata 19 runs both (jackknife: logit d x1 [fw=fw] on 60 observations
-  // gives _se[x1] = .1798259 with 114 degrees of freedom), leaving out a
-  // frequency-weighted observation one unit at a time; leaving out whole
-  // observations, as done here, gave .2887067. Refused until it matches.
+test("jackknife leaves out a frequency weight one unit at a time and refuses an importance weight", () => {
+  // Stata 19 (version 17, set processors 1) leaves out a frequency-weighted
+  // observation one unit at a time: jackknife: logit d x1 [fw=fw] on the
+  // first 60 observations gives _se[x1] = .1468708478 with 122 degrees of
+  // freedom, e(N) 123 and 60 replications; on all 300, .0792462935, 588,
+  // 589 and 300. An importance weight Stata scales, which is not done here.
   const s = new Session();
   s.run(SETUP);
-  for (const w of ["fw=fw", "iw=pw"]) {
-    const result = s.run(`jackknife, nodots: logit d x1 [${w}]`);
-    assert.equal(result.rc, 198);
-    assert.match(result.output.at(-1).lines.join("\n"), /not available yet/);
-  }
+  s.run("preserve");
+  s.run("keep in 1/60");
+  assert.equal(s.run("jackknife, nodots: logit d x1 [fw=fw]").rc, 0);
+  const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-6 * b, `${a} ${b}`);
+  near(s.scalar("_se[x1]"), 0.1468708478);
+  assert.equal(s.results.e.df_r, 122);
+  assert.equal(s.results.e.N, 123);
+  assert.equal(s.results.e.N_reps, 60);
+  s.run("restore");
+  assert.equal(s.run("jackknife, nodots: logit d x1 [fw=fw]").rc, 0);
+  near(s.scalar("_se[x1]"), 0.0792462935);
+  assert.equal(s.results.e.df_r, 588);
+  const result = s.run("jackknife, nodots: logit d x1 [iw=pw]");
+  assert.equal(result.rc, 198);
+  assert.match(result.output.at(-1).lines.join("\n"), /not available yet/);
 });
 
 // ----- Second round: what a tester found with the weights above -----

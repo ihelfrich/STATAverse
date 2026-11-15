@@ -1961,7 +1961,10 @@ function heckman(session, text, ctx) {
       options.vce &&
       !/^conv(e(n(t(i(o(n(al?)?)?)?)?)?)?)?$/.test(options.vce.trim())
     )
-      throw new StataError(`vcetype ${options.vce.trim()} not allowed`, 198);
+      throw new StataError(
+        `vcetype ${options.vce.trim().split(/[\s,]+/)[0]} not allowed`,
+        198,
+      );
     if (options.robust || options.cluster)
       throw new StataError("option robust not allowed with twostep", 198);
   } else
@@ -2767,7 +2770,9 @@ const HECKMAN_RESAMPLED = {
         ga = h.sigma * (1 - h.rho * h.rho),
         gl = h.lambda;
       seLambda = Math.sqrt(
-        ga * ga * fit.V[a][a] + 2 * ga * gl * fit.V[a][l] + gl * gl * fit.V[l][l],
+        ga * ga * fit.V[a][a] +
+          2 * ga * gl * fit.V[a][l] +
+          gl * gl * fit.V[l][l],
       );
     } else seLambda = Math.sqrt(fit.V[at("lambda")][at("lambda")]);
     showHeckman(
@@ -2867,11 +2872,7 @@ function absorbedFit(
     // A column the absorbed means leave constant (a dummy of the group
     // absorbed) is omitted, whatever rounding is left of its spread.
     const size = all[k].reduce((t, u, i) => t + wt(i) * u * u, 0);
-    if (
-      !(spread > 1e-13 * size) ||
-      !(spread > 0) ||
-      !(norm2 > 1e-13 * spread)
-    )
+    if (!(spread > 1e-13 * size) || !(spread > 0) || !(norm2 > 1e-13 * spread))
       continue;
     const norm = Math.sqrt(norm2);
     Q.push(v.map((u) => u / norm));
@@ -2951,21 +2952,29 @@ function fTest(fit, at) {
   const shown = at.filter((k) => k >= 0);
   if (!shown.length) return null;
   // As test does, from the generalized inverse of the tested part of the
-  // variance: a constraint that the ones before it already span (as with
-  // two clusters, whose variance has rank one) is dropped, and the test
-  // has as many degrees of freedom as constraints are left.
+  // variance that invsym() makes: it sweeps the column of largest variance
+  // left first, and drops a constraint that those swept already span (as
+  // with two clusters, whose variance has rank one); the test has as many
+  // degrees of freedom as constraints are left.
   const S = shown.map((r) => shown.map((c) => fit.V[r][c])),
     W = S.map((r) => r.slice()),
+    left = new Set(S.keys()),
     independent = [];
-  S.forEach((_, c) => {
-    if (!(W[c][c] > 1e-10 * Math.abs(S[c][c]))) return;
+  for (;;) {
+    let c = -1;
+    for (const j of left)
+      if (W[j][j] > 1e-10 * Math.abs(S[j][j]) && (c < 0 || W[j][j] > W[c][c]))
+        c = j;
+    if (c < 0) break;
+    left.delete(c);
     independent.push(c);
     for (let r = 0; r < S.length; r++) {
       if (r === c) continue;
       const f = W[r][c] / W[c][c];
       if (f) for (let a = 0; a < S.length; a++) W[r][a] -= f * W[c][a];
     }
-  });
+  }
+  independent.sort((x, y) => x - y);
   if (!independent.length) return null;
   const tested = independent.map((c) => shown[c]),
     chi2 = waldOf(fit.beta, fit.V, tested),
@@ -3481,7 +3490,12 @@ function didregress(xt) {
         ...controlsShown.map((c) => ({
           equation: "Controls",
           name:
-            where(ordered.indexOf(c)) < 0 && !c.base ? `o.${c.name}` : c.name,
+            // An omitted level is 2o.state, as Stata writes it; a variable o.x.
+            where(ordered.indexOf(c)) < 0 && !c.base
+              ? /^\d+\./.test(c.name)
+                ? c.name.replace(".", "o.")
+                : `o.${c.name}`
+              : c.name,
         })),
         { equation: "Controls", name: "_cons" },
       ],
