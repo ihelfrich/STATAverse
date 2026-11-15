@@ -24,12 +24,21 @@ export function stringValue(text) {
   return pieces.length ? pieces.join(" + ") : '""';
 }
 
-/** A value as Stata reads it in an expression of a replace command. */
+/**
+ * A value as Stata reads it in an expression of a replace command. In a
+ * variable with a value label, the label's text stands for its number, as
+ * Stata's Data Editor takes it; `column.codes` holds the label's pairs.
+ */
 export function replaceValue(text, column) {
   const typed = text.trim();
   if (/^str/.test(column.type)) return stringValue(text);
   if (typed === "" || /^\.[a-z]?$/.test(typed)) return typed || ".";
   if (/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(typed)) return typed;
+  const codes = column.codes ?? [],
+    named =
+      codes.find(([, label]) => label === typed) ??
+      codes.find(([, label]) => label.toLowerCase() === typed.toLowerCase());
+  if (named) return String(named[0]);
   return null;
 }
 
@@ -145,8 +154,16 @@ export function mountBrowser({ drawer, ask, run, onOpen }) {
     // cell; leaving the input for elsewhere leaves the focus there.
     const close = (back) => {
       done = true;
-      if (back) refocus = { obs: row.obs, k };
-      show();
+      note.textContent = "";
+      if (back) {
+        refocus = { obs: row.obs, k };
+        show();
+        return;
+      }
+      // Leaving for another cell: only this one is drawn again, so that
+      // the click that left it still reaches the cell it was on.
+      cell.textContent = "";
+      cell.append(cellButton(cell, row, k));
     };
     input.addEventListener("keydown", async (event) => {
       if (event.key === "Escape") {
@@ -163,7 +180,8 @@ export function mountBrowser({ drawer, ask, run, onOpen }) {
       }
       const value = replaceValue(input.value, column);
       if (value === null) {
-        note.textContent = `${column.name} is numeric: type a number, or . for missing.`;
+        const named = (column.codes ?? []).map(([, label]) => label);
+        note.textContent = `${column.name} is numeric: type a number${named.length ? `, a label of ${column.valueLabel} (${named.slice(0, 6).join(", ")}${named.length > 6 ? ", …" : ""})` : ""}, or . for missing.`;
         return;
       }
       done = true;
@@ -174,6 +192,22 @@ export function mountBrowser({ drawer, ask, run, onOpen }) {
     input.addEventListener("blur", () => {
       if (!done) close(false);
     });
+  }
+
+  /** The button of an editable cell, which opens it for change. */
+  function cellButton(cell, row, k) {
+    const column = page.columns[k],
+      text = row.cells[k],
+      button = document.createElement("button");
+    button.type = "button";
+    button.className = "browse-cell";
+    button.textContent = text;
+    button.setAttribute(
+      "aria-label",
+      `${column.name}, observation ${row.obs}: ${text || "empty"}. Change`,
+    );
+    button.addEventListener("click", () => editCell(cell, row, k));
+    return button;
   }
 
   function show() {
@@ -196,15 +230,7 @@ export function mountBrowser({ drawer, ask, run, onOpen }) {
           cell.classList.toggle("is-labelled", text !== String(raw));
         if (raw === null) cell.classList.add("is-missing");
         if (state.edit) {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "browse-cell";
-          button.textContent = text;
-          button.setAttribute(
-            "aria-label",
-            `${column.name}, observation ${row.obs}: ${text || "empty"}. Change`,
-          );
-          button.addEventListener("click", () => editCell(cell, row, k));
+          const button = cellButton(cell, row, k);
           cell.append(button);
           if (refocus?.obs === row.obs && refocus.k === k) {
             refocus = null;

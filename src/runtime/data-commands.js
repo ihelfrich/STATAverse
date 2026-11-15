@@ -2687,11 +2687,16 @@ export const DATA_COMMANDS = [
   { name: "encode", minimum: 2, run: encode },
   { name: "decode", minimum: 3, run: decode },
   { name: "recode", minimum: 6, run: recode },
-  // A browser session has one folder and no log files; these are accepted
-  // so that do-files written for Stata keep running.
+  // A browser session has one folder; these are accepted so that do-files
+  // written for Stata keep running. The Console keeps a log (session.log)
+  // the student can download.
   { name: "mkdir", minimum: 5, run: quiet },
   { name: "cd", minimum: 2, run: quiet },
-  { name: "log", minimum: 3, run: quiet },
+  {
+    name: "log",
+    minimum: 3,
+    run: (session, text, ctx) => session.log?.(text, ctx),
+  },
   { name: "cmdlog", minimum: 6, run: quiet },
   {
     name: "pwd",

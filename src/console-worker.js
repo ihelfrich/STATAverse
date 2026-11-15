@@ -15,11 +15,21 @@ async function answer(data) {
     return giveFile(session, data.name, data.as, bytes);
   }
   if (kind === "peek") return session.peek(data.request);
+  if (kind === "read") return { file: session.readFile(data.name) };
   // A long run says now and then where it is.
   return kind === "run"
     ? session.run(source, {
         doFile: data.doFile,
-        progress: (progress) => self.postMessage({ id, progress }),
+        stopAt: data.stopAt ?? -1,
+        endless: true,
+        // A run put back after Stop is quiet; any other says what it has
+        // printed as it goes, so that Stop keeps it.
+        ...(data.quiet
+          ? {}
+          : {
+              progress: (progress) => self.postMessage({ id, progress }),
+              stream: (stream) => self.postMessage({ id, stream }),
+            }),
       })
     : kind === "file"
       ? session.addFile(data.name, data.text)

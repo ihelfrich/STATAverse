@@ -2653,15 +2653,26 @@ function collapse(session, text, ctx) {
   rebuilt(session, result);
 }
 
-function sysuse(session, text) {
+function sysuse(session, text, ctx) {
+  // sysuse dir lists the datasets as Stata lists its own: in columns of
+  // sixteen characters, down each column first.
+  if (/^\s*dir\s*(,\s*all\s*)?$/.test(text)) {
+    const files = Object.keys(session.library ?? {})
+        .sort()
+        .map((id) => `${id}.dta`),
+      rows = Math.ceil(files.length / 4);
+    for (let r = 0; r < rows; r++) {
+      const row = [];
+      for (let c = 0; c < 4 && r + c * rows < files.length; c++)
+        row.push(files[r + c * rows].padEnd(16));
+      ctx.out(`  ${row.join("")}`.trimEnd());
+    }
+    return;
+  }
   const parsed = session.parse("[anything] [, clear]", text),
     name = parsed.anything.replace(/^"|"$/g, "").replace(/\.dta$/, ""),
     library = session.library ?? {};
-  if (!name || name === "dir")
-    throw new StataError(
-      `sysuse loads this site's teaching datasets: ${Object.keys(library).join(", ") || "none are installed"}. Stata's own example datasets belong to StataCorp and are not included.`,
-      601,
-    );
+  if (!name) throw new StataError("invalid file specification", 198);
   if (!library[name])
     throw new StataError(
       `file ${name}.dta not found. This site's datasets are: ${Object.keys(library).join(", ") || "none"}.`,

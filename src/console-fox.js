@@ -88,8 +88,16 @@ export function createFox({ host, says, still }) {
   );
   mood("idle", true);
   return {
-    running: () => mood("running", true),
-    done: () => mood("done"),
+    // A new run, or one that ended well, leaves nothing of an earlier
+    // error in his bubble.
+    running: () => {
+      say("");
+      mood("running", true);
+    },
+    done: () => {
+      say("");
+      mood("done");
+    },
     idle: () => mood("idle", true),
     /**
      * A failed command: he looks worried and says what went wrong, in the

@@ -10,6 +10,9 @@ import { readDta, writeDta } from "./console-dta.js";
 import { binaryKind, checkForeign } from "./runtime/foreign.js";
 import { applyFormat } from "./runtime/format.js";
 import { isMissing, parseNumber } from "./runtime/values.js";
+import { echoOf } from "./runtime/echo.js";
+import { parseBlocks, splitCommands } from "./runtime/dofile.js";
+import { createLogs } from "./console-log.js";
 
 const library = Object.fromEntries(
   Object.entries(LIBRARY).map(([id, entry]) => [id, entry.data]),
@@ -70,7 +73,14 @@ export function createConsoleSession() {
       ]),
     ),
   });
+  // log using writes a file in the session's folder, as save does.
+  const logs = createLogs({
+    has: (name) => !!session.files?.has(name),
+    text: (name) => session.files.get(name)?.text ?? "",
+    write: (name, text) => (session.files ??= new Map()).set(name, { text }),
+  });
   const reset = (dataset = "") => {
+    logs.clear();
     session = new Session();
     stamp++;
     interactive = session.frame();
@@ -255,6 +265,10 @@ export function createConsoleSession() {
           format,
           label,
           valueLabel: valueLabel ?? "",
+          // The label's numbers and texts, so that the editor takes a text.
+          codes: valueLabel
+            ? [...(data.valueLabels.get(valueLabel) ?? [])].slice(0, 2000)
+            : [],
         })),
         rows: rows.slice(start, start + count).map((i) => ({
           obs: i + 1,
@@ -275,17 +289,69 @@ export function createConsoleSession() {
      * line has run and how many commands, so that a long run shows where
      * it is.
      */
-    run(source, { doFile = false, progress = null } = {}) {
+    run(
+      source,
+      {
+        doFile = false,
+        progress = null,
+        stream = null,
+        stopAt = -1,
+        endless = false,
+      } = {},
+    ) {
       stamp++;
       let commands = 0,
         last = 0;
       session.opened = null;
+      // The commands of the run, one at a time. Before each, what the ones
+      // before it printed goes to `stream`, so that a run ended by Stop
+      // keeps what it printed; and while one runs, what its inner commands
+      // have printed so far. A run given `stopAt` ends before that command,
+      // as a run that was stopped there did: the session is then as it was.
+      let top = null,
+        sent = 0,
+        pending = [],
+        told = 0,
+        logged = 0,
+        stopping = null;
+      logs.start();
+      session.log = (text, ctx) =>
+        logs.command(text, ctx, top ? top.length : 0);
+      const lines = source.replace(/\r\n?/g, "\n").split("\n");
+      session.runNodes = function (nodes, frame, output) {
+        if (top)
+          return Session.prototype.runNodes.call(this, nodes, frame, output);
+        top = output;
+        for (let k = 0; k < nodes.length; k++) {
+          if (k === stopAt) break;
+          const node = nodes[k];
+          logs.take(top, logged, top.length);
+          logged = top.length;
+          if (stream) {
+            const shown =
+              node.kind === "block"
+                ? echoOf(lines, node.line, node.end || node.line)
+                : { command: node.text ?? "", echo: [] };
+            stream({
+              records: top.slice(sent),
+              node: k,
+              line: node.line,
+              command: shown.command,
+              echo: shown.echo,
+            });
+            sent = top.length;
+            pending = [];
+          }
+          Session.prototype.runNodes.call(this, [node], frame, output);
+        }
+      };
       // The error a command stopped at, for what the Console says of it.
       session.dispatch = function (...args) {
         try {
           return Session.prototype.dispatch.apply(this, args);
         } catch (error) {
           this.failure = error;
+          stopping = error;
           throw error;
         }
       };
@@ -303,7 +369,19 @@ export function createConsoleSession() {
         if (args[3] && failure?.code === args[3] && failure.allowed)
           entry.allowed = failure.allowed;
         commands++;
+        // In the worker, where Stop can end any run, a run is not cut short
+        // after a fixed number of commands: a long loop runs to its end.
+        if (endless) this.steps = 0;
+        if (stream) {
+          // What the command running now has printed, its last lines.
+          pending.push(...entry.lines);
+          if (pending.length > 2000) pending = pending.slice(-1000);
+        }
         const now = Date.now();
+        if (stream && now - told >= 150) {
+          told = now;
+          stream({ partial: pending.slice(-1000) });
+        }
         if (!progress || now - last < 120) return;
         last = now;
         progress({ line: args[5] ?? this.line ?? 0, commands });
@@ -312,12 +390,48 @@ export function createConsoleSession() {
       try {
         ran = session.run(source, doFile ? undefined : interactive);
       } finally {
+        delete session.runNodes;
+        delete session.log;
         delete session.record;
         delete session.dispatch;
         session.failure = null;
         stamp++;
       }
       const { output, rc } = ran;
+      // A block left open, or a } with no {, stops the run before any
+      // command does: it is reported under the line it is about, as every
+      // other error is, not in the status line alone.
+      if (rc && !output.some((block) => block.rc)) {
+        const commands = splitCommands(source);
+        try {
+          parseBlocks(commands);
+        } catch (error) {
+          if (error instanceof StataError) {
+            const at = faultOf(commands, error.message);
+            output.push({
+              command:
+                at?.text ?? lines.find((line) => line.trim())?.trim() ?? "",
+              lines: [...(error.message ? [error.message] : []), `r(${rc});`],
+              rc,
+              fault: error.message ? 2 : 1,
+              ...(doFile && at ? { line: at.line } : {}),
+            });
+          }
+        }
+      }
+      // How many of the last lines of the record that stopped the run are
+      // its error, so that only they are shown as one; what the command or
+      // loop printed before it is shown as ordinary output.
+      const stopped = output.findLast((block) => block.rc);
+      if (stopped && stopped.fault === undefined)
+        stopped.fault =
+          stopped.lines.at(-1) !== `r(${stopped.rc});`
+            ? 0
+            : stopping instanceof StataError && stopping.code === stopped.rc
+              ? stopping.message
+                ? 2
+                : 1
+              : Math.min(2, stopped.lines.length);
       // A string variable where a number was needed: what its text is, so
       // that the Console's hint offers a command that works on it.
       for (const block of output)
@@ -329,6 +443,7 @@ export function createConsoleSession() {
         block.lines = block.lines.map((line) =>
           line.replace(/(?<![\uD800-\uDBFF])[\uDC80-\uDCFF]/g, "\uFFFD"),
         );
+      logs.take(output, logged, output.length);
       // Graphs written by graph export, for the page to turn into files.
       const made = session.exported ?? [];
       session.exported = [];
@@ -419,6 +534,29 @@ function stringContents(session, block) {
     };
   }
   return contents;
+}
+
+/**
+ * The command a block error is about: the { left open, the } with no {, or
+ * the program with no end.
+ */
+function faultOf(commands, message) {
+  const open = [];
+  for (const command of commands) {
+    if (
+      /^pr(o(g(r(am?)?)?)?)?\s+/.test(command.text) &&
+      !/^pr\w*\s+(drop|dir|list)\b/.test(command.text)
+    )
+      open.push(command);
+    else if (/\{$/.test(command.text)) open.push(command);
+    else if (command.text === "}" || command.text === "end") {
+      if (!open.length) return command;
+      open.pop();
+    }
+  }
+  if (/^program /.test(message))
+    return open.find((command) => /^pr/.test(command.text)) ?? open.at(-1);
+  return open.at(-1) ?? commands.at(-1);
 }
 
 /**
