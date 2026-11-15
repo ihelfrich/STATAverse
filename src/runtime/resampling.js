@@ -3090,6 +3090,14 @@ export function resamplingVce(session, command, text, vce, ctx) {
     rest = rest.replace(
       /(^|\s)(nodots|dots\s*\([^()]*\)|l(?:e(?:v(?:el?)?)?)?\s*\([^()]*\))(?=\s|$)/g,
       (_, b, o) => {
+        // A level() inside vce() and another among the command's options
+        // conflict, as Stata says.
+        const isLevel = (option) => /^l(?:e(?:v(?:el?)?)?)?\s*\(/.test(option);
+        if (isLevel(o) && /(?:^|[\s,])l(?:e(?:v(?:el?)?)?)?\s*\(/.test(m[2]))
+          throw new StataError(
+            `option level() of ${prefix} conflicts with option level() of ${command}`,
+            198,
+          );
         prefixOptions.push(o);
         return b;
       },

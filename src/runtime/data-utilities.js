@@ -46,9 +46,10 @@ function numeric(session, name) {
   return variable;
 }
 // A name may hold letters beyond ASCII (split s, gen(ét) makes ét1), as
-// generate's may.
-const newName = (session, name) => {
-  if (!isName(name) || isReserved(name))
+// generate's may. pctile's genp() lets a reserved word through, which
+// fails later, once the percentiles are made, as "invalid varname".
+const newName = (session, name, { reserved = true } = {}) => {
+  if (!isName(name) || (reserved && isReserved(name)))
     throw new StataError(`${name} invalid name`, 198);
   if (session.data.has(name))
     throw new StataError(`variable ${name} already defined`, 110);
@@ -368,7 +369,8 @@ function pctile(session, text, ctx) {
       198,
     );
   const percentages = (options.genp ?? "").trim().split(/\s+/).filter(Boolean);
-  for (const percentage of percentages) newName(session, percentage);
+  for (const percentage of percentages)
+    newName(session, percentage, { reserved: false });
   if (percentages.length > 1)
     throw new StataError("only one variable allowed in genp()", 198);
   const compiled = session.compile(parsed.exp);
