@@ -554,7 +554,10 @@ test("r(452), r(451), r(602), r(459), r(106) and r(107) get hints", () => {
   runs(save.fix);
   assert.match(hint("isid id").text, /duplicates report id/);
   const merge = hint("merge 1:1 id using hintsfile");
-  assert.match(merge.text, /^id repeats in the master data/);
+  assert.match(
+    merge.text,
+    /^id repeats in the data in memory \(the master\), so a 1:1 match/,
+  );
   assert.match(merge.text, /m:1/);
   assert.match(hint("xtreg y x1").text, /xtset/);
   assert.match(hint("encode x1, generate(e1)").text, /numeric already/);

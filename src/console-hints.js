@@ -260,16 +260,31 @@ function textUse(words, contents, command) {
     holds = `${both(words)} ${plural(words, "holds", "hold")} text, such as ${shown}, not numbers`,
     name = escape(first),
     encode = `encode ${first}, generate(${first}_code)`;
-  // replace region = 5: the new value is text too.
+  // replace region = 5 or = educ: the new value must be text too; a
+  // numbered copy of region would not take it.
   const given = new RegExp(
-    `^(replace\\s+${name}\\s*=\\s*)([-+]?(?:\\d+\\.?\\d*|\\.\\d+))(?=\\s*(?:$|if\\b|in\\b|,))`,
+    `^(replace\\s+${name}\\s*=\\s*)(.+?)(?=\\s+(?:if|in)\\b|\\s*,|\\s*$)`,
   ).exec(bare(command));
-  if (given)
+  if (given && !given[2].includes('"')) {
+    const value = given[2].trim(),
+      literal = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?$/i.test(value),
+      // 1e3 is the text "1000".
+      text = /e/i.test(value) ? String(Number(value)) : value;
+    if (literal)
+      return {
+        text: `${first} holds text, so a value given to it goes in quotes: "${text}". To store numbers, make a numeric variable instead, or destring ${first} if all its entries are numbers.`,
+        fix: command.replace(given[0], `${given[1]}"${text}"`),
+        help: "replace",
+      };
+    const variable = /^[A-Za-z_]\w*$/.test(value);
     return {
-      text: `${first} holds text, so a value given to it goes in quotes: "${given[2]}". To store numbers, make a numeric variable instead, or destring ${first} if all its entries are numbers.`,
-      fix: command.replace(given[0], `${given[1]}"${given[2]}"`),
+      text: `${first} holds text, so the value given to it must be text too, and ${value} is a number. string(${value}) writes a number as text${variable ? `, as in replace ${first} = string(${value})` : ""}. To store numbers, make a numeric variable instead.`,
+      fix: variable
+        ? command.replace(given[0], `${given[1]}string(${value})`)
+        : "",
       help: "replace",
     };
+  }
   // g == . : a missing string is "", and missing() covers both.
   const dot = new RegExp(`\\b${name}\\s*(==|!=|~=)\\s*\\.(?![\\w.])`).exec(
     command,
@@ -447,6 +462,41 @@ function required(name, message) {
   return RC_HINTS[100];
 }
 
+// A macro as typed: `name', ${name} or $name.
+const MACRO = /`(\w+)'|\$\{(\w+)\}|\$([A-Za-z_]\w*)/g;
+
+/**
+ * The first macro, as typed, of the line of `read` that expanded into
+ * `expanded` (a loop's line, a program's), or "".
+ */
+function macroIn(read, expanded) {
+  const target = expanded.trim();
+  for (const line of read.split("\n")) {
+    const refs = [...line.matchAll(MACRO)];
+    if (!refs.length) continue;
+    // The line with each macro as anything at all.
+    const loose = (text) => escape(text.trim()).replace(/\s+/g, "\\s+");
+    let pattern = "",
+      at = 0;
+    for (const ref of refs) {
+      pattern += `${loose(line.slice(at, ref.index))}\\s*[\\s\\S]*?\\s*`;
+      at = ref.index + ref[0].length;
+    }
+    pattern += loose(line.slice(at));
+    if (new RegExp(`^${pattern}$`).test(target)) return refs[0][0];
+  }
+  return "";
+}
+
+/** The variable a name gives, whole or abbreviated as Stata allows. */
+function abbreviated(name, variables) {
+  if (!name) return undefined;
+  const exact = variables.find((v) => v.name === name);
+  if (exact) return exact;
+  const starting = variables.filter((v) => v.name.startsWith(name));
+  return starting.length === 1 ? starting[0] : undefined;
+}
+
 /** Whether a record is one line that could be run again by itself. */
 const oneLine = (record) =>
   !record.echo?.length && !/[\n{}]/.test(record.command);
@@ -478,7 +528,7 @@ export function adviseRecord(record, context = {}) {
           ...record,
           command: expanded || read,
           // The macro the line used, to show where quotes would go.
-          macro: expanded ? (/`(\w+)'/.exec(read)?.[1] ?? "name") : "",
+          macro: expanded ? macroIn(read, expanded) : "",
         },
         context,
       )
@@ -532,6 +582,215 @@ function refused(record, message, help) {
       " Do this step another way, or run it in Stata itself; the Commands list shows what runs here.";
   return { text, help, suggest: [] };
 }
+
+// Stata's own subcommands of import, export and graph, and its kernels,
+// each with the shortest abbreviation Stata 19 takes, and those that run
+// here. A word that abbreviates none of them is a typo, which Stata itself
+// refuses ("import: unknown subcommand", "invalid kernel function", r(4023)
+// for graph), not a part of Stata the browser lacks.
+const OWN_WORDS = {
+  import: {
+    stata: [
+      ["excel", 3],
+      ["delimited", 5],
+      ["sas", 3],
+      ["sasxport5", 9],
+      ["sasxport8", 9],
+      ["spss", 4],
+      ["dbase", 5],
+      ["fred", 4],
+      ["haver", 3],
+      ["shp", 3],
+    ],
+    here: ["excel", "delimited", "spss", "sasxport5", "sasxport8"],
+  },
+  export: {
+    stata: [
+      ["excel", 3],
+      ["delimited", 5],
+      ["sasxport5", 9],
+      ["sasxport8", 9],
+      ["spss", 4],
+      ["dbase", 4],
+    ],
+    here: ["excel", "delimited", "sasxport5", "sasxport8"],
+  },
+  graph: {
+    stata: [
+      ["twoway", 2],
+      ["bar", 3],
+      ["hbar", 4],
+      ["box", 3],
+      ["hbox", 4],
+      ["dot", 3],
+      ["pie", 3],
+      ["matrix", 3],
+      ["combine", 7],
+      ["export", 6],
+      ["display", 2],
+      ["save", 4],
+      ["use", 3],
+      ["dir", 3],
+      ["describe", 2],
+      ["drop", 4],
+      ["rename", 6],
+      ["copy", 4],
+      ["close", 5],
+      ["query", 1],
+      ["set", 3],
+      ["print", 5],
+      ["replay", 6],
+    ],
+    here: [
+      "twoway",
+      "bar",
+      "hbar",
+      "box",
+      "hbox",
+      "pie",
+      "matrix",
+      "combine",
+      "export",
+      "display",
+      "dir",
+      "rename",
+      "drop",
+    ],
+  },
+  kernel: {
+    stata: [
+      ["epanechnikov", 2],
+      ["epan2", 5],
+      ["biweight", 2],
+      ["cosine", 3],
+      ["gaussian", 3],
+      ["parzen", 3],
+      ["rectangle", 3],
+      ["triangle", 3],
+    ],
+    here: [
+      "epanechnikov",
+      "epan2",
+      "biweight",
+      "gaussian",
+      "rectangle",
+      "triangle",
+    ],
+  },
+};
+
+/** Whether a word is one of Stata's own, as Stata abbreviates it. */
+const ownWord = (kind, word) =>
+  OWN_WORDS[kind].stata.some(
+    ([name, shortest]) => word.length >= shortest && name.startsWith(word),
+  );
+
+// Commands of their own that students write after graph, as in graph
+// scatter y x: graph twoway takes the plot types, and histogram is a
+// command of its own.
+const PLOTS =
+  /^(scatter|line|connected|area|lfit|qfit|lfitci|qfitci|function|histogram|hist|kdensity|rarea|rbar|rcap|rspike|spike|dropline|lowess)$/;
+
+/**
+ * A subcommand of import, export or graph, or a kernel, that is not one of
+ * Stata's: Stata refuses it too, so the hint is about the typo, never that
+ * Stata runs it. Read from Stata's own messages and from the runtime's.
+ */
+function ownTypo(record, message, name) {
+  const first = message.split("\n")[0],
+    unknown =
+      /^(import|export): unknown subcommand "(\S+)"$/.exec(first) ??
+      /^(import|export|graph) (\S+) is not available\b/.exec(first),
+    // graph scatter: Stata's message is bogusgraph_g.new …: class member
+    // function not found.
+    graph = /^(\S+)graph_g\.new\b.*class member function not found$/.exec(
+      first,
+    ),
+    kernel =
+      /^kernel\((.*)\) is not available$/.exec(first) ??
+      (/^invalid kernel function$/.test(first)
+        ? /\bk(?:e(?:r(?:n(?:el?)?)?)?)?\(\s*([^)]*?)\s*\)/.exec(record.command)
+        : null);
+  if (kernel) {
+    const typed = kernel[1].trim();
+    if (ownWord("kernel", typed.toLowerCase())) return null;
+    const close = nearest(
+        typed,
+        OWN_WORDS.kernel.here.filter((each) => each !== "epan2"),
+        1,
+      ),
+      list = OWN_WORDS.kernel.stata.map(([each]) => each);
+    return {
+      text: `${name} has no kernel ${typed}. kernel() takes ${either(list)}; epanechnikov is used when kernel() is left out.${close.length ? ` Did you mean ${close[0]}?` : ""}`,
+      help: name,
+      suggest: [],
+      fix: close.length
+        ? record.command.replace(
+            new RegExp(`(\\(\\s*)${escape(typed)}(\\s*\\))`),
+            `$1${close[0]}$2`,
+          )
+        : "",
+    };
+  }
+  const [kind, typed] = unknown
+    ? [unknown[1], unknown[2]]
+    : graph
+      ? ["graph", graph[1]]
+      : [];
+  if (!kind || ownWord(kind, typed)) return null;
+  const words = OWN_WORDS[kind],
+    lower = typed.toLowerCase(),
+    // A .csv is read by import delimited, a workbook by import excel.
+    meant = /^(csv|txt|text|tab|tsv|delim\w*|delm\w*|deli\w*)$/.test(lower)
+      ? "delimited"
+      : /^(xlsx?|xl\w*|exc?el+)$/.test(lower)
+        ? "excel"
+        : nearest(
+            typed,
+            words.stata.map(([each]) => each),
+            1,
+          )[0],
+    command = new RegExp(`^(\\s*\\S+\\s+)${escape(typed)}(?![\\w])`);
+  if (kind === "graph" && PLOTS.test(lower)) {
+    const twoway = !/^(hist\w*|kdensity)$/.test(lower);
+    return {
+      text: twoway
+        ? `graph has no subcommand ${typed}: ${typed} is a twoway plot type, written ${typed} y x or graph twoway ${typed} y x.`
+        : `graph has no subcommand ${typed}: ${typed} is a command of its own.`,
+      help: twoway ? "twoway" : lower === "kdensity" ? "kdensity" : "histogram",
+      suggest: [],
+      fix: record.command.replace(/^(\s*)gr\w*\s+/, "$1"),
+    };
+  }
+  const runs = meant && words.here.includes(meant);
+  return {
+    text: `${kind} has no subcommand ${typed}.${meant ? ` Did you mean ${kind} ${meant}?` : ""}${meant && !runs ? ` ${kind} ${meant} is part of Stata but does not run in this browser version yet.` : ""} The ${kind} subcommands that run here are ${both(words.here)}.`,
+    help: kind,
+    suggest: [],
+    fix:
+      runs && command.test(record.command)
+        ? record.command.replace(command, `$1${meant}`)
+        : "",
+  };
+}
+
+// Stata's immediate commands, which take summary numbers typed on the
+// line, and the command each is the immediate form of.
+const IMMEDIATE = {
+  bitesti: "bitest",
+  cci: "cc",
+  cii: "ci",
+  csi: "cs",
+  esizei: "esize",
+  iri: "ir",
+  mcci: "mcc",
+  prtesti: "prtest",
+  sdtesti: "sdtest",
+  symmi: "symmetry",
+  tabi: "tabulate",
+  ttesti: "ttest",
+  ztesti: "ztest",
+};
 
 // egen's functions that generate does not have: mean() in generate is
 // unknown, r(133), and egen m = mean(x) is what is meant.
@@ -592,6 +851,50 @@ function absentFile(record, files, command) {
   };
 }
 
+/**
+ * The variables of a model, read from its coefficients' names (educ,
+ * 1.female, 0b.female, c.educ#c.exper, L.x, eq:x): names, as a hint names
+ * them (i.female for a factor variable); levels, the levels of each factor
+ * variable that have a coefficient of their own (not the base, not one
+ * omitted); within, the interactions each variable is in.
+ */
+function modelTerms(coefficients) {
+  const names = new Set(),
+    levels = {},
+    within = {};
+  for (const raw of coefficients) {
+    const term = raw.replace(/^.*:/, "");
+    if (term === "_cons") continue;
+    const parts = term.split("#").map((part) => {
+      const factor = /^(\d+)([a-z]*)\.([A-Za-z_]\w*)$/.exec(part);
+      if (factor)
+        return {
+          name: factor[3],
+          level: factor[1],
+          // 0b. is the base and 1o. omitted; 1bn. (no base) has its own.
+          kept: !/o|b(?!n)/.test(factor[2]),
+        };
+      const name = part.replace(/^(?:[A-Za-z]+\d*\.)+/, "");
+      return /^[A-Za-z_]\w*$/.test(name) ? { name } : null;
+    });
+    // o._cons, an equation's omitted constant, is no variable either.
+    if (parts.some((part) => !part || part.name === "_cons")) continue;
+    if (parts.length === 1) {
+      const [{ name, level, kept }] = parts;
+      names.add(level === undefined ? name : `i.${name}`);
+      if (level !== undefined && kept) {
+        levels[name] ??= [];
+        if (!levels[name].includes(level)) levels[name].push(level);
+      }
+    } else
+      for (const { name } of parts) {
+        within[name] ??= [];
+        if (!within[name].includes(term)) within[name].push(term);
+      }
+  }
+  return { names: [...names], levels, within };
+}
+
 /** What to say of a name in an expression or varlist that is not found. */
 function notFound(record, typed, ctx) {
   const { message, command, name, help, variables, variableNames, labels } =
@@ -600,16 +903,38 @@ function notFound(record, typed, ctx) {
   // data.
   if (COEFFICIENT_COMMANDS.test(command) && record.model) {
     const fitted = record.model.command,
-      own = [
-        ...new Set(
-          (record.model.coefficients ?? [])
-            .map((each) => each.replace(/^.*:/, ""))
-            .filter((each) => /^[A-Za-z_]\w*$/.test(each) && each !== "_cons"),
-        ),
-      ],
+      terms = modelTerms(record.model.coefficients ?? []),
+      own = terms.names,
+      // A factor variable is not offered: its coefficients are levels.
       close = (variableNames.includes(typed) ? [] : nearest(typed, own)).filter(
-        (each) => distance(each.toLowerCase(), typed.toLowerCase()) <= 2,
+        (each) =>
+          !each.startsWith("i.") &&
+          distance(each.toLowerCase(), typed.toLowerCase()) <= 2,
       );
+    // regress y i.female: female is in the model, as 1.female.
+    const levels = terms.levels[typed];
+    if (levels?.length) {
+      const named = levels.map((level) => `${level}.${typed}`),
+        one = named.length === 1;
+      return {
+        text: `${typed} is in the last model (${fitted}) as a factor variable, i.${typed}, and its coefficient${one ? " is" : "s are"} named by level: ${both(named)}. ${one || command === "test" ? `${command} ${named.join(" ")}` : `testparm i.${typed}`} ${command === "lincom" && one ? "gives its estimate" : `tests ${one ? "it" : "them together"}`}.`,
+        help,
+        suggest: [],
+        fix:
+          one || command === "test"
+            ? swap(record.command, typed, named.join(" "))
+            : "",
+      };
+    }
+    // regress y c.x#c.z: x is in the model only in an interaction.
+    const within = terms.within[typed];
+    if (within?.length)
+      return {
+        text: `${typed} is in the last model (${fitted}) only in ${either(within.slice(0, 3))}, and ${name} names a coefficient as the table of results does, as ${name} ${within[0]}.`,
+        help,
+        suggest: [],
+        fix: within.length === 1 ? swap(record.command, typed, within[0]) : "",
+      };
     return {
       text: variableNames.includes(typed)
         ? `${typed} is in the data but not in the last model (${fitted}), and ${name} reads that model's coefficients. Fit a model that includes ${typed}${own.length ? `, or name one of the variables it has: ${either(own.slice(0, 6))}` : ""}.`
@@ -634,24 +959,46 @@ function notFound(record, typed, ctx) {
       suggest: [],
     };
   }
-  // display abc, where abc is text: text is shown in quotes.
-  if (command === "display")
+  // display abc, where abc is text: text is shown in quotes; display
+  // wagee, where wage is meant: the variable.
+  if (command === "display") {
+    const close = record.macro
+      ? []
+      : nearest(typed, variableNames, 1).filter(
+          (each) => distance(each.toLowerCase(), typed.toLowerCase()) <= 2,
+        );
+    if (close.length)
+      return {
+        text: `Did you mean ${close[0]}? display shows the value of a variable in the first observation, or in the one named in brackets, as ${close[0]}[1].`,
+        help: "display",
+        suggest: close,
+        fix: swap(record.command, typed, close[0]),
+      };
     return {
-      text: `display reads ${typed} as the name of a variable or scalar, and there is none. To show it as text, put it in quotes${record.macro ? `, around the macro as well, as display "\`${record.macro}'"` : `, as display "${typed}"`}.`,
+      text: `display reads ${typed} as the name of a variable or scalar, and there is none. To show it as text, put it in quotes${record.macro ? `, around the macro as well, as display "${record.macro}"` : `, as display "${typed}"`}.`,
       help: "display",
       suggest: [],
     };
+  }
   // A word compared with a variable is a value: if region == North means
-  // if region == "North", or the number its value label gives North.
+  // if region == "North", or the number its value label gives North. The
+  // variable may be abbreviated, as fem for female.
   const compared = new RegExp(
-    `(?:^|[^\\w.])([A-Za-z_]\\w*)\\s*(?:==|!=|~=|<=|>=|<|>)\\s*${typed}(?![\\w"])|(?:^|[^\\w"])${typed}\\s*(?:==|!=|~=|<=|>=|<|>)\\s*([A-Za-z_]\\w*)(?![\\w(])`,
+    `(?:^|[^\\w.])([A-Za-z_]\\w*)\\s*(==|!=|~=|<=|>=|<|>)\\s*${typed}(?![\\w"])|(?:^|[^\\w"])${typed}\\s*(==|!=|~=|<=|>=|<|>)\\s*([A-Za-z_]\\w*)(?![\\w(])`,
   ).exec(record.command);
-  const against = compared ? (compared[1] ?? compared[2]) : "",
-    other = variables.find((v) => v.name === against),
+  const against = compared ? (compared[1] ?? compared[4]) : "",
+    // 1 < x is x > 1.
+    operator = compared
+      ? compared[1]
+        ? compared[2]
+        : ({ "<": ">", ">": "<", "<=": ">=", ">=": "<=" }[compared[3]] ??
+          compared[3])
+      : "==",
+    other = abbreviated(against, variables),
     word = new RegExp(`(^|[^\\w"])${typed}(?![\\w"])`);
   if (other && /^str/.test(other.type ?? ""))
     return {
-      text: `${other.name} holds text, so a value compared with it goes in quotes: "${typed}". Without them, ${typed} is read as the name of a variable.${record.macro ? ` When a macro holds the text, the quotes go around it, as "\`${record.macro}'".` : ""}`,
+      text: `${other.name} holds text, so a value compared with it goes in quotes: "${typed}". Without them, ${typed} is read as the name of a variable.${record.macro ? ` When a macro holds the text, the quotes go around it, as "${record.macro}".` : ""}`,
       help,
       suggest: [],
       fix: record.command.replace(word, `$1"${typed}"`),
@@ -663,7 +1010,7 @@ function notFound(record, typed, ctx) {
     return {
       text:
         code !== undefined
-          ? `${other.name} is numeric, and ${typed} is the label of its value ${code}, not a variable. Compare it with the number: ${other.name} == ${code}.`
+          ? `${other.name} is numeric, and ${typed} is the label of its value ${code}, not a variable. Compare it with the number: ${other.name} ${operator} ${code}.`
           : `${other.name} is numeric, with value label ${other.valueLabel}, and ${typed} is read as the name of a variable. Compare ${other.name} with one of its numbers; label list ${other.valueLabel} shows each label's number.`,
       help: "label",
       suggest: [],
@@ -696,16 +1043,21 @@ function notFound(record, typed, ctx) {
   // wage for wages in regress wage wages. In an expression it may be, as
   // income in replace income = incme + 1. A variable is never offered to
   // be compared with itself.
+  // reshape's i() and j() name different variables, so its options count
+  // as well.
   const inCommand = new Set(
       /^variable /m.test(message)
-        ? record.command
-            .split(",")[0]
+        ? (command === "reshape"
+            ? record.command
+            : record.command.split(",")[0]
+          )
             .split(/[^A-Za-z0-9_]+/)
             .filter((word) => word && word !== typed)
         : [],
     ),
     close = nearest(typed, variableNames).filter(
-      (name) => !inCommand.has(name) && name !== against,
+      (name) =>
+        !inCommand.has(name) && name !== against && name !== other?.name,
     ),
     sameButCase = close.find(
       (name) => name.toLowerCase() === typed.toLowerCase(),
@@ -715,15 +1067,21 @@ function notFound(record, typed, ctx) {
       ? `Variable names are case-sensitive: the variable is called ${sameButCase}.`
       : close.length
         ? `Did you mean ${either(close)}? The Variables list shows every name.`
-        : `${RC_HINTS[111]}${record.macro ? ` If a macro held text meant as a value, put quotes around it, as "\`${record.macro}'".` : ""}`,
+        : `${RC_HINTS[111]}${record.macro ? ` If a macro held text meant as a value, put quotes around it, as "${record.macro}".` : ""}`,
     help,
     suggest: close,
-    fix: close.length ? swap(record.command, typed, close[0]) : "",
+    // reshape's i() and j() depend on how the data stand, as the near
+    // name does not show: reshape wide x, i(t) j(w1) fails r(9) where
+    // j(w) was not found. Its names are suggested, not offered to run.
+    fix:
+      close.length && command !== "reshape"
+        ? swap(record.command, typed, close[0])
+        : "",
   };
 }
 
 /** What r(110) means, by what took the name. */
-function nameTaken(record, message, command, word, help) {
+function nameTaken(record, message, command, word, help, variableNames) {
   const label = /^label (\S+) already defined/m.exec(message);
   if (label)
     return {
@@ -749,14 +1107,37 @@ function nameTaken(record, message, command, word, help) {
       help: "merge",
       suggest: [],
     };
-  if (command === "reshape")
+  if (command === "reshape") {
+    // Stata says "Data are already long" whenever j() names a variable
+    // that exists. The data are wide still if the stubs' variables, as
+    // inc2000 for the stub inc, are there.
+    const already = /already (long|wide)/m.exec(message)?.[1],
+      stubs =
+        /^\s*reshape\s+long\s+([^,]*)/
+          .exec(bare(record.command))?.[1]
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean) ?? [],
+      wide = stubs.flatMap((stub) => {
+        const [before, after = ""] = stub.split("@");
+        return variableNames.filter(
+          (name) =>
+            name.length > before.length + after.length &&
+            name.startsWith(before) &&
+            name.endsWith(after),
+        );
+      });
     return {
-      text: /already (long|wide)/m.test(message)
-        ? `The data are already ${/already long/m.test(message) ? "long" : "wide"}: the reshape has been done. reshape alone shows how the data stand.`
-        : `${it} is a variable already, and reshape makes the variable that j() names. Name another in j(), or drop or rename ${it} first.`,
+      text:
+        already === "long" && wide.length
+          ? `${it} is a variable already, and reshape long makes the variable that j() names. The data are still wide (${both(wide.slice(0, 3))}${wide.length > 3 ? " and others" : ""} are there), whatever Stata's message says: name another variable in j(), or drop or rename ${it} first.`
+          : already
+            ? `The data are already ${already}: the reshape has been done. reshape alone shows how the data stand.`
+            : `${it} is a variable already, and reshape makes the variable that j() names. Name another in j(), or drop or rename ${it} first.`,
       help: "reshape",
       suggest: [],
     };
+  }
   if (GENERATE.test(word))
     return {
       text: `${it} already exists. To change it, write replace ${it} = …; to start again, drop ${it} first.`,
@@ -803,6 +1184,10 @@ function advise(record, context) {
   // A part of Stata that the runtime says it does not run: never a typo.
   // Stata's own "estat heterogeneity is not available after command
   // mixed" is not one: it is advised on with estat's r(321) below.
+  // A typo for one of Stata's subcommands or kernels is not one, though
+  // the runtime words it as a refusal.
+  const typo = ownTypo(record, message, name);
+  if (typo) return typo;
   if (REFUSAL.test(message) && !STATA_OWN.test(message))
     return refused(record, message, help);
   // A command that does not run here: what does, nearest first.
@@ -820,13 +1205,14 @@ function advise(record, context) {
       return { text, help: here[0] ?? "", suggest: here };
     }
     // sdtesti, the immediate form of sdtest: it takes numbers, not
-    // variables, so sdtest with its numbers is no fix.
-    const stem = /^([a-z]{3,})i$/.exec(typed)?.[1];
-    if (stem && names.includes(stem))
+    // variables, so sdtest with its numbers is no fix. Stata's immediate
+    // commands are these; counti is a typo.
+    const stem = IMMEDIATE[typed];
+    if (stem)
       return {
-        text: `${typed} is the immediate form of ${stem}, which takes the summary numbers typed on the line. It does not run in this browser version yet; ${stem} gives the same test from variables in memory.`,
-        help: stem,
-        suggest: [stem],
+        text: `${typed} is the immediate form of ${stem}, which takes the summary numbers typed on the line. It does not run in this browser version yet;${names.includes(stem) ? ` ${stem} does the same from variables in memory.` : ` nor does ${stem}.`}`,
+        help: names.includes(stem) ? stem : "",
+        suggest: names.includes(stem) ? [stem] : [],
       };
     const close = nearest(typed, names);
     return {
@@ -892,9 +1278,14 @@ function advise(record, context) {
       message,
     )
   ) {
-    if (command === "input")
+    // input is not among the commands the hints are given (the session
+    // runs it), so the word typed is read: inp, inpu or input.
+    if (/^inp(?:ut?)?$/.test(word))
       return {
-        text: "input reads the values on the lines after it, up to a line that says end. Write it in the do-file with its values and end, then run the do-file.",
+        // Lines of values were read, as   1. 1 2, before the end of file.
+        text: record.lines.some((line) => /^\s+\d+\.\s+\S/.test(line))
+          ? "input reads the values on the lines after it, up to a line that says end, and these values have none after them. Put end on a line of its own after the last line of values."
+          : "input reads the values on the lines after it, up to a line that says end. Write input, its values and end in the do-file, then run the do-file.",
         help: "input",
         suggest: [],
       };
@@ -944,7 +1335,9 @@ function advise(record, context) {
   }
   // A name that is not in memory. Stata says "variable x not found" in a
   // varlist and "x not found" in an expression.
-  const missing = /^(?:variable )?([A-Za-z_]\w*) not found$/m.exec(message);
+  const missing = /^(?:variable |regressor )?([A-Za-z_]\w*) not found$/m.exec(
+    message,
+  );
   if (
     rc === 111 &&
     !variables.length &&
@@ -985,20 +1378,54 @@ function advise(record, context) {
       after = record.command.slice(single + 1).trimStart(),
       left = /([A-Za-z_]\w*)\s*$/.exec(before)?.[1],
       right = /^([A-Za-z_]\w*)(?![\w(.:"])/.exec(after)?.[1],
-      kind = (name) => {
-        const type = variables.find((v) => v.name === name)?.type;
-        return type ? (/^str/.test(type) ? "text" : "number") : "";
-      },
-      textual = kind(left) === "text",
-      value = textual && right && !variableNames.includes(right),
-      // city = region, a string and a number: == does not mend that.
-      clash = kind(left) && kind(right) && kind(left) !== kind(right);
+      leftVariable = abbreviated(left, variables),
+      rightVariable = abbreviated(right, variables),
+      kind = (variable) =>
+        variable ? (/^str/.test(variable.type ?? "") ? "text" : "number") : "",
+      textual = kind(leftVariable) === "text",
+      number = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?(?![\w.])/i.exec(
+        after,
+      )?.[0],
+      // A word that is no variable: text to quote, or a value label's.
+      word = right && !rightVariable ? right : "",
+      labelled = !textual && word ? leftVariable?.valueLabel : "",
+      code = labelled
+        ? (labels[labelled]?.values ?? []).find(
+            ([, text]) => text === word,
+          )?.[0]
+        : undefined,
+      // city = region or city = 5, text and a number: == does not mend
+      // that, nor a word that is no variable compared with a number.
+      clash =
+        (kind(leftVariable) &&
+          kind(rightVariable) &&
+          kind(leftVariable) !== kind(rightVariable)) ||
+        (textual && number !== undefined) ||
+        (word && !textual && code === undefined),
+      shown = record.strings?.[leftVariable?.name]?.words?.[0];
+    let more = "";
+    if (textual && word)
+      more = ` ${left} holds text, so the value goes in quotes too: ${left} == "${word}".`;
+    else if (textual && number !== undefined)
+      more = ` ${left} holds text, so it is compared with text in quotes, as ${left} == "${shown ?? number}", not with a number.`;
+    else if (code !== undefined)
+      more = ` ${word} is the label of ${leftVariable.name}'s value ${code}, and a comparison takes the number: ${left} == ${code}.`;
+    else if (labelled)
+      more = ` ${word} is not a variable, and ${leftVariable.name} is numeric: compare it with one of its numbers; label list ${labelled} shows each label's number.`;
+    else if (word && kind(leftVariable) === "number")
+      more = ` ${word} is not a variable, and ${left} is compared with a number or another variable.`;
     return {
-      text: `A single = assigns. To compare two values, write ==, as in if group == 1.${value ? ` ${left} holds text, so the value goes in quotes too: ${left} == "${right}".` : ""}`,
+      text: `A single = assigns. To compare two values, write ==, as in if group == 1.${more}`,
       help,
       fix: clash
         ? ""
-        : `${before.trimEnd()} == ${value ? `"${right}"${after.slice(right.length)}` : after}`,
+        : `${before.trimEnd()} == ${
+            textual && word
+              ? `"${word}"${after.slice(word.length)}`
+              : code !== undefined
+                ? `${code}${after.slice(word.length)}`
+                : after
+          }`,
       suggest: [],
     };
   }
@@ -1132,7 +1559,14 @@ function advise(record, context) {
       suggest: [],
     };
   if (rc === 110) {
-    const taken = nameTaken(record, message, command, word, help);
+    const taken = nameTaken(
+      record,
+      message,
+      command,
+      word,
+      help,
+      variableNames,
+    );
     if (taken) return taken;
   }
   if (rc === 4)
@@ -1154,6 +1588,16 @@ function advise(record, context) {
       help,
       suggest: [],
     };
+  // import excel's sheet(): the file is there, the sheet is not.
+  const sheet = /^worksheet (.+) not found$/m.exec(message);
+  if (rc === 601 && sheet) {
+    const book = /\busing\s+("[^"]+"|[^\s,]+)/.exec(record.command)?.[1];
+    return {
+      text: `The workbook has no worksheet called ${sheet[1]}. sheet() names a sheet as the workbook writes it, capitals and spaces included; import excel using ${book ?? "filename"}, describe lists its sheets.`,
+      help,
+      suggest: [],
+    };
+  }
   if (rc === 601) {
     const file = absentFile(record, files, command);
     if (file) return file;
@@ -1222,13 +1666,31 @@ function advise(record, context) {
   // A function: one of egen's in generate, or one that does not run.
   const fn = /^unknown function (\S+?)\(\)$/m.exec(message);
   if (rc === 133 && fn) {
-    if (EGEN_ONLY.test(fn[1]))
+    if (EGEN_ONLY.test(fn[1])) {
+      // egen takes the function alone after =: egen m = mean(x), perhaps
+      // with if, in or options. In an expression, the egen variable is
+      // made first and the expression uses it.
+      const call = new RegExp(`\\b${fn[1]}\\(\\s*([^()]*?)\\s*\\)`).exec(
+          record.command,
+        ),
+        alone = new RegExp(
+          `=\\s*${fn[1]}\\([^()]*\\)\\s*(?:$|if\\b|in\\b|,)`,
+        ).test(record.command),
+        argument = /^[A-Za-z_]\w*$/.test(call?.[1] ?? "") ? call[1] : "",
+        made = `${fn[1]}_${argument || "x"}`,
+        by = /^\s*((?:by|bys\w*)\s[^:]*:\s*)/.exec(record.command)?.[1] ?? "";
       return {
-        text: `${fn[1]}() is a function of egen, not of generate: egen makes a variable of ${fn[1]}() over the observations, as egen m = ${fn[1]}(x).`,
+        text: alone
+          ? `${fn[1]}() is a function of egen, not of generate: egen makes a variable of ${fn[1]}() over the observations, as egen m = ${fn[1]}(x).`
+          : `${fn[1]}() is a function of egen, not of generate, and egen takes the function alone after =. Make it a variable first, as ${by}egen ${made} = ${fn[1]}(${argument || "x"}), then use ${made} in the expression.`,
         help: "egen",
         suggest: ["egen"],
-        fix: GENERATE.test(word) ? swap(record.command, word, "egen") : "",
+        fix:
+          alone && GENERATE.test(word)
+            ? swap(record.command, word, "egen")
+            : "",
       };
+    }
     return {
       text: `No function called ${fn[1]}() runs here. Check its spelling; if it is one of Stata's functions (help functions lists them), this browser version does not have it yet.`,
       help: "functions",
@@ -1285,12 +1747,27 @@ function advise(record, context) {
       /^variables? (.+?) do(?:es)? not uniquely identify (?:the )?observations(?: in the (master|using) data)?/m.exec(
         message,
       );
-    if (keys?.[2])
+    if (keys?.[2]) {
+      // The match typed, and the one that would take the repeats: m:1
+      // for repeats in the master data, 1:m for repeats in the using.
+      const [, key, side] = keys,
+        typed = /\bmerge\s+([1m]:[1m])/.exec(record.command)?.[1] ?? "1:1",
+        other = side === "master" ? "using" : "master",
+        where =
+          side === "master"
+            ? "the data in memory (the master)"
+            : "the using data",
+        fits = side === "master" ? "m:1" : "1:m",
+        joinby = `joinby ${key} using ${/\busing\s+("[^"]+"|[^\s,]+)/.exec(record.command)?.[1] ?? "filename"}`;
       return {
-        text: `${keys[1]} repeats in the ${keys[2]} data, so a 1:1 match is not possible. If the ${keys[2]} data have several observations for each ${keys[1]} and the other data one, the match is ${keys[2] === "master" ? "m:1" : "1:m"}; duplicates report ${keys[1]} counts the repeats.`,
+        text:
+          typed === "1:1"
+            ? `${key} repeats in ${where}, so a 1:1 match is not possible. If the ${other} data have one observation for each ${key}, the match is ${fits}; if ${key} repeats in both, merge cannot pair them, and ${joinby} forms every pair. duplicates report ${key} counts the repeats.`
+            : `${typed} needs one observation for each ${key} in ${where}, and ${key} repeats there. If the ${other} data have one observation for each ${key}, the match is ${fits}; if ${key} repeats in both, merge cannot pair them, and ${joinby} forms every pair. duplicates report ${key} counts the repeats.`,
         help: "merge",
         suggest: [],
       };
+    }
     if (keys)
       return {
         text: `Some values of ${keys[1]} repeat. duplicates report ${keys[1]} counts them, and duplicates list ${keys[1]} shows them.`,
