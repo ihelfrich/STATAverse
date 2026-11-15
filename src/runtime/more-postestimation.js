@@ -16,6 +16,7 @@ import {
 import { count } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
 import { isMissing } from "./values.js";
+import { requireTimeOrder } from "./panel.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const SPLIT =
@@ -24,10 +25,8 @@ const SPLIT =
 function newey(session, text, ctx) {
   if (!session.panel?.time)
     throw new StataError("time variable not set, use tsset varname ...", 111);
-  if (session.panel.id)
-    throw new StataError("newey on panel data is not available yet", 198);
   const parsed = session.parse(
-      "anything [if] [in] , LAG(integer) [Level(cilevel) noCONStant | FORCE]",
+      "anything [if] [in] , LAG(integer) [Level(cilevel) noCONStant FORCE]",
       text,
     ),
     lag = parsed.options.lag,
@@ -37,6 +36,11 @@ function newey(session, text, ctx) {
       null,
     ),
     time = session.data.get(session.panel.time).data,
+    // On panel data the lags of newey.ado's l#. operators stay within a
+    // panel.
+    id = session.panel.id ? session.data.get(session.panel.id).data : null,
+    delta = session.panel.delta ?? 1,
+    key = (i, t) => (id ? `${id[i]} ${t}` : t),
     dependent = session.data.get(model.depvar),
     used = model.names.map((_, k) => k).filter((k) => model.estimable[k]),
     rows = [...model.sample].sort((a, b) => time[a] - time[b]),
@@ -53,20 +57,37 @@ function newey(session, text, ctx) {
     n = rows.length,
     size = used.length,
     meat = Array.from({ length: size }, () => new Array(size).fill(0)),
-    at = new Map(rows.map((i, r) => [time[i], r]));
+    at = new Map(rows.map((i, r) => [key(i, time[i]), r]));
   if (lag < 0) throw new StataError("lag() must be nonnegative", 198);
-  if (
-    !/\bforce\b/.test(splitAtComma(text)[1] ?? "") &&
-    rows.some((i, r) => r && time[i] - time[rows[r - 1]] !== 1)
-  )
-    throw new StataError(`${session.panel.time} is not regularly spaced`, 198);
+  // newey.ado's lags of the residuals are time-series operators, which
+  // need the data sorted by time.
+  if (lag > 0) requireTimeOrder(session);
+  // newey.ado's Checkt: the steps between the sample's times, in time
+  // order over every panel, are all one period, or all one longer step,
+  // or uneven.
+  const steps = rows.slice(1).map((i, r) => (time[i] - time[rows[r]]) / delta);
+  if (steps.length) {
+    const low = Math.min(...steps),
+      high = Math.max(...steps),
+      mean = steps.reduce((a, b) => a + b, 0) / steps.length;
+    if (low === high && mean > 1)
+      throw new StataError(
+        `${session.panel.time} is regularly spaced, but does not have intervals of 1`,
+        198,
+      );
+    if (low !== high && lag > 0 && !parsed.options.force)
+      throw new StataError(
+        `${session.panel.time} is not regularly spaced`,
+        198,
+      );
+  }
   for (let r = 0; r < n; r++) {
     for (let a = 0; a < size; a++)
       for (let c = 0; c < size; c++)
         meat[a][c] += e[r] * e[r] * x[r][a] * x[r][c];
     for (let l = 1; l <= lag; l++) {
       // The observation l periods earlier, if there is one.
-      const s = at.get(time[rows[r]] - l);
+      const s = at.get(key(rows[r], time[rows[r]] - l * delta));
       if (s === undefined) continue;
       const weight = (1 - l / (lag + 1)) * e[r] * e[s];
       for (let a = 0; a < size; a++)
@@ -381,8 +402,6 @@ const durbinWatson = (e) =>
 function prais(session, text, ctx) {
   if (!session.panel?.time)
     throw new StataError("time variable not set, use tsset varname ...", 111);
-  if (session.panel.id)
-    throw new StataError("prais on panel data is not available yet", 198);
   const parsed = session.parse(
       "anything [if] [in] [, CORC TWOstep Level(cilevel) noLOg | Robust VCE(string) RHOtype(string) SSEsearch noCONStant]",
       text,
@@ -393,6 +412,19 @@ function prais(session, text, ctx) {
     dependent = session.data.get(base.depvar),
     used = base.names.map((_, k) => k).filter((k) => base.estimable[k]),
     rows = [...base.sample].sort((a, b) => time[a] - time[b]);
+  // prais.ado works with time-series operators, which need the data
+  // sorted by time.
+  requireTimeOrder(session);
+  // On panel data a sample from one panel is a single series.
+  if (session.panel.id) {
+    const id = session.data.get(session.panel.id).data;
+    if (new Set(rows.map((i) => id[i])).size > 1)
+      throw new StataError(
+        "prais on several panels is not available yet",
+        198,
+        "prais here fits one series: select one panel with if, as in prais y x if id == 1.",
+      );
+  }
   if (rows.some((i, r) => r && time[i] - time[rows[r - 1]] !== 1))
     throw new StataError(
       `${session.panel.time} is not regularly spaced; prais needs a series without gaps here`,
@@ -518,7 +550,7 @@ function prais(session, text, ctx) {
       ctx.out(`Iteration ${j}:  rho = ${applyFormat(value, "%6.4f").trim()}`),
     );
     ctx.out("");
-  }
+  } else ctx.out(""); // nolog leaves the log's blank line, seen under by.
   ctx.out(
     `${options.corc ? "Cochrane–Orcutt" : "Prais–Winsten"} AR(1) regression with ${options.twostep ? "twostep" : "iterated"} estimates`,
   );

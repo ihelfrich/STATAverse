@@ -301,3 +301,206 @@ by g: stcox x, nolog
   // The last group's fit is the one left, as by leaves it.
   close(s.results.e.ll, -651.03405, 7, "e(ll)");
 });
+
+// ----- The second round of the eighth pass's time-series repairs -----
+
+const PANELS = `clear
+set seed 21
+set obs 160
+generate id = ceil(_n/40)
+bysort id: generate t = _n
+generate double y = invnormal(runiform())
+by id: replace y = .6*y[_n-1] + y if _n > 1
+generate double w = invnormal(runiform())
+xtset id t
+`;
+
+test("arima, var and varsoc count panels after missing values; dfuller before", () => {
+  const source = `${PANELS}replace y = . if id != 3\n`;
+  let s = run(`${source}var y w\n`);
+  assert.equal(s.results.e.N, 38);
+  close(s.results.e.ll, -103.7057604886317, 12, "e(ll)");
+  close(s.estimates.b[0], 0.779734532775022, 12, "L.y");
+  s = run(`${source}varsoc y w, maxlag(2)\n`);
+  close(matrix(s, "stats").values[2][6], 5.984513709927984, 12, "AIC");
+  s = run(`${source}arima y, ar(1) nolog\n`);
+  assert.equal(s.results.e.N, 40);
+  assert.deepEqual(failure(`${source}dfuller y\n`), [
+    "sample may not include multiple panels",
+    459,
+  ]);
+  assert.equal(run(`${source}dfuller y if id == 3\n`).results.r.N, 39);
+});
+
+test("newey takes panel data, its lags within each panel", () => {
+  let model = run(`${PANELS}newey y w, lag(2) force\n`).estimates;
+  assert.equal(model.N, 160);
+  close(model.b[0], 0.0464059397151583286, 12, "_b[w]");
+  close(Math.sqrt(model.V[0][0]), 0.0810633088137731606, 12, "_se[w]");
+  close(Math.sqrt(model.V[1][1]), 0.1449464584951923041, 12, "_se[_cons]");
+  close(model.F, 0.3277166371597651229, 12, "F");
+  model = run(
+    `${PANELS}newey y w if id < 3 & t != 5, lag(1) force\n`,
+  ).estimates;
+  assert.equal(model.N, 78);
+  close(Math.sqrt(model.V[0][0]), 0.1131208737592100805, 12, "_se[w]");
+  // Several panels are not regularly spaced in time without force.
+  assert.deepEqual(failure(`${PANELS}newey y w, lag(1)\n`), [
+    "t is not regularly spaced",
+    198,
+  ]);
+});
+
+test("operators are refused where Stata refuses them", () => {
+  const source = `clear
+set obs 40
+generate t = _n
+tsset t
+generate double x = mod(_n, 7)
+generate double y = x + mod(_n, 3)
+`;
+  for (const [command, message] of [
+    ["regress y D(-1).x", "D-1:  operator invalid"],
+    ["regress y S(-1).x", "S-1:  operator invalid"],
+    ["newey y D(-1).x, lag(1)", "D-1:  operator invalid"],
+    ["regress y L(1/2)D(0/1).x", "L1D(0/1):  operator invalid"],
+    ["summarize L(0/1)F(1/2).x", "L0F(1/2):  operator invalid"],
+    ["summarize D(-1)L(1/2).x", "D-1L(1/2):  operator invalid"],
+  ])
+    assert.deepEqual(failure(`${source}${command}\n`), [message, 198], command);
+  // A step in the numlist, and a list of variables in parentheses.
+  assert.equal(run(`${source}regress y L(1(1)3).x\n`).results.e.N, 37);
+  assert.deepEqual(run(`${source}regress y L(1/2).(x y)\n`).estimates.names, [
+    "L.x",
+    "L2.x",
+    "L.y",
+    "L2.y",
+    "_cons",
+  ]);
+});
+
+test("operators need data sorted by time, and stay within by's groups", () => {
+  const source = `clear
+set obs 12
+generate t = _n
+generate g = ceil(t/4)
+generate double x = mod(_n * 7, 11)
+tsset t
+`;
+  for (const command of [
+    "sort x\nsummarize L.x",
+    "sort x\ngenerate z = L.x",
+    "sort x\nregress x L.x",
+    "bysort g: summarize L.x",
+    "bysort g (t): generate z = L.x",
+  ]) {
+    // Under by, Stata stops after the first group's heading.
+    const [message, code] = failure(`${source}${command}\n`);
+    assert.equal(message.split("\n").at(-1), "not sorted", command);
+    assert.equal(code, 5, command);
+  }
+  const s = run(`${source}by t: generate z = L.x\nsort x\ntsset\n`);
+  assert.ok(s.data.get("z").data.every((v) => v === missingValue()));
+  assert.deepEqual(s.data.sortedBy, ["t"]);
+});
+
+test("arima, dfuller, pperron, corrgram and ac leave the data sorted by time", () => {
+  for (const command of [
+    "dfuller y",
+    "pperron y",
+    "corrgram y, lags(2)",
+    "ac y, lags(2) nodraw",
+    "arima y, ar(1) nolog",
+    "bysort g: arima y, ar(1) nolog",
+  ]) {
+    const s = run(`${VAR}generate g = mod(_n, 2)\nsort y\n${command}\n`);
+    assert.deepEqual(s.data.sortedBy, ["t"], command);
+    assert.deepEqual(
+      Array.from(s.data.get("t").data.slice(0, 3)),
+      [1, 2, 3],
+      command,
+    );
+  }
+  // var and varsoc leave the order alone.
+  let s = run(`${VAR}sort x\nvar y w\nvarsoc y w\n`);
+  assert.deepEqual(s.data.sortedBy, ["x"]);
+  // _ts sorts before it refuses several panels, so by id: works after.
+  for (const command of [
+    "capture dfuller y",
+    "capture bysort g: arima y, ar(1)",
+  ]) {
+    s = new Session();
+    s.run(`${PANELS}generate g = ceil(id/2)\nsort w\n${command}\n`);
+    assert.deepEqual(s.data.sortedBy, ["id", "t"], command);
+  }
+});
+
+test("test, lincom and testparm read operators as Stata names them", () => {
+  const source = `clear
+set seed 77
+set obs 120
+generate t = _n
+generate double x = invnormal(runiform())
+generate double y = invnormal(runiform())
+tsset t
+`;
+  let s = run(
+    `${PANELS}replace y = . if id != 3\nregress y L(1/2).w\ntestparm L(1/2).w\n`,
+  );
+  close(s.results.r.F, 0.3211310050357656931, 12, "F");
+  close(s.results.r.p, 0.7274426392647808104, 11, "p");
+  s = run(
+    `${PANELS}replace y = . if id != 3\nregress y L(1/2).w\nlincom l.w + l2.w\n`,
+  );
+  close(s.results.r.estimate, -0.1739667923749537992, 12, "estimate");
+  close(s.results.r.se, 0.2638261197398391045, 12, "se");
+  s = run(`${source}regress y L(1/3).x\ntest l2.x = l3.x\n`);
+  assert.equal(s.results.r.df, 1);
+  assert.deepEqual(failure(`${source}regress y L.x\nlincom l2.x\n`), [
+    "regressor L2.x not found",
+    111,
+  ]);
+});
+
+test("dfuller and pperron on two or three observations leave Z(t) missing", () => {
+  const source = `clear
+set seed 11
+set obs 150
+generate t = _n
+generate double y = sum(invnormal(runiform()))
+tsset t
+`;
+  let r = run(`${source}dfuller y in 1/3\n`).results.r;
+  assert.equal(r.N, 2);
+  assert.equal(r.Zt, missingValue());
+  assert.equal(r.p, 1);
+  r = run(`${source}pperron y in 1/4, trend\n`).results.r;
+  assert.equal(r.N, 3);
+  assert.equal(r.Zt, missingValue());
+  assert.equal(r.pval, 1);
+  r = run(`${source}dfuller y in 1/3, noconstant\n`).results.r;
+  close(r.Zt, -1.411368973923135, 12, "Zt");
+  assert.deepEqual(failure(`${source}dfuller y in 1/2\n`), [
+    "insufficient observations",
+    2001,
+  ]);
+  // The shortest abbreviations of noconstant: nocon and noc.
+  run(`${source}dfuller y, nocon\npperron y, noc\n`);
+});
+
+test("an operator on a string variable in an expression is missing", () => {
+  const s = run(`clear
+set obs 8
+generate t = _n
+generate x = _n*10
+generate str3 sv = "ab"
+tsset t
+generate z1 = L.sv
+generate z2 = l..x
+rename t time
+summarize L.x
+`);
+  assert.ok(s.data.get("z1").data.every((v) => v === missingValue()));
+  assert.deepEqual(Array.from(s.data.get("z2").data.slice(1, 3)), [10, 20]);
+  assert.equal(s.panel.time, "time");
+});

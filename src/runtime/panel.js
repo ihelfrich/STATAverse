@@ -156,7 +156,11 @@ function xtset(session, text, ctx) {
           !isMissing(time[i])
         ) {
           session.panel = null;
-          throw new StataError("repeated time values within panel", 451);
+          // A time series without panels has its repeats in the sample.
+          throw new StataError(
+            `repeated time values ${id ? "within panel" : "in sample"}`,
+            451,
+          );
         }
         if (
           (!id || id[i] === id[i - 1]) &&
@@ -174,7 +178,9 @@ function xtset(session, text, ctx) {
     } else if (options.delta !== 1 || options.format)
       throw new StataError("time variable not specified", 198);
     if (options.noquery) return;
-  }
+  } else if (session.panel?.time)
+    // tsset typed alone sets the data again, which sorts them.
+    data.sort([session.panel.id, session.panel.time].filter(Boolean));
   const panel = session.panel;
   if (!panel)
     throw new StataError("panel variable not set; use xtset varname ...", 459);
@@ -207,12 +213,14 @@ function xtset(session, text, ctx) {
       show = (v) => applyFormat(v, variable.format).trim(),
       low = least(values),
       high = greatest(values);
-    // A gap is a missing period inside some panel.
+    // A gap is a missing period inside some panel; an observation whose
+    // time is missing, sorted last, is not one.
     let gaps = 0;
     const id = panel.id ? data.get(panel.id).data : null;
     for (let i = 1; i < data.n; i++)
       if (
         (!id || id[i] === id[i - 1]) &&
+        !isMissing(variable.data[i]) &&
         variable.data[i] - variable.data[i - 1] > (panel.delta ?? 1)
       )
         gaps++;
@@ -235,7 +243,10 @@ export function timeSeriesOperator(session, ops, name) {
   if (!panel?.time) throw new StataError("time variable not set", 111);
   const data = session.data,
     variable = data.get(session.varlist(name)[0]);
-  if (isStringType(variable.type)) throw new StataError("type mismatch", 109);
+  requireTimeOrder(session);
+  // A string variable under an operator is a missing number, as in
+  // generate z = L.s.
+  if (isStringType(variable.type)) return () => MISSING;
   let index = null;
   const build = () => {
     index = new Map();
@@ -246,7 +257,9 @@ export function timeSeriesOperator(session, ops, name) {
     return { id, time };
   };
   let columns = null;
-  const at = (i, shift) => {
+  // env, under by, is the observation's group: a lag or lead outside it
+  // is missing, as Stata's by makes it.
+  const at = (i, shift, env) => {
     if (!index || index.owner !== variable.data) {
       columns = build();
       index.owner = variable.data;
@@ -254,28 +267,49 @@ export function timeSeriesOperator(session, ops, name) {
     const t = columns.time[i];
     if (isMissing(t)) return MISSING;
     const row = index.get(`${columns.id ? columns.id[i] : ""}|${t + shift}`);
-    return row === undefined ? MISSING : data.get(variable.name).data[row];
+    if (
+      row === undefined ||
+      (env?.count !== undefined &&
+        (row < env.start || row >= env.start + env.count))
+    )
+      return MISSING;
+    return data.get(variable.name).data[row];
   };
   // Under delta(), a lag of one is one delta earlier. D2 is the difference
   // of differences; S12 the difference with twelve periods before.
   const step = panel.delta ?? 1,
     minus = (a, b) => (isMissing(a) || isMissing(b) ? MISSING : a - b);
-  const value = (i, k, shift) => {
-    if (k === ops.length) return at(i, shift * step);
+  const value = (i, k, shift, env) => {
+    if (k === ops.length) return at(i, shift * step, env);
     const [letter, order] = ops[k];
-    if (letter === "L") return value(i, k + 1, shift - order);
-    if (letter === "F") return value(i, k + 1, shift + order);
+    if (letter === "L") return value(i, k + 1, shift - order, env);
+    if (letter === "F") return value(i, k + 1, shift + order, env);
     if (letter === "S")
       return order
-        ? minus(value(i, k + 1, shift), value(i, k + 1, shift - order))
-        : value(i, k + 1, shift);
+        ? minus(
+            value(i, k + 1, shift, env),
+            value(i, k + 1, shift - order, env),
+          )
+        : value(i, k + 1, shift, env);
     const difference = (depth, s) =>
       depth === 0
-        ? value(i, k + 1, s)
+        ? value(i, k + 1, s, env)
         : minus(difference(depth - 1, s), difference(depth - 1, s - 1));
     return difference(order, shift);
   };
-  return (i) => value(i, 0, 0);
+  return (i, env) => value(i, 0, 0, env);
+}
+
+/**
+ * Stata's time-series operators need the data sorted by the panel and
+ * time variables, as tsset and xtset leave them: after sort x, or under a
+ * by of another variable, L.x is "not sorted".
+ */
+export function requireTimeOrder(session) {
+  const panel = session.panel,
+    keys = panel.id ? [panel.id, panel.time] : [panel.time];
+  if (!keys.every((key, j) => session.data.sortedBy[j] === key))
+    throw new StataError("not sorted", 5);
 }
 
 function correlation(a, b, w = null) {

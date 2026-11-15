@@ -97,13 +97,13 @@ function tokenize(source) {
       push("coefficient", { kind: m[1], name: m[2] }, i);
       i += m[0].length;
     } else if (
-      (m = /^((?:(?:[LFDS]\d*)+\.)+)([\p{L}_][\w\u0080-\u{10FFFF}]*)/iu.exec(
+      (m = /^((?:(?:[LFDS]\d*)+\.+)+)([\p{L}_][\w\u0080-\u{10FFFF}]*)/iu.exec(
         rest,
       ))
     ) {
       // L.x, F2.x, D.x, S12.x and chains such as LD.x, l2d.x or L.F.x: lags,
       // leads, differences and seasonal differences under xtset or tsset,
-      // in either case, as Stata reads them.
+      // in either case, as Stata reads them; l..x is L.x.
       if (source[i + m[0].length] === "[")
         throw invalid(`${m[0]} invalid name`);
       push(
@@ -266,7 +266,8 @@ export function compileExpression(source, scope = {}) {
       if (!scope.series) throw new StataError("time variable not set", 111);
       const { ops, name } = token.value,
         value = scope.series(ops, name);
-      return node(N, (i) => value(i));
+      // Under by, a lag reaches only into the observation's own group.
+      return node(N, (i, env) => value(i, env));
     }
     if (token.type === "op" && token.value === "(") {
       const inner = or();

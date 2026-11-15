@@ -226,6 +226,8 @@ for (const c of fixture.cases)
             "pass8-ts-by-stcox-arima",
             "pass8-ts-lowercase-operators-in-models",
             "pass8-ts-one-panel-samples",
+            "pass8-ts2-one-panel-after-missing",
+            "pass8-ts2-sorts-by-time",
             // logit, or and poisson, irr replay the fit by fitting it again.
             "pass7-debug-replay-likelihood",
             // logit and logistic fits shown again, alone and stored.

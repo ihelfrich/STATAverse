@@ -6,7 +6,7 @@ import { applyFormat, parseFormat } from "./format.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
 import { row, statistic } from "./likelihood.js";
-import { count } from "./reports.js";
+import { count, perGroup } from "./reports.js";
 import { project } from "./diagnostics.js";
 import { draw, titleOf, unquote } from "./graphics.js";
 import {
@@ -19,7 +19,7 @@ import {
 import { parseNumlist } from "./numlist.js";
 import { abbreviate, invertSymmetric } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
-import { timeSeriesOperator } from "./panel.js";
+import { requireTimeOrder, timeSeriesOperator } from "./panel.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 
@@ -27,7 +27,7 @@ const g = (value) => applyFormat(value, "%9.0g").trim();
  * The series in time order, with the rows it came from. On panel data the
  * sample must come from one panel, when onePanel allows panel data at all.
  */
-function series(session, parsed, name, onePanel = false) {
+function series(session, parsed, name, onePanel = false, sorts = false) {
   const panel = session.panel;
   if (!panel?.time)
     throw new StataError("time variable not set, use tsset varname ...", 111);
@@ -42,10 +42,16 @@ function series(session, parsed, name, onePanel = false) {
       .sort((a, b) => time[a] - time[b]);
   if (panel.id) {
     const id = session.data.get(panel.id).data;
-    if (new Set(rows.map((i) => id[i])).size > 1)
+    if (new Set(rows.map((i) => id[i])).size > 1) {
+      if (sorts) sortByTime(session);
       throw new StataError("sample may not include multiple panels", 459);
+    }
   }
-  return { variable, rows, time, values: rows.map((i) => variable.data[i]) };
+  const values = rows.map((i) => variable.data[i]);
+  // corrgram, ac and pac leave the data sorted by time; their rows are
+  // then no longer the data's, and only the values are used.
+  if (sorts) sortByTime(session);
+  return { variable, rows, time, values };
 }
 
 /** Autocorrelations, regression-based partial autocorrelations, and Q. */
@@ -84,7 +90,7 @@ function corrgram(session, text, ctx) {
       "varname [if] [in] [, LAGs(integer 0) | noPLot YW]",
       text,
     ),
-    { values } = series(session, parsed, parsed.varlist[0], true);
+    { values } = series(session, parsed, parsed.varlist[0], true, true);
   if (values.some((v) => isMissing(v)))
     throw new StataError("sample may not contain gaps", 498);
   const n = values.length,
@@ -123,7 +129,13 @@ function correlationPlot(kind) {
         "varname [if] [in] [, LAGs(integer 0) Level(cilevel) TItle(string) XTItle(string) YTItle(string) *]",
         text,
       ),
-      { variable, values } = series(session, parsed, parsed.varlist[0], true);
+      { variable, values } = series(
+        session,
+        parsed,
+        parsed.varlist[0],
+        true,
+        true,
+      );
     if (values.some((v) => isMissing(v)))
       throw new StataError("sample may not contain gaps", 498);
     const n = values.length,
@@ -266,6 +278,8 @@ export function timeFrame(
   command,
   sample = null,
   multiple = ["sample may not include multiple panels", 459],
+  markout = [],
+  sorts = false,
 ) {
   const panel = session.panel;
   if (!panel?.time)
@@ -273,25 +287,42 @@ export function timeFrame(
   // A command that takes one panel (its sample given, as the parsed if and
   // in or as rows) runs on panel data when they leave observations of one
   // panel only, as Stata's _ts, onepanel allows; its lags stay within that
-  // panel. multiple is Stata's message, and its code, for more.
+  // panel. multiple is Stata's message, and its code, for more. markout
+  // names the variables whose missing values leave the sample first, as
+  // marksample leaves them in arima and var before the panels are counted.
+  // sorts sorts the data by the panel and time variables once the sample
+  // passes, as _ts, sort does for arima and pperron.
   let only = null;
   if (panel.id && sample) {
     const id = session.data.get(panel.id).data,
       time = session.data.get(panel.time).data,
+      columns = markout.map((name) => session.data.get(name)),
       ids = new Set(
         (Array.isArray(sample) ? sample : session.rows(sample, null))
-          .filter((i) => !isMissing(time[i]))
+          .filter(
+            (i) =>
+              !isMissing(time[i]) &&
+              columns.every(
+                (v) => !isStringType(v.type) && !isMissing(v.data[i]),
+              ),
+          )
           .map((i) => id[i]),
       );
-    if (ids.size > 1) throw new StataError(...multiple);
+    // _ts sorts before it counts the panels, so a refusal leaves the data
+    // sorted too.
+    if (ids.size > 1) {
+      if (sorts) sortByTime(session);
+      throw new StataError(...multiple);
+    }
     const [one] = ids;
-    only = (i) => id[i] === one;
+    only = (i) => session.data.get(panel.id).data[i] === one;
   } else if (panel.id)
     throw new StataError(
       `${command} on panel data is not available yet`,
       198,
       `${command} here works on one time series set with tsset.`,
     );
+  if (sorts) sortByTime(session, Array.isArray(sample) ? null : sample);
   const variable = session.data.get(panel.time),
     at = new Map();
   variable.data.forEach((t, i) => {
@@ -304,6 +335,32 @@ export function timeFrame(
     format: variable.format,
     at,
   };
+}
+
+/**
+ * The data sorted by the panel and time variables, as Stata's _ts, sort
+ * leaves them after arima, dfuller, pperron, corrgram, ac and pac. Under
+ * by, whose groups are runs of rows, the sort waits until every group has
+ * run (session.js applies it).
+ */
+export function sortByTime(session, parsed = null) {
+  const panel = session.panel;
+  if (!panel?.time) return;
+  const keys = panel.id ? [panel.id, panel.time] : [panel.time];
+  if (session.panelRows) {
+    session.pendingSort = keys;
+    return;
+  }
+  // in counts observations in the order the command found them, as Stata
+  // marks the sample before _ts sorts: the observations it chose are
+  // carried across the sort.
+  const chosen = parsed?.in ? session.rows(parsed, null) : null,
+    index = session.data.sort(keys);
+  if (chosen) {
+    const where = new Map(index.map((old, now) => [old, now]));
+    parsed.in = null;
+    parsed.only = new Set(chosen.map((i) => where.get(i)));
+  }
 }
 
 /** A time shown in the time variable's format: 1990q3, or 17. */
@@ -396,7 +453,71 @@ export function tsTerm(variable, ops) {
 // A word under time-series operators: L.x, L2D.x, L(1/3).x, L.D.x and
 // L.(x z), in either case; the operators, each chain ending in a period,
 // and what they apply to.
-const OPERATED = /^((?:(?:[LFDS](?:\d+|\([^)]*\))?)+\.)+)(.+)$/i;
+// A numlist in parentheses may hold a step in parentheses, as L(1(1)3).x.
+const OPERATED =
+  /^((?:(?:[LFDS](?:\d+|\((?:[^()]|\([^()]*\))*\))?)+\.)+)(.+)$/i;
+const OPERATOR_PIECE = /([LFDS])(\d+|\(((?:[^()]|\([^()]*\))*)\))?/gi;
+
+/**
+ * The operators of a chain such as L2D. or L(1/3). or L.D(1 2)., each a
+ * letter with the orders it takes, as Stata reads them: a chain takes one
+ * operator in parentheses (L(1/2)D.x, but not L(1/2)D(1).x, which is
+ * refused as L1D(1), the first list's first number written in), an
+ * operator takes at most 100 numbers,
+ * a difference or seasonal difference takes no negative order, and every
+ * order is an integer.
+ */
+export function operatorSpecs(chain) {
+  const pieces = [...chain.matchAll(OPERATOR_PIECE)],
+    listed = pieces.findIndex((piece) => piece[3] !== undefined);
+  if (pieces.filter((piece) => piece[3] !== undefined).length > 1) {
+    const [first] = parseNumlist(pieces[listed][3]),
+      text = (some) => some.map((piece) => piece[0]).join("");
+    throw new StataError(
+      `${text(pieces.slice(0, listed))}${pieces[listed][1]}${first}${text(pieces.slice(listed + 1))}:  operator invalid`,
+      198,
+    );
+  }
+  const specs = pieces.map(([, letter, order, list]) => ({
+    letter: letter.toUpperCase(),
+    orders:
+      list !== undefined
+        ? parseNumlist(list)
+        : [order === undefined ? 1 : Number(order)],
+  }));
+  // An operator takes at most 100 numbers; Stata shows the operators
+  // above its message.
+  if (specs.some((s) => s.orders.length > 100))
+    throw new StataError(
+      `${chain.replace(/\.$/, "")}\nnumlist in operator invalid`,
+      198,
+    );
+  for (const spec of specs)
+    for (const k of spec.orders)
+      if (k < 0 && spec.letter !== "L" && spec.letter !== "F")
+        throw new StataError(`${spec.letter}${k}:  operator invalid`, 198);
+  if (specs.some((s) => s.orders.some((k) => k % 1)))
+    throw new StataError("invalid numlist", 121);
+  return specs;
+}
+
+/** Whether a word carries time-series operators: L.x, l2.x, L(1/3).x. */
+export const isOperated = (word) => OPERATED.test(word);
+
+/**
+ * A coefficient name written with operators, as Stata names it: l.x and
+ * L1.x are L.x, d.l.x is LD.x and L0.x is x. Anything else is returned as
+ * written.
+ */
+export function operatedName(text) {
+  const m = /^((?:(?:[LFDS]\d*)+\.)+)([A-Za-z_]\w*)$/i.exec(text);
+  if (!m) return text;
+  const ops = [...m[1].matchAll(/([LFDS])(\d*)/gi)].map(([, letter, k]) => [
+    letter.toUpperCase(),
+    k === "" ? 1 : Number(k),
+  ]);
+  return tsTerm(m[2], ops).name;
+}
 
 export function tsTerms(session, text, { strings = false } = {}) {
   const terms = [];
@@ -408,29 +529,8 @@ export function tsTerms(session, text, { strings = false } = {}) {
       for (const name of session.varlist(token)) terms.push(tsTerm(name, []));
       continue;
     }
-    const specs = [...m[1].matchAll(/([LFDS])(\d+|\(([^)]*)\))?/gi)].map(
-      ([, letter, order, list]) => ({
-        letter: letter.toUpperCase(),
-        orders:
-          list !== undefined
-            ? parseNumlist(list)
-            : [order === undefined ? 1 : Number(order)],
-      }),
-    );
-    // An operator takes at most 100 numbers; Stata shows the operators
-    // above its message.
-    if (specs.some((s) => s.orders.length > 100))
-      throw new StataError(
-        `${m[1].replace(/\.$/, "")}\nnumlist in operator invalid`,
-        198,
-      );
-    for (const spec of specs)
-      for (const k of spec.orders)
-        if (k < 0 && spec.letter !== "L" && spec.letter !== "F")
-          throw new StataError(`${spec.letter}${k}:  operator invalid`, 198);
-    if (specs.some((s) => s.orders.some((k) => k % 1)))
-      throw new StataError("invalid numlist", 121);
-    const inner = m[2];
+    const specs = operatorSpecs(m[1]),
+      inner = m[2];
     // L.x.y: what follows the operators is one name or a list in
     // parentheses.
     if (!inner.startsWith("(") && inner.includes("."))
@@ -519,7 +619,27 @@ export function operatorVariables(run) {
     if (new Set(wanted.map(({ term }) => term.name)).size > 100)
       throw new StataError("too many time-series operators", 1000);
     const data = session.data,
-      made = [];
+      made = [],
+      // Under by, each observation's lags stay within its group.
+      groupOf = new Array(data.n);
+    for (const group of ctx.by?.groups ?? [])
+      for (let i = group.start; i < group.start + group.count; i++)
+        groupOf[i] = group;
+    // Data not sorted by time stop the command, under by after the first
+    // group's heading, as Stata stops it.
+    if (wanted.length)
+      try {
+        requireTimeOrder(session);
+      } catch (error) {
+        if (ctx.by?.groups.length)
+          perGroup(() => {
+            throw error;
+          })(session, text, {
+            ...ctx,
+            by: { ...ctx.by, groups: ctx.by.groups.slice(0, 1) },
+          });
+        throw error;
+      }
     try {
       let serial = 0;
       for (const { term, at } of wanted) {
@@ -530,11 +650,13 @@ export function operatorVariables(run) {
           value = timeSeriesOperator(session, term.ops, term.variable);
         data.generate(
           name,
-          Array.from({ length: data.n }, (_, i) => value(i)),
+          Array.from({ length: data.n }, (_, i) => value(i, groupOf[i])),
           { type: source.type === "float" ? "float" : "double" },
         );
         const variable = data.get(name);
         variable.format = source.format;
+        // The value label carries over too: list L.lab shows labels.
+        if (source.valueLabel) variable.valueLabel = source.valueLabel;
         variable.ts = {
           variable: term.variable,
           name: term.name,
@@ -862,6 +984,10 @@ export function stubWidth(session, equations, extra = [], right = 64) {
 
 /** A coefficient's cells after the bar, tested against the z or the t. */
 export function coefficientCells(b, se, level, df = 0) {
+  // A missing standard error, as a fit with no residual degrees of
+  // freedom leaves, leaves every statistic after the coefficient missing.
+  if (isMissing(se))
+    return `${row("", b, 1, level, 1).slice(1, 12)}${"          ."}${"        ."}${"       ."}${"            ."}${"           ."}`;
   return row("", b, se, level, df).slice(1);
 }
 
@@ -873,10 +999,16 @@ export function resultTable(names, b, se, level, df = 0) {
   const critical = df
     ? invttail(df, (1 - level / 100) / 2)
     : invnormal(1 - (1 - level / 100) / 2);
-  const stat = b.map((v, j) => v / se[j]),
+  const stat = b.map((v, j) => (isMissing(se[j]) ? MISSING : v / se[j])),
     p = stat.map((z) =>
-      df ? 2 * ttail(df, Math.abs(z)) : 2 * normal(-Math.abs(z)),
-    );
+      isMissing(z)
+        ? MISSING
+        : df
+          ? 2 * ttail(df, Math.abs(z))
+          : 2 * normal(-Math.abs(z)),
+    ),
+    bound = (v, j, sign) =>
+      isMissing(se[j]) ? MISSING : v + sign * critical * se[j];
   return {
     rowNames: [
       "b",
@@ -895,8 +1027,8 @@ export function resultTable(names, b, se, level, df = 0) {
       se,
       stat,
       p,
-      b.map((v, j) => v - critical * se[j]),
-      b.map((v, j) => v + critical * se[j]),
+      b.map((v, j) => bound(v, j, -1)),
+      b.map((v, j) => bound(v, j, 1)),
       b.map(() => (df ? df : MISSING)),
       b.map(() => critical),
       b.map(() => 0),
@@ -1071,14 +1203,14 @@ function pperron(session, text, ctx) {
   // pperron is r-class: a failure leaves r() empty.
   session.results.r = {};
   const parsed = session.parse(
-      "anything [if] [in] [, TRend noCONStant Lags(integer -1) REGress]",
+      "anything [if] [in] [, TRend noConstant Lags(integer -1) REGress]",
       text,
     ),
     options = parsed.options;
   if (options.constant === false && options.trend)
     throw new StataError("cannot choose trend if constant is excluded", 198);
   const kind = options.constant === false ? 1 : options.trend ? 4 : 2,
-    frame = timeFrame(session, "pperron", parsed),
+    frame = timeFrame(session, "pperron", parsed, undefined, [], true),
     term = oneSeries(session, parsed.anything),
     name = term.name,
     values = operate(frame, term.ops, session.data.get(term.variable).data),
@@ -1098,16 +1230,21 @@ function pperron(session, text, ctx) {
   if (kind !== 1) columns.push(rows.map(() => 1));
   const T = rows.length,
     k = columns.length;
-  if (T <= k) throw new StataError("insufficient observations", 2001);
   // regress leaves out a lag that is constant, as the lag of a constant
-  // series is, and what follows is then missing.
+  // series is, and what follows is then missing. It fits two observations
+  // or more; with no residual degrees of freedom the statistics are
+  // missing.
   const fit = regressFit(columns, y, kind === 1 ? -1 : k - 1);
   if (!fit) throw new StataError("insufficient observations", 2001);
   const dfR = T - fit.rank,
-    s2 = fit.rss / dfR,
-    s = Math.sqrt(s2),
+    s2 = dfR > 0 ? fit.rss / dfR : MISSING,
+    s = isMissing(s2) ? MISSING : Math.sqrt(s2),
     rho = fit.b[0],
-    sig = fit.omitted[0] ? 0 : Math.sqrt(s2 * fit.inverse[0][0]),
+    sig = fit.omitted[0]
+      ? 0
+      : isMissing(s2)
+        ? MISSING
+        : Math.sqrt(s2 * fit.inverse[0][0]),
     lags =
       options.lags < 0 ? Math.trunc(4 * (T / 100) ** (2 / 9)) : options.lags;
   // The residuals' autocovariances, pairing each period with the one lags
@@ -1131,7 +1268,7 @@ function pperron(session, text, ctx) {
   const ok = (v) => Number.isFinite(v) && !isMissing(v),
     divide = (a, b) => (ok(a) && ok(b) && b !== 0 ? a / b : MISSING),
     root = (v) => (ok(v) && v >= 0 ? Math.sqrt(v) : MISSING),
-    factor = divide(T * sig, s),
+    factor = isMissing(sig) ? MISSING : divide(T * sig, s),
     Zp = ok(factor)
       ? T * (rho - 1) - factor ** 2 * ((lam - gam0) / 2)
       : MISSING,
@@ -1191,7 +1328,7 @@ function pperron(session, text, ctx) {
         ...(kind !== 1 ? ["_cons"] : []),
       ],
       se = fit.inverse.map((r, j) =>
-        fit.omitted[j] ? 0 : Math.sqrt(s2 * r[j]),
+        fit.omitted[j] ? 0 : isMissing(s2) ? MISSING : Math.sqrt(s2 * r[j]),
       ),
       items = [
         { header: term.variable, rows: [{ label: laggedTerm.label, k: 0 }] },
@@ -1245,7 +1382,7 @@ function pperron(session, text, ctx) {
 function dfuller(session, text, ctx) {
   session.results.r = {};
   const parsed = session.parse(
-      "anything [if] [in] [, TRend noCONStant DRift Lags(integer -1) REGress]",
+      "anything [if] [in] [, TRend noCONstant DRift Lags(integer -1) REGress]",
       text,
     ),
     options = parsed.options,
@@ -1270,8 +1407,8 @@ function dfuller(session, text, ctx) {
             ? 3
             : 2,
     lags = Math.max(options.lags, 0),
-    data = session.data,
-    time = data.get(panel.time).data,
+    data = session.data;
+  let time = data.get(panel.time).data,
     id = panel.id ? data.get(panel.id).data : null;
   // dfuller.ado writes the lagged differences as DL(1/#).y, and Stata
   // makes at most 100 operated variables for a command: these and L.y and
@@ -1280,16 +1417,31 @@ function dfuller(session, text, ctx) {
     throw new StataError(`DL(1/${lags})\nnumlist in operator invalid`, 198);
   if (lags + 2 > 100)
     throw new StataError("too many time-series operators", 1000);
+  let selected = session.rows(parsed, null).filter((i) => !isMissing(time[i]));
+  // dfuller.ado asks _ts for one panel over the if and in sample, before a
+  // missing value of the series leaves it, and _ts sorts the data by time.
+  if (id && new Set(selected.map((i) => id[i])).size > 1) {
+    sortByTime(session);
+    throw new StataError("sample may not include multiple panels", 459);
+  }
+  if (
+    !session.panelRows &&
+    (!(id ? [panel.id, panel.time] : [panel.time]).every(
+      (key, j) => data.sortedBy[j] === key,
+    ) ||
+      data.sortedBy.length > (id ? 2 : 1))
+  ) {
+    sortByTime(session, parsed);
+    time = data.get(panel.time).data;
+    id = panel.id ? data.get(panel.id).data : null;
+    selected = session.rows(parsed, null).filter((i) => !isMissing(time[i]));
+  }
   const column = (ops) => {
       const value = timeSeriesOperator(session, ops, term.variable);
       return Array.from({ length: data.n }, (_, i) => value(i));
     },
     series = column(term.ops),
-    touse = session
-      .rows(parsed, null)
-      .filter((i) => !isMissing(time[i]) && !isMissing(series[i]));
-  if (id && new Set(touse.map((i) => id[i])).size > 1)
-    throw new StataError("sample may not include multiple panels", 459);
+    touse = selected.filter((i) => !isMissing(series[i]));
   const depvar = tsTerm(term.variable, [["D", 1], ...term.ops]),
     regressors = [
       tsTerm(term.variable, [["L", 1], ...term.ops]),
@@ -1309,7 +1461,9 @@ function dfuller(session, text, ctx) {
   if (kind !== 1) columns.push(rows.map(() => 1));
   const T = rows.length,
     k = columns.length;
-  if (T <= k) throw new StataError("insufficient observations", 2001);
+  // regress fits two observations or more, as many as there are terms or
+  // fewer too, though no residual degrees of freedom then leave every
+  // standard error, and Z(t), missing.
   const fit = regressFit(
     columns,
     rows.map((i) => y[i]),
@@ -1317,9 +1471,11 @@ function dfuller(session, text, ctx) {
   );
   if (!fit) throw new StataError("insufficient observations", 2001);
   const dfR = T - fit.rank,
-    s2 = fit.rss / dfR,
-    se = fit.inverse.map((r, j) => (fit.omitted[j] ? 0 : Math.sqrt(s2 * r[j]))),
-    Zt = se[0] > 0 ? fit.b[0] / se[0] : MISSING,
+    s2 = dfR > 0 ? fit.rss / dfR : MISSING,
+    se = fit.inverse.map((r, j) =>
+      fit.omitted[j] ? 0 : isMissing(s2) ? MISSING : Math.sqrt(s2 * r[j]),
+    ),
+    Zt = !isMissing(se[0]) && se[0] > 0 ? fit.b[0] / se[0] : MISSING,
     critical =
       kind === 3
         ? [0.99, 0.95, 0.9].map((p) => invttail(dfR, p))
@@ -1762,10 +1918,14 @@ function varCommand(session, text, ctx) {
     );
   }
   const asked = varSpecification(session, text),
-    frame = timeFrame(session, "var", asked.parsed, [
-      "repeated time values in sample",
-      451,
-    ]),
+    // var counts the panels in the sample its varlist leaves.
+    frame = timeFrame(
+      session,
+      "var",
+      asked.parsed,
+      ["repeated time values in sample", 451],
+      [...asked.endog, ...asked.exog].map((t) => t.variable),
+    ),
     selected = session.rows(asked.parsed, null),
     spec = settleCollinear(session, frame, asked, selected, (line) =>
       ctx.out(line),
@@ -2122,6 +2282,12 @@ function varsoc(session, text, ctx) {
       "varsoc",
       parsed.anything.trim() ? parsed : null,
       ["repeated time values in sample", 451],
+      parsed.anything.trim()
+        ? [
+            ...laggableTerms(session, parsed.anything),
+            ...(options.exog ? laggableTerms(session, options.exog) : []),
+          ].map((t) => t.variable)
+        : [],
     ),
     previous =
       session.estimates?.command === "var" ? session.estimates.varModel : null;

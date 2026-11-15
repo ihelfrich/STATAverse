@@ -879,6 +879,20 @@ function gsort(session, text) {
   session.data.sort(keys);
 }
 function rename(session, text, ctx) {
+  // The panel and time variables of tsset and xtset keep their roles under
+  // their new names, as Stata's characteristics follow a renamed variable.
+  const before = new Map(session.data.variables.map((v) => [v, v.name])),
+    follow = () => {
+      const panel = session.panel;
+      if (!panel) return;
+      const now = (name) =>
+        [...before].find(([, old]) => old === name)?.[0].name ?? name;
+      session.panel = {
+        ...panel,
+        id: panel.id && now(panel.id),
+        time: panel.time && now(panel.time),
+      };
+    };
   // Two plain names: Stata's built-in rename, which allows the old name to
   // be abbreviated. Anything else is rename's group syntax.
   const words = text.trim().split(/\s+/);
@@ -887,9 +901,12 @@ function rename(session, text, ctx) {
     isName(words[0]) &&
     isName(words[1]) &&
     words[0] !== words[1]
-  )
-    return session.data.rename(session.varlist(words[0])[0], words[1]);
+  ) {
+    session.data.rename(session.varlist(words[0])[0], words[1]);
+    return follow();
+  }
   renameGroup(session, text, ctx);
+  follow();
 }
 function order(session, text) {
   const parsed = session.parse(

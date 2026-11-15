@@ -161270,6 +161270,2251 @@
       ]
     },
     {
+      "id": "pass8-ts2-one-panel-after-missing",
+      "source": "clear\nset seed 21\nset obs 150\ngenerate id = ceil(_n/50)\nbysort id: generate t = _n\ngenerate double y = invnormal(runiform())\nby id: replace y = .6*y[_n-1] + y if _n > 1\ngenerate double w = invnormal(runiform())\nxtset id t\nreplace y = . if id != 3\ncapture noisily arima y, ar(1) nolog\ndisplay _rc \" \" e(N)\ncapture noisily var y w\ndisplay _rc\ncapture noisily varsoc y w, maxlag(2)\ndisplay _rc\ncapture noisily dfuller y\ndisplay _rc\ndfuller y if id == 3\ncapture noisily pperron y\ndisplay _rc\ncapture noisily corrgram y, lags(3)\ndisplay _rc\nnewey y w, lag(1)\nprais y w, nolog\nreplace w = . if id != 3\nvar y w\ncapture noisily arima y w, ar(1) nolog\ndisplay _rc \" \" e(N)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 21", "lines": [] },
+        {
+          "command": "set obs 150",
+          "lines": ["Number of observations (_N) was 0, now 150."]
+        },
+        { "command": "generate id = ceil(_n/50)", "lines": [] },
+        { "command": "bysort id: generate t = _n", "lines": [] },
+        { "command": "generate double y = invnormal(runiform())", "lines": [] },
+        {
+          "command": "by id: replace y = .6*y[_n-1] + y if _n > 1",
+          "lines": ["(147 real changes made)"]
+        },
+        { "command": "generate double w = invnormal(runiform())", "lines": [] },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 50",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "replace y = . if id != 3",
+          "lines": ["(100 real changes made, 100 to missing)"]
+        },
+        {
+          "command": "capture noisily arima y, ar(1) nolog",
+          "lines": [
+            "ARIMA regression",
+            "",
+            "Sample: 1 thru 50                               Number of obs     =         50",
+            "                                                Wald chi2(1)      =      12.51",
+            "Log likelihood = -66.37856                      Prob > chi2       =     0.0004",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "       _cons |  -.1254744   .2647419    -0.47   0.636    -.6443591    .3934102",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .4996612   .1412682     3.54   0.000     .2227806    .7765417",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   .9101685   .1279841     7.11   0.000     .6593242    1.161013",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        { "command": "display _rc \" \" e(N)", "lines": ["0 50"] },
+        {
+          "command": "capture noisily var y w",
+          "lines": [
+            "Vector autoregression",
+            "",
+            "Sample: 3 thru 50                               Number of obs     =         48",
+            "Log likelihood =   -124.594                     AIC               =   5.608083",
+            "FPE            =   .9359865                     HQIC              =   5.755402",
+            "Det(Sigma_ml)  =    .616105                     SBIC              =   5.997916",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     5     .915044   0.3093   21.49741   0.0003",
+            "w                     5      .97229   0.2422   15.33758   0.0040",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |   .5011311   .1398721     3.58   0.000     .2269867    .7752754",
+            "         L2. |  -.0567982   .1435087    -0.40   0.692    -.3380702    .2244737",
+            "             |",
+            "           w |",
+            "         L1. |  -.0098248   .1179976    -0.08   0.934    -.2410958    .2214462",
+            "         L2. |   .2620247   .1174473     2.23   0.026     .0318322    .4922172",
+            "             |",
+            "       _cons |  -.1084603    .125243    -0.87   0.386     -.353932    .1370114",
+            "-------------+----------------------------------------------------------------",
+            "w            |",
+            "           y |",
+            "         L1. |     .39313   .1486226     2.65   0.008      .101835     .684425",
+            "         L2. |  -.5468641   .1524867    -3.59   0.000    -.8457326   -.2479956",
+            "             |",
+            "           w |",
+            "         L1. |   .1308583   .1253796     1.04   0.297    -.1148811    .3765977",
+            "         L2. |   .0504155   .1247949     0.40   0.686     -.194178     .295009",
+            "             |",
+            "       _cons |   .0548481   .1330782     0.41   0.680    -.2059805    .3156766",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily varsoc y w, maxlag(2)",
+          "lines": [
+            "Lag-order selection criteria",
+            "",
+            "   Sample: 3 thru 50                                        Number of obs = 48",
+            "  +---------------------------------------------------------------------------+",
+            "  | Lag |    LL      LR      df    p     FPE       AIC      HQIC      SBIC    |",
+            "  |-----+---------------------------------------------------------------------|",
+            "  |   0 | -139.593                     1.25104   5.89972   5.92918   5.97769* |",
+            "  |   1 | -132.738   13.71    4  0.008 1.11108   5.78076   5.86915   6.01466  |",
+            "  |   2 | -124.594  16.288*   4  0.003 .935986*  5.60808*   5.7554*  5.99792  |",
+            "  +---------------------------------------------------------------------------+",
+            "   * optimal lag",
+            "   Endogenous: y w",
+            "    Exogenous: _cons"
+          ]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily dfuller y",
+          "lines": ["sample may not include multiple panels"]
+        },
+        { "command": "display _rc", "lines": ["459"] },
+        {
+          "command": "dfuller y if id == 3",
+          "lines": [
+            "Dickey–Fuller test for unit root           Number of obs  = 49",
+            "Variable: y                                Number of lags =  0",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(t)            -3.692       -3.587       -2.933       -2.601",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 0.0042."
+          ]
+        },
+        {
+          "command": "capture noisily pperron y",
+          "lines": ["sample may not include multiple panels"]
+        },
+        { "command": "display _rc", "lines": ["459"] },
+        {
+          "command": "capture noisily corrgram y, lags(3)",
+          "lines": ["sample may not include multiple panels"]
+        },
+        { "command": "display _rc", "lines": ["459"] },
+        {
+          "command": "newey y w, lag(1)",
+          "lines": [
+            "Regression with Newey–West standard errors      Number of obs     =         50",
+            "Maximum lag = 1                                 F(  1,        48) =       2.22",
+            "                                                Prob > F          =     0.1428",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Newey–West",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |   .1624109   .1090157     1.49   0.143    -.0567799    .3816016",
+            "       _cons |  -.0955698   .1777594    -0.54   0.593     -.452979    .2618394",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "prais y w, nolog",
+          "lines": [
+            "Prais–Winsten AR(1) regression with iterated estimates",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =        50",
+            "-------------+----------------------------------   F(1, 48)        =      0.32",
+            "       Model |  .277316223         1  .277316223   Prob > F        =    0.5719",
+            "    Residual |  41.0951471        48  .856148897   R-squared       =    0.0067",
+            "-------------+----------------------------------   Adj R-squared   =   -0.0140",
+            "       Total |  41.3724633        49  .844335986   Root MSE        =    .92528",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |   .0685185   .1130401     0.61   0.547    -.1587639    .2958008",
+            "       _cons |  -.1288328   .2570725    -0.50   0.619    -.6457116    .3880461",
+            "-------------+----------------------------------------------------------------",
+            "         rho |   .5008048",
+            "------------------------------------------------------------------------------",
+            "Durbin–Watson statistic (original)    = 1.030744",
+            "Durbin–Watson statistic (transformed) = 1.943056"
+          ]
+        },
+        {
+          "command": "replace w = . if id != 3",
+          "lines": ["(100 real changes made, 100 to missing)"]
+        },
+        {
+          "command": "var y w",
+          "lines": [
+            "Vector autoregression",
+            "",
+            "Sample: 3 thru 50                               Number of obs     =         48",
+            "Log likelihood =   -124.594                     AIC               =   5.608083",
+            "FPE            =   .9359865                     HQIC              =   5.755402",
+            "Det(Sigma_ml)  =    .616105                     SBIC              =   5.997916",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     5     .915044   0.3093   21.49741   0.0003",
+            "w                     5      .97229   0.2422   15.33758   0.0040",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |   .5011311   .1398721     3.58   0.000     .2269867    .7752754",
+            "         L2. |  -.0567982   .1435087    -0.40   0.692    -.3380702    .2244737",
+            "             |",
+            "           w |",
+            "         L1. |  -.0098248   .1179976    -0.08   0.934    -.2410958    .2214462",
+            "         L2. |   .2620247   .1174473     2.23   0.026     .0318322    .4922172",
+            "             |",
+            "       _cons |  -.1084603    .125243    -0.87   0.386     -.353932    .1370114",
+            "-------------+----------------------------------------------------------------",
+            "w            |",
+            "           y |",
+            "         L1. |     .39313   .1486226     2.65   0.008      .101835     .684425",
+            "         L2. |  -.5468641   .1524867    -3.59   0.000    -.8457326   -.2479956",
+            "             |",
+            "           w |",
+            "         L1. |   .1308583   .1253796     1.04   0.297    -.1148811    .3765977",
+            "         L2. |   .0504155   .1247949     0.40   0.686     -.194178     .295009",
+            "             |",
+            "       _cons |   .0548481   .1330782     0.41   0.680    -.2059805    .3156766",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily arima y w, ar(1) nolog",
+          "lines": [
+            "ARIMA regression",
+            "",
+            "Sample: 1 thru 50                               Number of obs     =         50",
+            "                                                Wald chi2(2)      =      12.83",
+            "Log likelihood = -66.18535                      Prob > chi2       =     0.0016",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OPG",
+            "           y | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           w |   .0695777   .1168352     0.60   0.551     -.159415    .2985704",
+            "       _cons |  -.1276438   .2676796    -0.48   0.633    -.6522861    .3969986",
+            "-------------+----------------------------------------------------------------",
+            "ARMA         |",
+            "          ar |",
+            "         L1. |   .4914373   .1412386     3.48   0.001     .2146147    .7682599",
+            "-------------+----------------------------------------------------------------",
+            "      /sigma |   .9066498   .1265106     7.17   0.000     .6586937    1.154606",
+            "------------------------------------------------------------------------------",
+            "Note: The test of the variance against zero is one sided, and the two-sided",
+            "      confidence interval is truncated at zero."
+          ]
+        },
+        { "command": "display _rc \" \" e(N)", "lines": ["0 50"] }
+      ]
+    },
+    {
+      "id": "pass8-ts2-newey-prais-panels",
+      "source": "clear\nset seed 21\nset obs 160\ngenerate id = ceil(_n/40)\nbysort id: generate t = _n\ngenerate double y = invnormal(runiform())\nby id: replace y = .6*y[_n-1] + y if _n > 1\ngenerate double w = invnormal(runiform())\nxtset id t\ncapture noisily newey y w, lag(1)\ndisplay _rc\nnewey y w, lag(0)\nnewey y w, lag(2) force\nnewey y w if id == 3, lag(2)\nnewey y w if id < 3 & t != 5, lag(1) force\ncapture noisily newey y w if id == 3 & t != 5, lag(1)\ndisplay _rc\nby id: newey y w, lag(1)\nprais y w if id == 2, nolog\nprais y w if id == 4, nolog corc\nby id: prais y w, nolog twostep\ngenerate t2 = 2*t\ncapture noisily tsset t2\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 21", "lines": [] },
+        {
+          "command": "set obs 160",
+          "lines": ["Number of observations (_N) was 0, now 160."]
+        },
+        { "command": "generate id = ceil(_n/40)", "lines": [] },
+        { "command": "bysort id: generate t = _n", "lines": [] },
+        { "command": "generate double y = invnormal(runiform())", "lines": [] },
+        {
+          "command": "by id: replace y = .6*y[_n-1] + y if _n > 1",
+          "lines": ["(156 real changes made)"]
+        },
+        { "command": "generate double w = invnormal(runiform())", "lines": [] },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 40",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "capture noisily newey y w, lag(1)",
+          "lines": ["t is not regularly spaced"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "newey y w, lag(0)",
+          "lines": [
+            "Regression with Newey–West standard errors      Number of obs     =        160",
+            "Maximum lag = 0                                 F(  1,       158) =       0.29",
+            "                                                Prob > F          =     0.5883",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Newey–West",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |   .0464059   .0855616     0.54   0.588    -.1225861     .215398",
+            "       _cons |   .1125727   .1028675     1.09   0.275    -.0906001    .3157455",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "newey y w, lag(2) force",
+          "lines": [
+            "Regression with Newey–West standard errors      Number of obs     =        160",
+            "Maximum lag = 2                                 F(  1,       158) =       0.33",
+            "                                                Prob > F          =     0.5678",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Newey–West",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |   .0464059   .0810633     0.57   0.568    -.1137016    .2065134",
+            "       _cons |   .1125727   .1449465     0.78   0.439    -.1737099    .3988553",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "newey y w if id == 3, lag(2)",
+          "lines": [
+            "Regression with Newey–West standard errors      Number of obs     =         40",
+            "Maximum lag = 2                                 F(  1,        38) =       0.45",
+            "                                                Prob > F          =     0.5050",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Newey–West",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |  -.0967005   .1436811    -0.67   0.505    -.3875676    .1941667",
+            "       _cons |   .5373237   .3096413     1.74   0.091    -.0895123     1.16416",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "newey y w if id < 3 & t != 5, lag(1) force",
+          "lines": [
+            "Regression with Newey–West standard errors      Number of obs     =         78",
+            "Maximum lag = 1                                 F(  1,        76) =       1.42",
+            "                                                Prob > F          =     0.2368",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Newey–West",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |   .1348764   .1131209     1.19   0.237    -.0904234    .3601761",
+            "       _cons |  -.1186502   .1676178    -0.71   0.481    -.4524901    .2151896",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily newey y w if id == 3 & t != 5, lag(1)",
+          "lines": ["t is not regularly spaced"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "by id: newey y w, lag(1)",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> id = 1",
+            "",
+            "Regression with Newey–West standard errors      Number of obs     =         40",
+            "Maximum lag = 1                                 F(  1,        38) =       5.65",
+            "                                                Prob > F          =     0.0226",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Newey–West",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |   .3929121   .1652535     2.38   0.023     .0583739    .7274503",
+            "       _cons |  -.1087566   .2144663    -0.51   0.615    -.5429208    .3254077",
+            "------------------------------------------------------------------------------",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> id = 2",
+            "",
+            "Regression with Newey–West standard errors      Number of obs     =         40",
+            "Maximum lag = 1                                 F(  1,        38) =       0.32",
+            "                                                Prob > F          =     0.5756",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Newey–West",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |  -.0760496   .1346845    -0.56   0.576    -.3487041     .196605",
+            "       _cons |  -.1033761   .2413749    -0.43   0.671    -.5920141    .3852619",
+            "------------------------------------------------------------------------------",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> id = 3",
+            "",
+            "Regression with Newey–West standard errors      Number of obs     =         40",
+            "Maximum lag = 1                                 F(  1,        38) =       0.40",
+            "                                                Prob > F          =     0.5295",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Newey–West",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |  -.0967005   .1523801    -0.63   0.529    -.4051779     .211777",
+            "       _cons |   .5373237   .2687898     2.00   0.053    -.0068128     1.08146",
+            "------------------------------------------------------------------------------",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> id = 4",
+            "",
+            "Regression with Newey–West standard errors      Number of obs     =         40",
+            "Maximum lag = 1                                 F(  1,        38) =       0.12",
+            "                                                Prob > F          =     0.7260",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Newey–West",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |   .0686099   .1943538     0.35   0.726    -.3248389    .4620587",
+            "       _cons |   .1291971    .279568     0.46   0.647    -.4367587    .6951529",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "prais y w if id == 2, nolog",
+          "lines": [
+            "Prais–Winsten AR(1) regression with iterated estimates",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =        40",
+            "-------------+----------------------------------   F(1, 38)        =      0.35",
+            "       Model |  .359190841         1  .359190841   Prob > F        =    0.5579",
+            "    Residual |  39.0546862        38   1.0277549   R-squared       =    0.0091",
+            "-------------+----------------------------------   Adj R-squared   =   -0.0170",
+            "       Total |  39.4138771        39  1.01061223   Root MSE        =    1.0138",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |  -.0736225    .124884    -0.59   0.559     -.326437    .1791919",
+            "       _cons |  -.0769067   .3556543    -0.22   0.830    -.7968911    .6430778",
+            "-------------+----------------------------------------------------------------",
+            "         rho |   .5627322",
+            "------------------------------------------------------------------------------",
+            "Durbin–Watson statistic (original)    = 0.875828",
+            "Durbin–Watson statistic (transformed) = 1.736822"
+          ]
+        },
+        {
+          "command": "prais y w if id == 4, nolog corc",
+          "lines": [
+            "Cochrane–Orcutt AR(1) regression with iterated estimates",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =        39",
+            "-------------+----------------------------------   F(1, 37)        =      0.12",
+            "       Model |  .148351004         1  .148351004   Prob > F        =    0.7340",
+            "    Residual |  46.8149702        37  1.26526947   R-squared       =    0.0032",
+            "-------------+----------------------------------   Adj R-squared   =   -0.0238",
+            "       Total |  46.9633213        38  1.23587688   Root MSE        =    1.1248",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |   .0688871   .2011797     0.34   0.734    -.3387417    .4765159",
+            "       _cons |   .1042559   .4526164     0.23   0.819    -.8128319    1.021344",
+            "-------------+----------------------------------------------------------------",
+            "         rho |   .6015526",
+            "------------------------------------------------------------------------------",
+            "Durbin–Watson statistic (original)    = 0.771498",
+            "Durbin–Watson statistic (transformed) = 2.090715"
+          ]
+        },
+        {
+          "command": "by id: prais y w, nolog twostep",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> id = 1",
+            "",
+            "",
+            "Prais–Winsten AR(1) regression with twostep estimates",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =        40",
+            "-------------+----------------------------------   F(1, 38)        =      3.14",
+            "       Model |  3.87712226         1  3.87712226   Prob > F        =    0.0846",
+            "    Residual |  46.9748657        38  1.23618068   R-squared       =    0.0762",
+            "-------------+----------------------------------   Adj R-squared   =    0.0519",
+            "       Total |   50.851988        39  1.30389713   Root MSE        =    1.1118",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |   .3023839   .1713504     1.76   0.086    -.0444968    .6492646",
+            "       _cons |  -.0955724   .2667621    -0.36   0.722     -.635604    .4444593",
+            "-------------+----------------------------------------------------------------",
+            "         rho |   .3493539",
+            "------------------------------------------------------------------------------",
+            "Durbin–Watson statistic (original)    = 1.270626",
+            "Durbin–Watson statistic (transformed) = 1.830095",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> id = 2",
+            "",
+            "",
+            "Prais–Winsten AR(1) regression with twostep estimates",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =        40",
+            "-------------+----------------------------------   F(1, 38)        =      0.35",
+            "       Model |  .359104391         1  .359104391   Prob > F        =    0.5579",
+            "    Residual |  39.0546919        38  1.02775505   R-squared       =    0.0091",
+            "-------------+----------------------------------   Adj R-squared   =   -0.0170",
+            "       Total |  39.4137963        39  1.01061016   Root MSE        =    1.0138",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |  -.0736199   .1248944    -0.59   0.559    -.3264554    .1792157",
+            "       _cons |   -.076929   .3554871    -0.22   0.830     -.796575    .6427171",
+            "-------------+----------------------------------------------------------------",
+            "         rho |   .5625151",
+            "------------------------------------------------------------------------------",
+            "Durbin–Watson statistic (original)    = 0.875828",
+            "Durbin–Watson statistic (transformed) = 1.736489",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> id = 3",
+            "",
+            "",
+            "Prais–Winsten AR(1) regression with twostep estimates",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =        40",
+            "-------------+----------------------------------   F(1, 38)        =      0.10",
+            "       Model |   .07772987         1   .07772987   Prob > F        =    0.7523",
+            "    Residual |   29.236617        38  .769384659   R-squared       =    0.0027",
+            "-------------+----------------------------------   Adj R-squared   =   -0.0236",
+            "       Total |  29.3143469        39  .751649921   Root MSE        =    .87715",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |  -.0545457   .0964798    -0.57   0.575    -.2498589    .1407675",
+            "       _cons |   .4028286   .5022655     0.80   0.428    -.6139548    1.419612",
+            "-------------+----------------------------------------------------------------",
+            "         rho |   .7417607",
+            "------------------------------------------------------------------------------",
+            "Durbin–Watson statistic (original)    = 0.520269",
+            "Durbin–Watson statistic (transformed) = 1.838372",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> id = 4",
+            "",
+            "",
+            "Prais–Winsten AR(1) regression with twostep estimates",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =        40",
+            "-------------+----------------------------------   F(1, 38)        =      0.27",
+            "       Model |   .34658663         1   .34658663   Prob > F        =    0.6052",
+            "    Residual |   48.473529        38  1.27561918   R-squared       =    0.0071",
+            "-------------+----------------------------------   Adj R-squared   =   -0.0190",
+            "       Total |  48.8201156        39  1.25179784   Root MSE        =    1.1294",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           w |   .0580749   .2017602     0.29   0.775    -.3503672    .4665169",
+            "       _cons |   .2637143   .4327888     0.61   0.546    -.6124209    1.139849",
+            "-------------+----------------------------------------------------------------",
+            "         rho |   .6018602",
+            "------------------------------------------------------------------------------",
+            "Durbin–Watson statistic (original)    = 0.771498",
+            "Durbin–Watson statistic (transformed) = 2.104387"
+          ]
+        },
+        { "command": "generate t2 = 2*t", "lines": [] },
+        {
+          "command": "capture noisily tsset t2",
+          "lines": ["repeated time values in sample"]
+        },
+        { "command": "display _rc", "lines": ["451"] }
+      ]
+    },
+    {
+      "id": "pass8-ts2-operator-refusals",
+      "source": "clear\nset seed 41\nset obs 40\ngenerate t = _n\ntsset t\ngenerate double x = round(runiform()*10, .1)\ngenerate double y = x + round(runiform()*3, .1)\ncapture noisily summarize D(-1).x\ncapture noisily regress y D(-1).x\ncapture noisily regress y S(-1).x\ncapture noisily regress y D(-1/1).x\ncapture noisily newey y D(-1).x, lag(1)\ncapture noisily summarize L(1/2)D(0/1).x\ncapture noisily regress y L(1/2)D(0/1).x\ncapture noisily regress y L(0/1)F(1/2).x\ncapture noisily summarize L(1)D(0/1).x\ncapture noisily summarize L(1/2).D(1/2).x\ncapture noisily summarize l(1/2)d(0/1).x\ncapture noisily summarize D(-1)L(1/2).x\ncapture noisily regress y L(1/2)D(1).x\nregress y L(1/2)D.x\nsummarize L(1/2)D.x\nsummarize LD(1/2).x\nregress y LD(1/2).x\nregress y S(0).x\nregress y L(1(1)3).x\nsummarize L(3(-1)1).x\nregress y L(1(1)2).x D.x\nlist t L(1(1)2).x in 1/3\nregress y L(1/2).(x y)\nregress y l.(x y)\nregress y d.(x y)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 41", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate t = _n", "lines": [] },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 40", "        Delta: 1 unit"]
+        },
+        {
+          "command": "generate double x = round(runiform()*10, .1)",
+          "lines": []
+        },
+        {
+          "command": "generate double y = x + round(runiform()*3, .1)",
+          "lines": []
+        },
+        {
+          "command": "capture noisily summarize D(-1).x",
+          "lines": ["D-1:  operator invalid"]
+        },
+        {
+          "command": "capture noisily regress y D(-1).x",
+          "lines": ["D-1:  operator invalid"]
+        },
+        {
+          "command": "capture noisily regress y S(-1).x",
+          "lines": ["S-1:  operator invalid"]
+        },
+        {
+          "command": "capture noisily regress y D(-1/1).x",
+          "lines": ["D-1:  operator invalid"]
+        },
+        {
+          "command": "capture noisily newey y D(-1).x, lag(1)",
+          "lines": ["D-1:  operator invalid"]
+        },
+        {
+          "command": "capture noisily summarize L(1/2)D(0/1).x",
+          "lines": ["L1D(0/1):  operator invalid"]
+        },
+        {
+          "command": "capture noisily regress y L(1/2)D(0/1).x",
+          "lines": ["L1D(0/1):  operator invalid"]
+        },
+        {
+          "command": "capture noisily regress y L(0/1)F(1/2).x",
+          "lines": ["L0F(1/2):  operator invalid"]
+        },
+        {
+          "command": "capture noisily summarize L(1)D(0/1).x",
+          "lines": ["L1D(0/1):  operator invalid"]
+        },
+        {
+          "command": "capture noisily summarize L(1/2).D(1/2).x",
+          "lines": ["L1D(1/2):  operator invalid"]
+        },
+        {
+          "command": "capture noisily summarize l(1/2)d(0/1).x",
+          "lines": ["l1d(0/1):  operator invalid"]
+        },
+        {
+          "command": "capture noisily summarize D(-1)L(1/2).x",
+          "lines": ["D-1L(1/2):  operator invalid"]
+        },
+        {
+          "command": "capture noisily regress y L(1/2)D(1).x",
+          "lines": ["L1D(1):  operator invalid"]
+        },
+        {
+          "command": "regress y L(1/2)D.x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        37",
+            "-------------+----------------------------------   F(2, 34)        =      0.22",
+            "       Model |  4.53584297         2  2.26792149   Prob > F        =    0.8041",
+            "    Residual |  351.391725        34  10.3350507   R-squared       =    0.0127",
+            "-------------+----------------------------------   Adj R-squared   =   -0.0453",
+            "       Total |  355.927568        36  9.88687688   Root MSE        =    3.2148",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         LD. |  -.0929707   .1429444    -0.65   0.520    -.3834687    .1975274",
+            "        L2D. |  -.0277061   .1508729    -0.18   0.855    -.3343167    .2789044",
+            "             |",
+            "       _cons |   5.804299   .5292525    10.97   0.000     4.728729     6.87987",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "summarize L(1/2)D.x",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         LD. |         38    .0236842    4.151811       -7.1          8",
+            "        L2D. |         37   -.1918919    3.987646       -7.1        7.3"
+          ]
+        },
+        {
+          "command": "summarize LD(1/2).x",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         LD. |         38    .0236842    4.151811       -7.1          8",
+            "        LD2. |         37    .2081081    6.991558      -13.7       12.9"
+          ]
+        },
+        {
+          "command": "regress y LD(1/2).x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        37",
+            "-------------+----------------------------------   F(2, 34)        =      0.22",
+            "       Model |  4.53584297         2  2.26792149   Prob > F        =    0.8041",
+            "    Residual |  351.391725        34  10.3350507   R-squared       =    0.0127",
+            "-------------+----------------------------------   Adj R-squared   =   -0.0453",
+            "       Total |  355.927568        36  9.88687688   Root MSE        =    3.2148",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         LD. |  -.1206768   .2506251    -0.48   0.633    -.6300083    .3886547",
+            "        LD2. |   .0277061   .1508729     0.18   0.855    -.2789044    .3343167",
+            "             |",
+            "       _cons |   5.804299   .5292525    10.97   0.000     4.728729     6.87987",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y S(0).x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        40",
+            "-------------+----------------------------------   F(1, 38)        =    471.75",
+            "       Model |  386.894001         1  386.894001   Prob > F        =    0.0000",
+            "    Residual |  31.1649994        38  .820131563   R-squared       =    0.9255",
+            "-------------+----------------------------------   Adj R-squared   =    0.9235",
+            "       Total |     418.059        39  10.7194615   Root MSE        =    .90561",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.033818   .0475981    21.72   0.000     .9374607    1.130175",
+            "       _cons |   1.237408   .2640109     4.69   0.000     .7029457     1.77187",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y L(1(1)3).x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        37",
+            "-------------+----------------------------------   F(3, 33)        =      0.16",
+            "       Model |  5.09445861         3  1.69815287   Prob > F        =    0.9226",
+            "    Residual |  350.833109        33  10.6313063   R-squared       =    0.0143",
+            "-------------+----------------------------------   Adj R-squared   =   -0.0753",
+            "       Total |  355.927568        36  9.88687688   Root MSE        =    3.2606",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         L1. |  -.1194648   .1854124    -0.64   0.524    -.4966892    .2577597",
+            "         L2. |   .0414487   .1872138     0.22   0.826    -.3394406     .422338",
+            "         L3. |   .0036056   .1856591     0.02   0.985    -.3741207    .3813319",
+            "             |",
+            "       _cons |   6.146815   1.587723     3.87   0.000     2.916569    9.377061",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "summarize L(3(-1)1).x",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L3. |         37    4.727027    2.939732         .3         10",
+            "         L2. |         38    4.642105    2.946609         .3         10",
+            "         L1. |         39    4.766667    3.009838         .3         10"
+          ]
+        },
+        {
+          "command": "regress y L(1(1)2).x D.x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        38",
+            "-------------+----------------------------------   F(3, 34)        =    139.45",
+            "       Model |  330.715684         3  110.238561   Prob > F        =    0.0000",
+            "    Residual |  26.8780007        34  .790529432   R-squared       =    0.9248",
+            "-------------+----------------------------------   Adj R-squared   =    0.9182",
+            "       Total |  357.593684        37  9.66469417   Root MSE        =    .88912",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         L1. |   .9620905    .072905    13.20   0.000     .8139298    1.110251",
+            "         L2. |   .0489716   .0496242     0.99   0.331     -.051877    .1498201",
+            "         D1. |   1.001482   .0494108    20.27   0.000     .9010674    1.101897",
+            "             |",
+            "       _cons |   1.278822    .429218     2.98   0.005     .4065457    2.151097",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list t L(1(1)2).x in 1/3",
+          "lines": [
+            "     +---------------+",
+            "     |       L.   L2.|",
+            "     | t     x     x |",
+            "     |---------------|",
+            "  1. | 1     .     . |",
+            "  2. | 2   8.6     . |",
+            "  3. | 3   8.9   8.6 |",
+            "     +---------------+"
+          ]
+        },
+        {
+          "command": "regress y L(1/2).(x y)",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        38",
+            "-------------+----------------------------------   F(4, 33)        =      0.37",
+            "       Model |   15.196065         4  3.79901624   Prob > F        =    0.8309",
+            "    Residual |  342.397619        33  10.3756854   R-squared       =    0.0425",
+            "-------------+----------------------------------   Adj R-squared   =   -0.0736",
+            "       Total |  357.593684        37  9.66469417   Root MSE        =    3.2211",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         L1. |  -.2479221   .6410092    -0.39   0.701    -1.552065    1.056221",
+            "         L2. |   .5896507   .6737716     0.88   0.388    -.7811479    1.960449",
+            "             |",
+            "           y |",
+            "         L1. |   .1315007   .6041378     0.22   0.829    -1.097627    1.360628",
+            "         L2. |  -.5349998    .622543    -0.86   0.396    -1.801573    .7315735",
+            "             |",
+            "       _cons |   6.658344   1.730947     3.85   0.001     3.136705    10.17998",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y l.(x y)",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        39",
+            "-------------+----------------------------------   F(2, 36)        =      0.30",
+            "       Model |  6.38454347         2  3.19227174   Prob > F        =    0.7447",
+            "    Residual |  386.594431        36  10.7387342   R-squared       =    0.0162",
+            "-------------+----------------------------------   Adj R-squared   =   -0.0384",
+            "       Total |  392.978974        38   10.341552   Root MSE        =     3.277",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         L1. |  -.4822109   .6334941    -0.76   0.451    -1.766996    .8025747",
+            "             |",
+            "           y |",
+            "         L1. |   .4142482   .5945634     0.70   0.490    -.7915823    1.620079",
+            "             |",
+            "       _cons |   5.663716   1.261185     4.49   0.000     3.105915    8.221517",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y d.(x y)",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        39",
+            "-------------+----------------------------------   F(2, 36)        =     19.26",
+            "       Model |  203.140941         2  101.570471   Prob > F        =    0.0000",
+            "    Residual |  189.838033        36  5.27327869   R-squared       =    0.5169",
+            "-------------+----------------------------------   Adj R-squared   =    0.4901",
+            "       Total |  392.978974        38   10.341552   Root MSE        =    2.2964",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         D1. |   .1848179   .2912667     0.63   0.530    -.4058985    .7755342",
+            "             |",
+            "           y |",
+            "         D1. |   .3341021   .2758174     1.21   0.234    -.2252816    .8934857",
+            "             |",
+            "       _cons |   6.053114    .368395    16.43   0.000     5.305975    6.800254",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-ts2-by-var-varsoc",
+      "source": "clear\nset seed 61\nset obs 120\ngenerate t = _n\ngenerate g = ceil(_n/60)\ngenerate double y = invnormal(runiform())\ngenerate double w = invnormal(runiform())\nreplace y = .5*y[_n-1] + y in 2/l\ntsset t\nbysort g: var y w\nbysort g: varsoc y w, maxlag(2)\nxtset g t\nby g: var y w, lags(1)\nby g: varsoc y, maxlag(2)\ncapture noisily by g: dfuller y\ncapture noisily by g: corrgram y\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 61", "lines": [] },
+        {
+          "command": "set obs 120",
+          "lines": ["Number of observations (_N) was 0, now 120."]
+        },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "generate g = ceil(_n/60)", "lines": [] },
+        { "command": "generate double y = invnormal(runiform())", "lines": [] },
+        { "command": "generate double w = invnormal(runiform())", "lines": [] },
+        {
+          "command": "replace y = .5*y[_n-1] + y in 2/l",
+          "lines": ["(119 real changes made)"]
+        },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 120", "        Delta: 1 unit"]
+        },
+        {
+          "command": "bysort g: var y w",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "",
+            "Vector autoregression",
+            "",
+            "Sample: 3 thru 60                               Number of obs     =         58",
+            "Log likelihood =  -151.3804                     AIC               =   5.564842",
+            "FPE            =   .8957856                     HQIC              =   5.703218",
+            "Det(Sigma_ml)  =   .6339787                     SBIC              =   5.920091",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     5     .896352   0.2779   22.31851   0.0002",
+            "w                     5       .9746   0.0901   5.741423   0.2193",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |   .4163861   .1289753     3.23   0.001     .1635991    .6691732",
+            "         L2. |   .1170163   .1298394     0.90   0.367    -.1374642    .3714969",
+            "             |",
+            "           w |",
+            "         L1. |   .2046712   .1167255     1.75   0.080    -.0241067     .433449",
+            "         L2. |   .1739221    .118956     1.46   0.144    -.0592274    .4070717",
+            "             |",
+            "       _cons |   .0136605    .114176     0.12   0.905    -.2101203    .2374412",
+            "-------------+----------------------------------------------------------------",
+            "w            |",
+            "           y |",
+            "         L1. |   .0659633   .1402344     0.47   0.638     -.208891    .3408177",
+            "         L2. |  -.1943078   .1411738    -1.38   0.169    -.4710035    .0823878",
+            "             |",
+            "           w |",
+            "         L1. |  -.1279497   .1269152    -1.01   0.313    -.3766989    .1207996",
+            "         L2. |  -.2562809   .1293404    -1.98   0.048    -.5097835   -.0027783",
+            "             |",
+            "       _cons |   .1190426   .1241431     0.96   0.338    -.1242733    .3623585",
+            "------------------------------------------------------------------------------",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 2",
+            "",
+            "Vector autoregression",
+            "",
+            "Sample: 61 thru 120                             Number of obs     =         60",
+            "Log likelihood =  -154.0535                     AIC               =   5.468449",
+            "FPE            =   .8134015                     HQIC              =   5.604984",
+            "Det(Sigma_ml)  =   .5823762                     SBIC              =   5.817506",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     5     .848782   0.1808   13.23774   0.0102",
+            "w                     5     .997848   0.0568   3.614249   0.4607",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |   .4081801   .1313501     3.11   0.002     .1507388    .6656215",
+            "         L2. |  -.1003834   .1300149    -0.77   0.440    -.3552079     .154441",
+            "             |",
+            "           w |",
+            "         L1. |   .0245657   .1112233     0.22   0.825     -.193428    .2425595",
+            "         L2. |   .1441593   .1109987     1.30   0.194    -.0733941    .3617128",
+            "             |",
+            "       _cons |  -.0951484   .1088869    -0.87   0.382    -.3085628    .1182661",
+            "-------------+----------------------------------------------------------------",
+            "w            |",
+            "           y |",
+            "         L1. |   .0540861   .1544183     0.35   0.726    -.2485681    .3567404",
+            "         L2. |    .196046   .1528486     1.28   0.200    -.1035317    .4956237",
+            "             |",
+            "           w |",
+            "         L1. |   .0593536   .1307568     0.45   0.650     -.196925    .3156322",
+            "         L2. |     .05038   .1304927     0.39   0.699     -.205381     .306141",
+            "             |",
+            "       _cons |   .0827138   .1280101     0.65   0.518    -.1681814    .3336089",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bysort g: varsoc y w, maxlag(2)",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "",
+            "Lag-order selection criteria",
+            "",
+            "   Sample: 3 thru 60                                        Number of obs = 58",
+            "  +---------------------------------------------------------------------------+",
+            "  | Lag |    LL      LR      df    p     FPE       AIC      HQIC      SBIC    |",
+            "  |-----+---------------------------------------------------------------------|",
+            "  |   0 | -163.107                     1.01775   5.69334   5.72101   5.76439  |",
+            "  |   1 | -154.662  16.891*   4  0.002 .873265*  5.54005*  5.62308*   5.7532* |",
+            "  |   2 |  -151.38  6.5622    4  0.161 .895786   5.56484   5.70322   5.92009  |",
+            "  +---------------------------------------------------------------------------+",
+            "   * optimal lag",
+            "   Endogenous: y w",
+            "    Exogenous: _cons",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 2",
+            "",
+            "Lag-order selection criteria",
+            "",
+            "   Sample: 61 thru 120                                      Number of obs = 60",
+            "  +---------------------------------------------------------------------------+",
+            "  | Lag |    LL      LR      df    p     FPE       AIC      HQIC      SBIC    |",
+            "  |-----+---------------------------------------------------------------------|",
+            "  |   0 | -161.398                     .795208    5.4466    5.4739*  5.51641* |",
+            "  |   1 | -156.144  10.507*   4  0.033 .762787*  5.40481*  5.48673   5.61424  |",
+            "  |   2 | -154.053  4.1817    4  0.382 .813402   5.46845   5.60498   5.81751  |",
+            "  +---------------------------------------------------------------------------+",
+            "   * optimal lag",
+            "   Endogenous: y w",
+            "    Exogenous: _cons"
+          ]
+        },
+        {
+          "command": "xtset g t",
+          "lines": [
+            "Panel variable: g (weakly balanced)",
+            " Time variable: t, 1 to 120",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "by g: var y w, lags(1)",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "",
+            "Vector autoregression",
+            "",
+            "Sample: 2 thru 60                               Number of obs     =         59",
+            "Log likelihood =  -156.6552                     AIC               =   5.513735",
+            "FPE            =   .8505739                     HQIC              =   5.596208",
+            "Det(Sigma_ml)  =   .6939125                     SBIC              =    5.72501",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     3     .894134   0.2425   18.89086   0.0001",
+            "w                     3     .988586   0.0140   .8354114   0.6586",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |   .4838617    .114583     4.22   0.000     .2592832    .7084403",
+            "             |",
+            "           w |",
+            "         L1. |   .1877191   .1179463     1.59   0.111    -.0434514    .4188896",
+            "             |",
+            "       _cons |   .0240068   .1144153     0.21   0.834    -.2002431    .2482566",
+            "-------------+----------------------------------------------------------------",
+            "w            |",
+            "           y |",
+            "         L1. |   -.050813    .126687    -0.40   0.688    -.2991149     .197489",
+            "             |",
+            "           w |",
+            "         L1. |   -.113201   .1304056    -0.87   0.385    -.3687912    .1423893",
+            "             |",
+            "       _cons |   .0824826   .1265016     0.65   0.514    -.1654559    .3304211",
+            "------------------------------------------------------------------------------",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 2",
+            "",
+            "Vector autoregression",
+            "",
+            "Sample: 62 thru 120                             Number of obs     =         59",
+            "Log likelihood =   -153.409                     AIC               =   5.403695",
+            "FPE            =   .7619428                     HQIC              =   5.486168",
+            "Det(Sigma_ml)  =   .6216058                     SBIC              =    5.61497",
+            "",
+            "Equation           Parms      RMSE     R-sq      chi2     P>chi2",
+            "----------------------------------------------------------------",
+            "y                     3     .854716   0.1541   10.75213   0.0046",
+            "w                     3     .988074   0.0241    1.45811   0.4824",
+            "----------------------------------------------------------------",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "y            |",
+            "           y |",
+            "         L1. |   .3880116   .1248334     3.11   0.002     .1433426    .6326805",
+            "             |",
+            "           w |",
+            "         L1. |   .0297668   .1137751     0.26   0.794    -.1932282    .2527618",
+            "             |",
+            "       _cons |  -.0716174   .1104508    -0.65   0.517     -.288097    .1448622",
+            "-------------+----------------------------------------------------------------",
+            "w            |",
+            "           y |",
+            "         L1. |   .1241511   .1443106     0.86   0.390    -.1586926    .4069947",
+            "             |",
+            "           w |",
+            "         L1. |   .0807674   .1315269     0.61   0.539    -.1770206    .3385554",
+            "             |",
+            "       _cons |   .0867457    .127684     0.68   0.497    -.1635104    .3370017",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "by g: varsoc y, maxlag(2)",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "",
+            "Lag-order selection criteria",
+            "",
+            "   Sample: 3 thru 60                                        Number of obs = 58",
+            "  +---------------------------------------------------------------------------+",
+            "  | Lag |    LL      LR      df    p     FPE       AIC      HQIC      SBIC    |",
+            "  |-----+---------------------------------------------------------------------|",
+            "  |   0 | -82.7787                     1.05237   2.88892   2.90276   2.92445  |",
+            "  |   1 |   -75.85  13.857*   1  0.000 .857815*  2.68448*  2.71216*  2.75553* |",
+            "  |   2 | -75.6436  .41285    1  0.521 .881671   2.71185   2.75336   2.81842  |",
+            "  +---------------------------------------------------------------------------+",
+            "   * optimal lag",
+            "   Endogenous: y",
+            "    Exogenous: _cons",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 2",
+            "",
+            "Lag-order selection criteria",
+            "",
+            "   Sample: 63 thru 120                                      Number of obs = 58",
+            "  +---------------------------------------------------------------------------+",
+            "  | Lag |    LL      LR      df    p     FPE       AIC      HQIC      SBIC    |",
+            "  |-----+---------------------------------------------------------------------|",
+            "  |   0 | -76.8831                     .858774   2.68562   2.69946   2.72115  |",
+            "  |   1 |  -72.034  9.6982*   1  0.002 .752049*   2.5529*  2.58057*  2.62395* |",
+            "  |   2 |  -71.901  .26597    1  0.606 .774923   2.58279   2.62431   2.68937  |",
+            "  +---------------------------------------------------------------------------+",
+            "   * optimal lag",
+            "   Endogenous: y",
+            "    Exogenous: _cons"
+          ]
+        },
+        {
+          "command": "capture noisily by g: dfuller y",
+          "lines": ["dfuller may not be combined with by"]
+        },
+        {
+          "command": "capture noisily by g: corrgram y",
+          "lines": ["corrgram may not be combined with by"]
+        }
+      ]
+    },
+    {
+      "id": "pass8-ts2-means-and-labels",
+      "source": "clear\nset seed 13\nset obs 10\ngenerate t = _n\ntsset t\ngenerate double x = invnormal(runiform())*1000\nformat x %9.2f\ngenerate double z = round(invnormal(runiform()), .001)\ngenerate double longer_name_variable = round(invnormal(runiform()), .001)\ngenerate byte lab = mod(_n, 3)\nlabel define lb 0 \"zero\" 1 \"one\" 2 \"two\"\nlabel values lab lb\ncorrelate x L.x, means\ncorrelate L.z L.longer_name_variable, means\ncorrelate L(0/2).z x, means\nlist t lab L.lab F.lab in 1/4\nlist t lab L.lab in 1/3, nolabel\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 13", "lines": [] },
+        {
+          "command": "set obs 10",
+          "lines": ["Number of observations (_N) was 0, now 10."]
+        },
+        { "command": "generate t = _n", "lines": [] },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 10", "        Delta: 1 unit"]
+        },
+        {
+          "command": "generate double x = invnormal(runiform())*1000",
+          "lines": []
+        },
+        { "command": "format x %9.2f", "lines": [] },
+        {
+          "command": "generate double z = round(invnormal(runiform()), .001)",
+          "lines": []
+        },
+        {
+          "command": "generate double longer_name_variable = round(invnormal(runiform()), .001)",
+          "lines": []
+        },
+        { "command": "generate byte lab = mod(_n, 3)", "lines": [] },
+        {
+          "command": "label define lb 0 \"zero\" 1 \"one\" 2 \"two\"",
+          "lines": []
+        },
+        { "command": "label values lab lb", "lines": [] },
+        {
+          "command": "correlate x L.x, means",
+          "lines": [
+            "(obs=9)",
+            "",
+            "    Variable |         Mean    Std. dev.          Min          Max",
+            "-------------+----------------------------------------------------",
+            "           x |",
+            "         --. |      -165.89      1127.70     -2084.78      1867.53",
+            "         L1. |      -227.92      1079.90     -2084.78      1867.53",
+            "",
+            "",
+            "             |                 L.",
+            "             |        x        x",
+            "-------------+------------------",
+            "           x |",
+            "         --. |   1.0000",
+            "         L1. |  -0.1139   1.0000"
+          ]
+        },
+        {
+          "command": "correlate L.z L.longer_name_variable, means",
+          "lines": [
+            "(obs=9)",
+            "",
+            "    Variable |         Mean    Std. dev.          Min          Max",
+            "-------------+----------------------------------------------------",
+            "           z |",
+            "         L1. |     .1506667     1.240669       -2.819        1.501",
+            "longer_nam~e |",
+            "         L1. |    -.0366667     1.314813       -2.603        1.419",
+            "",
+            "",
+            "             |        L.       L.",
+            "             |        z longer~e",
+            "-------------+------------------",
+            "           z |",
+            "         L1. |   1.0000",
+            "longer_nam~e |",
+            "         L1. |   0.5064   1.0000"
+          ]
+        },
+        {
+          "command": "correlate L(0/2).z x, means",
+          "lines": [
+            "(obs=8)",
+            "",
+            "    Variable |         Mean    Std. dev.          Min          Max",
+            "-------------+----------------------------------------------------",
+            "           z |",
+            "         --. |        .0025     1.319156       -2.819        1.501",
+            "         L1. |         .128     1.324338       -2.819        1.501",
+            "         L2. |      .210125     1.312552       -2.819        1.501",
+            "           x |      -156.28      1205.17     -2084.78      1867.53",
+            "",
+            "",
+            "             |                 L.      L2.",
+            "             |        z        z        z        x",
+            "-------------+------------------------------------",
+            "           z |",
+            "         --. |   1.0000",
+            "         L1. |  -0.2331   1.0000",
+            "         L2. |  -0.0510  -0.2454   1.0000",
+            "           x |   0.3533   0.1988   0.1040   1.0000"
+          ]
+        },
+        {
+          "command": "list t lab L.lab F.lab in 1/4",
+          "lines": [
+            "     +------------------------+",
+            "     |               L.     F.|",
+            "     | t    lab    lab    lab |",
+            "     |------------------------|",
+            "  1. | 1    one      .    two |",
+            "  2. | 2    two    one   zero |",
+            "  3. | 3   zero    two    one |",
+            "  4. | 4    one   zero    two |",
+            "     +------------------------+"
+          ]
+        },
+        {
+          "command": "list t lab L.lab in 1/3, nolabel",
+          "lines": [
+            "     +---------------+",
+            "     |             L.|",
+            "     | t   lab   lab |",
+            "     |---------------|",
+            "  1. | 1     1     . |",
+            "  2. | 2     2     1 |",
+            "  3. | 3     0     2 |",
+            "     +---------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-ts2-not-sorted",
+      "source": "clear\nset seed 5\nset obs 12\ngenerate t = _n\ngenerate g = ceil(t/4)\ngenerate double x = round(runiform()*100)\ngenerate double y = x + round(runiform()*10)\ntsset t\nsort x\ncapture noisily list t x L.x in 1/3\ncapture noisily summarize L.x\ncapture noisily correlate x L.x\ncapture noisily regress y L.x in 1/8\ncapture noisily generate z = L.x in 1/5\ncapture noisily count if L.x < .\ncapture noisily newey y x, lag(1)\nnewey y x, lag(0)\ncapture noisily prais y x, nolog\nregress y x\nsort t g\nsummarize L.x\ncapture noisily bysort g: summarize L.x\ncapture noisily bysort g: regress y L.x\ncapture noisily bysort g (t): summarize L.x\ncapture noisily bysort g: generate lx = L.x\nsort t\nby t: summarize L.x\nby t: generate l2 = L.x\nsummarize l2\nxtset g t\nbysort g: summarize L.x\nsort t g\ncapture noisily summarize L.x\ntsset\nsummarize L.x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 5", "lines": [] },
+        {
+          "command": "set obs 12",
+          "lines": ["Number of observations (_N) was 0, now 12."]
+        },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "generate g = ceil(t/4)", "lines": [] },
+        { "command": "generate double x = round(runiform()*100)", "lines": [] },
+        {
+          "command": "generate double y = x + round(runiform()*10)",
+          "lines": []
+        },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 12", "        Delta: 1 unit"]
+        },
+        { "command": "sort x", "lines": [] },
+        {
+          "command": "capture noisily list t x L.x in 1/3",
+          "lines": ["not sorted"]
+        },
+        { "command": "capture noisily summarize L.x", "lines": ["not sorted"] },
+        {
+          "command": "capture noisily correlate x L.x",
+          "lines": ["not sorted"]
+        },
+        {
+          "command": "capture noisily regress y L.x in 1/8",
+          "lines": ["not sorted"]
+        },
+        {
+          "command": "capture noisily generate z = L.x in 1/5",
+          "lines": ["not sorted"]
+        },
+        {
+          "command": "capture noisily count if L.x < .",
+          "lines": ["not sorted"]
+        },
+        {
+          "command": "capture noisily newey y x, lag(1)",
+          "lines": ["not sorted"]
+        },
+        {
+          "command": "newey y x, lag(0)",
+          "lines": [
+            "Regression with Newey–West standard errors      Number of obs     =         12",
+            "Maximum lag = 0                                 F(  1,        10) =     994.92",
+            "                                                Prob > F          =     0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Newey–West",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9925868   .0314684    31.54   0.000     .9224709    1.062703",
+            "       _cons |   5.179834   1.818505     2.85   0.017     1.127952    9.231717",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily prais y x, nolog",
+          "lines": ["not sorted"]
+        },
+        {
+          "command": "regress y x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        12",
+            "-------------+----------------------------------   F(1, 10)        =    910.32",
+            "       Model |  9502.53004         1  9502.53004   Prob > F        =    0.0000",
+            "    Residual |  104.386625        10  10.4386625   R-squared       =    0.9891",
+            "-------------+----------------------------------   Adj R-squared   =    0.9880",
+            "       Total |  9606.91667        11  873.356061   Root MSE        =    3.2309",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .9925868   .0328981    30.17   0.000     .9192852    1.065888",
+            "       _cons |   5.179834   1.494604     3.47   0.006     1.849649    8.510019",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "sort t g", "lines": [] },
+        {
+          "command": "summarize L.x",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |         11    33.54545    30.23364          4         79"
+          ]
+        },
+        {
+          "command": "capture noisily bysort g: summarize L.x",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "not sorted"
+          ]
+        },
+        {
+          "command": "capture noisily bysort g: regress y L.x",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "not sorted"
+          ]
+        },
+        {
+          "command": "capture noisily bysort g (t): summarize L.x",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "not sorted"
+          ]
+        },
+        {
+          "command": "capture noisily bysort g: generate lx = L.x",
+          "lines": ["not sorted"]
+        },
+        { "command": "sort t", "lines": [] },
+        {
+          "command": "by t: summarize L.x",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> t = 1",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          0",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> t = 2",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          0",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> t = 3",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          0",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> t = 4",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          0",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> t = 5",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          0",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> t = 6",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          0",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> t = 7",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          0",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> t = 8",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          0",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> t = 9",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          0",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> t = 10",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          0",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> t = 11",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          0",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> t = 12",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          0"
+          ]
+        },
+        {
+          "command": "by t: generate l2 = L.x",
+          "lines": ["(12 missing values generated)"]
+        },
+        {
+          "command": "summarize l2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          l2 |          0"
+          ]
+        },
+        {
+          "command": "xtset g t",
+          "lines": [
+            "Panel variable: g (weakly balanced)",
+            " Time variable: t, 1 to 12",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "bysort g: summarize L.x",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          3    31.33333    32.31615          4         67",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 2",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          3    10.66667    2.081666          9         13",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 3",
+            "",
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          3    35.33333    38.75994          5         79"
+          ]
+        },
+        { "command": "sort t g", "lines": [] },
+        { "command": "capture noisily summarize L.x", "lines": ["not sorted"] },
+        {
+          "command": "tsset",
+          "lines": [
+            "Panel variable: g (weakly balanced)",
+            " Time variable: t, 1 to 12",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "summarize L.x",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |          9    25.77778    27.73435          4         79"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-ts2-sorts-by-time",
+      "source": "clear\nset seed 21\nset obs 30\ngenerate t = _n\ngenerate g = mod(_n, 2)\ngenerate double y = round(invnormal(runiform()), .01)\nreplace y = .6*y[_n-1] + y in 2/l\ngenerate double w = invnormal(runiform())\ntsset t\nsort y\ndfuller y\nlist t y in 1/3\nsort y\npperron y\nlist t y in 1/3\ngsort -y\ncorrgram y, lags(2)\nlist t y in 1/3\nsort g\nquietly var y w\nlocal s : sortedby\ndisplay \"`s'\"\nquietly varsoc y w\nlocal s : sortedby\ndisplay \"`s'\"\nquietly ac y, lags(3) nodraw\nlocal s : sortedby\ndisplay \"`s'\"\nsort y\ndfuller y in 1/10\nsort y\nquietly arima y, ar(1) nolog\nlocal s : sortedby\ndisplay \"`s'\"\nsort y\npredict double p, y\nlocal s : sortedby\ndisplay \"`s'\"\nsort g\nbysort g: arima y, ar(1) nolog\nlocal s : sortedby\ndisplay \"`s'\"\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 21", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "generate g = mod(_n, 2)", "lines": [] },
+        {
+          "command": "generate double y = round(invnormal(runiform()), .01)",
+          "lines": []
+        },
+        {
+          "command": "replace y = .6*y[_n-1] + y in 2/l",
+          "lines": ["(29 real changes made)"]
+        },
+        { "command": "generate double w = invnormal(runiform())", "lines": [] },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 30", "        Delta: 1 unit"]
+        },
+        { "command": "sort y", "lines": [] },
+        {
+          "command": "dfuller y",
+          "lines": [
+            "Dickey–Fuller test for unit root           Number of obs  = 29",
+            "Variable: y                                Number of lags =  0",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(t)            -2.774       -3.723       -2.989       -2.625",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 0.0621."
+          ]
+        },
+        {
+          "command": "list t y in 1/3",
+          "lines": [
+            "     +------------+",
+            "     | t        y |",
+            "     |------------|",
+            "  1. | 1     -.57 |",
+            "  2. | 2    -.042 |",
+            "  3. | 3   -.1852 |",
+            "     +------------+"
+          ]
+        },
+        { "command": "sort y", "lines": [] },
+        {
+          "command": "pperron y",
+          "lines": [
+            "Phillips–Perron test for unit root        Number of obs   = 29",
+            "Variable: y                               Newey–West lags =  3",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)         -12.861      -17.472      -12.628      -10.280",
+            " Z(t)            -2.775       -3.723       -2.989       -2.625",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 0.0619."
+          ]
+        },
+        {
+          "command": "list t y in 1/3",
+          "lines": [
+            "     +------------+",
+            "     | t        y |",
+            "     |------------|",
+            "  1. | 1     -.57 |",
+            "  2. | 2    -.042 |",
+            "  3. | 3   -.1852 |",
+            "     +------------+"
+          ]
+        },
+        { "command": "gsort -y", "lines": [] },
+        {
+          "command": "corrgram y, lags(2)",
+          "lines": [
+            "                                          -1       0       1 -1       0       1",
+            " LAG       AC       PAC      Q     Prob>Q  [Autocorrelation]  [Partial autocor]",
+            "-------------------------------------------------------------------------------",
+            "1        0.5559   0.5570   10.231  0.0014          |----              |----",
+            "2        0.2223  -0.1273   11.926  0.0026          |-                -|"
+          ]
+        },
+        {
+          "command": "list t y in 1/3",
+          "lines": [
+            "     +------------+",
+            "     | t        y |",
+            "     |------------|",
+            "  1. | 1     -.57 |",
+            "  2. | 2    -.042 |",
+            "  3. | 3   -.1852 |",
+            "     +------------+"
+          ]
+        },
+        { "command": "sort g", "lines": [] },
+        { "command": "quietly var y w", "lines": [] },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"`s'\"", "lines": ["g"] },
+        { "command": "quietly varsoc y w", "lines": [] },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"`s'\"", "lines": ["g"] },
+        { "command": "quietly ac y, lags(3) nodraw", "lines": [] },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"`s'\"", "lines": ["t"] },
+        { "command": "sort y", "lines": [] },
+        {
+          "command": "dfuller y in 1/10",
+          "lines": [
+            "Dickey–Fuller test for unit root           Number of obs  = 10",
+            "Variable: y                                Number of lags =  0",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(t)            -4.483       -3.750       -3.000       -2.630",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 0.0002."
+          ]
+        },
+        { "command": "sort y", "lines": [] },
+        { "command": "quietly arima y, ar(1) nolog", "lines": [] },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"`s'\"", "lines": ["t"] },
+        { "command": "sort y", "lines": [] },
+        { "command": "predict double p, y", "lines": [] },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"`s'\"", "lines": ["t"] },
+        { "command": "sort g", "lines": [] },
+        {
+          "command": "bysort g: arima y, ar(1) nolog",
+          "lines": [
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 0",
+            "(note:  insufficient memory or observations to estimate usual",
+            "starting values [2])",
+            "insufficient observations",
+            "",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "-> g = 1",
+            "(note:  insufficient memory or observations to estimate usual",
+            "starting values [2])",
+            "insufficient observations"
+          ]
+        },
+        { "command": "local s : sortedby", "lines": [] },
+        { "command": "display \"`s'\"", "lines": ["t"] }
+      ]
+    },
+    {
+      "id": "pass8-ts2-lowercase-postestimation",
+      "source": "clear\nset seed 77\nset obs 120\ngenerate t = _n\ngenerate double x = invnormal(runiform())\ngenerate double y = invnormal(runiform())\ntsset t\nreplace y = y + .5*x + .3*x[_n-1] in 2/l\nregress y L(1/3).x L.y\ntest l.x\ntest l2.x = l3.x\ntest L1.x = 0\ncapture noisily test L.x = l2.y\ntestparm L(1/3).x\ntestparm L.x L2.x\nlincom l.x + l2.x\ncapture noisily lincom L4.x\nregress y L(0/2).x, vce(robust)\ntestparm l(0/2).x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 77", "lines": [] },
+        {
+          "command": "set obs 120",
+          "lines": ["Number of observations (_N) was 0, now 120."]
+        },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "generate double x = invnormal(runiform())", "lines": [] },
+        { "command": "generate double y = invnormal(runiform())", "lines": [] },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 120", "        Delta: 1 unit"]
+        },
+        {
+          "command": "replace y = y + .5*x + .3*x[_n-1] in 2/l",
+          "lines": ["(119 real changes made)"]
+        },
+        {
+          "command": "regress y L(1/3).x L.y",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       117",
+            "-------------+----------------------------------   F(4, 112)       =      1.73",
+            "       Model |  7.73549153         4  1.93387288   Prob > F        =    0.1473",
+            "    Residual |  124.872063       112  1.11492914   R-squared       =    0.0583",
+            "-------------+----------------------------------   Adj R-squared   =    0.0247",
+            "       Total |  132.607555       116  1.14316858   Root MSE        =    1.0559",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         L1. |   .1829869   .1036504     1.77   0.080    -.0223831    .3883569",
+            "         L2. |  -.1560876   .0993037    -1.57   0.119    -.3528452    .0406701",
+            "         L3. |  -.0909794   .0989603    -0.92   0.360    -.2870565    .1050977",
+            "             |",
+            "           y |",
+            "         L1. |  -.0171826   .1005224    -0.17   0.865    -.2163549    .1819896",
+            "             |",
+            "       _cons |   .0668397   .0979367     0.68   0.496    -.1272093    .2608887",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test l.x",
+          "lines": [
+            " ( 1)  L.x = 0",
+            "",
+            "       F(  1,   112) =    3.12",
+            "            Prob > F =    0.0802"
+          ]
+        },
+        {
+          "command": "test l2.x = l3.x",
+          "lines": [
+            " ( 1)  L2.x - L3.x = 0",
+            "",
+            "       F(  1,   112) =    0.20",
+            "            Prob > F =    0.6519"
+          ]
+        },
+        {
+          "command": "test L1.x = 0",
+          "lines": [
+            " ( 1)  L.x = 0",
+            "",
+            "       F(  1,   112) =    3.12",
+            "            Prob > F =    0.0802"
+          ]
+        },
+        {
+          "command": "capture noisily test L.x = l2.y",
+          "lines": ["regressor L2.y not found"]
+        },
+        {
+          "command": "testparm L(1/3).x",
+          "lines": [
+            " ( 1)  L.x = 0",
+            " ( 2)  L2.x = 0",
+            " ( 3)  L3.x = 0",
+            "",
+            "       F(  3,   112) =    2.27",
+            "            Prob > F =    0.0840"
+          ]
+        },
+        {
+          "command": "testparm L.x L2.x",
+          "lines": [
+            " ( 1)  L.x = 0",
+            " ( 2)  L2.x = 0",
+            "",
+            "       F(  2,   112) =    2.89",
+            "            Prob > F =    0.0596"
+          ]
+        },
+        {
+          "command": "lincom l.x + l2.x",
+          "lines": [
+            " ( 1)  L.x + L2.x = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .0268993   .1459997     0.18   0.854    -.2623803     .316179",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily lincom L4.x",
+          "lines": ["regressor L4.x not found"]
+        },
+        {
+          "command": "regress y L(0/2).x, vce(robust)",
+          "lines": [
+            "Linear regression                               Number of obs     =        118",
+            "                                                F(3, 114)         =       7.32",
+            "                                                Prob > F          =     0.0002",
+            "                                                R-squared         =     0.1603",
+            "                                                Root MSE          =     .98831",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |",
+            "         --. |    .350358   .0886615     3.95   0.000     .1747202    .5259957",
+            "         L1. |   .1749945   .0906658     1.93   0.056    -.0046138    .3546028",
+            "         L2. |  -.1429221    .106982    -1.34   0.184    -.3548526    .0690084",
+            "             |",
+            "       _cons |   .0465396   .0916804     0.51   0.613    -.1350785    .2281577",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "testparm l(0/2).x",
+          "lines": [
+            " ( 1)  x = 0",
+            " ( 2)  L.x = 0",
+            " ( 3)  L2.x = 0",
+            "",
+            "       F(  3,   114) =    7.32",
+            "            Prob > F =    0.0002"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-ts2-unit-root-small-samples",
+      "source": "clear\nset seed 11\nset obs 150\ngenerate t = _n\ngenerate double y = sum(invnormal(runiform()))\ntsset t\ndfuller y in 1/3\nreturn list\ncapture noisily dfuller y in 1/2\ndisplay _rc\ndfuller y in 1/3, noconstant\ndfuller y in 1/3, drift\nreturn list\ndfuller y in 1/6, lags(2) trend\ndfuller y in 1/3, regress\npperron y in 1/3\nreturn list\npperron y in 1/4, trend\ncapture noisily pperron y in 1/2\ndisplay _rc\npperron y in 1/3, regress\ndfuller y, l(2) nocon\npperron y in 1/5, noc\ncapture noisily dfuller y, noc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 11", "lines": [] },
+        {
+          "command": "set obs 150",
+          "lines": ["Number of observations (_N) was 0, now 150."]
+        },
+        { "command": "generate t = _n", "lines": [] },
+        {
+          "command": "generate double y = sum(invnormal(runiform()))",
+          "lines": []
+        },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 150", "        Delta: 1 unit"]
+        },
+        {
+          "command": "dfuller y in 1/3",
+          "lines": [
+            "Dickey–Fuller test for unit root            Number of obs  = 2",
+            "Variable: y                                 Number of lags = 0",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(t)                 .       -3.750       -3.000       -2.630",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 1.0000."
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "               r(lags) =  0",
+            "                  r(N) =  2",
+            "                 r(Zt) =  .",
+            "                  r(p) =  1",
+            "               r(cv_1) =  -3.75",
+            "               r(cv_5) =  -3",
+            "              r(cv_10) =  -2.63"
+          ]
+        },
+        {
+          "command": "capture noisily dfuller y in 1/2",
+          "lines": ["insufficient observations"]
+        },
+        { "command": "display _rc", "lines": ["2001"] },
+        {
+          "command": "dfuller y in 1/3, noconstant",
+          "lines": [
+            "Dickey–Fuller test for unit root            Number of obs  = 2",
+            "Variable: y                                 Number of lags = 0",
+            "",
+            "H0: Random walk without drift, a = 0, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(t)            -1.411       -2.660       -1.950       -1.600",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "dfuller y in 1/3, drift",
+          "lines": [
+            "Dickey–Fuller test for unit root            Number of obs  = 2",
+            "Variable: y                                 Number of lags = 0",
+            "",
+            "H0: Random walk with drift, d = 0",
+            "",
+            "                                      t-distribution",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(t)                 .            .            .            .",
+            "--------------------------------------------------------------",
+            "p-value for Z(t) =      ."
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "               r(lags) =  0",
+            "                  r(N) =  2",
+            "                 r(Zt) =  .",
+            "                  r(p) =  .",
+            "               r(cv_1) =  .",
+            "               r(cv_5) =  .",
+            "              r(cv_10) =  ."
+          ]
+        },
+        {
+          "command": "dfuller y in 1/6, lags(2) trend",
+          "lines": [
+            "Augmented Dickey–Fuller test for unit root",
+            "",
+            "Variable: y                                 Number of obs  = 3",
+            "                                            Number of lags = 2",
+            "",
+            "H0: Random walk with or without drift",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(t)                 .       -4.380       -3.600       -3.240",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 1.0000."
+          ]
+        },
+        {
+          "command": "dfuller y in 1/3, regress",
+          "lines": [
+            "Dickey–Fuller test for unit root            Number of obs  = 2",
+            "Variable: y                                 Number of lags = 0",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(t)                 .       -3.750       -3.000       -2.630",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 1.0000.",
+            "",
+            "Regression table",
+            "------------------------------------------------------------------------------",
+            "         D.y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           y |",
+            "         L1. |  -1.414131          .        .       .            .           .",
+            "             |",
+            "       _cons |  -.6232912          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "pperron y in 1/3",
+          "lines": [
+            "Phillips–Perron test for unit root         Number of obs   = 2",
+            "Variable: y                                Newey–West lags = 1",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)               .      -17.200      -12.500      -10.200",
+            " Z(t)                 .       -3.750       -3.000       -2.630",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 1.0000."
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  2",
+            "               r(lags) =  1",
+            "               r(Zrho) =  .",
+            "                 r(Zt) =  .",
+            "               r(pval) =  1",
+            "",
+            "matrices:",
+            "            r(cvalues) :  2 x 4"
+          ]
+        },
+        {
+          "command": "pperron y in 1/4, trend",
+          "lines": [
+            "Phillips–Perron test for unit root         Number of obs   = 3",
+            "Variable: y                                Newey–West lags = 1",
+            "",
+            "H0: Random walk with or without drift",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)               .      -22.500      -17.900      -15.600",
+            " Z(t)                 .       -4.380       -3.600       -3.240",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 1.0000."
+          ]
+        },
+        {
+          "command": "capture noisily pperron y in 1/2",
+          "lines": ["insufficient observations"]
+        },
+        { "command": "display _rc", "lines": ["2001"] },
+        {
+          "command": "pperron y in 1/3, regress",
+          "lines": [
+            "Phillips–Perron test for unit root         Number of obs   = 2",
+            "Variable: y                                Newey–West lags = 1",
+            "",
+            "H0: Random walk without drift, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)               .      -17.200      -12.500      -10.200",
+            " Z(t)                 .       -3.750       -3.000       -2.630",
+            "--------------------------------------------------------------",
+            "MacKinnon approximate p-value for Z(t) = 1.0000.",
+            "",
+            "Regression table",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           y |",
+            "         L1. |   -.414131          .        .       .            .           .",
+            "             |",
+            "       _cons |  -.6232912          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "dfuller y, l(2) nocon",
+          "lines": [
+            "Augmented Dickey–Fuller test for unit root",
+            "",
+            "Variable: y                               Number of obs  = 147",
+            "                                          Number of lags =   2",
+            "",
+            "H0: Random walk without drift, a = 0, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(t)            -1.467       -2.594       -1.950       -1.613",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "pperron y in 1/5, noc",
+          "lines": [
+            "Phillips–Perron test for unit root         Number of obs   = 4",
+            "Variable: y                                Newey–West lags = 1",
+            "",
+            "H0: Random walk without drift, a = 0, d = 0",
+            "",
+            "                                       Dickey–Fuller",
+            "                   Test      -------- critical value ---------",
+            "              statistic           1%           5%          10%",
+            "--------------------------------------------------------------",
+            " Z(rho)          -2.406      -11.900       -7.300       -5.300",
+            " Z(t)            -0.734       -2.660       -1.950       -1.600",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily dfuller y, noc",
+          "lines": ["option noc not allowed"]
+        }
+      ]
+    },
+    {
+      "id": "pass8-ts2-tsset-gaps-and-strings",
+      "source": "clear\nset seed 31\nset obs 12\ngenerate t = _n\ngenerate double x = _n*10\ngenerate str3 sv = \"ab\"\nreplace t = . in 6\ntsset t\nreplace t = 6 in 12\ntsset t\ngenerate z1 = l.sv\ngenerate z2 = L.x + L.sv\ngenerate z3 = l..x\nlist t z1 z2 z3 in 1/3\nrename t time\ntsset\nsummarize L.x\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 31", "lines": [] },
+        {
+          "command": "set obs 12",
+          "lines": ["Number of observations (_N) was 0, now 12."]
+        },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "generate double x = _n*10", "lines": [] },
+        { "command": "generate str3 sv = \"ab\"", "lines": [] },
+        {
+          "command": "replace t = . in 6",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "tsset t",
+          "lines": [
+            "Time variable: t, 1 to 12, but with a gap",
+            "        Delta: 1 unit"
+          ]
+        },
+        { "command": "replace t = 6 in 12", "lines": ["(1 real change made)"] },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 12", "        Delta: 1 unit"]
+        },
+        {
+          "command": "generate z1 = l.sv",
+          "lines": ["(12 missing values generated)"]
+        },
+        {
+          "command": "generate z2 = L.x + L.sv",
+          "lines": ["(12 missing values generated)"]
+        },
+        {
+          "command": "generate z3 = l..x",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "list t z1 z2 z3 in 1/3",
+          "lines": [
+            "     +------------------+",
+            "     | t   z1   z2   z3 |",
+            "     |------------------|",
+            "  1. | 1    .    .    . |",
+            "  2. | 2    .    .   10 |",
+            "  3. | 3    .    .   20 |",
+            "     +------------------+"
+          ]
+        },
+        { "command": "rename t time", "lines": [] },
+        {
+          "command": "tsset",
+          "lines": ["Time variable: time, 1 to 12", "        Delta: 1 unit"]
+        },
+        {
+          "command": "summarize L.x",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |",
+            "         L1. |         11          60    33.16625         10        110"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

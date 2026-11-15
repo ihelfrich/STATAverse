@@ -22176,3 +22176,268 @@ corrgram x if id == 1, lags(3)
 capture noisily varsoc x y
 display _rc
 varsoc x y if id == 2, maxlag(2)
+=== pass8-ts2-one-panel-after-missing
+clear
+set seed 21
+set obs 150
+generate id = ceil(_n/50)
+bysort id: generate t = _n
+generate double y = invnormal(runiform())
+by id: replace y = .6*y[_n-1] + y if _n > 1
+generate double w = invnormal(runiform())
+xtset id t
+replace y = . if id != 3
+capture noisily arima y, ar(1) nolog
+display _rc " " e(N)
+capture noisily var y w
+display _rc
+capture noisily varsoc y w, maxlag(2)
+display _rc
+capture noisily dfuller y
+display _rc
+dfuller y if id == 3
+capture noisily pperron y
+display _rc
+capture noisily corrgram y, lags(3)
+display _rc
+newey y w, lag(1)
+prais y w, nolog
+replace w = . if id != 3
+var y w
+capture noisily arima y w, ar(1) nolog
+display _rc " " e(N)
+=== pass8-ts2-newey-prais-panels
+clear
+set seed 21
+set obs 160
+generate id = ceil(_n/40)
+bysort id: generate t = _n
+generate double y = invnormal(runiform())
+by id: replace y = .6*y[_n-1] + y if _n > 1
+generate double w = invnormal(runiform())
+xtset id t
+capture noisily newey y w, lag(1)
+display _rc
+newey y w, lag(0)
+newey y w, lag(2) force
+newey y w if id == 3, lag(2)
+newey y w if id < 3 & t != 5, lag(1) force
+capture noisily newey y w if id == 3 & t != 5, lag(1)
+display _rc
+by id: newey y w, lag(1)
+prais y w if id == 2, nolog
+prais y w if id == 4, nolog corc
+by id: prais y w, nolog twostep
+generate t2 = 2*t
+capture noisily tsset t2
+display _rc
+=== pass8-ts2-operator-refusals
+clear
+set seed 41
+set obs 40
+generate t = _n
+tsset t
+generate double x = round(runiform()*10, .1)
+generate double y = x + round(runiform()*3, .1)
+capture noisily summarize D(-1).x
+capture noisily regress y D(-1).x
+capture noisily regress y S(-1).x
+capture noisily regress y D(-1/1).x
+capture noisily newey y D(-1).x, lag(1)
+capture noisily summarize L(1/2)D(0/1).x
+capture noisily regress y L(1/2)D(0/1).x
+capture noisily regress y L(0/1)F(1/2).x
+capture noisily summarize L(1)D(0/1).x
+capture noisily summarize L(1/2).D(1/2).x
+capture noisily summarize l(1/2)d(0/1).x
+capture noisily summarize D(-1)L(1/2).x
+capture noisily regress y L(1/2)D(1).x
+regress y L(1/2)D.x
+summarize L(1/2)D.x
+summarize LD(1/2).x
+regress y LD(1/2).x
+regress y S(0).x
+regress y L(1(1)3).x
+summarize L(3(-1)1).x
+regress y L(1(1)2).x D.x
+list t L(1(1)2).x in 1/3
+regress y L(1/2).(x y)
+regress y l.(x y)
+regress y d.(x y)
+=== pass8-ts2-by-var-varsoc
+clear
+set seed 61
+set obs 120
+generate t = _n
+generate g = ceil(_n/60)
+generate double y = invnormal(runiform())
+generate double w = invnormal(runiform())
+replace y = .5*y[_n-1] + y in 2/l
+tsset t
+bysort g: var y w
+bysort g: varsoc y w, maxlag(2)
+xtset g t
+by g: var y w, lags(1)
+by g: varsoc y, maxlag(2)
+capture noisily by g: dfuller y
+capture noisily by g: corrgram y
+=== pass8-ts2-means-and-labels
+clear
+set seed 13
+set obs 10
+generate t = _n
+tsset t
+generate double x = invnormal(runiform())*1000
+format x %9.2f
+generate double z = round(invnormal(runiform()), .001)
+generate double longer_name_variable = round(invnormal(runiform()), .001)
+generate byte lab = mod(_n, 3)
+label define lb 0 "zero" 1 "one" 2 "two"
+label values lab lb
+correlate x L.x, means
+correlate L.z L.longer_name_variable, means
+correlate L(0/2).z x, means
+list t lab L.lab F.lab in 1/4
+list t lab L.lab in 1/3, nolabel
+=== pass8-ts2-not-sorted
+clear
+set seed 5
+set obs 12
+generate t = _n
+generate g = ceil(t/4)
+generate double x = round(runiform()*100)
+generate double y = x + round(runiform()*10)
+tsset t
+sort x
+capture noisily list t x L.x in 1/3
+capture noisily summarize L.x
+capture noisily correlate x L.x
+capture noisily regress y L.x in 1/8
+capture noisily generate z = L.x in 1/5
+capture noisily count if L.x < .
+capture noisily newey y x, lag(1)
+newey y x, lag(0)
+capture noisily prais y x, nolog
+regress y x
+sort t g
+summarize L.x
+capture noisily bysort g: summarize L.x
+capture noisily bysort g: regress y L.x
+capture noisily bysort g (t): summarize L.x
+capture noisily bysort g: generate lx = L.x
+sort t
+by t: summarize L.x
+by t: generate l2 = L.x
+summarize l2
+xtset g t
+bysort g: summarize L.x
+sort t g
+capture noisily summarize L.x
+tsset
+summarize L.x
+=== pass8-ts2-sorts-by-time
+clear
+set seed 21
+set obs 30
+generate t = _n
+generate g = mod(_n, 2)
+generate double y = round(invnormal(runiform()), .01)
+replace y = .6*y[_n-1] + y in 2/l
+generate double w = invnormal(runiform())
+tsset t
+sort y
+dfuller y
+list t y in 1/3
+sort y
+pperron y
+list t y in 1/3
+gsort -y
+corrgram y, lags(2)
+list t y in 1/3
+sort g
+quietly var y w
+local s : sortedby
+display "`s'"
+quietly varsoc y w
+local s : sortedby
+display "`s'"
+quietly ac y, lags(3) nodraw
+local s : sortedby
+display "`s'"
+sort y
+dfuller y in 1/10
+sort y
+quietly arima y, ar(1) nolog
+local s : sortedby
+display "`s'"
+sort y
+predict double p, y
+local s : sortedby
+display "`s'"
+sort g
+bysort g: arima y, ar(1) nolog
+local s : sortedby
+display "`s'"
+=== pass8-ts2-lowercase-postestimation
+clear
+set seed 77
+set obs 120
+generate t = _n
+generate double x = invnormal(runiform())
+generate double y = invnormal(runiform())
+tsset t
+replace y = y + .5*x + .3*x[_n-1] in 2/l
+regress y L(1/3).x L.y
+test l.x
+test l2.x = l3.x
+test L1.x = 0
+capture noisily test L.x = l2.y
+testparm L(1/3).x
+testparm L.x L2.x
+lincom l.x + l2.x
+capture noisily lincom L4.x
+regress y L(0/2).x, vce(robust)
+testparm l(0/2).x
+=== pass8-ts2-unit-root-small-samples
+clear
+set seed 11
+set obs 150
+generate t = _n
+generate double y = sum(invnormal(runiform()))
+tsset t
+dfuller y in 1/3
+return list
+capture noisily dfuller y in 1/2
+display _rc
+dfuller y in 1/3, noconstant
+dfuller y in 1/3, drift
+return list
+dfuller y in 1/6, lags(2) trend
+dfuller y in 1/3, regress
+pperron y in 1/3
+return list
+pperron y in 1/4, trend
+capture noisily pperron y in 1/2
+display _rc
+pperron y in 1/3, regress
+dfuller y, l(2) nocon
+pperron y in 1/5, noc
+capture noisily dfuller y, noc
+=== pass8-ts2-tsset-gaps-and-strings
+clear
+set seed 31
+set obs 12
+generate t = _n
+generate double x = _n*10
+generate str3 sv = "ab"
+replace t = . in 6
+tsset t
+replace t = 6 in 12
+tsset t
+generate z1 = l.sv
+generate z2 = L.x + L.sv
+generate z3 = l..x
+list t z1 z2 z3 in 1/3
+rename t time
+tsset
+summarize L.x

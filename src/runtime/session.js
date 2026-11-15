@@ -330,9 +330,17 @@ const BY_RECALL = new Set([
 // Estimation commands that, typed alone, show the last fit again; with no
 // fit there is nothing to show (r(301)).
 const REPLAYED = new Set([...BY_RECALL, "xtreg", "rreg", "intreg", "truncreg"]);
-// Further byable(recall) estimators, which under by fit one model for each
-// group too; typed alone they show their own replay, so are not REPLAYED.
-const BY_RECALL_REPLAYING = new Set(["stcox", "arima"]);
+// Further byable(recall) commands, which under by run once for each group
+// too: estimators that show their own replay typed alone (so are not
+// REPLAYED), and varsoc.
+const BY_RECALL_REPLAYING = new Set([
+  "stcox",
+  "arima",
+  "var",
+  "varsoc",
+  "newey",
+  "prais",
+]);
 // Prefix commands, which run an estimator and show their own replay.
 const PREFIX_COMMANDS = new Set([
   "svy",
@@ -954,31 +962,39 @@ export class Session {
       try {
         if (replayed) value = this.replay(command, body, ctx, lines);
         else if (recall)
-          value = perGroup((session, text, inner) => {
-            const rows = new Set(),
-              outer = this.panelRows;
-            for (
-              let i = inner.group.start;
-              i < inner.group.start + inner.group.count;
-              i++
-            )
-              if (!outer || outer.has(i)) rows.add(i);
-            start.at = lines.length ?? 0;
-            this.panelRows = rows;
-            try {
-              const value = command.run(this, text, {
-                ...inner,
-                by: undefined,
-              });
-              // by leaves a blank line before the next group's rule, which
-              // an estimator whose table ends in a rule does not print.
-              if (Array.isArray(lines) && lines.length && lines.at(-1) !== "")
-                inner.out("");
-              return value;
-            } finally {
-              this.panelRows = outer;
-            }
-          })(this, body, ctx);
+          try {
+            value = perGroup((session, text, inner) => {
+              const rows = new Set(),
+                outer = this.panelRows;
+              for (
+                let i = inner.group.start;
+                i < inner.group.start + inner.group.count;
+                i++
+              )
+                if (!outer || outer.has(i)) rows.add(i);
+              start.at = lines.length ?? 0;
+              this.panelRows = rows;
+              try {
+                const value = command.run(this, text, {
+                  ...inner,
+                  by: undefined,
+                });
+                // by leaves a blank line before the next group's rule, which
+                // an estimator whose table ends in a rule does not print.
+                if (Array.isArray(lines) && lines.length && lines.at(-1) !== "")
+                  inner.out("");
+                return value;
+              } finally {
+                this.panelRows = outer;
+              }
+            })(this, body, ctx);
+          } finally {
+            // A command that sorts the data by time (arima) sorts them once
+            // every group has run, since the groups are runs of rows.
+            const keys = this.pendingSort;
+            this.pendingSort = null;
+            if (keys && !this.panelRows) this.data.sort(keys);
+          }
         else value = command.run(this, body, ctx);
       } catch (error) {
         if (error instanceof StataError) {
