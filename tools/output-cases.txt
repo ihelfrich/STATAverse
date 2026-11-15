@@ -19286,6 +19286,260 @@ summarize ra rb rs
 quietly mixed score ses i.girl || school:, reml
 predict os, reses
 summarize os
+=== xt-pass8r3-estat-abbreviations
+clear
+set seed 4242
+set obs 400
+generate id = ceil(_n/5)
+bysort id: generate t = _n
+generate x1 = invnormal(runiform())
+generate u = invnormal(runiform())
+by id: replace u = u[1]
+generate y = 0.5 + x1 + u + logit(runiform()) > 0
+generate c = floor(-ln(runiform())/(0.5*exp(.5*x1 + u)))
+generate z = x1 + u + invnormal(runiform())
+xtset id t
+quietly regress z x1
+estat hett
+estat hettes
+estat ovt
+estat imt
+estat sum
+estat summa
+capture noisily estat het
+capture noisily estat ov
+capture noisily estat arch
+display _rc
+quietly xtreg z x1, fe
+estat sum
+capture noisily estat hett
+quietly xtpoisson c x1, pa
+estat sum
+estat vce
+quietly xtlogit y x1, pa
+estat vce, correlation
+quietly mixed z x1 || id:
+estat su
+capture noisily estat hettest
+display _rc
+capture noisily estat gof
+display _rc
+capture noisily estat df
+display _rc
+capture noisily estat het
+display _rc
+=== xt-pass8r3-panel-option-order
+clear
+set seed 4242
+set obs 400
+generate id = ceil(_n/5)
+generate grp = ceil(_n/10)
+bysort id: generate t = _n
+generate t2 = 2*t
+generate id2 = id
+generate x1 = invnormal(runiform())
+generate u = invnormal(runiform())
+by id: replace u = u[1]
+generate y = 0.5 + x1 + u + logit(runiform()) > 0
+generate c = floor(-ln(runiform())/(0.5*exp(.5*x1 + u)))
+generate z = x1 + u + invnormal(runiform())
+quietly xtset id t
+capture noisily xtlogit y nosuch, re i(grp) nolog
+xtset
+capture noisily xtprobit y x1 if nosuch, re i(grp)
+xtset
+capture noisily xtpoisson c i.nosuch, fe i(grp)
+xtset
+capture noisily xtreg z nosuch, re i(grp)
+xtset
+capture noisily xtsum nosuch, i(grp)
+xtset
+capture noisily xtlogit y x1, re fe i(grp)
+xtset
+capture noisily xtlogit y x1, re foo
+capture noisily xtlogit y x1, fe foo(3)
+capture noisily xtlogit y x1, re i(grp) foo nolog
+xtset
+quietly xtset id t
+capture noisily xtpoisson c x1, re foo i(grp)
+xtset
+quietly xtset id t
+capture noisily xtreg z x1, fe foo i(grp)
+xtset
+quietly xtset id t
+capture noisily xtreg z x1, foo
+xtset id t2, delta(2)
+quietly xtprobit y x1, re i(id2) nolog
+xtset
+quietly xtset id t2, delta(2)
+quietly xtsum z, i(id2)
+xtset
+quietly xtset id t2, delta(2)
+quietly xtreg z x1, fe i(id)
+xtset
+=== xt-pass8r3-eform-replay
+clear
+set seed 4242
+set obs 600
+generate id = ceil(_n/5)
+bysort id: generate t = _n
+generate x1 = invnormal(runiform())
+generate u = invnormal(runiform())
+by id: replace u = u[1]
+generate y = 0.5 + x1 + u + logit(runiform()) > 0
+xtset id t
+quietly xtlogit y x1, pa
+xtlogit, eform
+xtlogit, or level(90)
+quietly xtlogit y x1, pa eform
+xtlogit, eform
+xtlogit
+quietly xtprobit y x1, pa
+xtprobit, eform level(90)
+capture noisily xtprobit, or
+quietly xtlogit y x1, re nolog
+capture noisily xtlogit, eform
+=== xt-pass8r3-margins-chain-constant
+clear
+set seed 4242
+set obs 600
+generate id = ceil(_n/6)
+bysort id: generate t = _n
+generate x1 = invnormal(runiform())
+generate x3 = runiform()
+generate expo = 0.5 + 3*runiform()
+generate u = invnormal(runiform())*0.5
+by id: replace u = u[1]
+generate yc = floor(-ln(runiform())/(0.4*expo*exp(-.2 + .3*x1 + .5*x3 + u)))
+generate yb = yc > 1
+generate g = mod(id,3)
+xtset id t
+quietly xtpoisson yc x1 x3 i.g, pa exposure(expo)
+margins, dydx(x1)
+matrix mb = r(b)
+display %15.9g mb[1,1]
+margins g, dydx(x1)
+quietly xtpoisson yc x1 x3 ibn.g, pa exposure(expo) noconstant
+quietly margins, dydx(x1 x3)
+matrix mb = r(b)
+display %15.9g mb[1,1]
+quietly xtpoisson yc x1 x3 i.g, re exposure(expo)
+margins, dydx(x1 x3) predict(nu0)
+matrix mb = r(b)
+display %15.9g mb[1,1]
+quietly xtpoisson yc x1 x3, re noconstant
+quietly margins, dydx(x1) predict(nu0)
+matrix mb = r(b)
+display %15.9g mb[1,1]
+quietly xtlogit yb x1 x3, pa
+quietly margins, dydx(x1)
+matrix mb = r(b)
+display %15.9g mb[1,1]
+quietly xtlogit yb x1 x3, re noconstant
+quietly margins, dydx(x1) predict(pu0)
+matrix mb = r(b)
+display %15.9g mb[1,1]
+=== xt-pass8r3-margins-constant-prediction
+clear
+set seed 2468
+set obs 500
+generate id = _n
+generate a = invnormal(runiform())
+expand 5
+bysort id: generate t = _n
+generate x = 3*invnormal(runiform()) + 0.5*a + 10
+generate z = invnormal(runiform())
+generate y = runiform() < invlogit(1.5*(x-10) + a + 0.3*z)
+generate xb2 = x + 100
+generate xb = x + 1000
+xtset id t
+quietly xtlogit y xb2, fe
+margins, dydx(xb2)
+margins
+quietly clogit y xb z, group(id)
+margins, dydx(*)
+=== xt-pass8r3-margins-if-in
+clear
+set seed 4242
+set obs 600
+generate id = ceil(_n/6)
+bysort id: generate t = _n
+generate x1 = invnormal(runiform())
+generate x3 = runiform()
+generate expo = 0.5 + 3*runiform()
+generate u = invnormal(runiform())*0.5
+by id: replace u = u[1]
+generate yc = floor(-ln(runiform())/(0.4*expo*exp(-.2 + .3*x1 + .5*x3 + u)))
+generate g = mod(id,3)
+xtset id t
+quietly regress yc x1 x3
+margins if g == 1
+margins in 1/100, dydx(x1)
+margins if x1 > 0, atmeans
+quietly xtpoisson yc x1 x3, pa
+margins if g == 1
+margins if g == 1, dydx(*)
+quietly xtpoisson yc x1 x3, re exposure(expo)
+margins if g == 1, predict(nu0)
+margins in 1/100, predict(nu0) dydx(x3)
+margins if g < 2, over(g) predict(nu0)
+=== xt-pass8r3-lrtest-checks
+clear
+set seed 4101
+set obs 600
+generate id = ceil(_n/10)
+generate x = runiform()*5
+generate w = runiform() > .5
+generate double e0 = invnormal(runiform())
+generate double e2 = invnormal(runiform())
+bysort id: generate double u0 = 1.5*e0[1]
+generate double z = 2 + 0.7*x - 0.5*w + u0 + e2
+generate y = z > 2.5
+generate y2 = 1 - y
+xtset id
+quietly xtlogit y x w, re
+estimates store a1
+quietly xtlogit y2 x, re
+estimates store a2
+capture noisily lrtest a1 a2
+quietly probit y2 x w
+estimates store p2
+quietly probit y x
+estimates store p1
+capture noisily lrtest p2 p1
+capture noisily lrtest p2 p1, force
+quietly mixed z x || id:
+estimates store mx
+quietly regress z x
+estimates store rg
+capture noisily lrtest rg mx
+capture noisily lrtest mx rg
+estimates restore mx
+capture noisily lrtest rg mx
+capture noisily lrtest mx rg
+capture noisily lrtest (mx) (rg)
+=== mixed-pass8r3-reses-and-level-options
+clear
+set seed 777
+set obs 30
+generate school = _n
+generate us = invnormal(runiform())*1.7
+expand 40
+bysort school: generate pupil = _n
+generate ses = invnormal(runiform())
+generate grp = mod(school, 5)
+generate score = 50 + 2*ses + us + invnormal(runiform())*3.9
+replace school = . in 300
+replace ses = . in 500
+replace score = . in 650
+quietly mixed score ses || school:
+predict double q1, reffects reses(q2)
+count if missing(q2)
+count if missing(q1)
+predict double q3, reses
+count if missing(q3)
+capture noisily mixed score ses || school:, if grp != 4
+capture noisily mixed score ses || school:, in 1/100
 === causal-teffects-estimators
 clear
 set seed 4242

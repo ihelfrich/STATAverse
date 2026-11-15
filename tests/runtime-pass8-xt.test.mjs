@@ -211,9 +211,19 @@ test("estat says not valid where Stata does", () => {
     assert.ok(lines(result).includes(`estat ${what} not valid`), what);
   }
   s.run("quietly regress y x1");
-  const lacking = s.run("estat dwatson");
-  assert.equal(lacking.rc, 321);
-  assert.ok(lines(lacking).includes("estat dwatson is not available yet"));
+  // What Stata has after regress and the browser lacks is refused as
+  // unimplemented, r(198); abbreviations name the subcommand in full.
+  for (const what of ["dwatson", "dwa", "esize", "szr", "archlm"]) {
+    const lacking = s.run(`estat ${what}`);
+    assert.equal(lacking.rc, 198, what);
+    assert.match(
+      lines(lacking).join("\n"),
+      /^estat (dwatson|esize|szroeter|archlm) after regress is not available in the browser yet/m,
+      what,
+    );
+  }
+  // archlm must be spelled out; shorter, it is not a subcommand.
+  assert.equal(s.run("estat arch").rc, 321);
 });
 
 test("lrtest refuses models from different estimators unless forced", () => {
@@ -306,4 +316,172 @@ test("predict's effects note each variable's missing values, and REML's standard
   // The nested level's are refused rather than shown wrong.
   const refused = r.run("predict s1 s2, reses");
   assert.equal(refused.rc, 198);
+});
+
+// The third round of the eighth pass. Values recorded from Stata 19 MP
+// (version 17, set processors 1) on the same generated data.
+const PANEL3 = `${PANEL}
+generate z = x1 + u + invnormal(runiform())
+generate t2 = 2*t
+generate id2 = id
+generate y2 = 1 - y`;
+
+test("estat takes Stata's abbreviations of hettest, ovtest, imtest and summarize", () => {
+  const s = session(`${PANEL3}\nquietly regress z x1`);
+  for (const word of ["hett", "hettes", "hettest"]) {
+    assert.equal(s.run(`quietly estat ${word}`).rc, 0, word);
+    close(s.results.r.chi2, 0.742433194335604, word, 1e-10);
+    close(s.results.r.p, 0.388882552360379, word, 1e-10);
+  }
+  assert.equal(s.run("quietly estat ovt").rc, 0);
+  close(s.results.r.F, 0.584818314153678, "ovtest F", 1e-10);
+  assert.equal(s.run("quietly estat imt").rc, 0);
+  close(s.results.r.chi2_t, 5.45885038380329, "imtest", 1e-10);
+  for (const word of ["su", "sum", "summa", "summari"]) {
+    assert.equal(s.run(`quietly estat ${word}`).rc, 0, word);
+    close(
+      s.results.r["matrix:stats"].values[0][0],
+      -0.0550263423187425,
+      word,
+      1e-12,
+    );
+  }
+  // Too short to name one, as regress_estat and estat_default read them.
+  for (const word of ["het", "ov", "im", "s"]) {
+    const result = s.run(`estat ${word}`);
+    assert.equal(result.rc, 321, word);
+    assert.ok(lines(result).includes(`estat ${word} not valid`), word);
+  }
+  // After xtgee's models estat names xtgee, as e(cmd) does.
+  s.run("xtset id t\nquietly xtpoisson c x1, pa");
+  assert.ok(
+    lines(s.run("estat vce")).includes(
+      "Covariance matrix of coefficients of xtgee model",
+    ),
+  );
+  // After mixed, words mixed_estat does not know are not valid.
+  s.run("quietly mixed z x1 || id:");
+  assert.equal(s.run("quietly estat su").rc, 0);
+  for (const word of ["hettest", "gof"]) {
+    const result = s.run(`estat ${word}`);
+    assert.equal(result.rc, 321, word);
+    assert.ok(lines(result).includes(`estat ${word} not valid`), word);
+  }
+  const df = s.run("estat df");
+  assert.equal(df.rc, 198);
+  assert.ok(lines(df).includes("no degrees of freedom found"));
+});
+
+test("i() xtsets the data only after the command's varlist is checked, keeping delta", () => {
+  const s = session(`${PANEL3}\nquietly xtset id t`);
+  for (const command of [
+    "xtlogit y nosuch, re i(grp)",
+    "xtprobit y x1 if nosuch, re i(grp)",
+    "xtpoisson c i.nosuch, fe i(grp)",
+    "xtreg z nosuch, re i(grp)",
+    "xtsum nosuch, i(grp)",
+    "xtlogit y x1, re fe i(grp)",
+  ]) {
+    assert.notEqual(s.run(command).rc, 0, command);
+    assert.deepEqual([s.panel.id, s.panel.time], ["id", "t"], command);
+  }
+  // An option the command does not know is met after _xt, as in Stata.
+  const unknown = s.run("xtreg z x1, fe foo i(grp)");
+  assert.equal(unknown.rc, 198);
+  assert.ok(lines(unknown).includes("option foo not allowed"));
+  assert.equal(s.panel.id, "grp");
+  s.run("quietly xtset id t");
+  const invalid = s.run("xtlogit y x1, re foo(3)");
+  assert.equal(invalid.rc, 198);
+  assert.ok(lines(invalid).includes("foo(3) invalid"));
+  // The time variable keeps its delta.
+  s.run("quietly xtset id t2, delta(2)");
+  assert.equal(s.run("quietly xtprobit y x1, re i(id2) nolog").rc, 0);
+  assert.deepEqual([s.panel.id, s.panel.time, s.panel.delta], ["id2", "t2", 2]);
+  assert.ok(lines(s.run("xtset")).includes("         Delta: 2 units"));
+});
+
+test("eform on replay after xtlogit, pa and xtprobit, pa", () => {
+  const s = session(`${PANEL3}\nquietly xtset id t\nquietly xtlogit y x1, pa`);
+  const odds = lines(s.run("xtlogit, eform"));
+  assert.ok(
+    odds.some((l) =>
+      /^ {10}x1 \| {3}2\.341735 {3}\.2930491 {5}6\.80 {3}0\.000 {5}1\.832385 {4}2\.992669$/.test(
+        l,
+      ),
+    ),
+    odds.join("\n"),
+  );
+  s.run("quietly xtprobit y x1, pa");
+  const exp = lines(s.run("xtprobit, eform level(90)"));
+  assert.ok(exp.some((l) => l.includes("exp(b)")));
+  assert.ok(
+    exp.some((l) => /^ {10}x1 \| {4}1\.66773 {3}\.1211508/.test(l)),
+    exp.join("\n"),
+  );
+  assert.equal(s.run("xtprobit, or").rc, 198);
+  s.run("quietly xtlogit y x1, re");
+  const refused = s.run("xtlogit, eform");
+  assert.equal(refused.rc, 198);
+  assert.ok(lines(refused).includes("option eform not allowed"));
+});
+
+test("lrtest refuses models of different dependent variables, as lrtest.ado does", () => {
+  const s = session(
+    `${PANEL3}\nquietly xtset id t\nquietly xtlogit y x1 z, re\nestimates store a1\nquietly xtlogit y2 x1, re\nestimates store a2`,
+  );
+  const result = s.run("lrtest a1 a2");
+  assert.equal(result.rc, 498);
+  assert.ok(lines(result).includes("dependent variables differ: y vs. y2"));
+  // A model named in parentheses alone is that model.
+  assert.equal(s.run("lrtest (a1) (a2)").rc, 498);
+});
+
+test("margins takes if and in over the estimation sample", () => {
+  const s = session(`${PANEL3}\nquietly regress c x1`);
+  const shown = lines(s.run("margins if grp < 20"));
+  assert.ok(shown.some((l) => /Number of obs = 190$/.test(l)));
+  close(s.results.r["matrix:b"].values[0][0], 2.92430969162193, "if");
+  const [b, se] = margin(s, "margins in 1/100, dydx(x1)");
+  close(b, -1.70203544475133, "in dydx", 1e-10);
+  close(se, 0.314509414734423, "in se", 1e-10);
+});
+
+test("margins after the xt models steps the constant, as Stata's chain rule does", () => {
+  const s = session(`${OFFSET}\ngenerate g = mod(id, 3)`);
+  s.run("quietly xtpoisson c x1 x3 i.g, pa exposure(expo)");
+  let [b] = margin(s, "margins, dydx(x1 x3)");
+  close(b, -0.296456229634219, "pa with a constant", 1e-11);
+  [b] = margin(s, "margins, dydx(x1 x3)", 1);
+  close(b, -0.936836857020155, "pa x3", 1e-11);
+  s.run("quietly xtpoisson c x1 x3 i.g, re exposure(expo)");
+  [b] = margin(s, "margins, dydx(x1) predict(nu0)");
+  close(b, -0.363277137739444, "re nu0", 1e-10);
+  // Without a constant it steps x1's coefficient.
+  s.run("quietly xtpoisson c x1 x3, pa noconstant");
+  [b] = margin(s, "margins, dydx(x1)");
+  close(b, -0.299775326545161, "pa noconstant", 1e-11);
+  // After a model fitted by quadrature the effects are exact.
+  s.run("quietly xtpoisson c x1 x3, re normal noconstant");
+  [b] = margin(s, "margins, dydx(x1) predict(nu0)");
+  close(b, -0.218941929600818, "re normal noconstant", 1e-8);
+});
+
+test("reffects reses() leaves the standard errors missing where the outcome is", () => {
+  const s = session(
+    `${SCHOOLS}\nreplace school = . in 300\nreplace ses = . in 500\nreplace score = . in 650\nquietly mixed score ses || school:`,
+  );
+  const made = lines(s.run("predict double q1, reffects reses(q2)"));
+  assert.ok(made.includes("(3 missing values generated)"), made.join("\n"));
+  s.run("quietly count if missing(q2)");
+  assert.equal(s.results.r.N, 3);
+  // An if written after a level's comma is an option to Stata's syntax.
+  for (const [command, word] of [
+    ["mixed score ses || school:, if grp != 4", "if"],
+    ["mixed score ses || school:, in 1/100", "in"],
+  ]) {
+    const result = s.run(command);
+    assert.equal(result.rc, 198);
+    assert.ok(lines(result).includes(`option ${word} not allowed`), command);
+  }
 });

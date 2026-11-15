@@ -88,8 +88,8 @@ function onlyRegress(model, what) {
     throw new StataError(`estat ${what} not valid`, 321);
 }
 
-function hettest(session, model, text, ctx) {
-  onlyRegress(model, "hettest");
+function hettest(session, model, text, ctx, typed = "hettest") {
+  onlyRegress(model, typed);
   if (model.vce !== "ols")
     throw new StataError(
       "hettest not appropriate after estimation using robust or clustered VCE",
@@ -132,8 +132,8 @@ function hettest(session, model, text, ctx) {
   session.results.r = { chi2, df, p };
 }
 
-function ovtest(session, model, text, ctx) {
-  onlyRegress(model, "ovtest");
+function ovtest(session, model, text, ctx, typed = "ovtest") {
+  onlyRegress(model, typed);
   session.parse("[, | Rhs]", text);
   const frame = sampleFrame(model, session),
     n = frame.rows.length,
@@ -168,8 +168,8 @@ function ovtest(session, model, text, ctx) {
   session.results.r = { F, df, df_r: dfResidual, p };
 }
 
-function imtest(session, model, text, ctx) {
-  onlyRegress(model, "imtest");
+function imtest(session, model, text, ctx, typed = "imtest") {
+  onlyRegress(model, typed);
   const parsed = session.parse("[, White | Preserve]", text),
     frame = sampleFrame(model, session),
     n = frame.rows.length,
@@ -348,7 +348,7 @@ function vce(session, model, text, ctx) {
   });
   ctx.out("");
   ctx.out(
-    `${correlation ? "Correlation" : "Covariance"} matrix of coefficients of ${model.command} model`,
+    `${correlation ? "Correlation" : "Covariance"} matrix of coefficients of ${session.results.e?.cmd ?? model.command} model`,
   );
   ctx.out("");
   const equationOf = (k) => shown[k].equation ?? "_";
@@ -549,7 +549,7 @@ function summarizeSample(session, model, text, ctx) {
       wtype === "fweight" ? weights.reduce((t, v) => t + v, 0) : rows.length;
   if (options.header !== false) {
     ctx.out("");
-    const command = model.command,
+    const command = session.results.e?.cmd ?? model.command,
       at = (offset) => " ".repeat(Math.max(0, offset - 1));
     if (!clustvar)
       ctx.out(
@@ -810,17 +810,19 @@ function summarizeSample(session, model, text, ctx) {
 /** Runs a regress diagnostic; returns false when the name is not one. */
 export function regressDiagnostic(session, model, what, text, ctx) {
   const rest = text.trim().slice(what.length),
-    run = {
-      hettest,
-      ovtest,
-      imtest,
-      vce,
-      summarize: summarizeSample,
-      su: summarizeSample,
-      summ: summarizeSample,
-    }[what];
+    // Each name with the shortest abbreviation regress_estat and
+    // estat_default take for it.
+    run = [
+      ["hettest", 4, hettest],
+      ["ovtest", 3, ovtest],
+      ["imtest", 3, imtest],
+      ["vce", 3, vce],
+      ["summarize", 2, summarizeSample],
+    ].find(
+      ([name, shortest]) => what.length >= shortest && name.startsWith(what),
+    )?.[2];
   if (!run) return false;
-  run(session, model, rest, ctx);
+  run(session, model, rest, ctx, what);
   return true;
 }
 

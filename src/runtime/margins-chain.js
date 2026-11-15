@@ -153,7 +153,7 @@ export function chainDerivatives(rows, link, bj) {
       base.sum,
       (Math.abs(bj) + 1e-4) * 1e-4,
     );
-  return rows.map((r, n) => {
+  const found = rows.map((r, n) => {
     if (!delta) return { slope: 0, curve: 0 };
     return {
       slope: (plus.values[n] - minus.values[n]) / (2 * delta) / r.x,
@@ -165,4 +165,7 @@ export function chainDerivatives(rows, link, bj) {
             (r.x * r.x),
     };
   });
+  // No step moved the average: the prediction is constant, as Stata warns.
+  found.flat = !delta;
+  return found;
 }

@@ -857,7 +857,14 @@ function readCommand(session, text) {
       throw new StataError(`${name}: only one variable allowed`, 103);
     level.name = level.name[0];
     const last = k === given.length - 1,
-      rest = [];
+      rest = [],
+      // A qualifier written after the comma is read by syntax as an
+      // option of that name.
+      qualifier = /(^|\s)(if|in)(?=\s|$)/.exec(
+        (optionText ?? "").replace(/\([^()]*\)/g, "()"),
+      );
+    if (qualifier)
+      throw new StataError(`option ${qualifier[2]} not allowed`, 198);
     for (const item of optionText === null ? [] : optionItems(optionText)) {
       const word = item.name.toLowerCase();
       if (word.length >= 3 && "covariance".startsWith(word)) {
@@ -2354,8 +2361,9 @@ function mixedPredict(session, text, ctx) {
       : null;
   session.select(parsed, null, (i) => {
     // The fixed part: a regressor missing leaves it missing. Stata leaves
-    // the standard errors of reffects reses() missing there too, though
-    // not the effects, nor the standard errors reses makes alone.
+    // the standard errors of reffects reses() missing there too, and where
+    // the dependent variable is, though not the effects, nor the standard
+    // errors reses makes alone.
     const unfixed = model.columns.some(
       (c) =>
         c &&
@@ -2393,7 +2401,8 @@ function mixedPredict(session, text, ctx) {
         for (let j = 0; j < level.q; j++, c++)
           if (found) {
             columns[c][i] = what === "reffects" ? found.u[j] : found.se[j];
-            if (seColumns && !unfixed) seColumns[c][i] = found.se[j];
+            if (seColumns && !unfixed && !isMissing(dependent.data[i]))
+              seColumns[c][i] = found.se[j];
           }
       });
       return;
@@ -2682,10 +2691,40 @@ function mixedEstat(session, text, ctx) {
     /^su(m(m(a(r(i(ze?)?)?)?)?)?)?$/.test(sub)
   )
     return fallback("estat")(session, text, ctx);
-  throw refuse(
-    `estat ${sub} after mixed is not available in the browser yet`,
-    "estat icc, estat sd, estat recovariance, estat group, estat ic, estat vce and estat summarize are.",
-  );
+  // mixed_estat's own words follow; what it hands on to estat_default and
+  // that does not know is not valid. mixed here never has dfmethod(), so
+  // estat df without method() has none to show.
+  if (sub === "df" && !rest.trim()) {
+    // {p 4 4 2}, keeping the two spaces after a full stop as Stata does.
+    const width = (session.settings.linesize ?? 79) - 6,
+      wrapped = [];
+    let line = "";
+    for (const word of "Degrees of freedom cannot be displayed because the previously used mixed command did not specify the dfmethod() option.  Use option method() with estat df or option dfmethod() with mixed to compute degrees of freedom.".split(
+      / (?! )/,
+    )) {
+      if (line && line.length + 1 + word.trimEnd().length > width) {
+        wrapped.push(`    ${line.trimEnd()}`);
+        line = word;
+      } else line = line ? `${line} ${word}` : word;
+    }
+    wrapped.push(`    ${line}`);
+    throw new StataError(
+      ["no degrees of freedom found", ...wrapped].join("\n"),
+      198,
+    );
+  }
+  if (/^wcor(r(e(l(a(t(i(on?)?)?)?)?)?)?)?$/.test(sub) || sub === "df")
+    throw refuse(
+      `estat ${sub} after mixed is not available in the browser yet`,
+      "estat icc, estat sd, estat recovariance, estat group, estat ic, estat vce and estat summarize are.",
+    );
+  if (/^het(e(r(o(g(e(n(e(i(ty?)?)?)?)?)?)?)?)?)?$/.test(sub))
+    throw new StataError(
+      "estat heterogeneity is not available after command mixed",
+      198,
+    );
+  if (!sub) throw new StataError("subcommand required", 321);
+  throw new StataError(`estat ${sub} not valid`, 321);
 }
 
 const afterMixed = (name, own) => (session, text, ctx) =>

@@ -136466,6 +136466,1101 @@
       ]
     },
     {
+      "id": "xt-pass8r3-estat-abbreviations",
+      "source": "clear\nset seed 4242\nset obs 400\ngenerate id = ceil(_n/5)\nbysort id: generate t = _n\ngenerate x1 = invnormal(runiform())\ngenerate u = invnormal(runiform())\nby id: replace u = u[1]\ngenerate y = 0.5 + x1 + u + logit(runiform()) > 0\ngenerate c = floor(-ln(runiform())/(0.5*exp(.5*x1 + u)))\ngenerate z = x1 + u + invnormal(runiform())\nxtset id t\nquietly regress z x1\nestat hett\nestat hettes\nestat ovt\nestat imt\nestat sum\nestat summa\ncapture noisily estat het\ncapture noisily estat ov\ncapture noisily estat arch\ndisplay _rc\nquietly xtreg z x1, fe\nestat sum\ncapture noisily estat hett\nquietly xtpoisson c x1, pa\nestat sum\nestat vce\nquietly xtlogit y x1, pa\nestat vce, correlation\nquietly mixed z x1 || id:\nestat su\ncapture noisily estat hettest\ndisplay _rc\ncapture noisily estat gof\ndisplay _rc\ncapture noisily estat df\ndisplay _rc\ncapture noisily estat het\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        { "command": "generate id = ceil(_n/5)", "lines": [] },
+        { "command": "bysort id: generate t = _n", "lines": [] },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate u = invnormal(runiform())", "lines": [] },
+        {
+          "command": "by id: replace u = u[1]",
+          "lines": ["(320 real changes made)"]
+        },
+        {
+          "command": "generate y = 0.5 + x1 + u + logit(runiform()) > 0",
+          "lines": []
+        },
+        {
+          "command": "generate c = floor(-ln(runiform())/(0.5*exp(.5*x1 + u)))",
+          "lines": []
+        },
+        {
+          "command": "generate z = x1 + u + invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 5",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "quietly regress z x1", "lines": [] },
+        {
+          "command": "estat hett",
+          "lines": [
+            "Breusch–Pagan/Cook–Weisberg test for heteroskedasticity",
+            "Assumption: Normal error terms",
+            "Variable: Fitted values of z",
+            "",
+            "H0: Constant variance",
+            "",
+            "    chi2(1) =   0.74",
+            "Prob > chi2 = 0.3889"
+          ]
+        },
+        {
+          "command": "estat hettes",
+          "lines": [
+            "Breusch–Pagan/Cook–Weisberg test for heteroskedasticity",
+            "Assumption: Normal error terms",
+            "Variable: Fitted values of z",
+            "",
+            "H0: Constant variance",
+            "",
+            "    chi2(1) =   0.74",
+            "Prob > chi2 = 0.3889"
+          ]
+        },
+        {
+          "command": "estat ovt",
+          "lines": [
+            "Ramsey RESET test for omitted variables",
+            "Omitted: Powers of fitted values of z",
+            "",
+            "H0: Model has no omitted variables",
+            "",
+            "F(3, 395) =   0.58",
+            " Prob > F = 0.6253"
+          ]
+        },
+        {
+          "command": "estat imt",
+          "lines": [
+            "Cameron & Trivedi's decomposition of IM-test",
+            "",
+            "--------------------------------------------------",
+            "              Source |       chi2     df         p",
+            "---------------------+----------------------------",
+            "  Heteroskedasticity |       2.14      2    0.3429",
+            "            Skewness |       1.25      1    0.2633",
+            "            Kurtosis |       2.07      1    0.1506",
+            "---------------------+----------------------------",
+            "               Total |       5.46      4    0.2434",
+            "--------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat sum",
+          "lines": [
+            "  Estimation sample regress                Number of obs =        400",
+            "",
+            "  -------------------------------------------------------------------",
+            "      Variable |         Mean      Std. dev.         Min          Max",
+            "  -------------+-----------------------------------------------------",
+            "             z |    -.0550263      1.706442     -4.57298     5.052339",
+            "            x1 |    -.0028306      .9588555    -2.789131     3.057143",
+            "  -------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat summa",
+          "lines": [
+            "  Estimation sample regress                Number of obs =        400",
+            "",
+            "  -------------------------------------------------------------------",
+            "      Variable |         Mean      Std. dev.         Min          Max",
+            "  -------------+-----------------------------------------------------",
+            "             z |    -.0550263      1.706442     -4.57298     5.052339",
+            "            x1 |    -.0028306      .9588555    -2.789131     3.057143",
+            "  -------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily estat het",
+          "lines": ["estat het not valid"]
+        },
+        {
+          "command": "capture noisily estat ov",
+          "lines": ["estat ov not valid"]
+        },
+        {
+          "command": "capture noisily estat arch",
+          "lines": ["estat arch not valid"]
+        },
+        { "command": "display _rc", "lines": ["321"] },
+        { "command": "quietly xtreg z x1, fe", "lines": [] },
+        {
+          "command": "estat sum",
+          "lines": [
+            "  Estimation sample xtreg                  Number of obs =        400",
+            "",
+            "  -------------------------------------------------------------------",
+            "      Variable |         Mean      Std. dev.         Min          Max",
+            "  -------------+-----------------------------------------------------",
+            "             z |    -.0550263      1.706442     -4.57298     5.052339",
+            "            x1 |    -.0028306      .9588555    -2.789131     3.057143",
+            "  -------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily estat hett",
+          "lines": ["estat hett not valid"]
+        },
+        { "command": "quietly xtpoisson c x1, pa", "lines": [] },
+        {
+          "command": "estat sum",
+          "lines": [
+            "  Estimation sample xtgee                  Number of obs =        400",
+            "",
+            "  -------------------------------------------------------------------",
+            "      Variable |         Mean      Std. dev.         Min          Max",
+            "  -------------+-----------------------------------------------------",
+            "             c |        2.945      6.233709            0           59",
+            "            x1 |    -.0028306      .9588555    -2.789131     3.057143",
+            "  -------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of xtgee model",
+            "",
+            "        e(V) |         x1       _cons",
+            "-------------+-----------------------",
+            "          x1 |  .00083267",
+            "       _cons |  .00091193   .00283035"
+          ]
+        },
+        { "command": "quietly xtlogit y x1, pa", "lines": [] },
+        {
+          "command": "estat vce, correlation",
+          "lines": [
+            "Correlation matrix of coefficients of xtgee model",
+            "",
+            "        e(V) |       x1     _cons",
+            "-------------+-------------------",
+            "          x1 |   1.0000",
+            "       _cons |   0.1140    1.0000"
+          ]
+        },
+        { "command": "quietly mixed z x1 || id:", "lines": [] },
+        {
+          "command": "estat su",
+          "lines": [
+            "  Estimation sample mixed                  Number of obs =        400",
+            "",
+            "  -------------------------------------------------------------------",
+            "      Variable |         Mean      Std. dev.         Min          Max",
+            "  -------------+-----------------------------------------------------",
+            "             z |    -.0550263      1.706442     -4.57298     5.052339",
+            "            x1 |    -.0028306      .9588555    -2.789131     3.057143",
+            "  -------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily estat hettest",
+          "lines": ["estat hettest not valid"]
+        },
+        { "command": "display _rc", "lines": ["321"] },
+        {
+          "command": "capture noisily estat gof",
+          "lines": ["estat gof not valid"]
+        },
+        { "command": "display _rc", "lines": ["321"] },
+        {
+          "command": "capture noisily estat df",
+          "lines": [
+            "no degrees of freedom found",
+            "    Degrees of freedom cannot be displayed because the previously used mixed command did not specify the dfmethod() option.  Use option method() with estat df or option dfmethod() with mixed to",
+            "    compute degrees of freedom."
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily estat het",
+          "lines": ["estat heterogeneity is not available after command mixed"]
+        },
+        { "command": "display _rc", "lines": ["198"] }
+      ]
+    },
+    {
+      "id": "xt-pass8r3-panel-option-order",
+      "source": "clear\nset seed 4242\nset obs 400\ngenerate id = ceil(_n/5)\ngenerate grp = ceil(_n/10)\nbysort id: generate t = _n\ngenerate t2 = 2*t\ngenerate id2 = id\ngenerate x1 = invnormal(runiform())\ngenerate u = invnormal(runiform())\nby id: replace u = u[1]\ngenerate y = 0.5 + x1 + u + logit(runiform()) > 0\ngenerate c = floor(-ln(runiform())/(0.5*exp(.5*x1 + u)))\ngenerate z = x1 + u + invnormal(runiform())\nquietly xtset id t\ncapture noisily xtlogit y nosuch, re i(grp) nolog\nxtset\ncapture noisily xtprobit y x1 if nosuch, re i(grp)\nxtset\ncapture noisily xtpoisson c i.nosuch, fe i(grp)\nxtset\ncapture noisily xtreg z nosuch, re i(grp)\nxtset\ncapture noisily xtsum nosuch, i(grp)\nxtset\ncapture noisily xtlogit y x1, re fe i(grp)\nxtset\ncapture noisily xtlogit y x1, re foo\ncapture noisily xtlogit y x1, fe foo(3)\ncapture noisily xtlogit y x1, re i(grp) foo nolog\nxtset\nquietly xtset id t\ncapture noisily xtpoisson c x1, re foo i(grp)\nxtset\nquietly xtset id t\ncapture noisily xtreg z x1, fe foo i(grp)\nxtset\nquietly xtset id t\ncapture noisily xtreg z x1, foo\nxtset id t2, delta(2)\nquietly xtprobit y x1, re i(id2) nolog\nxtset\nquietly xtset id t2, delta(2)\nquietly xtsum z, i(id2)\nxtset\nquietly xtset id t2, delta(2)\nquietly xtreg z x1, fe i(id)\nxtset\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        { "command": "generate id = ceil(_n/5)", "lines": [] },
+        { "command": "generate grp = ceil(_n/10)", "lines": [] },
+        { "command": "bysort id: generate t = _n", "lines": [] },
+        { "command": "generate t2 = 2*t", "lines": [] },
+        { "command": "generate id2 = id", "lines": [] },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate u = invnormal(runiform())", "lines": [] },
+        {
+          "command": "by id: replace u = u[1]",
+          "lines": ["(320 real changes made)"]
+        },
+        {
+          "command": "generate y = 0.5 + x1 + u + logit(runiform()) > 0",
+          "lines": []
+        },
+        {
+          "command": "generate c = floor(-ln(runiform())/(0.5*exp(.5*x1 + u)))",
+          "lines": []
+        },
+        {
+          "command": "generate z = x1 + u + invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "quietly xtset id t", "lines": [] },
+        {
+          "command": "capture noisily xtlogit y nosuch, re i(grp) nolog",
+          "lines": ["variable nosuch not found"]
+        },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 5",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "capture noisily xtprobit y x1 if nosuch, re i(grp)",
+          "lines": ["nosuch not found"]
+        },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 5",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "capture noisily xtpoisson c i.nosuch, fe i(grp)",
+          "lines": ["variable nosuch not found"]
+        },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 5",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "capture noisily xtreg z nosuch, re i(grp)",
+          "lines": ["variable nosuch not found"]
+        },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 5",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "capture noisily xtsum nosuch, i(grp)",
+          "lines": ["variable nosuch not found"]
+        },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 5",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "capture noisily xtlogit y x1, re fe i(grp)",
+          "lines": ["only one of re, fe, or pa is allowed"]
+        },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 5",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "capture noisily xtlogit y x1, re foo",
+          "lines": ["foo invalid"]
+        },
+        {
+          "command": "capture noisily xtlogit y x1, fe foo(3)",
+          "lines": ["foo(3) invalid"]
+        },
+        {
+          "command": "capture noisily xtlogit y x1, re i(grp) foo nolog",
+          "lines": [
+            "warning: existing panel variable is not grp",
+            "foo invalid"
+          ]
+        },
+        { "command": "xtset", "lines": ["Panel variable: grp (balanced)"] },
+        { "command": "quietly xtset id t", "lines": [] },
+        {
+          "command": "capture noisily xtpoisson c x1, re foo i(grp)",
+          "lines": [
+            "warning: existing panel variable is not grp",
+            "option foo not allowed"
+          ]
+        },
+        { "command": "xtset", "lines": ["Panel variable: grp (balanced)"] },
+        { "command": "quietly xtset id t", "lines": [] },
+        {
+          "command": "capture noisily xtreg z x1, fe foo i(grp)",
+          "lines": [
+            "warning: existing panel variable is not grp",
+            "option foo not allowed"
+          ]
+        },
+        { "command": "xtset", "lines": ["Panel variable: grp (balanced)"] },
+        { "command": "quietly xtset id t", "lines": [] },
+        {
+          "command": "capture noisily xtreg z x1, foo",
+          "lines": ["option foo not allowed"]
+        },
+        {
+          "command": "xtset id t2, delta(2)",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t2, 2 to 10",
+            "         Delta: 2 units"
+          ]
+        },
+        { "command": "quietly xtprobit y x1, re i(id2) nolog", "lines": [] },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: id2 (strongly balanced)",
+            " Time variable: t2, 2 to 10",
+            "         Delta: 2 units"
+          ]
+        },
+        { "command": "quietly xtset id t2, delta(2)", "lines": [] },
+        { "command": "quietly xtsum z, i(id2)", "lines": [] },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: id2 (strongly balanced)",
+            " Time variable: t2, 2 to 10",
+            "         Delta: 2 units"
+          ]
+        },
+        { "command": "quietly xtset id t2, delta(2)", "lines": [] },
+        { "command": "quietly xtreg z x1, fe i(id)", "lines": [] },
+        {
+          "command": "xtset",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t2, 2 to 10",
+            "         Delta: 2 units"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xt-pass8r3-eform-replay",
+      "source": "clear\nset seed 4242\nset obs 600\ngenerate id = ceil(_n/5)\nbysort id: generate t = _n\ngenerate x1 = invnormal(runiform())\ngenerate u = invnormal(runiform())\nby id: replace u = u[1]\ngenerate y = 0.5 + x1 + u + logit(runiform()) > 0\nxtset id t\nquietly xtlogit y x1, pa\nxtlogit, eform\nxtlogit, or level(90)\nquietly xtlogit y x1, pa eform\nxtlogit, eform\nxtlogit\nquietly xtprobit y x1, pa\nxtprobit, eform level(90)\ncapture noisily xtprobit, or\nquietly xtlogit y x1, re nolog\ncapture noisily xtlogit, eform\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate id = ceil(_n/5)", "lines": [] },
+        { "command": "bysort id: generate t = _n", "lines": [] },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate u = invnormal(runiform())", "lines": [] },
+        {
+          "command": "by id: replace u = u[1]",
+          "lines": ["(480 real changes made)"]
+        },
+        {
+          "command": "generate y = 0.5 + x1 + u + logit(runiform()) > 0",
+          "lines": []
+        },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 5",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "quietly xtlogit y x1, pa", "lines": [] },
+        {
+          "command": "xtlogit, eform",
+          "lines": [
+            "GEE population-averaged model                        Number of obs    =    600",
+            "Group variable: id                                   Number of groups =    120",
+            "Family: Binomial                                     Obs per group:",
+            "Link:   Logit                                                     min =      5",
+            "Correlation: exchangeable                                         avg =    5.0",
+            "                                                                  max =      5",
+            "                                                     Wald chi2(1)     =  83.43",
+            "Scale parameter = 1                                  Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   2.585695    .268933     9.13   0.000     2.108849    3.170363",
+            "       _cons |   1.514633     .17587     3.58   0.000     1.206344    1.901708",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline odds (conditional on zero random effects)."
+          ]
+        },
+        {
+          "command": "xtlogit, or level(90)",
+          "lines": [
+            "GEE population-averaged model                        Number of obs    =    600",
+            "Group variable: id                                   Number of groups =    120",
+            "Family: Binomial                                     Obs per group:",
+            "Link:   Logit                                                     min =      5",
+            "Correlation: exchangeable                                         avg =    5.0",
+            "                                                                  max =      5",
+            "                                                     Wald chi2(1)     =  83.43",
+            "Scale parameter = 1                                  Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Odds ratio   Std. err.      z    P>|z|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   2.585695    .268933     9.13   0.000     2.179109    3.068142",
+            "       _cons |   1.514633     .17587     3.58   0.000       1.2513    1.833384",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline odds (conditional on zero random effects)."
+          ]
+        },
+        { "command": "quietly xtlogit y x1, pa eform", "lines": [] },
+        {
+          "command": "xtlogit, eform",
+          "lines": [
+            "GEE population-averaged model                        Number of obs    =    600",
+            "Group variable: id                                   Number of groups =    120",
+            "Family: Binomial                                     Obs per group:",
+            "Link:   Logit                                                     min =      5",
+            "Correlation: exchangeable                                         avg =    5.0",
+            "                                                                  max =      5",
+            "                                                     Wald chi2(1)     =  83.43",
+            "Scale parameter = 1                                  Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Odds ratio   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   2.585695    .268933     9.13   0.000     2.108849    3.170363",
+            "       _cons |   1.514633     .17587     3.58   0.000     1.206344    1.901708",
+            "------------------------------------------------------------------------------",
+            "Note: _cons estimates baseline odds (conditional on zero random effects)."
+          ]
+        },
+        {
+          "command": "xtlogit",
+          "lines": [
+            "GEE population-averaged model                        Number of obs    =    600",
+            "Group variable: id                                   Number of groups =    120",
+            "Family: Binomial                                     Obs per group:",
+            "Link:   Logit                                                     min =      5",
+            "Correlation: exchangeable                                         avg =    5.0",
+            "                                                                  max =      5",
+            "                                                     Wald chi2(1)     =  83.43",
+            "Scale parameter = 1                                  Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .9499942    .104008     9.13   0.000     .7461423    1.153846",
+            "       _cons |   .4151733   .1161139     3.58   0.000     .1875942    .6427523",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly xtprobit y x1, pa", "lines": [] },
+        {
+          "command": "xtprobit, eform level(90)",
+          "lines": [
+            "GEE population-averaged model                        Number of obs    =    600",
+            "Group variable: id                                   Number of groups =    120",
+            "Family: Binomial                                     Obs per group:",
+            "Link:   Probit                                                    min =      5",
+            "Correlation: exchangeable                                         avg =    5.0",
+            "                                                                  max =      5",
+            "                                                     Wald chi2(1)     =  93.77",
+            "Scale parameter = 1                                  Prob > chi2      = 0.0000",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y |     exp(b)   Std. err.      z    P>|z|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   1.785473   .1068834     9.68   0.000     1.618044    1.970227",
+            "       _cons |   1.284424   .0900477     3.57   0.000      1.14453    1.441418",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily xtprobit, or",
+          "lines": ["option or not allowed"]
+        },
+        { "command": "quietly xtlogit y x1, re nolog", "lines": [] },
+        {
+          "command": "capture noisily xtlogit, eform",
+          "lines": ["option eform not allowed"]
+        }
+      ]
+    },
+    {
+      "id": "xt-pass8r3-margins-chain-constant",
+      "source": "clear\nset seed 4242\nset obs 600\ngenerate id = ceil(_n/6)\nbysort id: generate t = _n\ngenerate x1 = invnormal(runiform())\ngenerate x3 = runiform()\ngenerate expo = 0.5 + 3*runiform()\ngenerate u = invnormal(runiform())*0.5\nby id: replace u = u[1]\ngenerate yc = floor(-ln(runiform())/(0.4*expo*exp(-.2 + .3*x1 + .5*x3 + u)))\ngenerate yb = yc > 1\ngenerate g = mod(id,3)\nxtset id t\nquietly xtpoisson yc x1 x3 i.g, pa exposure(expo)\nmargins, dydx(x1)\nmatrix mb = r(b)\ndisplay %15.9g mb[1,1]\nmargins g, dydx(x1)\nquietly xtpoisson yc x1 x3 ibn.g, pa exposure(expo) noconstant\nquietly margins, dydx(x1 x3)\nmatrix mb = r(b)\ndisplay %15.9g mb[1,1]\nquietly xtpoisson yc x1 x3 i.g, re exposure(expo)\nmargins, dydx(x1 x3) predict(nu0)\nmatrix mb = r(b)\ndisplay %15.9g mb[1,1]\nquietly xtpoisson yc x1 x3, re noconstant\nquietly margins, dydx(x1) predict(nu0)\nmatrix mb = r(b)\ndisplay %15.9g mb[1,1]\nquietly xtlogit yb x1 x3, pa\nquietly margins, dydx(x1)\nmatrix mb = r(b)\ndisplay %15.9g mb[1,1]\nquietly xtlogit yb x1 x3, re noconstant\nquietly margins, dydx(x1) predict(pu0)\nmatrix mb = r(b)\ndisplay %15.9g mb[1,1]\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate id = ceil(_n/6)", "lines": [] },
+        { "command": "bysort id: generate t = _n", "lines": [] },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate x3 = runiform()", "lines": [] },
+        { "command": "generate expo = 0.5 + 3*runiform()", "lines": [] },
+        { "command": "generate u = invnormal(runiform())*0.5", "lines": [] },
+        {
+          "command": "by id: replace u = u[1]",
+          "lines": ["(500 real changes made)"]
+        },
+        {
+          "command": "generate yc = floor(-ln(runiform())/(0.4*expo*exp(-.2 + .3*x1 + .5*x3 + u)))",
+          "lines": []
+        },
+        { "command": "generate yb = yc > 1", "lines": [] },
+        { "command": "generate g = mod(id,3)", "lines": [] },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 6",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "quietly xtpoisson yc x1 x3 i.g, pa exposure(expo)",
+          "lines": []
+        },
+        {
+          "command": "margins, dydx(x1)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 600",
+            "Model VCE: Conventional",
+            "",
+            "Expression: Exponentiated linear prediction considering offset, predict()",
+            "dy/dx wrt:  x1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.5030914   .0508173    -9.90   0.000    -.6026914   -.4034914",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "matrix mb = r(b)", "lines": [] },
+        { "command": "display %15.9g mb[1,1]", "lines": ["    -.503091358"] },
+        {
+          "command": "margins g, dydx(x1)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 600",
+            "Model VCE: Conventional",
+            "",
+            "Expression: Exponentiated linear prediction considering offset, predict()",
+            "dy/dx wrt:  x1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "x1           |",
+            "           g |",
+            "          0  |  -.5043515   .0613402    -8.22   0.000    -.6245761   -.3841268",
+            "          1  |  -.5095362   .0612733    -8.32   0.000    -.6296298   -.3894427",
+            "          2  |   -.495752   .0590402    -8.40   0.000    -.6114686   -.3800354",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "quietly xtpoisson yc x1 x3 ibn.g, pa exposure(expo) noconstant",
+          "lines": []
+        },
+        { "command": "quietly margins, dydx(x1 x3)", "lines": [] },
+        { "command": "matrix mb = r(b)", "lines": [] },
+        { "command": "display %15.9g mb[1,1]", "lines": ["    -.503091358"] },
+        {
+          "command": "quietly xtpoisson yc x1 x3 i.g, re exposure(expo)",
+          "lines": []
+        },
+        {
+          "command": "margins, dydx(x1 x3) predict(nu0)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 600",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted number of events (assuming u_i=0), predict(nu0)",
+            "dy/dx wrt:  x1 x3",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.6037307   .0890794    -6.78   0.000    -.7783231   -.4291384",
+            "          x3 |  -1.287378   .2455529    -5.24   0.000    -1.768652   -.8061027",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "matrix mb = r(b)", "lines": [] },
+        { "command": "display %15.9g mb[1,1]", "lines": ["    -.603730731"] },
+        { "command": "quietly xtpoisson yc x1 x3, re noconstant", "lines": [] },
+        { "command": "quietly margins, dydx(x1) predict(nu0)", "lines": [] },
+        { "command": "matrix mb = r(b)", "lines": [] },
+        { "command": "display %15.9g mb[1,1]", "lines": ["    -.320482593"] },
+        { "command": "quietly xtlogit yb x1 x3, pa", "lines": [] },
+        { "command": "quietly margins, dydx(x1)", "lines": [] },
+        { "command": "matrix mb = r(b)", "lines": [] },
+        { "command": "display %15.9g mb[1,1]", "lines": ["   -.0570465986"] },
+        { "command": "quietly xtlogit yb x1 x3, re noconstant", "lines": [] },
+        { "command": "quietly margins, dydx(x1) predict(pu0)", "lines": [] },
+        { "command": "matrix mb = r(b)", "lines": [] },
+        { "command": "display %15.9g mb[1,1]", "lines": ["   -.0621255263"] }
+      ]
+    },
+    {
+      "id": "xt-pass8r3-margins-constant-prediction",
+      "source": "clear\nset seed 2468\nset obs 500\ngenerate id = _n\ngenerate a = invnormal(runiform())\nexpand 5\nbysort id: generate t = _n\ngenerate x = 3*invnormal(runiform()) + 0.5*a + 10\ngenerate z = invnormal(runiform())\ngenerate y = runiform() < invlogit(1.5*(x-10) + a + 0.3*z)\ngenerate xb2 = x + 100\ngenerate xb = x + 1000\nxtset id t\nquietly xtlogit y xb2, fe\nmargins, dydx(xb2)\nmargins\nquietly clogit y xb z, group(id)\nmargins, dydx(*)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2468", "lines": [] },
+        {
+          "command": "set obs 500",
+          "lines": ["Number of observations (_N) was 0, now 500."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate a = invnormal(runiform())", "lines": [] },
+        { "command": "expand 5", "lines": ["(2,000 observations created)"] },
+        { "command": "bysort id: generate t = _n", "lines": [] },
+        {
+          "command": "generate x = 3*invnormal(runiform()) + 0.5*a + 10",
+          "lines": []
+        },
+        { "command": "generate z = invnormal(runiform())", "lines": [] },
+        {
+          "command": "generate y = runiform() < invlogit(1.5*(x-10) + a + 0.3*z)",
+          "lines": []
+        },
+        { "command": "generate xb2 = x + 100", "lines": [] },
+        { "command": "generate xb = x + 1000", "lines": [] },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 5",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "quietly xtlogit y xb2, fe", "lines": [] },
+        {
+          "command": "margins, dydx(xb2)",
+          "lines": [
+            "warning: prediction constant over observations.",
+            "",
+            "Average marginal effects                                 Number of obs = 2,155",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y|fixed effect is 0), predict(pu0)",
+            "dy/dx wrt:  xb2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         xb2 |          0  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins",
+          "lines": [
+            "warning: prediction constant over observations.",
+            "",
+            "Predictive margins                                       Number of obs = 2,155",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y|fixed effect is 0), predict(pu0)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |          1          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly clogit y xb z, group(id)", "lines": [] },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "warning: prediction constant over observations.",
+            "",
+            "Average marginal effects                                 Number of obs = 2,155",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(y|fixed effect is 0), predict(pu0)",
+            "dy/dx wrt:  xb z",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          xb |          0  (omitted)",
+            "           z |          0  (omitted)",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xt-pass8r3-margins-if-in",
+      "source": "clear\nset seed 4242\nset obs 600\ngenerate id = ceil(_n/6)\nbysort id: generate t = _n\ngenerate x1 = invnormal(runiform())\ngenerate x3 = runiform()\ngenerate expo = 0.5 + 3*runiform()\ngenerate u = invnormal(runiform())*0.5\nby id: replace u = u[1]\ngenerate yc = floor(-ln(runiform())/(0.4*expo*exp(-.2 + .3*x1 + .5*x3 + u)))\ngenerate g = mod(id,3)\nxtset id t\nquietly regress yc x1 x3\nmargins if g == 1\nmargins in 1/100, dydx(x1)\nmargins if x1 > 0, atmeans\nquietly xtpoisson yc x1 x3, pa\nmargins if g == 1\nmargins if g == 1, dydx(*)\nquietly xtpoisson yc x1 x3, re exposure(expo)\nmargins if g == 1, predict(nu0)\nmargins in 1/100, predict(nu0) dydx(x3)\nmargins if g < 2, over(g) predict(nu0)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate id = ceil(_n/6)", "lines": [] },
+        { "command": "bysort id: generate t = _n", "lines": [] },
+        { "command": "generate x1 = invnormal(runiform())", "lines": [] },
+        { "command": "generate x3 = runiform()", "lines": [] },
+        { "command": "generate expo = 0.5 + 3*runiform()", "lines": [] },
+        { "command": "generate u = invnormal(runiform())*0.5", "lines": [] },
+        {
+          "command": "by id: replace u = u[1]",
+          "lines": ["(500 real changes made)"]
+        },
+        {
+          "command": "generate yc = floor(-ln(runiform())/(0.4*expo*exp(-.2 + .3*x1 + .5*x3 + u)))",
+          "lines": []
+        },
+        { "command": "generate g = mod(id,3)", "lines": [] },
+        {
+          "command": "xtset id t",
+          "lines": [
+            "Panel variable: id (strongly balanced)",
+            " Time variable: t, 1 to 6",
+            "         Delta: 1 unit"
+          ]
+        },
+        { "command": "quietly regress yc x1 x3", "lines": [] },
+        {
+          "command": "margins if g == 1",
+          "lines": [
+            "Predictive margins                                         Number of obs = 204",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   1.538711   .1300062    11.84   0.000     1.283386    1.794036",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins in 1/100, dydx(x1)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 100",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  x1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.5552622   .1339426    -4.15   0.000    -.8183181   -.2922063",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins if x1 > 0, atmeans",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 300",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "At: x1 = .7892079 (mean)",
+            "    x3 =  .506678 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   1.105652   .1667577     6.63   0.000     .7781492    1.433155",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly xtpoisson yc x1 x3, pa", "lines": [] },
+        {
+          "command": "margins if g == 1",
+          "lines": [
+            "Predictive margins                                         Number of obs = 204",
+            "Model VCE: Conventional",
+            "",
+            "Expression: Exponentiated linear prediction, predict()",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   1.536933   .0632627    24.29   0.000      1.41294    1.660925",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins if g == 1, dydx(*)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 204",
+            "Model VCE: Conventional",
+            "",
+            "Expression: Exponentiated linear prediction, predict()",
+            "dy/dx wrt:  x1 x3",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |  -.5599779   .0541475   -10.34   0.000    -.6661051   -.4538507",
+            "          x3 |  -1.428812   .1804795    -7.92   0.000    -1.782546   -1.075079",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "quietly xtpoisson yc x1 x3, re exposure(expo)",
+          "lines": []
+        },
+        {
+          "command": "margins if g == 1, predict(nu0)",
+          "lines": [
+            "Predictive margins                                         Number of obs = 204",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted number of events (assuming u_i=0), predict(nu0)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   1.641096   .1688778     9.72   0.000     1.310101     1.97209",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins in 1/100, predict(nu0) dydx(x3)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 100",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted number of events (assuming u_i=0), predict(nu0)",
+            "dy/dx wrt:  x3",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x3 |  -1.342096   .2556237    -5.25   0.000    -1.843109   -.8410823",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins if g < 2, over(g) predict(nu0)",
+          "lines": [
+            "Predictive margins                                         Number of obs = 402",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted number of events (assuming u_i=0), predict(nu0)",
+            "Over:       g",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          0  |   1.705882   .1755442     9.72   0.000     1.361822    2.049943",
+            "          1  |   1.641096   .1688778     9.72   0.000     1.310101     1.97209",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xt-pass8r3-lrtest-checks",
+      "source": "clear\nset seed 4101\nset obs 600\ngenerate id = ceil(_n/10)\ngenerate x = runiform()*5\ngenerate w = runiform() > .5\ngenerate double e0 = invnormal(runiform())\ngenerate double e2 = invnormal(runiform())\nbysort id: generate double u0 = 1.5*e0[1]\ngenerate double z = 2 + 0.7*x - 0.5*w + u0 + e2\ngenerate y = z > 2.5\ngenerate y2 = 1 - y\nxtset id\nquietly xtlogit y x w, re\nestimates store a1\nquietly xtlogit y2 x, re\nestimates store a2\ncapture noisily lrtest a1 a2\nquietly probit y2 x w\nestimates store p2\nquietly probit y x\nestimates store p1\ncapture noisily lrtest p2 p1\ncapture noisily lrtest p2 p1, force\nquietly mixed z x || id:\nestimates store mx\nquietly regress z x\nestimates store rg\ncapture noisily lrtest rg mx\ncapture noisily lrtest mx rg\nestimates restore mx\ncapture noisily lrtest rg mx\ncapture noisily lrtest mx rg\ncapture noisily lrtest (mx) (rg)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4101", "lines": [] },
+        {
+          "command": "set obs 600",
+          "lines": ["Number of observations (_N) was 0, now 600."]
+        },
+        { "command": "generate id = ceil(_n/10)", "lines": [] },
+        { "command": "generate x = runiform()*5", "lines": [] },
+        { "command": "generate w = runiform() > .5", "lines": [] },
+        {
+          "command": "generate double e0 = invnormal(runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate double e2 = invnormal(runiform())",
+          "lines": []
+        },
+        { "command": "bysort id: generate double u0 = 1.5*e0[1]", "lines": [] },
+        {
+          "command": "generate double z = 2 + 0.7*x - 0.5*w + u0 + e2",
+          "lines": []
+        },
+        { "command": "generate y = z > 2.5", "lines": [] },
+        { "command": "generate y2 = 1 - y", "lines": [] },
+        { "command": "xtset id", "lines": ["Panel variable: id (balanced)"] },
+        { "command": "quietly xtlogit y x w, re", "lines": [] },
+        { "command": "estimates store a1", "lines": [] },
+        { "command": "quietly xtlogit y2 x, re", "lines": [] },
+        { "command": "estimates store a2", "lines": [] },
+        {
+          "command": "capture noisily lrtest a1 a2",
+          "lines": ["dependent variables differ: y vs. y2"]
+        },
+        { "command": "quietly probit y2 x w", "lines": [] },
+        { "command": "estimates store p2", "lines": [] },
+        { "command": "quietly probit y x", "lines": [] },
+        { "command": "estimates store p1", "lines": [] },
+        {
+          "command": "capture noisily lrtest p2 p1",
+          "lines": ["dependent variables differ: y2 vs. y"]
+        },
+        {
+          "command": "capture noisily lrtest p2 p1, force",
+          "lines": [
+            "Likelihood-ratio test",
+            "Assumption: p1 nested within p2",
+            "",
+            " LR chi2(1) =  11.20",
+            "Prob > chi2 = 0.0008"
+          ]
+        },
+        { "command": "quietly mixed z x || id:", "lines": [] },
+        { "command": "estimates store mx", "lines": [] },
+        { "command": "quietly regress z x", "lines": [] },
+        { "command": "estimates store rg", "lines": [] },
+        {
+          "command": "capture noisily lrtest rg mx",
+          "lines": ["test involves different estimators: mixed vs. regress"]
+        },
+        {
+          "command": "capture noisily lrtest mx rg",
+          "lines": ["test involves different estimators: mixed vs. regress"]
+        },
+        {
+          "command": "estimates restore mx",
+          "lines": ["(results mx are active now)"]
+        },
+        {
+          "command": "capture noisily lrtest rg mx",
+          "lines": ["mixed models are not nested"]
+        },
+        {
+          "command": "capture noisily lrtest mx rg",
+          "lines": ["mixed models are not nested"]
+        },
+        {
+          "command": "capture noisily lrtest (mx) (rg)",
+          "lines": ["mixed models are not nested"]
+        }
+      ]
+    },
+    {
+      "id": "mixed-pass8r3-reses-and-level-options",
+      "source": "clear\nset seed 777\nset obs 30\ngenerate school = _n\ngenerate us = invnormal(runiform())*1.7\nexpand 40\nbysort school: generate pupil = _n\ngenerate ses = invnormal(runiform())\ngenerate grp = mod(school, 5)\ngenerate score = 50 + 2*ses + us + invnormal(runiform())*3.9\nreplace school = . in 300\nreplace ses = . in 500\nreplace score = . in 650\nquietly mixed score ses || school:\npredict double q1, reffects reses(q2)\ncount if missing(q2)\ncount if missing(q1)\npredict double q3, reses\ncount if missing(q3)\ncapture noisily mixed score ses || school:, if grp != 4\ncapture noisily mixed score ses || school:, in 1/100\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 777", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate school = _n", "lines": [] },
+        { "command": "generate us = invnormal(runiform())*1.7", "lines": [] },
+        { "command": "expand 40", "lines": ["(1,170 observations created)"] },
+        { "command": "bysort school: generate pupil = _n", "lines": [] },
+        { "command": "generate ses = invnormal(runiform())", "lines": [] },
+        { "command": "generate grp = mod(school, 5)", "lines": [] },
+        {
+          "command": "generate score = 50 + 2*ses + us + invnormal(runiform())*3.9",
+          "lines": []
+        },
+        {
+          "command": "replace school = . in 300",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace ses = . in 500",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace score = . in 650",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "quietly mixed score ses || school:", "lines": [] },
+        {
+          "command": "predict double q1, reffects reses(q2)",
+          "lines": [
+            "(1 missing value generated)",
+            "(3 missing values generated)"
+          ]
+        },
+        { "command": "count if missing(q2)", "lines": ["  3"] },
+        { "command": "count if missing(q1)", "lines": ["  1"] },
+        {
+          "command": "predict double q3, reses",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "count if missing(q3)", "lines": ["  1"] },
+        {
+          "command": "capture noisily mixed score ses || school:, if grp != 4",
+          "lines": ["option if not allowed"]
+        },
+        {
+          "command": "capture noisily mixed score ses || school:, in 1/100",
+          "lines": ["option in not allowed"]
+        }
+      ]
+    },
+    {
       "id": "causal-teffects-estimators",
       "source": "clear\nset seed 4242\nset obs 300\ngenerate x1 = invnormal(runiform())\ngenerate x2 = runiform()*4\ngenerate g = floor(runiform()*3)\ngenerate t = runiform() < invlogit(-0.3 + 0.6*x1 - 0.2*x2)\ngenerate y = 1 + 0.5*x1 + 0.3*x2 + 1.2*t + 0.4*t*x1 + invnormal(runiform())\nteffects ra (y x1 x2) (t)\nmatrix list e(b)\nteffects ra (y x1 x2) (t), atet\nteffects ra (y x1 x2) (t), pomeans\nteffects ipw (y) (t x1 x2)\nteffects ipw (y) (t x1 x2, probit), atet\nteffects ipw (y) (t x1 x2), pomeans\nteffects ipwra (y x1 x2) (t x1 x2)\nteffects ipwra (y x1 x2) (t x1 x2, probit), atet\nteffects aipw (y x1 x2) (t x1 x2)\nteffects aipw (y x1 x2) (t x1 x2), pomeans\nteffects aipw (y x1 x2) (t x1 x2, probit)\nteffects aipw (y x1 x2) (t x1 x2), atet\nteffects ra (y x1 x2) (t), aequations\nteffects ipw (y) (t x1 x2), aequations\nteffects ipwra (y x1 x2) (t x1 x2), aequations\nmatrix list e(b)\nteffects aipw (y x1 x2) (t x1 x2), aequations\nteffects ra (y x1 i.g) (t), aequations\nteffects ra (y x1 x2) (t), coeflegend\nteffects ipwra (y x1 x2) (t), nolog\nteffects\nteffects, aequations level(90)\n",
       "commands": [
@@ -138460,9 +139555,9 @@
           "lines": [
             "scalars:",
             "                  r(N) =  240",
-            "                  r(F) =  .4869175174021533",
+            "                  r(F) =  .4869175146781807",
             "               r(df_r) =  9",
-            "                  r(p) =  .5029330303645376",
+            "                  r(p) =  .5029330315284833",
             "                 r(df) =  1"
           ]
         },
@@ -138481,9 +139576,9 @@
           "lines": [
             "scalars:",
             "                  r(N) =  240",
-            "                  r(F) =  1.242693600454227",
+            "                  r(F) =  1.242693600454222",
             "               r(df_r) =  9",
-            "                  r(p) =  .3504346530634579",
+            "                  r(p) =  .3504346530634594",
             "                 r(df) =  3"
           ]
         },

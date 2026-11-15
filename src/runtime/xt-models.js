@@ -23,12 +23,13 @@ import { density, invnormal, normal } from "./functions-normal.js";
 import {
   abbreviate,
   baseLevelsAsked,
+  design,
   invertSymmetric,
   tableWidth,
 } from "./estimation.js";
 import { perfectPrediction, recheckCollinearity } from "./models.js";
 import { count } from "./reports.js";
-import { panelOption } from "./panel.js";
+import { panelOption, parseWithPanel, unknownOption } from "./panel.js";
 import { evaluateAll } from "./expression.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
@@ -1119,8 +1120,11 @@ function parseCommand(session, text, kind) {
       kind === "poisson"
         ? " NORmal GAmma EXPosure(varname) OFFset(varname)"
         : " | OFFset(varname)";
-  return session.parse(
-    `anything [if] [in] [fweight pweight iweight aweight] [, RE FE PA noCONStant${eform} EForm Level(cilevel) noLOg INTPoints(string) INTMethod(string) CORR(string) BASElevels ALLBASElevels Robust VCE(string) CLuster(string) I(varname)${extra}${kind === "poisson" ? " |" : ""} noSKIP FROM(string) LRMODEL]`,
+  // After the bar, besides the model's own, are ml's maximize and display
+  // options, which Stata takes and the browser does not yet.
+  return parseWithPanel(
+    session,
+    `anything [if] [in] [fweight pweight iweight aweight] [, RE FE PA noCONStant${eform} EForm Level(cilevel) noLOg INTPoints(string) INTMethod(string) CORR(string) BASElevels ALLBASElevels Robust VCE(string) CLuster(string) I(varname)${extra}${kind === "poisson" ? " |" : ""} noSKIP FROM(string) LRMODEL ITERate(string) TOLerance(string) LTOLerance(string) NRTOLerance(string) NONRTOLerance DIFficult TECHnique(string) TRace GRADient SHOWSTEP HESSian SHOWTOLerance COEFLegend CFORMAT(string) PFORMAT(string) SFORMAT(string) noLSTRETCH]`,
     text,
   );
 }
@@ -1138,12 +1142,18 @@ function replayed(session, text, ctx, command, eform) {
     (command === "clogit" && model?.kind === "clogit");
   if (!model?.replay || !shown)
     throw new StataError("last estimates not found", 301);
+  // xtgee's replay of a pa model takes eform too.
+  const allowed = [eform, model.xt === "pa" ? "EForm" : ""]
+    .filter(Boolean)
+    .join(" ");
   const parsed = session.parse(
-    `[, Level(cilevel)${eform ? ` ${eform}` : ""} BASElevels ALLBASElevels]`,
+    `[, Level(cilevel)${allowed ? ` ${allowed}` : ""} BASElevels ALLBASElevels]`,
     text,
   );
-  // xtpoisson takes eform for irr, its replay too.
-  if (parsed.options.eform) parsed.options.irr = true;
+  // eform is xtpoisson's irr and, under pa, xtlogit's odds ratio; after
+  // xtprobit, pa it is exp(b).
+  if (parsed.options.eform && model.eform?.[0] !== "eform")
+    parsed.options[model.eform?.[0] ?? "irr"] = true;
   model.replay(ctx, parsed.options);
   return true;
 }
@@ -1163,8 +1173,15 @@ function xtCommand(kind) {
     const parsed = parseCommand(session, text, kind),
       options = parsed.options,
       chosen = ["re", "fe", "pa"].filter((m) => options[m]);
-    // The old i(panelvar), which xtsets the data on it as _xt.ado does.
+    if (chosen.length > 1)
+      throw new StataError("only one of re, fe, or pa is allowed", 198);
+    // The old i(panelvar), which xtsets the data on it as _xt.ado does,
+    // after the ado-file has checked its varlist. An option it does not
+    // know is met only then: ml calls it invalid, xtgee and xtpoisson's
+    // syntax not allowed.
+    if (options.i) design(session, parsed.anything, [], true);
     panelOption(session, options.i, ctx);
+    unknownOption(parsed, kind !== "poisson" && !options.pa);
     // eform: xtpoisson's irr; under pa xtgee's, the odds ratio of xtlogit
     // and exp(b) of xtprobit. ml's display refuses it after the others.
     if (options.eform) {
@@ -1174,8 +1191,6 @@ function xtCommand(kind) {
         throw new StataError("option eform incorrectly specified", 198);
       else if (kind === "logit") options.or = true;
     }
-    if (chosen.length > 1)
-      throw new StataError("only one of re, fe, or pa is allowed", 198);
     if (options.fe && kind === "probit")
       throw new StataError("fixed-effects model not available", 198);
     if (options.pa) return populationAveraged(session, parsed, text, ctx, kind);
@@ -1463,6 +1478,9 @@ function normalEffects(session, parsed, text, ctx, kind) {
     ...groups,
   };
   result.predictor = (s, t, c) => predictRandom(s, t, c, result, kind);
+  // After these, fitted by quadrature, Stata's margins takes its effects
+  // analytically, not by the chain rule it uses after the other xt models.
+  result.analyticMargins = true;
   result.margins = marginsSpec(result, kind, "re");
   session.estimates = result;
   session.results.e = {
@@ -3315,11 +3333,12 @@ function choosePrediction(model, predictions, fallback, stated, text) {
           expression: chosen.offsetExpression ?? chosen.expression,
         }
       : {}),
-    // After the fixed-effects models, which have no constant, margins'
-    // effects follow Stata's numerical chain rule (margins-chain.js); a
-    // linear prediction needs none. After noconstant with random or
-    // population-averaged effects Stata's are exact, as these are.
-    chain: model.xt === "fe" && name !== "xb" && !chosen.aux,
+    // margins' effects follow Stata's numerical chain rule
+    // (margins-chain.js), which steps the constant or, without one (the
+    // fixed-effects models, noconstant), the first coefficient whose
+    // column is nowhere zero; a linear prediction needs none, and nor do
+    // the models fitted by quadrature, whose effects Stata takes exactly.
+    chain: !model.analyticMargins && name !== "xb" && !chosen.aux,
     text: rest,
     predict: found || stated ? `predict(${name})` : "predict()",
   };
