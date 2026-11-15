@@ -299,6 +299,13 @@ function noteWeights(text, parsed, ctx) {
  * variables defined", r(111), as these commands say it.
  */
 function parseNamingVariables(session, declaration, text) {
+  if (!session.data.names.length) {
+    const varlist = splitAtComma(text)[0]
+      .replace(/(?:^|\s)(?:if|in)(?:\s|$)[\s\S]*$/, "")
+      .replace(/\[[\s\S]*$/, "")
+      .trim();
+    if (varlist) throw new StataError("no variables defined", 111);
+  }
   try {
     return session.parse(declaration, text);
   } catch (error) {

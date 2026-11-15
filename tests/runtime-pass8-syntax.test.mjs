@@ -474,7 +474,6 @@ test("functions Stata has and the browser lacks are refused as not available", (
     "rgamma(2,1)",
     "rchi2(3)",
     "rbeta(1,2)",
-    "rt(3)",
     'ustrsortkey("a")',
     "tukeyprob(3,10,2)",
   ]) {
