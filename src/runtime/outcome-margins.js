@@ -595,9 +595,18 @@ export function outcomePredict(session, model, text, ctx) {
     );
   // stub* names one new variable for each outcome: stub1, stub2, ...
   const stub =
-    /^(\s*(?:(?:byte|int|long|float|double)\s+)?)([A-Za-z_]\w*)\*(?=\s|,|$)/.exec(
+    /^(\s*(?:(?:byte|int|long|float|double|str\d+|strL)\s+)?)([A-Za-z_]\w*)\*(?=\s|,|$)/.exec(
       text,
     );
+  // A storage type before stub* or a range (p1-p4) is the type of every
+  // variable they name; before a list, only of the first.
+  const typedAll = stub
+    ? /\S/.test(stub[1])
+      ? stub[1].trim()
+      : null
+    : (/^\s*(byte|int|long|float|double|str\d+|strL)\s+[A-Za-z_]\w*-[A-Za-z_]\w*(?=\s|,|$)/.exec(
+        text,
+      )?.[1] ?? null);
   if (stub)
     text =
       stub[1] +
@@ -690,7 +699,7 @@ export function outcomePredict(session, model, text, ctx) {
   let missing = 0;
   names.forEach((name, k) => {
     const made = data.generate(name, columns[k], {
-      type: parsed.typed[k] ? parsed.types[k] : undefined,
+      type: typedAll ?? (parsed.typed[k] ? parsed.types[k] : undefined),
     });
     missing = Math.max(missing, made.missing);
     const j = names.length > 1 ? k : chosen,

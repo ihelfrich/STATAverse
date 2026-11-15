@@ -662,13 +662,15 @@ export function fit(session, parsed, by) {
       // A frequency weight stands for that many identical observations.
       obs = obs.flatMap((i) => new Array(all[i]).fill(i));
     } else {
-      // Analytic and sampling weights are rescaled to sum to N.
-      const scale = obs.length / sumW;
+      // Analytic and sampling weights are rescaled to sum to N; importance
+      // weights, outside a robust variance, are not, and their sum is the
+      // number of observations, as Stata's regress counts them.
+      const scale = wtype === "iweight" && !robust ? 1 : obs.length / sumW;
       w = obs.map((i) => all[i] * scale);
     }
   }
-  const n = obs.length;
-  if (!n)
+  const counted = wtype === "iweight" && !robust;
+  if (!obs.length)
     throw Object.assign(new StataError("no observations", 2000), {
       empty: true,
     });
@@ -678,6 +680,7 @@ export function fit(session, parsed, by) {
     throw Object.assign(new StataError("insufficient observations", 2001), {
       sample: obs,
     });
+  const n = counted ? sumW : obs.length;
   const y = obs.map((i) => dependent.data[i]),
     active = columns.filter((c) => !c.base),
     x = active.map((c) => obs.map(c.value)),
@@ -1476,7 +1479,11 @@ function regress(session, text, ctx) {
   // of the weights comes before the notes on the columns.
   if (parsed.weight && genericWeight(text) && !ctx.replaying)
     ctx.out(assumedWeights(parsed.weight.type));
-  if (model.wtype && model.wtype !== "fweight")
+  if (
+    model.wtype &&
+    model.wtype !== "fweight" &&
+    !(model.wtype === "iweight" && model.vce === "ols")
+  )
     ctx.out(`(sum of wgt is ${g(model.sumW, "%18.0gc")})`);
   // Stata's notes, in the order of the columns; a cell of an interaction
   // is named without its omitted markers.
@@ -3683,6 +3690,9 @@ function correlate(session, text, ctx) {
     // left than its column, as Stata 19 shows it; pwcorr pads by columns.
     row = (name) => rowName(name, names, byteLength),
     column = (name) => columnName(name, names, byteLength);
+  // [w=exp] is an analytic weight, and Stata says so first.
+  if (parsed.weight && genericWeight(text))
+    ctx.out(assumedWeights(parsed.weight.type));
   if (sumW) ctx.out(`(sum of wgt is ${applyFormat(sumW, "%18.0gc").trim()})`);
   ctx.out(`(obs=${count(n)})`);
   if (options.means) {

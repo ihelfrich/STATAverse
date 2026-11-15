@@ -304,6 +304,7 @@ function stack(session, text, ctx) {
   }
   data.variables = [];
   data.esample = null;
+  data.rowIds = null;
   data.n = rows.length * sets;
   data.sortedBy = [];
   data.generate(

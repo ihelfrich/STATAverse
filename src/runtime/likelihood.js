@@ -276,9 +276,12 @@ export const iterationLine = (k, word, value, note) =>
  * iteration log, or without a log a blank line after the notes. Without a
  * log, a fit that did not converge says so first.
  */
-function opening(ctx, text, f, fit, word) {
+function opening(ctx, text, f, fit, word, lead = null) {
   if (noLog(text) && !fit.converged) ctx.out("convergence not achieved");
   ctx.out("");
+  // The sum of analytic weights comes first, and the log follows it at
+  // once.
+  if (lead) ctx.out(lead);
   if (f.notes(ctx) && noLog(text)) ctx.out("");
   iterations(ctx, text, fit.log, word, fit.notes, fit.converged);
 }
@@ -338,13 +341,16 @@ export const tableHead = (ctx, depvar, level, first, t, robust, w) => {
  * and which observations remain, those with no cluster or a missing or
  * zero weight being left out. Sampling weights imply the sandwich.
  */
-function requested(session, parsed) {
+function requested(session, parsed, analytic = false) {
   const { robust, cluster } = readVce(session, parsed.options, /^oim$/, {
     multiway: false,
   });
   let weight = null;
+  // An analytic weight, where the model takes one, weights the likelihood
+  // and leaves the variance as it is.
+  const aweight = analytic && parsed.weight?.type === "aweight";
   if (parsed.weight) {
-    if (parsed.weight.type !== "pweight")
+    if (parsed.weight.type !== "pweight" && !aweight)
       throw new StataError(
         `${parsed.weight.type}s are not available in the browser yet; pweights are`,
         198,
@@ -352,7 +358,8 @@ function requested(session, parsed) {
     weight = evaluateAll(session.compile(parsed.weight.exp), session.data.n);
   }
   return {
-    robust: robust || !!weight,
+    robust: robust || (!!weight && !aweight),
+    aweight,
     cluster,
     weight,
     keep: (i) =>
@@ -849,14 +856,17 @@ function ordered(kind) {
   const link = LINKS[kind];
   return (session, text, ctx) => {
     const parsed = session.parse(
-        "anything [if] [in] [fweight pweight iweight] [, Level(cilevel) noLOg OR Robust VCE(string) CLuster(string) BASElevels ALLBASElevels | OFFset(varname)]",
+        "anything [if] [in] [fweight pweight iweight aweight] [, Level(cilevel) noLOg OR Robust VCE(string) CLuster(string) BASElevels ALLBASElevels | OFFset(varname)]",
         text,
       ),
       options = parsed.options,
-      asked = requested(session, parsed),
+      asked = requested(session, parsed, true),
       f = twoOrMore(frame(session, parsed, false, true, false, asked)),
       n = f.y.length,
-      weight = (i) => (f.w ? f.w[i] : 1),
+      // Analytic weights are rescaled to sum to the number of observations.
+      sumW = asked.aweight ? f.w.reduce((t, v) => t + v, 0) : null;
+    if (asked.aweight) f.w = f.w.map((v) => (v * n) / sumW);
+    const weight = (i) => (f.w ? f.w[i] : 1),
       levels = [...new Set(f.y)].sort((a, b) => a - b),
       cuts = levels.length - 1,
       k = f.active.length;
@@ -1022,7 +1032,9 @@ function ordered(kind) {
         kind,
         sample: f.sample,
         // Each observation's sampling weight, which margins averages with.
-        ...(f.w ? { weights: f.w, wtype: "pweight" } : {}),
+        ...(f.w
+          ? { weights: f.w, wtype: asked.aweight ? "aweight" : "pweight" }
+          : {}),
         cuts: full.theta.slice(k),
         // The cut points as test and lincom reach them, [/]cut1 and so on:
         // their values, their covariances with each coefficient in names
@@ -1082,7 +1094,16 @@ function ordered(kind) {
     }).length;
     if (determined) session.results.e.N_cd = determined;
     const critical = invnormal(1 - (1 - options.level / 100) / 2);
-    opening(ctx, text, f, full, word);
+    opening(
+      ctx,
+      text,
+      f,
+      full,
+      word,
+      asked.aweight
+        ? `(sum of wgt is ${applyFormat(sumW, "%18.0gc").trim()})`
+        : null,
+    );
     // Without regressors there is no test to report, and no coefficients
     // above the cut points.
     header(ctx, [
@@ -1651,7 +1672,12 @@ export function generalizedInverse(a) {
  * estimates, the log likelihood at each iteration and the generalised
  * inverse of the information.
  */
-export function maximizeNR(evaluate, start, limit = 300) {
+export function maximizeNR(
+  evaluate,
+  start,
+  limit = 300,
+  { tolerance = 1e-6, ltolerance = 1e-7, nrtolerance = 1e-5 } = {},
+) {
   const reldif = (a, b) => Math.abs(a - b) / (Math.abs(b) + 1),
     times = (m, v) => m.map((row) => row.reduce((t, x, k) => t + x * v[k], 0)),
     // Concave unless a column the inverse dropped has curvature.
@@ -1759,15 +1785,15 @@ export function maximizeNR(evaluate, start, limit = 300) {
     log.push(current.value);
     notes.push(shortened ? "backed up" : "");
     if (
-      before.every((v, k) => reldif(theta[k], v) <= 1e-6) ||
-      reldif(current.value, v0) <= 1e-7
+      before.every((v, k) => reldif(theta[k], v) <= tolerance) ||
+      reldif(current.value, v0) <= ltolerance
     ) {
       const V = generalizedInverse(current.information),
         step = times(V, current.gradient);
       if (
         concave(current.information, V) &&
         Math.abs(current.gradient.reduce((t, g, k) => t + g * step[k], 0)) <
-          1e-5
+          nrtolerance
       )
         return { theta, ll: current.value, V, log, notes, converged: true };
     }
@@ -1921,8 +1947,12 @@ function nbreg(session, text, ctx) {
     rank = robust
       ? robustRank(cov, clusters)
       : cov.filter((row, j) => row[j] !== 0).length,
+    // lnalpha without a variance (at the boundary) is not in the rank.
     dfModel = robust
-      ? Math.max(0, Math.min(regressors, rank - (k + 1 - regressors)))
+      ? Math.max(
+          0,
+          Math.min(regressors, rank - (k - regressors) - Number(cov[k][k] > 0)),
+        )
       : regressors,
     chi2 = robust
       ? dfModel < regressors

@@ -252,6 +252,8 @@ export function compileExpression(source, scope = {}) {
     if (token.type === "op" && token.value === "(") {
       const inner = or();
       if (!take(")")) throw new StataError("too few ')' or ']'", 132);
+      // A subscript belongs to a name, not to what is in parentheses.
+      if (isOp("[")) throw new StataError("unknown function ()", 133);
       return inner;
     }
     if (token.type !== "name")
@@ -366,7 +368,12 @@ export function compileExpression(source, scope = {}) {
         () => scope.results?.[name]?.[inner.value] ?? MISSING,
       );
     }
-    if (/^(rowsof|colsof|el|det|trace)$/.test(name) && scope.matrix) {
+    if (
+      /^(rowsof|colsof|el|det|trace|issymmetric|matmissing|colnumb|rownumb)$/.test(
+        name,
+      ) &&
+      scope.matrix
+    ) {
       const target = { ...tokens[at++] };
       if (target?.type !== "name") throw invalid();
       // A result matrix, e(V) or r(table), is named as it is written.
@@ -376,6 +383,17 @@ export function compileExpression(source, scope = {}) {
         if (inner?.type !== "name" || !take(")")) throw invalid();
         target.value = `${target.value}(${inner.value})`;
       }
+      if (name === "colnumb" || name === "rownumb") {
+        if (!take(",")) throw invalid();
+        const label = or();
+        if (label.type !== S) throw mismatch();
+        if (!take(")")) throw invalid();
+        const which = name === "colnumb" ? "column" : "row";
+        scope.matrix.rows(target.value);
+        return node(N, (i, env) =>
+          scope.matrix.number(target.value, which, label.evaluate(i, env)),
+        );
+      }
       if (name !== "el") {
         if (!take(")")) throw invalid();
         const size = {
@@ -383,6 +401,8 @@ export function compileExpression(source, scope = {}) {
           colsof: scope.matrix.columns,
           det: scope.matrix.det,
           trace: scope.matrix.trace,
+          issymmetric: scope.matrix.symmetric,
+          matmissing: scope.matrix.anyMissing,
         }[name];
         size(target.value);
         return node(N, () => size(target.value));

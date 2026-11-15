@@ -1904,6 +1904,11 @@ function putValue(session, value, options) {
       );
     throw new StataError(`${kind} not found`, 111);
   }
+  // An expression outside parentheses is read as cell values, and a
+  // function in it, e(N) or round() among them, as a name not found.
+  const inner = /([A-Za-z_]\w*)\s*\(/.exec(value);
+  if (inner && !value.startsWith("("))
+    throw new StataError(`${inner[1]} not found`, 111);
   return one(fromResult(session.scalar(value)));
 }
 
@@ -1911,18 +1916,36 @@ function matrixCells(session, name, options) {
   // A matrix expression, as Stata takes it: a named matrix, a result such
   // as e(b) or r(table) (a scalar result or none being 1 x 1), or e(b)*2.
   const matrix = matrixExpression(session, name);
-  const rows = options.names || options.rownames,
-    cols = options.names || options.colnames,
-    dr = cols ? 1 : 0,
-    dc = rows ? 1 : 0,
+  // Names with equations (1:age, as after mlogit) take two rows or
+  // columns: the equation, then the name.
+  const split = (names) => {
+      const equations = names.some((name) => name.includes(":"));
+      return {
+        depth: equations ? 2 : 1,
+        parts: names.map((name) => {
+          const at = name.lastIndexOf(":");
+          return equations
+            ? [at < 0 ? "_" : name.slice(0, at), name.slice(at + 1)]
+            : [name];
+        }),
+      };
+    },
+    rows = options.names || options.rownames ? split(matrix.rowNames) : null,
+    cols = options.names || options.colnames ? split(matrix.colNames) : null,
+    dr = cols ? cols.depth : 0,
+    dc = rows ? rows.depth : 0,
     out = [];
   if (cols)
-    matrix.colNames.forEach((c, j) =>
-      out.push({ dr: 0, dc: dc + j, cell: { t: "s", v: c } }),
+    cols.parts.forEach((parts, j) =>
+      parts.forEach((v, k) =>
+        out.push({ dr: k, dc: dc + j, cell: { t: "s", v } }),
+      ),
     );
   matrix.values.forEach((row, i) => {
     if (rows)
-      out.push({ dr: dr + i, dc: 0, cell: { t: "s", v: matrix.rowNames[i] } });
+      rows.parts[i].forEach((v, k) =>
+        out.push({ dr: dr + i, dc: k, cell: { t: "s", v } }),
+      );
     row.forEach((v, j) =>
       out.push({
         dr: dr + i,
@@ -1943,7 +1966,10 @@ export function putexcel(session, text, ctx) {
   }
   if (m?.[1] === "describe" && !m[2].trim())
     return putexcelDescribe(session, ctx);
-  if (m?.[1] === "save" || m?.[1] === "close")
+  // Each putexcel here saves the workbook at once: there is nothing left
+  // to close.
+  if (m?.[1] === "close" && !m[2].trim()) return;
+  if (m?.[1] === "save")
     throw new StataError(
       `putexcel ${m[1]} is not available in the browser yet`,
       198,

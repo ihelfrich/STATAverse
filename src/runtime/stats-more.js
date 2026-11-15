@@ -1086,6 +1086,7 @@ function contract(session, text, ctx) {
   }));
   data.n = n;
   data.esample = null;
+  data.rowIds = null;
   data.sortedBy = [...varlist];
   data.generate(freq, freqs, { type: "long" });
   const total = macro(freqs.reduce((t, f) => t + f, 0)),

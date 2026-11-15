@@ -117,6 +117,22 @@ export function changed(session) {
   empty ??= fingerprint(new Dataset());
   return fingerprint(data) !== (data.clean ?? empty);
 }
+/**
+ * Runs change(), after which data that had not changed since they were
+ * saved or read still count as unchanged: Stata's estimates store, clear
+ * and drop add and remove their _est_ variables without setting c(changed).
+ */
+export function unchangedBy(session, change) {
+  const was = changed(session);
+  try {
+    return change();
+  } finally {
+    if (!was) {
+      session.data.clean = fingerprint(session.data);
+      session.data.dirty = false;
+    }
+  }
+}
 /** Run after each command: marks the data once they have changed. */
 export function markChanged(session) {
   if (!session.data.dirty && changed(session)) session.data.dirty = true;

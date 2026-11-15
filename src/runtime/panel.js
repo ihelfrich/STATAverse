@@ -18,6 +18,7 @@ import { count, perGroup, percentile } from "./reports.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
 import { readVce } from "./vce.js";
 import { evaluateAll } from "./expression.js";
+import { assumedWeights, genericWeight } from "./syntax.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const sum = (values) => values.reduce((a, b) => a + b, 0);
@@ -392,6 +393,8 @@ function xtreg(session, text, ctx) {
     const compiled = session.compile(parsed.weight.exp);
     if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
     weightOf = evaluateAll(compiled, data.n);
+    // [w=exp] is an analytic weight, and Stata says so first.
+    if (genericWeight(text)) ctx.out(assumedWeights(wtype));
   }
   const // The same model design as regress, so factor variables and
     // interactions are available.
@@ -420,7 +423,15 @@ function xtreg(session, text, ctx) {
     groups = [...new Set(groupOf)],
     G = groups.length,
     members = new Map(groups.map((key) => [key, []]));
-  if (!N) throw new StataError("no observations", 2000);
+  // The within estimator needs two observations, and says so even with
+  // none; the others need some observations and two panels.
+  if (options.fe ? N < 2 : !N)
+    throw new StataError(
+      options.fe ? "insufficient observations" : "no observations",
+      options.fe ? 2001 : 2000,
+    );
+  if (!options.fe && G < 2)
+    throw new StataError("insufficient observations", 2001);
   groupOf.forEach((key, i) => members.get(key).push(i));
   // Each observation's weight, in the order of rows: analytic weights
   // scaled to sum to the number of observations. A frequency weight counts

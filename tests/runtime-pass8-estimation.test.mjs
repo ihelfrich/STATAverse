@@ -474,3 +474,515 @@ generate w = 3`);
     if (code === 498) assert.match(text, /^yc is zero for all observations/);
   }
 });
+
+// ----- Second round: what a tester found in the fixes above -----
+
+const LAYOUT = `clear
+set seed 909
+set obs 200
+generate x = runiform()
+generate z = runiform()
+replace x = . if runiform() < .15
+generate g = 1 + floor(3*runiform())
+generate y = 1 + 2*x - z + .3*g + runiform()
+generate yb = (y + runiform()) > 2.2 if !missing(y)
+generate u = runiform()`;
+
+test("postestimation after sort reads each observation where the fit found it", () => {
+  const s = run(`${LAYOUT}
+quietly regress y x z i.g
+sort u`);
+  assert.match(
+    printed(s, "margins g").text,
+    /1 {2}\| {3}2\.285396 {3}\.0373933/,
+  );
+  assert.match(printed(s, "estat hettest").text, /Prob > chi2 = 0\.9488/);
+  assert.match(printed(s, "estat ovtest").text, /F\(3, 170\) = {3}1\.26/);
+  s.run("quietly logit yb x z");
+  s.run("sort g");
+  assert.match(
+    printed(s, "margins, dydx(x)").text,
+    /x \| {3}\.5150035 {3}\.0828165/,
+  );
+  assert.match(
+    printed(s, "estat classification").text,
+    /Correctly classified {24}91\.01%/,
+  );
+  // The sort the user made stays.
+  assert.deepEqual(s.data.sortedBy, ["g"]);
+  // An observation dropped since the fit leaves the sample, as e(sample)
+  // leaves it in Stata.
+  const t = run(`clear
+set seed 919
+set obs 200
+generate id = 1 + floor(40*runiform())
+generate t = _n
+generate x = runiform()
+generate z = runiform()
+replace x = . if runiform() < .15
+generate g = 1 + floor(3*runiform())
+generate y = 1 + 2*x - z + .3*g + runiform()
+quietly regress y x z i.g
+drop if g == 3 & x > .8`);
+  const margins = printed(t, "margins g").text;
+  assert.match(margins, /Number of obs = 156/);
+  assert.match(margins, /1 {2}\| {4}2\.24052 {3}\.0377616/);
+});
+
+test("panel and influence statistics after gsort match the fit's sample", () => {
+  const s = run(`clear
+set seed 909
+set obs 200
+generate id = ceil(_n/5)
+generate t = mod(_n-1,5)+1
+generate x = runiform()
+generate z = runiform()
+replace x = . if runiform() < .15
+generate g = 1 + floor(3*runiform())
+generate y = 1 + 2*x - z + .3*g + runiform()
+generate u = runiform()
+xtset id t
+quietly xtreg y x z, fe
+gsort -u
+predict u1, u
+quietly areg y x z, absorb(g)
+sort u
+predict ar1, residuals
+quietly regress y x z
+gsort -u
+predict df1, dfits
+predict cv1, covratio`);
+  for (const [name, n, mean, sd] of [
+    ["u1", 178, 0, 0.1751727],
+    ["ar1", 178, 0, 0.290468],
+    ["df1", 178, -0.0003502, 0.1348943],
+    ["cv1", 178, 1.017304, 0.020605],
+  ]) {
+    assert.equal(s.run(`quietly summarize ${name}`).rc, 0);
+    assert.equal(s.results.r.N, n, name);
+    close(s.results.r.mean, mean, 1e-6);
+    close(s.results.r.sd, sd, 1e-6);
+  }
+  assert.match(printed(s, "estat vif").text, /x \| {6}1\.00 {4}0\.999976/);
+});
+
+test("logit's Pearson residuals follow the observations once they are sorted or dropped", () => {
+  const s = run(`clear
+set seed 808
+set obs 90
+generate x = runiform()
+generate z = runiform()
+replace x = . if runiform() < .2
+generate y = 1 + 2*x - z + runiform()
+generate yb = y > 1.7 if !missing(y)
+generate u = runiform()
+quietly logit yb x z
+gsort -u
+predict r2, residuals
+summarize r2`);
+  assert.equal(s.results.r.N, 69);
+  close(s.results.r.mean, 0.0789968, 1e-6);
+  close(s.results.r.sd, 0.9119284, 1e-6);
+  s.run("drop in 1/5");
+  s.run("predict r3, residuals");
+  s.run("summarize r3");
+  assert.equal(s.results.r.N, 64);
+  close(s.results.r.mean, 0.0728884, 1e-6);
+});
+
+test("poisson on one observation is too few, even when its outcome is zero", () => {
+  const s = run(`clear
+set seed 7
+set obs 30
+generate x = runiform()
+generate yc = floor(3*runiform())
+generate w = 3
+generate g = ceil(_n/10)
+replace yc = 0 in 1
+replace yc = 0 in 30
+replace g = 4 in 30`);
+  for (const [command, code] of [
+    ["poisson yc x in 1", 2001],
+    ["poisson yc in 1", 2001],
+    ["poisson yc x if yc == 0 & g == 4", 2001],
+    // Three by frequency weight are enough to see the zeros.
+    ["poisson yc x in 1 [fw=w]", 498],
+  ])
+    assert.equal(s.run(command).rc, code, command);
+  s.run("sort g");
+  const r = s.run("capture noisily by g: poisson yc x, nolog");
+  assert.equal(r.rc, 0);
+  assert.equal(s.rc, 0);
+  assert.match(
+    r.output.flatMap((o) => o.lines).join("\n"),
+    /-> g = 4\n+insufficient observations/,
+  );
+});
+
+test("a storage type before stub* or a range types every variable predict makes", () => {
+  const s = run(`clear
+set seed 4242
+set obs 500
+generate x1 = invnormal(runiform())
+generate female = runiform() < .5
+generate u = runiform() + .15*x1 + .1*female
+generate educ = 1 + (u > .3) + (u > .6) + (u > .85)
+quietly mlogit educ x1 female, baseoutcome(1)
+predict byte j1-j4
+predict double q*
+predict double r1 r2 r3 r4
+quietly ologit educ x1 female
+predict int k*`);
+  for (const name of ["j1", "j2", "j4"])
+    assert.equal(s.data.get(name).type, "byte", name);
+  assert.deepEqual([...new Set(s.data.get("j2").data)], [0]);
+  assert.equal(s.data.get("q3").type, "double");
+  // A list types only its first variable, as in Stata.
+  assert.equal(s.data.get("r1").type, "double");
+  assert.equal(s.data.get("r2").type, "float");
+  assert.equal(s.data.get("k2").type, "int");
+  assert.equal(s.run("predict str5 sp*").rc, 109);
+});
+
+test("regress with importance weights counts their sum, as Stata's regress does", () => {
+  const s = run(`clear
+set seed 3
+set obs 120
+generate x = runiform()
+generate z = runiform()
+generate w = 1 + floor(3*runiform())
+generate y = 1 + x + runiform()`);
+  const text = printed(s, "regress y x [iw=w]").text;
+  assert.doesNotMatch(text, /sum of wgt/);
+  assert.equal(s.results.e.N, 238);
+  assert.equal(s.results.e.df_r, 236);
+  close(s.results.e.F, 406.65, 1e-5);
+  close(s.results.e.rmse, 0.27008, 1e-4);
+  assert.match(text, /x \| {3}1\.242665 {3}\.0616234 {4}20\.17/);
+  // A robust variance takes them as the observations' weights.
+  assert.match(
+    printed(s, "regress y x [iw=w], vce(robust)").text,
+    /\(sum of wgt is 238\)/,
+  );
+  assert.equal(s.results.e.N, 120);
+});
+
+test("result matrices take subscripts in matrix expressions and putexcel", () => {
+  const s = run(`clear
+set seed 31
+set obs 150
+generate x = runiform()
+generate z = runiform()
+generate y = 1 + 2*x - z + runiform()
+generate g = 1 + floor(3*runiform())
+quietly regress y x z
+matrix A = e(b)[1,1..2]
+matrix B = e(V)[1..2,"x"]
+matrix C = e(V)["x".."z","x".."z"]`);
+  const A = s.matrices.get("A");
+  assert.deepEqual(A.colNames, ["x", "z"]);
+  close(A.values[0][0], 1.9507061, 1e-7);
+  close(A.values[0][1], -1.1370648, 1e-7);
+  close(s.matrices.get("B").values[1][0], 0.00056765, 1e-5);
+  assert.deepEqual(s.matrices.get("C").rowNames, ["x", "z"]);
+  for (const [expression, value] of [
+    ['colnumb(e(b),"z")', "2"],
+    ['rownumb(e(V),"_cons")', "3"],
+    ['el(e(b),1,colnumb(e(b),"z"))', "-1.1370648"],
+    ["issymmetric(e(V))", "1"],
+    ["matmissing(e(b))", "0"],
+    ['colnumb(e(b),"nosuch")', "."],
+  ])
+    assert.equal(printed(s, `display ${expression}`).text, value, expression);
+  assert.equal(s.run("display colnumb(e(b),1)").rc, 109);
+  assert.equal(
+    printed(s, "display (e(b))[1,1]").text.split("\n")[0],
+    "unknown function ()",
+  );
+  s.run("matrix bb = e(b)");
+  assert.equal(
+    printed(s, 'display colnumb(bb,"z") " " matmissing(bb) " " issymmetric(bb)')
+      .text,
+    "2 0 0",
+  );
+  // A factor's base level is found without its marker.
+  s.run("quietly regress y x i.g");
+  assert.equal(printed(s, 'display e(b)[1,"1.g"]').text, "0");
+  s.run("quietly regress y x z");
+  for (const command of [
+    "putexcel set pass8b.xlsx, replace",
+    "putexcel A1 = matrix(e(b)[1,1..2])",
+    "putexcel close",
+    "import excel using pass8b.xlsx, clear",
+  ])
+    assert.equal(s.run(command).rc, 0, command);
+  close(s.data.get("A").data[0], 1.9507061, 1e-7);
+  close(s.data.get("B").data[0], -1.1370648, 1e-7);
+});
+
+test("putexcel names a multi-equation matrix in an equation row and a name row", () => {
+  const s = run(`clear
+set seed 12345
+set obs 200
+generate age = 20 + floor(40*runiform())
+generate female = runiform() < .5
+generate educ = 1 + floor(3*runiform())
+quietly mlogit educ age female, baseoutcome(1)
+putexcel set pass8c.xlsx, replace
+putexcel A1 = matrix(e(b)), names
+putexcel A20 = matrix(e(V)), rownames
+import excel using pass8c.xlsx, clear`);
+  const cell = (column, row) => s.data.get(column).data[row - 1];
+  assert.equal(cell("B", 1), "1");
+  assert.equal(cell("B", 2), "o.age");
+  assert.equal(cell("E", 1), "2");
+  assert.equal(cell("E", 2), "age");
+  assert.equal(cell("A", 3), "y1");
+  assert.equal(cell("A", 20), "1");
+  assert.equal(cell("B", 20), "o.age");
+  assert.equal(cell("B", 23), "age");
+});
+
+test("estimates store takes title(); restore keeps or clears the sample as Stata does", () => {
+  const s = run(`clear
+set seed 5
+set obs 80
+generate x = runiform()
+generate z = runiform()
+replace x = . if runiform() < .2
+replace z = . if runiform() < .3
+generate y = 1 + 2*x + runiform()
+quietly regress y x
+estimates store m1, title(My first model)`);
+  const dir = printed(s, "estimates dir").text.split("\n");
+  assert.equal(dir[1], "-".repeat(61));
+  assert.match(dir[5], /m1 \| regress {11}y {10}2 {2}My first model$/);
+  assert.equal(s.run("estimates store m2, nosuch").rc, 198);
+  // The active fit keeps its sample when its marker variable is dropped.
+  s.run("drop _est_m1");
+  s.run("estimates restore m1");
+  assert.equal(inSample(s), 65);
+  // A dataset read in afresh carries no store's sample.
+  const t = run(`clear
+set seed 5
+set obs 20
+generate x = runiform()
+generate y = 1 + 2*x + runiform()
+replace x = . in 3
+quietly regress y x
+estimates store m3
+save pass8b-est, replace
+use pass8b-est, clear
+estimates restore m3`);
+  assert.equal(inSample(t), 0);
+  // Storing again with no sample in the data drops the marker, and the
+  // data still count as unchanged.
+  t.run("estimates store m3, title(again)");
+  assert.equal(t.data.has("_est_m3"), false);
+  assert.doesNotMatch(printed(t, "describe, short").text, /has changed/);
+});
+
+test("logit and probit take iterate(), the tolerances, difficult and nocoef", () => {
+  const s = run(`clear
+set seed 777
+set obs 3000
+generate x = invnormal(runiform())
+generate z = invnormal(runiform())
+generate g = 1 + floor(4*runiform())
+generate y = 5 + 2*x - z + .5*g + 2*invnormal(runiform())
+generate y01 = y > 6`);
+  const one = printed(s, "probit y01 x z, iterate(1)");
+  assert.equal(one.rc, 0);
+  assert.match(
+    one.text,
+    /Iteration 1: {2}Log likelihood = -1436\.1889\nconvergence not achieved/,
+  );
+  assert.match(one.text, /x \| {4}\.876703 {3}\.0339223/);
+  assert.match(one.text, /Warning: Convergence not achieved\./);
+  assert.equal(s.results.e.converged, 0);
+  assert.equal(s.results.e.ic, 1);
+  s.run("logit y01 x z, ltolerance(1e-3)");
+  assert.equal(s.results.e.ic, 3);
+  s.run("logit y01 x z, nrtolerance(1e-2)");
+  assert.equal(s.results.e.ic, 4);
+  const quiet = printed(s, "logit y01 x z, nocoef nolog");
+  assert.equal(quiet.rc, 0);
+  assert.doesNotMatch(quiet.text, /Logistic regression/);
+  assert.equal(s.results.e.N, 3000);
+  assert.equal(s.run("probit y01 x z, difficult nolog").rc, 0);
+  // Observations past what the link tells from certainty are noted.
+  const t = run(`clear
+set seed 777
+set obs 3000
+generate x = invnormal(runiform())
+generate z = invnormal(runiform())
+generate g = 1 + floor(4*runiform())
+generate w = 1 + floor(3*runiform())
+generate y = 5 + 2*x - z + .5*g + 2*invnormal(runiform())
+generate y01 = y > 6
+generate rare = y > 11
+generate d = x > 1.5
+replace y01 = 1 if d`);
+  assert.match(
+    printed(t, "probit y01 x z in 1/40").text,
+    /Note: 2 failures and 0 successes completely determined\./,
+  );
+  assert.match(
+    printed(t, "probit y01 x in 1/25").text,
+    /Note: 1 failure and 0 successes completely determined\./,
+  );
+  assert.doesNotMatch(
+    printed(t, "logit y01 x z in 1/40").text,
+    /completely determined/,
+  );
+});
+
+test("logit's covariate-pattern statistics are Stata's", () => {
+  const s = run(`clear
+set seed 808
+set obs 90
+generate x = runiform()
+generate z = runiform()
+generate g = 1 + floor(3*runiform())
+replace x = . if runiform() < .2
+generate y = 1 + 2*x - z + runiform()
+generate yb = y > 1.7 if !missing(y)
+generate xr = round(x, .25)
+quietly logit yb xr i.g`);
+  for (const [statistic, mean, sd] of [
+    ["residuals", 0.005599, 0.3336415],
+    ["deviance", 0.0068151, 0.3780297],
+    ["hat", 0.3194358, 0.2430463],
+    ["rstandard", -0.0023231, 0.470805],
+    ["dx2", 0.2186264, 0.2245457],
+    ["ddeviance", 0.2489485, 0.2012398],
+    ["dbeta", 0.2707984, 0.4079784],
+    ["number", 7.616438, 4.101592],
+  ]) {
+    assert.equal(s.run(`predict double v_${statistic}, ${statistic}`).rc, 0);
+    s.run(`summarize v_${statistic}`);
+    assert.equal(s.results.r.N, 73, statistic);
+    close(s.results.r.mean, mean, 2e-5);
+    close(s.results.r.sd, sd, 2e-5);
+  }
+  s.run("quietly probit yb xr i.g");
+  s.run("predict double d1, deviance");
+  s.run("summarize d1");
+  close(s.results.r.mean, -0.005902, 2e-5);
+  // probit has no Pearson residual, as in Stata.
+  assert.equal(s.run("predict double d2, residuals").rc, 198);
+});
+
+test("xtreg and heckman report too few observations as Stata does", () => {
+  const s = run(`clear
+set seed 7
+set obs 12
+generate x = runiform()
+generate z = runiform()
+generate y = 1 + x + runiform()
+generate yb = runiform() < .5
+generate g = ceil(_n/4)
+replace g = 4 in 12
+xtset g`);
+  for (const [command, code] of [
+    ["xtreg y x in 1, fe", 2001],
+    ["xtreg y x in 1, re", 2001],
+    ["xtreg y x in 1, be", 2001],
+    ["xtreg y x if x > 5, fe", 2001],
+    ["xtreg y x if x > 5, re", 2000],
+    ["xtreg y x in 1/2, re", 2001],
+    ["xtreg y x in 1/2, fe", 0],
+    ["heckman y x in 1, select(yb = z)", 2001],
+    ["heckman y x in 1/2, select(yb = z)", 2001],
+    ["heckman y x in 1, select(z)", 2001],
+    ["heckman y x if x > 5, select(yb = z)", 2000],
+  ])
+    assert.equal(s.run(command).rc, code, command);
+});
+
+test("weights: ologit and oprobit take aweights; notes of assumed weights", () => {
+  const s = run(`clear
+set seed 3
+set obs 120
+generate x = runiform()
+generate z = runiform()
+generate w = 1 + floor(3*runiform())
+generate y = 1 + x + runiform()
+generate yb = runiform() < .4 + .3*x
+generate yc = floor(3*runiform()+x)
+generate g = 1 + floor(3*runiform())
+generate id = ceil(_n/6)
+generate t = mod(_n-1,6)+1
+xtset id t`);
+  const o = printed(s, "oprobit yc x [aw=w]");
+  assert.equal(o.rc, 0);
+  // The sum of the weights, then the log at once.
+  assert.match(o.text, /^\n\(sum of wgt is 238\)\nIteration 0:/);
+  assert.match(o.text, /\/cut1 \| {3}-\.285712 {3}\.2061896/);
+  assert.equal(s.results.e.N, 120);
+  assert.equal(s.run("ologit yc x [aw=w]").rc, 0);
+  assert.match(
+    printed(s, "correlate y x [w=w]").text,
+    /^\(analytic weights assumed\)\n\(sum of wgt is 238\)/,
+  );
+  assert.match(
+    printed(s, "capture noisily xtreg y x [w=w], fe").text,
+    /^\(analytic weights assumed\)\nweight must be constant within id/,
+  );
+  // quietly keeps the note to itself; the error still shows.
+  assert.equal(
+    printed(s, "capture noisily quietly xtreg y x [w=w], fe").text,
+    "weight must be constant within id",
+  );
+  // poisson's e() is exposure(), which is not here yet; a variable that
+  // does not exist is reported first.
+  assert.match(
+    printed(s, "poisson yc x, e(w)").text,
+    /^option exposure is not available in the browser yet/,
+  );
+  assert.equal(
+    printed(s, "poisson yc x, exposure(nosuch)")
+      .text.split("\n")
+      .slice(0, 2)
+      .join("\n"),
+    "variable nosuch not found\n(error in option exposure())",
+  );
+});
+
+test("estimates table: column widths, stfmt(), nobase and bad formats", () => {
+  const s = run(`clear
+set seed 4242
+set obs 300
+generate x1 = runiform()
+generate x2 = runiform()
+generate y = 1 + 1.4*x1 - .6*x2 + runiform()
+quietly regress y x1
+estimates store a
+quietly regress y x1 x2
+estimates store b`);
+  const lines = printed(s, "estimates table a b, b(%5.2f)").text.split("\n");
+  assert.equal(lines[1], "-".repeat(34));
+  assert.equal(lines[4].trimEnd(), "          x1 |    1.51      1.44");
+  const bad = printed(s, "estimates table a, b(%5.2)");
+  assert.equal(bad.rc, 120);
+  assert.equal(bad.text.split("\n")[0], "invalid display format %5.2");
+  assert.equal(s.run("estimates table a b, b se stfmt(%9.2f)").rc, 0);
+  assert.equal(s.run("estimates table a b, b se nobase").rc, 0);
+});
+
+test("an estimator typed alone shows its fit without the display options it was shown with", () => {
+  const s = run(`clear
+set seed 4711
+set obs 300
+generate x1 = runiform()
+generate x2 = runiform()
+generate y = 2 + .7*x1 - .2*x2 + runiform()
+quietly regress y x1 x2, beta`);
+  const replay = printed(s, "regress").text;
+  assert.match(replay, /\[95% conf\. interval\]/);
+  assert.doesNotMatch(replay, /Beta/);
+  assert.match(
+    printed(s, "regress, level(90)").text,
+    /\[90% conf\. interval\]/,
+  );
+});

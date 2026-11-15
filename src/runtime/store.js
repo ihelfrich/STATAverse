@@ -28,6 +28,17 @@ const widthType = (values) => {
   return width > MAX_STRING_WIDTH ? "strL" : "str" + width;
 };
 const compare = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
+// Each observation's identity, which goes with it wherever a sort, drop or
+// merge moves it: fits note the identities of the rows they used, so that
+// what follows them reads each observation where it is now. Identities are
+// never reused, so the rows of a dataset read in afresh match none.
+let lastRowId = 0;
+const freshIds = (k) => {
+  const ids = new Float64Array(k);
+  for (let j = 0; j < k; j++) ids[j] = ++lastRowId;
+  return ids;
+};
 // gsort -x: numbers descending, then missing values, themselves descending.
 const descending = (a, b) =>
   typeof a === "number" && isMissing(a) !== isMissing(b)
@@ -143,6 +154,16 @@ export class Dataset {
     // mark the data.
     this.esample = null;
     this.esampleOf = null;
+    // The identity of each observation (see freshIds); null until a fit
+    // asks for them.
+    this.rowIds = null;
+  }
+
+  /** Each observation's identity, given now to those that have none. */
+  ensureRowIds() {
+    if (!this.rowIds || this.rowIds.length !== this.n)
+      this.rowIds = freshIds(this.n);
+    return this.rowIds;
   }
 
   get names() {
@@ -188,6 +209,12 @@ export class Dataset {
       marks.set(this.esample.subarray(0, Math.min(n, this.esample.length)));
       this.esample = marks;
     }
+    if (this.rowIds?.length === this.n) {
+      const ids = new Float64Array(n);
+      ids.set(this.rowIds);
+      ids.set(freshIds(n - this.n), this.n);
+      this.rowIds = ids;
+    } else this.rowIds = null;
     this.n = n;
   }
 
@@ -360,6 +387,16 @@ export class Dataset {
    * the old observation each new one comes from, or null for a new one.
    */
   permuteMarks(index) {
+    const ids = this.rowIds;
+    if (ids?.length === this.n) {
+      // A copy of an observation is another observation.
+      const seen = new Uint8Array(this.n);
+      this.rowIds = Float64Array.from(index, (i) => {
+        if (i === null || i === undefined || seen[i]) return ++lastRowId;
+        seen[i] = 1;
+        return ids[i];
+      });
+    } else this.rowIds = null;
     const marks = this.esample;
     if (!marks) return;
     this.esample = Uint8Array.from(index, (i) =>
@@ -387,6 +424,7 @@ export class Dataset {
     if (!this.variables.length) {
       this.n = 0;
       this.esample = null;
+      this.rowIds = null;
       this.chars?.clear();
     }
   }
@@ -441,10 +479,17 @@ export class Dataset {
         [...this.valueLabels].map(([name, map]) => [name, new Map(map)]),
       ),
       ...copyChars(this),
-      variables: this.variables.map((v) => ({ ...v, data: v.data.slice() })),
+      // A file keeps no store's marker variable as the store's (see
+      // estimates restore).
+      variables: this.variables.map(({ estimatesOf, ...v }) => ({
+        ...v,
+        ...(marks && estimatesOf ? { estimatesOf } : {}),
+        data: v.data.slice(),
+      })),
       ...(marks && this.esample
         ? { esample: this.esample.slice(), esampleOf: this.esampleOf }
         : {}),
+      ...(marks && this.rowIds ? { rowIds: this.rowIds.slice() } : {}),
       // The settings reshape keeps with the data.
       ...(this.reshapeChars
         ? { reshapeChars: structuredClone(this.reshapeChars) }
@@ -470,6 +515,7 @@ export class Dataset {
       })),
       esample: snapshot.esample ? snapshot.esample.slice() : null,
       esampleOf: snapshot.esampleOf ?? null,
+      rowIds: snapshot.rowIds ? snapshot.rowIds.slice() : null,
     });
   }
 

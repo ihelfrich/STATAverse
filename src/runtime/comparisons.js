@@ -1,6 +1,6 @@
 // Comparing stored models: lrtest, estimates table and estimates stats.
 import { StataError } from "./errors.js";
-import { applyFormat } from "./format.js";
+import { applyFormat, isFormat } from "./format.js";
 import { chi2tail, ttail } from "./distributions.js";
 import {
   abbreviate,
@@ -248,9 +248,17 @@ function nameTerm(session, name, terms, labelled, seriesBases = null) {
 }
 
 export function estimatesTable(session, text, ctx) {
-  const [head, optionText] = splitAtComma(text),
+  const [head, typedOptions] = splitAtComma(text),
+    // nobaselevels hides the base levels, as the table does anyway.
+    optionText =
+      typedOptions === null
+        ? null
+        : typedOptions.replace(
+            /(^|\s)nobase(l(e(v(e(ls?)?)?)?)?)?(?=\s|$)/g,
+            " ",
+          ),
     parsed = session.parse(
-      "[, B B2(string) SE SE2(string) STAR STAR2(string) STats(string) | T P KEEP(string) DROP(string) EForm Label Varwidth(integer 12) Modelwidth(integer 12) Title(string) Equations(string) NEWpanel STYle(string) VSquish ALLbaselevels BASElevels noOMITted noEMPTYcells COEFLegend SELegend FVLabel FVWRAP(integer 1)]",
+      "[, B B2(string) SE SE2(string) STAR STAR2(string) STats(string) STFmt(string) Modelwidth(integer 0) | T P KEEP(string) DROP(string) EForm Label Varwidth(integer 12) Title(string) Equations(string) NEWpanel STYle(string) VSquish ALLbaselevels BASElevels noOMITted noEMPTYcells COEFLegend SELegend FVLabel FVWRAP(integer 1)]",
       optionText === null ? "" : "," + normalise(optionText),
     ),
     options = parsed.options,
@@ -285,9 +293,19 @@ export function estimatesTable(session, text, ctx) {
     levels = options.star2
       ? options.star2.trim().split(/\s+/)
       : ["0.05", "0.01", "0.001"],
+    statFormat = options.stfmt?.trim() || null,
     widthOf = (f) => Number(/^%-?0?(\d+)/.exec(f)?.[1] ?? 10),
-    field = Math.max(widthOf(format), withSe ? widthOf(seFormat) : 0) + 1,
+    // Each model's column holds its widest format and a blank, eight at
+    // least, or modelwidth() and a blank when that is wider.
+    field = Math.max(
+      8,
+      Math.max(widthOf(format), withSe ? widthOf(seFormat) : 0) + 1,
+      options.modelwidth > 0 ? options.modelwidth + 1 : 0,
+    ),
     cell = field + (stars ? 3 : 0) + 2;
+  // A format that is not one stops the table before it starts.
+  for (const f of [format, seFormat, ...(statFormat ? [statFormat] : [])])
+    if (!isFormat(f)) throw new StataError(`invalid display format ${f}`, 120);
   if (stars && levels.length !== 3)
     throw new StataError("star() takes three significance levels", 198);
   if (stars && (withSe || options.t || options.p))
@@ -518,7 +536,9 @@ export function estimatesTable(session, text, ctx) {
               const v = statistic(model, e, name);
               return (
                 value(
-                  isMissing(v) ? "" : g(v, name === "N" ? "%10.0g" : format),
+                  isMissing(v)
+                    ? ""
+                    : g(v, name === "N" ? "%10.0g" : (statFormat ?? format)),
                 ).padEnd(cell - 2) + "  "
               );
             })
