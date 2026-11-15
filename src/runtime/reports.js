@@ -414,7 +414,7 @@ export function summarize(session, text, ctx) {
     }
     const label = group.headed
       ? (variable.ts?.label ?? "--.").padStart(12)
-      : shortened(name);
+      : shortened(variable.ts?.alone ? variable.ts.name : name);
     ctx.out(
       analytic
         ? m.n

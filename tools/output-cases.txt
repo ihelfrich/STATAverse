@@ -25345,3 +25345,228 @@ end
 capture noisily cut20
 count
 program drop cut10 cut20
+=== seams-expressions-fv-varlist
+clear
+set obs 7
+generate g = mod(_n,3)
+generate x = _n^2
+replace g = . in 7
+summarize i.g
+summarize x i.g
+summarize 1.g 2.g
+summarize 1.g
+summarize c.x
+summarize c.x#c.x
+summarize i.g#c.x
+summarize ib1.g
+summarize x i.g, detail
+mean i.g
+mean x i.g
+list 1.g in 1/3
+list x i.g in 1/3
+list c.x#c.x in 1/2
+capture noisily correlate x i.g
+display _rc
+capture noisily correlate x 1.g
+display _rc
+=== seams-expressions-fv-expressions
+clear
+set obs 6
+generate g = mod(_n,3)
+generate x = _n
+generate h = _n/2
+replace g = . in 6
+count if 1.g
+count if !1.g
+count if 1.g & x > 2
+generate z1 = 1.g
+generate z2 = 0.g + 2*2.g
+generate z3 = c.x#g
+generate z4 = 1.g#c.x#c.x
+generate z5 = 1b.g
+generate z6 = o.g
+generate z7 = 1.h
+generate z8 = -1.g
+list, noobs
+summarize x if 2.g
+display 1.g
+display 1.g#c.x
+capture noisily generate q = 1.5.g
+capture noisily generate q = 1.nosuch
+capture noisily generate q = 1.g[2]
+capture noisily generate q = 1n.g
+capture noisily generate q = 1.(g)
+capture noisily generate q = 1.g#1.g
+capture noisily generate q = 1.g##c.x
+capture noisily display 1.2.3
+generate y = x + 2*g
+quietly regress y i.g
+display _b[0.g]
+display _b[0b.g]
+capture noisily display _b[i.g]
+=== seams-expressions-spaced-operators
+clear
+set obs 4
+generate x = _n
+generate s = "a" + string(_n)
+count if x > = 2
+count if x <  = 2
+count if x ~ = 1
+count if s ! = "a1"
+list x if x ! = 2
+generate b = (x > = 2)
+generate c = 1 if x > = 2 & x ~ = 3
+display 3 > = 2
+scalar q = 3 > = 2
+display q
+assert x > = 1
+if x > = 1 display "yes"
+local n = 0
+while 1 < = 0 {
+  local ++n
+}
+display `n'
+keep if x < = 3
+=== seams-expressions-if-command
+clear
+set obs 2
+generate x = _n
+generate s = "a"
+capture noisily if s == 1 display "yes"
+display _rc
+capture noisily if nosuch == 1 display "yes"
+display _rc
+capture noisily if _b[x] display "yes"
+display _rc
+capture noisily if L.x display "yes"
+display _rc
+capture noisily if 1 = 1 display "yes"
+display _rc
+capture noisily if "a" = "a" display "yes"
+display _rc
+capture noisily if display "yes"
+display _rc
+capture noisily if 1
+display _rc
+if 1.x display "yes"
+=== seams-expressions-lone-equals
+clear
+set obs 4
+generate x = _n
+generate s = "a" + string(_n)
+capture noisily generate z = s = "a1"
+capture noisily scalar k = s = "a1"
+capture noisily replace x = s = "a1"
+capture noisily local m = "a" = "a"
+capture noisily assert s = "a1"
+capture noisily assert 1 = s
+capture noisily count if nosuch = "a"
+capture noisily summarize x if nosuch = "a"
+capture noisily egen w2 = total(s = "a1")
+capture noisily egen w3 = total(x = 1)
+capture noisily generate z = = x
+display 3 = 3
+display 1 + 2 = 4
+display x = 1
+display s = "a1"
+capture noisily display "abc" + "d
+=== seams-expressions-operator-typos
+clear
+set obs 3
+generate x = _n
+capture noisily generate z = x ** 2
+capture noisily generate z = x && 3
+capture noisily generate z = x || 3
+capture noisily generate z = x <> 3
+capture noisily generate z = x ++ 2
+capture noisily generate z = x + * 2
+capture noisily generate z = (x) ** 2
+capture noisily generate z = +x
+capture noisily generate z = ()
+capture noisily generate z = -*x
+capture noisily generate z = x[
+capture noisily generate z = 1e
+capture noisily generate z = x @ 2
+capture noisily generate z = x # 2
+capture noisily generate z = abs(1,2)
+capture noisily generate z = abs(1 + 2, 3)
+capture noisily generate z = mod(1,)
+capture noisily generate z = max(1+,2)
+capture noisily display 1 ** 2
+=== seams-expressions-coefficients
+clear
+capture noisily display _b[x]
+capture noisily display _se[x]
+capture noisily display [y]x
+set obs 20
+set seed 12345
+generate x = runiform()
+generate w = runiform()
+generate y = 1 + 2*x + rnormal()
+generate d = x + rnormal() > 1
+quietly regress y x w
+capture noisily display [y]_b[x]
+capture noisily display _b[#1:x]
+display [#1]_b[x]
+capture noisily display [/var(e.y)]
+capture noisily display 2[y]x
+capture noisily display e(b)
+quietly mlogit d x
+display [#1]x
+display [#1]_cons
+display [#2]x
+display _b[#2:x]
+display [0]x
+display e(k_eq)
+=== seams-expressions-functions
+set seed 1
+display %21x uniform()
+set seed 1
+display %21x invnormal(uniform())
+display invnorm(0.975)
+display normprob(1)
+display index("abc","b")
+display chiprob(2,3)
+display tprob(10,2)
+display fprob(2,10,3)
+display binorm(0,0,0.5)
+display inrange("b","a","c")
+display missing()
+capture noisily display runiform(1)
+display c(maxint)
+display c(maxbyte)
+display %21x c(maxdouble)
+display %21x c(epsfloat)
+display c(stata_version)
+capture noisily display c(nosuch)
+clear
+set obs 2
+generate s = "ab"
+generate k = regexm(s, "(a)(b)")
+display regexs(3)
+generate t = regexs(3)
+=== seams-expressions-random
+display %21x 2^-50
+display %21x 10^-2
+display %21x 1.1^7
+set seed 99
+display %21x runiform(10,20)
+display %21x runiform(10,20)
+display %21x runiform(10,20)
+display %21x runiform(10,20)
+display %21x runiform(0, 2^-50)
+set seed 5
+display runiformint(0, 2^54)
+display %21x runiform()
+set seed 1
+display rbinomial(10,0.3)
+display %21x runiform()
+set seed 1
+display rpoisson(3)
+clear
+set obs 12
+set seed 1
+generate b = rbinomial(20,0.5)
+set seed 1
+generate p = rpoisson(15)
+list, noobs

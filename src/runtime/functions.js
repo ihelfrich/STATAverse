@@ -43,6 +43,29 @@ import { MORE_FUNCTIONS } from "./functions-more.js";
 
 export { invnormal, normal };
 
+/**
+ * The value u falls on when the support is taken from the mode outward,
+ * the mode, then one above and one below it in turn, each taking its
+ * probability from u, as in Kemp's modal search.
+ */
+function modalSearch(u, pmf, mode, top) {
+  u -= pmf(mode);
+  if (u <= 0) return mode;
+  for (let d = 1; mode + d <= top || mode - d >= 0; d++) {
+    if (mode + d <= top) {
+      u -= pmf(mode + d);
+      if (u <= 0) return mode + d;
+    }
+    if (mode - d >= 0) {
+      u -= pmf(mode - d);
+      if (u <= 0) return mode - d;
+    }
+    // What is left past the far tails is rounding.
+    if (d > 50 && pmf(mode + d) < 1e-300 && pmf(mode - d) < 1e-300) break;
+  }
+  return mode;
+}
+
 function lnfactorial(n) {
   if (n < 0 || n !== Math.floor(n)) return MISSING;
   if (n <= 170) {
@@ -228,14 +251,20 @@ export const FUNCTIONS = {
     fn: (x, a, b, c) =>
       isMissing(x) ? (c === undefined ? a : c) : x !== 0 ? a : b,
   },
+  // Strings compare as text, all three of them strings.
   inrange: {
-    args: [N, N, N],
+    args: ["any", "any", "any"],
+    sameType: [0, 1, 2],
     returns: N,
     lenient: true,
     fn: (x, a, b) =>
-      Number(
-        !isMissing(x) && (isMissing(a) || x >= a) && (isMissing(b) || x <= b),
-      ),
+      typeof x === "string"
+        ? Number(x >= a && x <= b)
+        : Number(
+            !isMissing(x) &&
+              (isMissing(a) || x >= a) &&
+              (isMissing(b) || x <= b),
+          ),
   },
   inlist: {
     args: ANY,
@@ -248,7 +277,7 @@ export const FUNCTIONS = {
   },
   missing: {
     args: ANY,
-    min: 1,
+    min: 0,
     max: 255,
     returns: N,
     lenient: true,
@@ -372,11 +401,14 @@ export const FUNCTIONS = {
   invchi2tail: { args: [N, N], returns: N, fn: invchi2tail },
   invchi2: { args: [N, N], returns: N, fn: (df, p) => invchi2tail(df, 1 - p) },
 
-  // Random numbers. runiform() and rnormal() follow Stata's stream; the
-  // others are built on runiform() and differ from Stata's draws.
+  // Random numbers. runiform() and rnormal() follow Stata's stream, as do
+  // runiform(a,b), runiformint() and rbinomial() with n*p up to 15; the
+  // others are built on runiform() and may differ from Stata's draws.
   runiform: {
     args: [N, N],
     min: 0,
+    // No argument or two: runiform(1) is invalid syntax.
+    counts: [0, 2],
     returns: N,
     state: true,
     // runiform(a,b) needs b at least 2^-51 above a; otherwise, as with a
@@ -391,7 +423,9 @@ export const FUNCTIONS = {
       )
         return MISSING;
       const u = (state.rng ??= new Generator(state.seed)).uniform();
-      return a === undefined ? u : a + (b - a) * u;
+      // Stata's sum, a + b*u - a*u, which differs from a + (b - a)*u in
+      // the last bit for about half of all draws.
+      return a === undefined ? u : a + b * u - a * u;
     },
   },
   rnormal: {
@@ -438,7 +472,15 @@ export const FUNCTIONS = {
     returns: N,
     state: true,
     fn: (state, a, b) => {
-      if (isMissing(a) || isMissing(b) || b < a) return MISSING;
+      // Bounds beyond 2^53 in size give missing and use up no draw.
+      if (
+        isMissing(a) ||
+        isMissing(b) ||
+        b < a ||
+        Math.abs(a) > 2 ** 53 ||
+        Math.abs(b) > 2 ** 53
+      )
+        return MISSING;
       // Stata takes the top k bits of the generator's 64-bit output, the
       // fewest with 2^k at least b - a + 1, and draws again while they
       // exceed b - a; a is added as given. a = b uses up no draw.
@@ -459,12 +501,53 @@ export const FUNCTIONS = {
     returns: N,
     state: true,
     fn: (state, n, p) => {
-      if (!(n >= 1) || !(p >= 0 && p <= 1) || n > 1e6) return MISSING;
-      const rng = (state.rng ??= new Generator(state.seed));
-      let successes = 0;
-      for (let k = 0; k < Math.floor(n); k++)
-        if (rng.uniform() < p) successes++;
-      return successes;
+      if (!(n >= 1) || !(p >= 0 && p <= 1) || n > 1e11) return MISSING;
+      n = Math.floor(n);
+      const rng = (state.rng ??= new Generator(state.seed)),
+        small = Math.min(p, 1 - p),
+        q = 1 - small;
+      if (small === 0) return p > 0.5 ? n : 0;
+      let x;
+      if (n * small <= 15) {
+        // Kachitvichyanukul and Schmeiser's BINV, inversion from zero with
+        // one uniform, for the smaller of p and 1 - p, as Stata draws when
+        // n times it is at most 15 (matched draw for draw with Stata 19).
+        const s = small / q,
+          a = (n + 1) * s,
+          first = Math.pow(q, n);
+        for (x = -1; x < 0;) {
+          let u = rng.uniform(),
+            r = first,
+            k = 0;
+          for (;;) {
+            if (u <= r) {
+              x = k;
+              break;
+            }
+            u -= r;
+            if (++k > 110) break;
+            r *= a / k - s;
+          }
+        }
+      } else {
+        // Beyond that Stata uses Kachitvichyanukul and Schmeiser's BTPE,
+        // which is not reproduced here: one uniform, searched from the
+        // mode outward, gives a draw of the right distribution.
+        const mode = Math.floor((n + 1) * small),
+          lp = Math.log(small),
+          lq = Math.log(q),
+          base = lnfactorial(n),
+          pmf = (k) =>
+            Math.exp(
+              base -
+                lnfactorial(k) -
+                lnfactorial(n - k) +
+                k * lp +
+                (n - k) * lq,
+            );
+        x = modalSearch(rng.uniform(), pmf, mode, n);
+      }
+      return p > 0.5 ? n - x : x;
     },
   },
   rpoisson: {
@@ -473,18 +556,29 @@ export const FUNCTIONS = {
     state: true,
     fn: (state, mean) => {
       if (!(mean > 0) || mean > 1e5) return MISSING;
-      // Inversion by sequential search from zero.
-      const rng = (state.rng ??= new Generator(state.seed)),
-        u = rng.uniform();
-      let k = 0,
-        p = Math.exp(-mean),
-        cumulative = p;
-      while (u > cumulative && k < 1e7) {
-        k++;
-        p *= mean / k;
-        cumulative += p;
-      }
-      return k;
+      // Kemp and Kemp's search from the mode with one uniform, taking the
+      // values above and below it in turn, as Stata draws for a mean such
+      // as 12 or 15 draw for draw; for other means Stata's composition
+      // differs in some draws.
+      // The probabilities are built up from exp(-mean), one factor at a
+      // time, while that does not underflow.
+      const mode = Math.floor(mean),
+        lm = Math.log(mean),
+        table = [Math.exp(-mean)],
+        pmf =
+          mean < 700
+            ? (k) => {
+                while (table.length <= k)
+                  table.push((table.at(-1) * mean) / table.length);
+                return table[k];
+              }
+            : (k) => Math.exp(-mean + k * lm - lnfactorial(k));
+      return modalSearch(
+        (state.rng ??= new Generator(state.seed)).uniform(),
+        pmf,
+        mode,
+        Infinity,
+      );
     },
   },
   rbernoulli: {
@@ -702,7 +796,16 @@ export const FUNCTIONS = {
     args: [N],
     returns: S,
     state: true,
-    fn: (state, n) => state.match?.[whole(n)] ?? "",
+    // A group the last match does not have, or no match, gives "" and
+    // Stata's message, once for each observation.
+    fn: (state, n) => {
+      const k = whole(n);
+      if (!state.match || !(k >= 0 && k < state.match.length)) {
+        state.note?.("invalid number, outside of allowed range");
+        return "";
+      }
+      return state.match[k] ?? "";
+    },
   },
   regexr: {
     args: [S, S, S],
@@ -726,4 +829,20 @@ for (const [alias, name] of Object.entries({
 }))
   FUNCTIONS[alias] = FUNCTIONS[name];
 Object.assign(FUNCTIONS, DATETIME_FUNCTIONS, MORE_FUNCTIONS);
+// Names older Stata used, which Stata 19 still reads.
+Object.assign(FUNCTIONS, {
+  uniform: { ...FUNCTIONS.runiform, max: 0, counts: undefined },
+  invnorm: FUNCTIONS.invnormal,
+  normprob: FUNCTIONS.normal,
+  index: FUNCTIONS.strpos,
+  chiprob: FUNCTIONS.chi2tail,
+  fprob: FUNCTIONS.Ftail,
+  binorm: FUNCTIONS.binormal,
+  // tprob(df, t): the two-sided tail, 2*ttail(df, |t|).
+  tprob: {
+    args: [N, N],
+    returns: N,
+    fn: (df, t) => 2 * ttail(df, Math.abs(t)),
+  },
+});
 FUNCTIONS.bsubstr = FUNCTIONS.substr;
