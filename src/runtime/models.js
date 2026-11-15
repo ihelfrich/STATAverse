@@ -1869,6 +1869,34 @@ function hosmerLemeshow(p, y, weightAt, observations, group) {
   );
 }
 
+// The estat subcommands Stata takes after these models that the browser
+// lacks. Any other word, estat icc after xtlogit or regress among them, is
+// one Stata calls not valid there.
+const ESTAT_LACKING = {
+  regress: [
+    "dwatson",
+    "durbinalt",
+    "bgodfrey",
+    "archlm",
+    "szroeter",
+    "esize",
+    "sbcusum",
+    "sbknown",
+    "sbsingle",
+    "moran",
+  ],
+  anova: ["esize"],
+  ivregress: ["sbknown", "sbsingle"],
+  newey: ["sbknown", "sbsingle"],
+  prais: ["sbknown", "sbsingle"],
+  arima: ["aroots", "acplot"],
+};
+function lackingEstat(model, what) {
+  return (ESTAT_LACKING[model.command] ?? []).some(
+    (name) => what.length >= 2 && name.startsWith(what),
+  );
+}
+
 function estat(session, text, ctx) {
   const model = estimates(session),
     what = text.trim().split(/[\s,]/)[0];
@@ -1915,7 +1943,7 @@ function estat(session, text, ctx) {
     };
   } else if (what === "vif") {
     if (model.command !== "regress")
-      throw new StataError("estat vif is only available after regress", 301);
+      throw new StataError(`estat ${what} not valid`, 321);
     // Each variable's spread over the estimation sample, where a lag has
     // the rows its operator leaves.
     const s2 = model.rss / model.dfResidual,
@@ -2053,10 +2081,7 @@ function estat(session, text, ctx) {
     session.results.r = { chi2_d: deviance, chi2_p: pearson, df };
   } else if (what === "gof" || /^clas/.test(what)) {
     if (!model.family?.binary)
-      throw new StataError(
-        `estat ${what} is only available after logit and probit`,
-        321,
-      );
+      throw new StataError(`estat ${what} not valid`, 321);
     // Stata refuses the classification table after sampling and
     // importance weights, and the goodness-of-fit test after sampling
     // weights; after importance weights each observation counts as its
@@ -2264,7 +2289,12 @@ function estat(session, text, ctx) {
   } else if (ivDiagnostic(session, model, what, ctx)) {
     // Printed by the diagnostic.
   } else if (!regressDiagnostic(session, model, what, text, ctx))
-    throw new StataError(`estat ${what} is not available yet`, 321);
+    throw new StataError(
+      lackingEstat(model, what)
+        ? `estat ${what} is not available yet`
+        : `estat ${what} not valid`,
+      321,
+    );
 }
 
 function estimatesCommand(session, text, ctx) {

@@ -603,20 +603,24 @@ function margins(session, text, ctx) {
   // The effect of a continuous variable: f'(x'b) times the derivative of
   // x'b, which involves other variables when there are interactions.
   // Without a constant Stata takes f' and f'' numerically, stepping the
-  // first estimated coefficient (margins-chain.js); its effects and their
-  // standard errors carry that step's error, and so do these.
-  const chainColumn = chosen?.chain
-    ? model.names.findIndex(
-        (name, j) =>
-          !model.columns[j]?.base && model.estimable?.[j] !== false,
-      )
-    : -1;
+  // first estimated coefficient whose column is nowhere zero in the rows
+  // averaged (margins-chain.js); its effects and their standard errors
+  // carry that step's error, and so do these. With no such column the
+  // derivatives are analytic, as Stata's then are.
   const numericEffect = (fixed, variable) => {
+    const evaluated = rows.map((i) => row(i, fixed)),
+      chainColumn = model.names.findIndex(
+        (name, j) =>
+          !model.columns[j]?.base &&
+          model.estimable?.[j] !== false &&
+          evaluated.every((values) => values[j] !== 0),
+      );
+    if (chainColumn < 0) return analyticEffect(fixed, variable);
     const gradient = new Array(k).fill(0),
       shares = rows.map((_, r) => weightOf(r)),
       sum = shares.reduce((t, v) => t + v, 0),
       cases = rows.map((i, r) => {
-        const values = row(i, fixed);
+        const values = evaluated[r];
         return {
           i,
           values,
@@ -633,24 +637,16 @@ function margins(session, text, ctx) {
         };
       }),
       derivatives = chainDerivatives(cases, link, model.b[chainColumn]);
-    // Observations at x = 0 drop out, and the others' weights with them.
-    const kept = cases.reduce(
-      (t, c, n) => t + (derivatives[n] ? c.w : 0),
-      0,
-    );
     let value = 0,
       estimable = true;
     cases.forEach((c, n) => {
-      const found = derivatives[n];
-      if (!found) return;
-      const d = slopeRow(c.i, fixed, variable),
-        total = d.reduce((t, v, j) => t + v * model.b[j], 0),
-        part = c.w / kept;
-      value += found.slope * total * part;
+      const found = derivatives[n],
+        d = slopeRow(c.i, fixed, variable),
+        total = d.reduce((t, v, j) => t + v * model.b[j], 0);
+      value += found.slope * total * c.w;
       c.values.forEach(
         (v, j) =>
-          (gradient[j] +=
-            (found.curve * v * total + found.slope * d[j]) * part),
+          (gradient[j] += (found.curve * v * total + found.slope * d[j]) * c.w),
       );
       if (estimable && check) estimable = check(c.values);
     });
@@ -659,7 +655,7 @@ function margins(session, text, ctx) {
       : { value: 0, gradient: new Array(k).fill(0), estimable: false };
   };
   const effect = (fixed, variable) =>
-    chainColumn >= 0
+    chosen?.chain
       ? numericEffect(fixed, variable)
       : analyticEffect(fixed, variable);
   const analyticEffect = (fixed, variable) =>

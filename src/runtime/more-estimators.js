@@ -541,10 +541,7 @@ export function ivDiagnostic(session, model, what, ctx) {
         : null;
   if (!run) return false;
   if (model.command !== "ivregress")
-    throw new StataError(
-      `estat ${what} is only available after ivregress`,
-      301,
-    );
+    throw new StataError(`estat ${what} not valid`, 321);
   if (model.wtype)
     throw new StataError(
       `estat ${what} after a weighted ivregress is not available yet`,

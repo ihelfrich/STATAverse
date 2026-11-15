@@ -57,7 +57,13 @@ export function lrtest(session, text, ctx) {
   if (!names.length || names.length > 2)
     throw new StataError("lrtest takes one or two stored models", 198);
   if (names.length === 1) names.push(".");
-  const [a, b] = names.map((name) => entry(session, name).model);
+  const entries = names.map((name) => entry(session, name)),
+    [a, b] = entries.map((found) => found.model),
+    // e(cmd), which lrtest compares: clogit after xtlogit, fe.
+    cmdOf = (model) => {
+      const found = entries[model === a ? 0 : 1];
+      return found.e?.cmd ?? model.command;
+    };
   for (const model of [a, b])
     if (model.ll === undefined || isMissing(model.ll))
       throw new StataError(
@@ -113,11 +119,12 @@ export function lrtest(session, text, ctx) {
   }
   if (a.N !== b.N)
     throw new StataError("observations differ: " + a.N + " vs. " + b.N, 498);
-  // Models from different commands are not compared without force, as
-  // xtprobit (whose header gives the boundary test of rho) with probit.
-  if (a.command !== b.command && !/\bforce\b/.test(options ?? ""))
+  // Models from different commands (e(cmd)) are not compared without
+  // force, as xtprobit (whose header gives the boundary test of rho) with
+  // probit; the unrestricted model is named first.
+  if (cmdOf(large) !== cmdOf(small) && !/\bforce\b/.test(options ?? ""))
     throw new StataError(
-      `test involves different estimators: ${a.command} vs. ${b.command}`,
+      `test involves different estimators: ${cmdOf(large)} vs. ${cmdOf(small)}`,
       498,
     );
   const chi2 = 2 * (large.ll - small.ll),

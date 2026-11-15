@@ -28,6 +28,7 @@ import {
 } from "./estimation.js";
 import { perfectPrediction, recheckCollinearity } from "./models.js";
 import { count } from "./reports.js";
+import { panelOption } from "./panel.js";
 import { evaluateAll } from "./expression.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
@@ -1119,7 +1120,7 @@ function parseCommand(session, text, kind) {
         ? " NORmal GAmma EXPosure(varname) OFFset(varname)"
         : " | OFFset(varname)";
   return session.parse(
-    `anything [if] [in] [fweight pweight iweight aweight] [, RE FE PA noCONStant${eform} Level(cilevel) noLOg INTPoints(string) INTMethod(string) CORR(string) BASElevels ALLBASElevels Robust VCE(string) CLuster(string)${extra}${kind === "poisson" ? " |" : ""} noSKIP FROM(string) LRMODEL]`,
+    `anything [if] [in] [fweight pweight iweight aweight] [, RE FE PA noCONStant${eform} EForm Level(cilevel) noLOg INTPoints(string) INTMethod(string) CORR(string) BASElevels ALLBASElevels Robust VCE(string) CLuster(string) I(varname)${extra}${kind === "poisson" ? " |" : ""} noSKIP FROM(string) LRMODEL]`,
     text,
   );
 }
@@ -1141,6 +1142,8 @@ function replayed(session, text, ctx, command, eform) {
     `[, Level(cilevel)${eform ? ` ${eform}` : ""} BASElevels ALLBASElevels]`,
     text,
   );
+  // xtpoisson takes eform for irr, its replay too.
+  if (parsed.options.eform) parsed.options.irr = true;
   model.replay(ctx, parsed.options);
   return true;
 }
@@ -1153,13 +1156,24 @@ function xtCommand(kind) {
         text,
         ctx,
         MODELS[kind].command,
-        { logit: "OR", poisson: "IRr" }[kind],
+        { logit: "OR", poisson: "IRr EForm" }[kind],
       )
     )
       return;
     const parsed = parseCommand(session, text, kind),
       options = parsed.options,
       chosen = ["re", "fe", "pa"].filter((m) => options[m]);
+    // The old i(panelvar), which xtsets the data on it as _xt.ado does.
+    panelOption(session, options.i, ctx);
+    // eform: xtpoisson's irr; under pa xtgee's, the odds ratio of xtlogit
+    // and exp(b) of xtprobit. ml's display refuses it after the others.
+    if (options.eform) {
+      if (kind === "poisson") options.irr = true;
+      else if (!options.pa) throw new StataError("eform invalid", 198);
+      else if (options.or)
+        throw new StataError("option eform incorrectly specified", 198);
+      else if (kind === "logit") options.or = true;
+    }
     if (chosen.length > 1)
       throw new StataError("only one of re, fe, or pa is allowed", 198);
     if (options.fe && kind === "probit")
@@ -3118,7 +3132,8 @@ function populationAveraged(session, parsed, text, ctx, kind) {
     sample: f.sample,
     theta: b,
     cov,
-    eform: MODELS[kind].eform,
+    // xtprobit, pa shows exp(b) under eform.
+    eform: MODELS[kind].eform ?? ["eform", "exp(b)"],
     offset,
     gee,
     ...groups,
@@ -3179,7 +3194,7 @@ function populationAveraged(session, parsed, text, ctx, kind) {
       ctx.out(`(Std. err. adjusted for clustering on ${ivar})`.padStart(78));
     const eform = coefficientTable(session, ctx, result, f, options, [], []);
     // One equation, so only the note on the constant.
-    if (eform && constant)
+    if (eform && constant && kind !== "probit")
       wrapped(
         session,
         ctx,
@@ -3253,7 +3268,7 @@ function averagedMargins(model, kind) {
         offsetExpression:
           kind === "poisson"
             ? "Exponentiated linear prediction considering offset"
-            : `Pr(${model.depvar} != 0)`,
+            : `Pr(${model.depvar} != 0) considering offset`,
       },
       xb: {
         link: [(e) => e, () => 1, () => 0],
@@ -3300,9 +3315,11 @@ function choosePrediction(model, predictions, fallback, stated, text) {
           expression: chosen.offsetExpression ?? chosen.expression,
         }
       : {}),
-    // Without a constant margins' effects follow Stata's numerical chain
-    // rule (margins-chain.js); a linear prediction needs none.
-    chain: name !== "xb" && !chosen.aux && !model.names.includes("_cons"),
+    // After the fixed-effects models, which have no constant, margins'
+    // effects follow Stata's numerical chain rule (margins-chain.js); a
+    // linear prediction needs none. After noconstant with random or
+    // population-averaged effects Stata's are exact, as these are.
+    chain: model.xt === "fe" && name !== "xb" && !chosen.aux,
     text: rest,
     predict: found || stated ? `predict(${name})` : "predict()",
   };

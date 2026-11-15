@@ -85,7 +85,7 @@ export function sampleFrame(model, session) {
 
 function onlyRegress(model, what) {
   if (model.command !== "regress")
-    throw new StataError(`estat ${what} is only available after regress`, 301);
+    throw new StataError(`estat ${what} not valid`, 321);
 }
 
 function hettest(session, model, text, ctx) {

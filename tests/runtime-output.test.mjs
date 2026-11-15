@@ -193,6 +193,16 @@ for (const c of fixture.cases)
             "mixed-pass7-predict-checks",
             "mixed-pass7-estat-results",
             "mixed-pass7-margins-xtmixed-by",
+            "mixed-pass8-if-after-level",
+            "mixed-pass8-predict-notes",
+            // The panel models of the eighth pass, fitted by ml; margins
+            // after the fixed-effects models carries the error of Stata's
+            // numerical chain rule.
+            "xt-pass8-offset-margins",
+            "xt-pass8-lrtest-estimators",
+            "xt-pass8-old-panel-option",
+            "xt-pass8-eform",
+            "xt-pass8-fe-margins-chain",
             // teffects logs gmm's criterion, which is rounding noise near
             // zero; heckman's two-step variance carries the last digits of
             // the first-step probit.

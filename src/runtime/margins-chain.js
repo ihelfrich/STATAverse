@@ -1,7 +1,8 @@
-// margins' numerical chain rule, as Stata takes it for an equation without a
-// constant (xtlogit, fe; clogit; xtpoisson, fe). Stata finds the derivative
-// of each prediction in the linear index by stepping one coefficient, b_j,
-// and dividing the change by x_j. With a constant to step that derivative is
+// margins' numerical chain rule, as Stata takes it after the fixed-effects
+// models, whose equation has no constant (xtlogit, fe; clogit; xtpoisson,
+// fe). Stata finds the derivative of each prediction in the linear index by
+// stepping one coefficient, b_j, the first whose column is nowhere zero, and
+// dividing the change by x_j. With a constant to step that derivative is
 // exact to many digits, and margins here takes it analytically; without one
 // the step deriv() chooses can be large (the average prediction barely moves
 // when x_j is centred or the prediction saturates), and Stata's printed
@@ -70,8 +71,7 @@ export function searchStep(at, value, h) {
     if (dv) nflat = -20;
     else if (++nflat > 4) return { delta: 0 };
   }
-  if (!outside())
-    return { delta: step(scale), plus: at(step(scale)), minus };
+  if (!outside()) return { delta: step(scale), plus: at(step(scale)), minus };
   // The goal was not met: start again from the first scale, looking at
   // both sides of b.
   scale = scale0;
@@ -130,8 +130,8 @@ export function searchStep(at, value, h) {
  * coefficient j. rows: [{ index, x, w }] with index(delta) the linear index
  * at b_j + delta (summed afresh, as Stata's predict does), x the value of
  * column j and w the normalised weight; link is the prediction's mean and
- * its derivatives in the index. An observation with x = 0 has neither
- * (Stata divides by x).
+ * its derivatives in the index. Stata steps a coefficient whose column is
+ * nowhere zero, since it divides by x.
  *
  * Where the index moves by less than 1e-3 the second difference is mostly
  * rounding (a unit in the last place over delta^2 x^2), which in Stata
@@ -154,7 +154,6 @@ export function chainDerivatives(rows, link, bj) {
       (Math.abs(bj) + 1e-4) * 1e-4,
     );
   return rows.map((r, n) => {
-    if (r.x === 0) return null;
     if (!delta) return { slope: 0, curve: 0 };
     return {
       slope: (plus.values[n] - minus.values[n]) / (2 * delta) / r.x,

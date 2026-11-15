@@ -806,7 +806,8 @@ function structure(text) {
 function readCommand(session, text) {
   const parts = equations(text),
     [feHead, feOptions] = splitAtComma(parts[0]),
-    levels = [];
+    levels = [],
+    qualifiers = {};
   let globals = feOptions ?? "";
   const given = parts.slice(1).filter((part) => part.trim());
   given.forEach((part, k) => {
@@ -822,8 +823,25 @@ function readCommand(session, text) {
         "crossed random effects (_all:) are not available in the browser yet",
         "Nested levels, as || school: || class:, are.",
       );
-    const [varText, optionText] = splitAtComma(m[2]),
+    const [equationText, optionText] = splitAtComma(m[2]),
+      // An if or in qualifier may close any equation, as
+      // _mixed_parseifin allows; it restricts the whole sample.
+      at = /(^|\s)(if|in)(?=\s|$)/.exec(equationText),
+      varText = at ? equationText.slice(0, at.index) : equationText,
       words = varText.trim().split(/\s+/).filter(Boolean);
+    if (at) {
+      const found = session.parse("[if] [in]", equationText.slice(at.index));
+      if (found.if !== undefined) {
+        if (qualifiers.if !== undefined)
+          throw new StataError("multiple if conditions not allowed", 198);
+        qualifiers.if = found.if;
+      }
+      if (found.in !== undefined) {
+        if (qualifiers.in !== undefined)
+          throw new StataError("multiple in ranges not allowed", 198);
+        qualifiers.in = found.in;
+      }
+    }
     if (words.some((w) => /[.#()]/.test(w)))
       throw refuse(
         "factor variables in a random-effects equation are not available in the browser yet",
@@ -879,6 +897,16 @@ function readCommand(session, text) {
     `anything [if] [in] [fweight pweight] [, ${GLOBAL_OPTIONS}]`,
     globals.trim() ? `${feHead}, ${globals.trim()}` : feHead,
   );
+  if (qualifiers.if !== undefined) {
+    if (parsed.if !== undefined)
+      throw new StataError("multiple if conditions not allowed", 198);
+    parsed.if = qualifiers.if;
+  }
+  if (qualifiers.in !== undefined) {
+    if (parsed.in !== undefined)
+      throw new StataError("multiple in ranges not allowed", 198);
+    parsed.in = qualifiers.in;
+  }
   if (parsed.weight)
     throw refuse(
       "weights are not available with mixed in the browser yet",
@@ -2089,11 +2117,17 @@ function predictions(model) {
     lambdas = fit.lambdas,
     sigma2 = fit.sigma2,
     out = levels.map(() => new Map());
-  // The fixed effects taken as known: their block of S held at zero.
+  // Under ML the fixed effects are taken as known, their block of S held at
+  // zero; under REML Stata's standard errors carry their uncertainty too,
+  // Var(u - u_hat) with the fixed effects estimated.
   walkEffects(
     problem,
     fit.betaStar,
-    Array.from({ length: p }, () => new Array(p).fill(0)),
+    Array.from({ length: p }, (_, i) =>
+      Array.from({ length: p }, (_, j) =>
+        problem.reml ? fit.kept.Txxinv[i * p + j] : 0,
+      ),
+    ),
     (l, node, x, Saa) => {
       // Back to the effects' own scale: u = L x, Var = s^2 L S L'.
       const q = levels[l].q,
@@ -2236,7 +2270,23 @@ function mixedPredict(session, text, ctx) {
       `[, ${PREDICT_OPTIONS}]`,
       rest === null ? "" : `, ${rest}`,
     ).options,
-    effects = levels.reduce((t, l) => t + l.q, 0),
+    // relevel() names one level, whose effects alone reffects then makes.
+    levelAt = (typed) => {
+      const name = session.varlist(typed.trim())[0],
+        at = levels.findIndex((l) => l.name === name);
+      if (at < 0)
+        throw new StataError(
+          `${typed.trim()} is not a level variable in this model`,
+          198,
+        );
+      return at;
+    },
+    only =
+      first.relevel !== undefined && (first.reffects || first.reses)
+        ? levelAt(first.relevel)
+        : null,
+    effects =
+      only === null ? levels.reduce((t, l) => t + l.q, 0) : levels[only].q,
     many = first.reffects || first.reses ? effects : 1,
     parsed = session.parse(
       PREDICT,
@@ -2252,10 +2302,7 @@ function mixedPredict(session, text, ctx) {
     throw new StataError("only one statistic may be requested", 198);
   const what = chosen[0] ?? "xb";
   if (!chosen.length) ctx.out("(option xb assumed)");
-  const wanted =
-      what === "reffects" || what === "reses"
-        ? levels.reduce((t, l) => t + l.q, 0)
-        : 1,
+  const wanted = what === "reffects" || what === "reses" ? effects : 1,
     names = parsed.varlist;
   if (names.length > wanted)
     throw new StataError(
@@ -2279,18 +2326,24 @@ function mixedPredict(session, text, ctx) {
       );
   }
   let depth = levels.length;
-  if (options.relevel !== undefined) {
+  if (options.relevel !== undefined && only === null) {
     if (what !== "fitted" && what !== "residuals")
       throw new StataError("option relevel() not allowed", 198);
-    const name = session.varlist(options.relevel.trim())[0],
-      at = levels.findIndex((l) => l.name === name);
-    if (at < 0)
-      throw new StataError(
-        `${options.relevel.trim()} is not a level variable in this model`,
-        198,
-      );
-    depth = at + 1;
+    depth = levelAt(options.relevel) + 1;
   }
+  // After REML Stata's standard errors of a nested level's effects carry
+  // more than the uncertainty of the fixed effects, by a rule not yet
+  // matched here; the outermost level's are Stata's.
+  if (
+    (what === "reses" || errors) &&
+    problem.reml &&
+    levels.length > 1 &&
+    only !== 0
+  )
+    throw refuse(
+      "standard errors of the effects of nested levels after REML are not available in the browser yet",
+      `Fit by ML instead (omit reml), or ask for the outermost level's alone with relevel(${levels[0].name}).`,
+    );
   if (what !== "xb" && what !== "stdp") checkData(session, model);
   const data = session.data,
     blups = what === "xb" || what === "stdp" ? null : predictions(model),
@@ -2300,24 +2353,24 @@ function mixedPredict(session, text, ctx) {
       ? errors.varlist.map(() => new Array(data.n).fill(MISSING))
       : null;
   session.select(parsed, null, (i) => {
-    // The fixed part: a regressor missing leaves it missing.
+    // The fixed part: a regressor missing leaves it missing. Stata leaves
+    // the standard errors of reffects reses() missing there too, though
+    // not the effects, nor the standard errors reses makes alone.
+    const unfixed = model.columns.some(
+      (c) =>
+        c &&
+        (c.term.variables ?? [c.term.variable ?? c.term.factor]).some(
+          (v) => v && isMissing(v.data[i]),
+        ),
+    );
     if (
-      model.columns.some(
-        (c) =>
-          c &&
-          (c.term.variables ?? [c.term.variable ?? c.term.factor]).some(
-            (v) => v && isMissing(v.data[i]),
-          ),
-      )
-    ) {
-      if (
-        what === "xb" ||
+      unfixed &&
+      (what === "xb" ||
         what === "stdp" ||
         what === "fitted" ||
-        what === "residuals"
-      )
-        return;
-    }
+        what === "residuals")
+    )
+      return;
     const row = model.names.map((name, k) =>
         name === "_cons" ? 1 : model.columns[k].value(i),
       ),
@@ -2335,11 +2388,12 @@ function mixedPredict(session, text, ctx) {
     if (what === "reffects" || what === "reses") {
       let c = 0;
       levels.forEach((level, l) => {
+        if (only !== null && l !== only) return;
         const found = blups[l].get(keys[l]);
         for (let j = 0; j < level.q; j++, c++)
           if (found) {
             columns[c][i] = what === "reffects" ? found.u[j] : found.se[j];
-            if (seColumns) seColumns[c][i] = found.se[j];
+            if (seColumns && !unfixed) seColumns[c][i] = found.se[j];
           }
       });
       return;
@@ -2360,7 +2414,7 @@ function mixedPredict(session, text, ctx) {
     // relevel() names the level in the label.
     at = depth < levels.length ? `, level(${levels[depth - 1].name})` : "",
     effectLabels = (kind) =>
-      levels.flatMap((level) =>
+      (only === null ? levels : [levels[only]]).flatMap((level) =>
         level.names.map((name) =>
           kind === "reffects"
             ? `BLUP r.e. for ${level.name}: ${name}`
@@ -2392,14 +2446,14 @@ function mixedPredict(session, text, ctx) {
       data.get(name).label = texts[k];
     });
   data.sortedBy = sorted;
-  const missing = [...columns, ...(seColumns ?? [])].reduce(
-    (t, c) => t + c.filter((v) => isMissing(v)).length,
-    0,
-  );
-  if (missing)
-    ctx.out(
-      `(${count(missing)} missing value${missing === 1 ? "" : "s"} generated)`,
-    );
+  // A note for each new variable, as Stata gives it.
+  for (const column of [...columns, ...(seColumns ?? [])]) {
+    const missing = column.filter((v) => isMissing(v)).length;
+    if (missing)
+      ctx.out(
+        `(${count(missing)} missing value${missing === 1 ? "" : "s"} generated)`,
+      );
+  }
 }
 
 // ---------------------------------------------------------------------------
