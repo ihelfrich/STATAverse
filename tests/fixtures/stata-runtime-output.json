@@ -184878,6 +184878,341 @@
       ]
     },
     {
+      "id": "recheck-hints-fixes",
+      "source": "clear\ninput id t x1 x2 x3 str1 g w y female\n1 1 1 2 3 \"a\" 1 5 0\n1 2 2 3 4 \"b\" 1 8 1\n2 1 3 4 5 \"a\" 3 6 1\n2 2 4 5 6 \"b\" 4 9 0\nend\nlabel define fem 0 \"Male\" 1 \"Female\"\nlabel values female fem\ngenerate str6 city = cond(id == 1, \"Boston\", \"Austin\")\ncapture noisily summarize y if female==Female\nsummarize y if female==1\ncapture noisily tabulate t if city=Boston\ntabulate t if city == \"Boston\"\ncapture noisily count if g == \"a\" | \"b\"\ncount if g == \"a\" | g == \"b\"\ncount if inlist(g, \"a\", \"b\")\ncapture noisily count if g == .\ncount if missing(g)\ncapture noisily replace g = 5 in 1\nreplace g = \"5\" in 1\ncapture noisily generate m = mean(x1)\negen m = mean(x1)\ncapture noisily summarize x1-x5\nsummarize x1-x3\ncapture noisily count if x1 > 1 and x2 < 5\ncount if x1 > 1 & x2 < 5\nlabel define yn 0 \"No\" 1 \"Yes\"\ncapture noisily label define yn 0 \"No\"\nlabel define yn 0 \"No\", replace\nlabel list yn\ncapture noisily rename x1 x2\ncapture noisily generate y2 = log(x1))\ncapture noisily generate y2 = log((x1)\nquietly regress y x1 x2\ncapture noisily test x3\ncapture noisily test x11\ntest x1\ncapture noisily estat bogus\ncapture noisily regress y x1, vce(robsut)\nregress y x1, vce(robust)\ncapture noisily list x1 in 1/10\ncapture noisily generate _n = 1\ncapture noisily encode x1, generate(e1)\ndrop g\ncapture noisily reshape wide y x1 x2, i(id) j(t)\nreshape wide y x1 x2 x3 w female, i(id) j(t)\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id t x1 x2 x3 str1 g w y female",
+          "lines": [
+            "            id          t         x1         x2         x3          g          w          y     female",
+            "  1. 1 1 1 2 3 \"a\" 1 5 0",
+            "  2. 1 2 2 3 4 \"b\" 1 8 1",
+            "  3. 2 1 3 4 5 \"a\" 3 6 1",
+            "  4. 2 2 4 5 6 \"b\" 4 9 0",
+            "  5. end"
+          ]
+        },
+        { "command": "label define fem 0 \"Male\" 1 \"Female\"", "lines": [] },
+        { "command": "label values female fem", "lines": [] },
+        {
+          "command": "generate str6 city = cond(id == 1, \"Boston\", \"Austin\")",
+          "lines": []
+        },
+        {
+          "command": "capture noisily summarize y if female==Female",
+          "lines": ["Female not found"]
+        },
+        {
+          "command": "summarize y if female==1",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           y |          2           7    1.414214          6          8"
+          ]
+        },
+        {
+          "command": "capture noisily tabulate t if city=Boston",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "tabulate t if city == \"Boston\"",
+          "lines": [
+            "          t |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |          1       50.00       50.00",
+            "          2 |          1       50.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          2      100.00"
+          ]
+        },
+        {
+          "command": "capture noisily count if g == \"a\" | \"b\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "count if g == \"a\" | g == \"b\"", "lines": ["  4"] },
+        { "command": "count if inlist(g, \"a\", \"b\")", "lines": ["  4"] },
+        {
+          "command": "capture noisily count if g == .",
+          "lines": ["type mismatch"]
+        },
+        { "command": "count if missing(g)", "lines": ["  0"] },
+        {
+          "command": "capture noisily replace g = 5 in 1",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "replace g = \"5\" in 1",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "capture noisily generate m = mean(x1)",
+          "lines": ["unknown function mean()"]
+        },
+        { "command": "egen m = mean(x1)", "lines": [] },
+        {
+          "command": "capture noisily summarize x1-x5",
+          "lines": ["variable x5 not found"]
+        },
+        {
+          "command": "summarize x1-x3",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          x1 |          4         2.5    1.290994          1          4",
+            "          x2 |          4         3.5    1.290994          2          5",
+            "          x3 |          4         4.5    1.290994          3          6"
+          ]
+        },
+        {
+          "command": "capture noisily count if x1 > 1 and x2 < 5",
+          "lines": ["invalid 'and'"]
+        },
+        { "command": "count if x1 > 1 & x2 < 5", "lines": ["  2"] },
+        { "command": "label define yn 0 \"No\" 1 \"Yes\"", "lines": [] },
+        {
+          "command": "capture noisily label define yn 0 \"No\"",
+          "lines": ["label yn already defined"]
+        },
+        { "command": "label define yn 0 \"No\", replace", "lines": [] },
+        { "command": "label list yn", "lines": ["yn:", "           0 No"] },
+        {
+          "command": "capture noisily rename x1 x2",
+          "lines": ["variable x2 already defined"]
+        },
+        {
+          "command": "capture noisily generate y2 = log(x1))",
+          "lines": ["too many ')' or ']'"]
+        },
+        {
+          "command": "capture noisily generate y2 = log((x1)",
+          "lines": ["too few ')' or ']'"]
+        },
+        { "command": "quietly regress y x1 x2", "lines": [] },
+        { "command": "capture noisily test x3", "lines": ["x3 not found"] },
+        { "command": "capture noisily test x11", "lines": ["x11 not found"] },
+        {
+          "command": "test x1",
+          "lines": [
+            " ( 1)  x1 = 0",
+            "",
+            "       F(  1,     2) =    2.00",
+            "            Prob > F =    0.2929"
+          ]
+        },
+        {
+          "command": "capture noisily estat bogus",
+          "lines": ["estat bogus not valid"]
+        },
+        {
+          "command": "capture noisily regress y x1, vce(robsut)",
+          "lines": ["vcetype robsut not allowed"]
+        },
+        {
+          "command": "regress y x1, vce(robust)",
+          "lines": [
+            "Linear regression                               Number of obs     =          4",
+            "                                                F(1, 2)           =       5.56",
+            "                                                Prob > F          =     0.1425",
+            "                                                R-squared         =     0.5000",
+            "                                                Root MSE          =     1.5811",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |          1   .4242641     2.36   0.143     -.825461    2.825461",
+            "       _cons |        4.5   1.322876     3.40   0.077    -1.191875    10.19187",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily list x1 in 1/10",
+          "lines": ["observation numbers out of range"]
+        },
+        {
+          "command": "capture noisily generate _n = 1",
+          "lines": ["_n invalid varname"]
+        },
+        {
+          "command": "capture noisily encode x1, generate(e1)",
+          "lines": ["not possible with numeric variable"]
+        },
+        { "command": "drop g", "lines": [] },
+        {
+          "command": "capture noisily reshape wide y x1 x2, i(id) j(t)",
+          "lines": [
+            "(j = 1 2)",
+            "variable x3 not constant within id",
+            "variable w not constant within id",
+            "variable female not constant within id",
+            "    Your data are currently long. You are performing a reshape wide. You typed something like",
+            "",
+            "        . reshape wide a b, i(id) j(t)",
+            "",
+            "    There are variables other than a, b, id, t in your data. They must be constant within id because that is the only way they can fit into wide data without loss of information.",
+            "",
+            "    The variable or variables listed above are not constant within id. Perhaps the values are in error. Type reshape error for a list of the problem observations.",
+            "",
+            "    Either that, or the values vary because they should vary, in which case you must either add the variables to the list of xij variables to be reshaped, or drop them."
+          ]
+        },
+        {
+          "command": "reshape wide y x1 x2 x3 w female, i(id) j(t)",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Long   ->   Wide",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                4   ->   2",
+            "Number of variables                  10   ->   15",
+            "j variable (2 values)                 t   ->   (dropped)",
+            "xij variables:",
+            "                                      y   ->   y1 y2",
+            "                                     x1   ->   x11 x12",
+            "                                     x2   ->   x21 x22",
+            "                                     x3   ->   x31 x32",
+            "                                      w   ->   w1 w2",
+            "                                 female   ->   female1 female2",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------------------------------------------------------------------+",
+            "     | id   x11   x21   x31   w1   y1   female1   x12   x22   x32   w2   y2   female2     city     m |",
+            "     |-----------------------------------------------------------------------------------------------|",
+            "  1. |  1     1     2     3    1    5      Male     2     3     4    1    8    Female   Boston   2.5 |",
+            "  2. |  2     3     4     5    3    6    Female     4     5     6    4    9      Male   Austin   2.5 |",
+            "     +-----------------------------------------------------------------------------------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-hints-messages",
+      "source": "clear\ninput id t v income\n1 1 1 50\n1 1 2 .\n2 1 3 70\n2 2 -1 .\nend\ncapture noisily xtset id t\ncapture noisily regress income i.v\ncapture noisily isid id\ncount if income > 60\ncount if income > 60 & !missing(income)\ngenerate z = income/2\nsave hintsfile, replace\ncapture noisily save hintsfile\nsave hintsfile, replace\ncapture noisily use data/hintsfile.dta, clear\nuse hintsfile.dta, clear\ncapture noisily merge 1:1 id using hintsfile\ncapture noisily merge m:1 id t using hintsfile\ncapture noisily xtreg income v\ncapture noisily program drop nosuchprog\ncapture noisily matrix list nosuchmat\ncapture noisily display _b[v]\nclear\ninput str3 id y\n\"1\" 5\nend\nsave hintsusing, replace\nclear\ninput id k\n1 2\nend\ncapture noisily merge 1:1 k using hintsusing\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id t v income",
+          "lines": [
+            "            id          t          v     income",
+            "  1. 1 1 1 50",
+            "  2. 1 1 2 .",
+            "  3. 2 1 3 70",
+            "  4. 2 2 -1 .",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "capture noisily xtset id t",
+          "lines": ["repeated time values within panel"]
+        },
+        {
+          "command": "capture noisily regress income i.v",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =         2",
+            "-------------+----------------------------------   F(1, 0)         =         .",
+            "       Model |         200         1         200   Prob > F        =         .",
+            "    Residual |           0         0           .   R-squared       =    1.0000",
+            "-------------+----------------------------------   Adj R-squared   =         .",
+            "       Total |         200         1         200   Root MSE        =         0",
+            "",
+            "------------------------------------------------------------------------------",
+            "      income | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         3.v |         20          .        .       .            .           .",
+            "       _cons |         50          .        .       .            .           .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily isid id",
+          "lines": ["variable id does not uniquely identify the observations"]
+        },
+        { "command": "count if income > 60", "lines": ["  3"] },
+        {
+          "command": "count if income > 60 & !missing(income)",
+          "lines": ["  1"]
+        },
+        {
+          "command": "generate z = income/2",
+          "lines": ["(2 missing values generated)"]
+        },
+        {
+          "command": "save hintsfile, replace",
+          "lines": [
+            "(file hintsfile.dta not found)",
+            "file hintsfile.dta saved"
+          ]
+        },
+        {
+          "command": "capture noisily save hintsfile",
+          "lines": ["file hintsfile.dta already exists"]
+        },
+        {
+          "command": "save hintsfile, replace",
+          "lines": ["file hintsfile.dta saved"]
+        },
+        {
+          "command": "capture noisily use data/hintsfile.dta, clear",
+          "lines": ["file data/hintsfile.dta not found"]
+        },
+        { "command": "use hintsfile.dta, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using hintsfile",
+          "lines": [
+            "variable id does not uniquely identify observations in the master data"
+          ]
+        },
+        {
+          "command": "capture noisily merge m:1 id t using hintsfile",
+          "lines": [
+            "variables id t do not uniquely identify observations in the using data"
+          ]
+        },
+        {
+          "command": "capture noisily xtreg income v",
+          "lines": ["must specify panelvar; use xtset"]
+        },
+        {
+          "command": "capture noisily program drop nosuchprog",
+          "lines": ["program nosuchprog not found"]
+        },
+        {
+          "command": "capture noisily matrix list nosuchmat",
+          "lines": ["matrix nosuchmat not found"]
+        },
+        {
+          "command": "capture noisily display _b[v]",
+          "lines": ["[v] not found"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str3 id y",
+          "lines": ["            id          y", "  1. \"1\" 5", "  2. end"]
+        },
+        {
+          "command": "save hintsusing, replace",
+          "lines": [
+            "(file hintsusing.dta not found)",
+            "file hintsusing.dta saved"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id k",
+          "lines": ["            id          k", "  1. 1 2", "  2. end"]
+        },
+        {
+          "command": "capture noisily merge 1:1 k using hintsusing",
+          "lines": ["variable k not found"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

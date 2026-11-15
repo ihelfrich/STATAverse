@@ -14,6 +14,7 @@ import { echoOf, fileEcho } from "./runtime/echo.js";
 import { parseBlocks, splitCommands } from "./runtime/dofile.js";
 import { createLogs, isLogMark } from "./console-log.js";
 import { changed } from "./runtime/data-commands.js";
+import { coefficientSpace, stripeName } from "./runtime/estimation.js";
 
 /**
  * What ends a run that is put back after Stop at the point where Stop
@@ -341,6 +342,8 @@ export function createConsoleSession() {
       // keeps what it printed; and while one runs, what its inner commands
       // have printed so far, with how many commands have finished.
       let top = null,
+        // How many commands deep the run is: 0 between its own commands.
+        depth = 0,
         sent = 0,
         pending = [],
         told = 0,
@@ -433,19 +436,30 @@ export function createConsoleSession() {
         // A run put back after Stop ends before the first command that had
         // not finished, wherever it stands.
         stop();
+        // Before a command of the run itself (not one inside a do-file or
+        // a loop) runs: whether its if counts missing values, as x > 60
+        // does, for the note under it.
+        if (!depth) this.overMissing = overMissing(this, args[0]);
+        depth++;
         try {
           return Session.prototype.dispatch.apply(this, args);
         } catch (error) {
           this.failure = error;
+          // The line as it was read, its macros expanded, for the hints.
+          this.failedText = args[0];
           stopping = error;
           throw error;
+        } finally {
+          depth--;
         }
       };
       session.record = function (...args) {
         Session.prototype.record.apply(this, args);
         const entry = args[0].at(-1),
-          failure = this.failure;
+          failure = this.failure,
+          failedText = this.failedText;
         this.failure = null;
+        this.failedText = null;
         sized([entry]);
         // A log command's lines end here, even when capture or quietly kept
         // them out of Results.
@@ -455,9 +469,25 @@ export function createConsoleSession() {
           if (!args[3]) entry.opened = this.opened;
           this.opened = null;
         }
-        // The options a command takes, when one it lacks was given.
-        if (args[3] && failure?.code === args[3] && failure.allowed)
-          entry.allowed = failure.allowed;
+        // The options a command takes, when one it lacks was given; the
+        // hint the runtime gave with the error, as what is not available
+        // in the browser and what to do instead; and the line as it was
+        // read, when its macros made it differ from the line as typed.
+        if (args[3] && failure?.code === args[3]) {
+          if (failure.allowed) entry.allowed = failure.allowed;
+          if (failure.hint) entry.hint = failure.hint;
+          if (
+            typeof failedText === "string" &&
+            failedText.trim() !== String(args[1]).trim()
+          )
+            entry.expanded = failedText.trim();
+        }
+        // A > or >= in an if that also counts missing values.
+        if (args[0] === top) {
+          if (!args[3] && this.overMissing)
+            entry.overMissing = this.overMissing;
+          this.overMissing = null;
+        }
         commands++;
         // In the worker, where Stop can end any run, a run is not cut short
         // after a fixed number of commands: a long loop runs to its end.
@@ -521,6 +551,8 @@ export function createConsoleSession() {
         delete session.record;
         delete session.dispatch;
         session.failure = null;
+        session.failedText = null;
+        session.overMissing = null;
         stamp++;
       }
       const { output, rc } = ran;
@@ -549,6 +581,16 @@ export function createConsoleSession() {
       // its error, so that only they are shown as one; what the command or
       // loop printed before it is shown as ordinary output.
       const stopped = output.findLast((block) => block.rc);
+      // A loop or block that stopped is recorded whole: the hint the
+      // runtime gave with the error that stopped it is kept with it.
+      if (
+        stopped &&
+        stopped.hint === undefined &&
+        stopping instanceof StataError &&
+        stopping.code === stopped.rc &&
+        stopping.hint
+      )
+        stopped.hint = stopping.hint;
       if (stopped && stopped.fault === undefined) {
         // The message's own lines, as logit's "outcome does not vary;
         // remember:" and the two lines under it, when the record ends so.
@@ -575,6 +617,12 @@ export function createConsoleSession() {
       for (const block of output)
         if (block.rc === 109 || block.rc === 2000)
           block.strings = stringContents(session, block);
+      // The last model, for what test, lincom or estat said of it.
+      for (const block of output)
+        if ([111, 321].includes(block.rc)) {
+          const model = lastModel(session);
+          if (model) block.model = model;
+        }
       // A byte that is not UTF-8 (text from an old file, or cut out of a
       // character) is shown as U+FFFD, where Stata prints the raw byte.
       for (const block of output)
@@ -611,6 +659,57 @@ export function createConsoleSession() {
       return { output, rc, made, written, memory: memory() };
     },
   };
+}
+
+/**
+ * The last model: the command that fitted it and the names of its
+ * coefficients, as e(b) has them; null when there is none.
+ */
+function lastModel(session) {
+  const model = session.estimates;
+  if (!model) return null;
+  const command = model.shownFit?.command ?? model.command ?? "";
+  try {
+    return {
+      command,
+      coefficients: coefficientSpace(model).entries.map(stripeName),
+    };
+  } catch {
+    return { command, coefficients: [] };
+  }
+}
+
+/**
+ * Of a command that ran with if x > # or x >= #, where x is a numeric
+ * variable with missing values and the condition does not leave them out:
+ * { name, count, condition }, or null. Stata takes a missing value to be
+ * larger than any number, so the condition is true of them.
+ */
+function overMissing(session, command) {
+  const text = String(command ?? "");
+  // What quietly or capture runs is not shown, and needs no note.
+  if (/^\s*(?:qui|cap)/.test(text)) return null;
+  const condition = /(?:^|\s)if\s+(.*?)(?:,|\s+in\s|$)/.exec(text)?.[1];
+  if (!condition || /\b(?:missing|mi)\(|<\s*\.|!=\s*\.|~=\s*\./.test(condition))
+    return null;
+  const compared =
+    /(?:^|[^\w.])([A-Za-z_]\w*)\s*(>=?)\s*(-?(?:\d+\.?\d*|\.\d+))(?![\w.])/.exec(
+      condition,
+    );
+  if (!compared) return null;
+  const variable = session.data.variables.find(
+    (each) => each.name === compared[1],
+  );
+  if (!variable || /^str/.test(variable.type)) return null;
+  let count = 0;
+  for (const value of variable.data) if (isMissing(value)) count++;
+  return count
+    ? {
+        name: variable.name,
+        count,
+        condition: `${compared[1]} ${compared[2]} ${compared[3]}`,
+      }
+    : null;
 }
 
 // Entries that mean "no value" in files from other programs: destring with

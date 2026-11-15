@@ -504,17 +504,22 @@ window.addEventListener("resize", () => {
 function place() {
   if (!source.offsetParent) return;
   if (!metrics) measure();
-  const put = (node, line) => {
+  const put = (node, line, span = 1) => {
     node.hidden = !line;
     if (!line) return;
-    node.style.height = `${metrics.line}px`;
+    node.style.height = `${metrics.line * span}px`;
     node.style.transform = `translateY(${metrics.top + (line - 1) * metrics.line - source.scrollTop}px)`;
   };
-  let stopped = 0;
+  let stopped = 0,
+    span = 1;
   for (const [line, mark] of marksOf())
-    if (mark.state === "error") stopped = line;
+    if (mark.state === "error") {
+      stopped = line;
+      span = mark.span ?? 1;
+    }
   put(band, caret);
-  put(fault, stopped);
+  // A command continued with /// is marked on all its lines.
+  put(fault, stopped, span);
   put(ghost, Number(ghost.dataset.line) || 0);
   band.classList.toggle("has-result", linked.length > 0);
 }
@@ -916,12 +921,21 @@ function focusSoon(element, tries = 20) {
   if (document.activeElement !== element && tries > 0)
     setTimeout(() => focusSoon(element, tries - 1), 30);
 }
-/** The plain hint under a failed command, with its help and a fix. */
+/** What the hints know of the session: names, value labels and files. */
+const hintContext = () => ({
+  commands: KNOWN,
+  variables: memoryNow.variables,
+  labels: memoryNow.labels ?? {},
+  files: memoryNow.files ?? [],
+  observations: memoryNow.observations,
+});
+/**
+ * The plain hint under a command, with its help and a fix: under one that
+ * failed, what went wrong; under one that ran, a note when its result
+ * often surprises.
+ */
 function hintNode(record) {
-  const advice = adviseRecord(record, {
-    commands: KNOWN,
-    variables: memoryNow.variables,
-  });
+  const advice = adviseRecord(record, hintContext());
   if (!advice) return null;
   const hint = document.createElement("span"),
     label = document.createElement("strong");
@@ -1076,10 +1090,8 @@ function recordNode(record) {
     lines.style.setProperty("--rows", Math.min(record.lines.length, 14));
     block.append(lines);
   }
-  if (record.rc) {
-    const hint = hintNode(record);
-    if (hint) block.append(hint);
-  }
+  const hint = hintNode(record);
+  if (hint) block.append(hint);
   // help shows this site's entry for the command, and Stata's own help;
   // a topic that is not a command, such as datetime, links to Stata's
   // help for it, and help alone to its contents.
@@ -1155,7 +1167,15 @@ function show(records, origin, more = false) {
         fresh.set(line, mark);
         set.set(line, mark);
       }
-      if (record.rc) mark.state = "error";
+      if (record.rc) {
+        mark.state = "error";
+        // The lines a /// continues the command onto, echoed with >.
+        const continued = (record.echo ?? []).findIndex(
+          (line) => !line.startsWith(">"),
+        );
+        mark.span =
+          1 + (continued < 0 ? (record.echo?.length ?? 0) : continued);
+      }
       mark.blocks.push(block);
       block.mark = mark;
       block.file = origin.file;
@@ -1457,15 +1477,7 @@ function finish(rc, commands, started, output = []) {
   status.dataset.state = rc ? "error" : "done";
   if (rc) {
     const last = output.findLast((record) => record.rc);
-    fox.failed(
-      rc,
-      last
-        ? adviseRecord(last, {
-            commands: KNOWN,
-            variables: memoryNow.variables,
-          })?.text
-        : undefined,
-    );
+    fox.failed(rc, last ? adviseRecord(last, hintContext())?.text : undefined);
   } else fox.done();
   // On a narrow screen the results are below the editor; go to them.
   if (!mapping && window.matchMedia("(max-width: 900px)").matches)
