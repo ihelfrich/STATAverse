@@ -52,13 +52,26 @@ function seriesOf(name) {
 }
 
 export function lrtest(session, text, ctx) {
-  const [head, options] = splitAtComma(text),
+  const [typed, options] = splitAtComma(text),
+    // A single name in parentheses is that model; ParseSpecTest unwraps it.
+    head = typed.replace(/\(\s*([A-Za-z_.][\w.]*)\s*\)/g, " $1 "),
     names = head.trim().split(/\s+/).filter(Boolean);
+  if (/[()*?]/.test(head))
+    throw new StataError(
+      "composite models and name patterns in lrtest are not available in the browser yet",
+      198,
+      "Name one stored model, or two, each by its full name.",
+    );
   if (!names.length || names.length > 2)
     throw new StataError("lrtest takes one or two stored models", 198);
   if (names.length === 1) names.push(".");
   const entries = names.map((name) => entry(session, name)),
-    [a, b] = entries.map((found) => found.model);
+    [a, b] = entries.map((found) => found.model),
+    // e(cmd), which lrtest compares: clogit after xtlogit, fe.
+    cmdOf = (model) => {
+      const found = entries[model === a ? 0 : 1];
+      return found.e?.cmd ?? model.command;
+    };
   for (const model of [a, b])
     if (model.ll === undefined || isMissing(model.ll))
       throw new StataError(
@@ -75,54 +88,75 @@ export function lrtest(session, text, ctx) {
       "LR test likely invalid for models with robust VCE",
       498,
     );
-  // mixed is compared only with mixed, and a REML fit only with one of the
-  // same fixed effects.
-  const mixed = [a, b].filter((model) => model.command === "mixed").length;
-  if (mixed === 1 && !/\bforce\b/.test(options ?? ""))
-    throw new StataError(
-      `test involves different estimators: ${a.command} vs. ${b.command}`,
-      498,
-    );
-  const reml = mixed === 2 && (a.reml || b.reml);
-  const [small, large] = a.rank <= b.rank ? [a, b] : [b, a],
+  const force = /\bforce\b/.test(options ?? ""),
+    [small, large] = a.rank <= b.rank ? [a, b] : [b, a],
     df = large.rank - small.rank;
   if (!df)
     throw new StataError(
       "df(unrestricted) = df(restricted) = " + large.rank,
       498,
     );
-  // Any two estimators, as streg's distributions (ereg, weibull), are
-  // compared only with force, once their degrees of freedom differ; e(cmd) names them, the larger model first.
-  const cmdOf = (model) =>
-    entries.find((found) => found.model === model)?.e?.cmd ?? model.command;
-  if (cmdOf(a) !== cmdOf(b) && !/\bforce\b/.test(options ?? ""))
+  // As lrtest.ado: when the current estimates are mixed's, the larger
+  // model must contain the smaller's fixed effects, standard deviations and
+  // correlations (a model not mixed has none of these counts, a missing
+  // value, which is larger than any), and the two be fitted by the same
+  // method; the boundary note is given when the random-effects standard
+  // deviations differ in number.
+  let boundary = false,
+    reml = false;
+  if (session.estimates?.command === "mixed" && !force) {
+    const count = (model, key) =>
+        model.command === "mixed" ? model[key] : Infinity,
+      method = (model) =>
+        model.command === "mixed" ? (model.reml ? "REML" : "ML") : "";
+    if (
+      ["k_f", "k_rc", "k_rs"].some(
+        (key) => count(large, key) < count(small, key),
+      )
+    )
+      throw new StataError("mixed models are not nested", 498);
+    if (method(large) !== method(small))
+      throw new StataError("cannot compare a REML model with an ML model", 498);
+    if (method(large) === "REML") {
+      if (count(large, "k_f") !== count(small, "k_f"))
+        throw new StataError(
+          "REML criterion is not comparable under different fixed-effects specifications",
+          498,
+        );
+      reml = true;
+    }
+    boundary = count(large, "k_rs") !== count(small, "k_rs");
+  }
+  if (a.N !== b.N)
+    throw new StataError("observations differ: " + a.N + " vs. " + b.N, 498);
+  // Models from different commands (e(cmd)) are not compared without
+  // force, as xtprobit (whose header gives the boundary test of rho) with
+  // probit, nor models of different dependent variables; the unrestricted
+  // model is named first.
+  if (cmdOf(large) !== cmdOf(small) && !force)
     throw new StataError(
       `test involves different estimators: ${cmdOf(large)} vs. ${cmdOf(small)}`,
       498,
     );
-  // As Stata's lrtest after mixed: the larger model must contain the
-  // smaller's fixed effects, standard deviations and correlations, and the
-  // two be fitted by the same method; the boundary note is given when the
-  // random-effects standard deviations differ in number.
-  let boundary = false;
-  if (mixed === 2 && !/\bforce\b/.test(options ?? "")) {
-    if (
-      large.k_f < small.k_f ||
-      large.k_rc < small.k_rc ||
-      large.k_rs < small.k_rs
-    )
-      throw new StataError("mixed models are not nested", 498);
-    if (a.reml !== b.reml)
-      throw new StataError("cannot compare a REML model with an ML model", 498);
-    if (reml && a.k_f !== b.k_f)
-      throw new StataError(
-        "REML criterion is not comparable under different fixed-effects specifications",
-        498,
-      );
-    boundary = large.k_rs !== small.k_rs;
-  }
-  if (a.N !== b.N)
-    throw new StataError("observations differ: " + a.N + " vs. " + b.N, 498);
+  const depvarOf = (model) => {
+    const found = entries[model === a ? 0 : 1];
+    return String(found.e?.depvar ?? model.depvar ?? "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+  };
+  const [largeDepvar, smallDepvar] = [depvarOf(large), depvarOf(small)];
+  if (
+    !force &&
+    largeDepvar.length &&
+    smallDepvar.length &&
+    (largeDepvar.length !== smallDepvar.length ||
+      largeDepvar.some((name) => !smallDepvar.includes(name)))
+  )
+    throw new StataError(
+      `dependent variables differ: ${largeDepvar.join(" ")} vs. ${smallDepvar.join(" ")}`,
+      498,
+    );
   const chi2 = 2 * (large.ll - small.ll),
     p = chi2tail(df, chi2),
     shown = (model) =>

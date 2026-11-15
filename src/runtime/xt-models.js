@@ -23,11 +23,13 @@ import { density, invnormal, normal } from "./functions-normal.js";
 import {
   abbreviate,
   baseLevelsAsked,
+  design,
   invertSymmetric,
   tableWidth,
 } from "./estimation.js";
 import { perfectPrediction, recheckCollinearity } from "./models.js";
 import { count } from "./reports.js";
+import { panelOption, parseWithPanel, unknownOption } from "./panel.js";
 import { evaluateAll } from "./expression.js";
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
@@ -57,6 +59,8 @@ const g = (value, format = "%9.0g") =>
 const reldif = (a, b) => Math.abs(a - b) / (Math.abs(b) + 1);
 const noLog = (text) => /\bnol(o(g)?)?\b/.test(splitAtComma(text)[1] ?? "");
 const LN_SQRT_2PI = 0.5 * Math.log(2 * Math.PI);
+// c(maxdouble): the largest double Stata holds, just below missing.
+const MAX_DOUBLE = 2 ** 1023 - 2 ** 970;
 
 /**
  * ln(n!) to the last bit while n! is finite; for an outcome that is not a
@@ -858,6 +862,27 @@ function quadratureModel(
     for (let j = 0; j < points; j++) total += Math.exp(a[j] - top);
     return top + Math.log(total);
   }
+  // The mode of panel q's posterior for its effect, by Newton's method, and
+  // the spread its curvature gives; null if it cannot be found.
+  function posteriorMode(q, xb, sigma) {
+    let v = 0;
+    for (let step = 0; step < 200; step++) {
+      let gradient = -v / (sigma * sigma),
+        curvature = 1 / (sigma * sigma);
+      for (const r of panels[q]) {
+        term(y[r], xb[r] + v, out, lnFact[r]);
+        gradient += out[1];
+        curvature += out[2];
+      }
+      if (!(Number.isFinite(gradient) && curvature > 0)) return null;
+      // Steps of at most one prior sd keep the exponential in hand.
+      const move = Math.max(-sigma, Math.min(sigma, gradient / curvature));
+      v += move;
+      if (Math.abs(move) <= 1e-10 * (1 + Math.abs(v)))
+        return { mode: v, spread: 1 / Math.sqrt(curvature) };
+    }
+    return null;
+  }
   // Moves panel q's nodes to the posterior mean and spread of its effect.
   function adapt(q, xb, sigma) {
     // Nodes that have lost the posterior altogether, as when sigma_u falls
@@ -876,8 +901,12 @@ function quadratureModel(
       if (!(Number.isFinite(m1) && Number.isFinite(L) && s > 0)) {
         if (reset) return;
         reset = true;
-        centre[q] = 0;
-        spread[q] = sigma;
+        // The posterior lies beyond every node, as for a panel with many
+        // events when sigma_u is large: start again from its mode and
+        // curvature, whence the moments converge.
+        const found = posteriorMode(q, xb, sigma);
+        centre[q] = found ? found.mode : 0;
+        spread[q] = found ? found.spread : sigma;
         continue;
       }
       const settled =
@@ -969,13 +998,41 @@ function quadratureModel(
     }
     return { value, gradient, information };
   }
-  /** The log likelihood with ordinary quadrature, as the search uses. */
+  /**
+   * The log likelihood with ordinary quadrature, as the search uses. For
+   * xtpoisson Stata scales each panel's terms by its likelihood at u = 0,
+   * logF, and holds exp(term - logF) at its largest double, 2^1023: where
+   * sigma_u is large the nodes of a panel with many events exceed it, and
+   * the search's log likelihood is lower than the integral's (_GetRho).
+   */
   function plain(theta) {
     const xb = index(theta),
       sigma = Math.exp(theta[k] / 2);
     let total = 0;
-    for (let q = 0; q < G; q++)
-      total += (weights ? weights[q] : 1) * nodes(q, xb, sigma, 0, sigma);
+    for (let q = 0; q < G; q++) {
+      let L = nodes(q, xb, sigma, 0, sigma);
+      if (kind === "poisson") {
+        const at = (v) => {
+          let l = 0;
+          for (const r of panels[q]) {
+            term(y[r], xb[r] + v, out, lnFact[r]);
+            l += out[0];
+          }
+          return l;
+        };
+        const logF = at(0);
+        let sum = 0;
+        for (let j = 0; j < points; j++)
+          sum +=
+            rule.w[j] *
+            Math.min(
+              Math.exp(at(Math.SQRT2 * sigma * rule.x[j]) - logF),
+              MAX_DOUBLE,
+            );
+        if (sum > 0) L = logF + Math.log(sum / Math.sqrt(Math.PI));
+      }
+      total += (weights ? weights[q] : 1) * L;
+    }
     return total;
   }
   return { evaluate, plain, index };
@@ -1063,8 +1120,11 @@ function parseCommand(session, text, kind) {
       kind === "poisson"
         ? " NORmal GAmma EXPosure(varname) OFFset(varname)"
         : " | OFFset(varname)";
-  return session.parse(
-    `anything [if] [in] [fweight pweight iweight aweight] [, RE FE PA noCONStant${eform} Level(cilevel) noLOg INTPoints(string) INTMethod(string) CORR(string) BASElevels ALLBASElevels Robust VCE(string) CLuster(string)${extra}${kind === "poisson" ? " |" : ""} noSKIP FROM(string) LRMODEL]`,
+  // After the bar, besides the model's own, are ml's maximize and display
+  // options, which Stata takes and the browser does not yet.
+  return parseWithPanel(
+    session,
+    `anything [if] [in] [fweight pweight iweight aweight] [, RE FE PA noCONStant${eform} EForm Level(cilevel) noLOg INTPoints(string) INTMethod(string) CORR(string) BASElevels ALLBASElevels Robust VCE(string) CLuster(string) I(varname)${extra}${kind === "poisson" ? " |" : ""} noSKIP FROM(string) LRMODEL ITERate(string) TOLerance(string) LTOLerance(string) NRTOLerance(string) NONRTOLerance DIFficult TECHnique(string) TRace GRADient SHOWSTEP HESSian SHOWTOLerance COEFLegend CFORMAT(string) PFORMAT(string) SFORMAT(string) noLSTRETCH]`,
     text,
   );
 }
@@ -1082,10 +1142,18 @@ function replayed(session, text, ctx, command, eform) {
     (command === "clogit" && model?.kind === "clogit");
   if (!model?.replay || !shown)
     throw new StataError("last estimates not found", 301);
+  // xtgee's replay of a pa model takes eform too.
+  const allowed = [eform, model.xt === "pa" ? "EForm" : ""]
+    .filter(Boolean)
+    .join(" ");
   const parsed = session.parse(
-    `[, Level(cilevel)${eform ? ` ${eform}` : ""} BASElevels ALLBASElevels]`,
+    `[, Level(cilevel)${allowed ? ` ${allowed}` : ""} BASElevels ALLBASElevels]`,
     text,
   );
+  // eform is xtpoisson's irr and, under pa, xtlogit's odds ratio; after
+  // xtprobit, pa it is exp(b).
+  if (parsed.options.eform && model.eform?.[0] !== "eform")
+    parsed.options[model.eform?.[0] ?? "irr"] = true;
   model.replay(ctx, parsed.options);
   return true;
 }
@@ -1098,7 +1166,7 @@ function xtCommand(kind) {
         text,
         ctx,
         MODELS[kind].command,
-        { logit: "OR", poisson: "IRr" }[kind],
+        { logit: "OR", poisson: "IRr EForm" }[kind],
       )
     )
       return;
@@ -1107,6 +1175,22 @@ function xtCommand(kind) {
       chosen = ["re", "fe", "pa"].filter((m) => options[m]);
     if (chosen.length > 1)
       throw new StataError("only one of re, fe, or pa is allowed", 198);
+    // The old i(panelvar), which xtsets the data on it as _xt.ado does,
+    // after the ado-file has checked its varlist. An option it does not
+    // know is met only then: ml calls it invalid, xtgee and xtpoisson's
+    // syntax not allowed.
+    if (options.i) design(session, parsed.anything, [], true);
+    panelOption(session, options.i, ctx);
+    unknownOption(parsed, kind !== "poisson" && !options.pa);
+    // eform: xtpoisson's irr; under pa xtgee's, the odds ratio of xtlogit
+    // and exp(b) of xtprobit. ml's display refuses it after the others.
+    if (options.eform) {
+      if (kind === "poisson") options.irr = true;
+      else if (!options.pa) throw new StataError("eform invalid", 198);
+      else if (options.or)
+        throw new StataError("option eform incorrectly specified", 198);
+      else if (kind === "logit") options.or = true;
+    }
     if (options.fe && kind === "probit")
       throw new StataError("fixed-effects model not available", 198);
     if (options.pa) return populationAveraged(session, parsed, text, ctx, kind);
@@ -1394,6 +1478,9 @@ function normalEffects(session, parsed, text, ctx, kind) {
     ...groups,
   };
   result.predictor = (s, t, c) => predictRandom(s, t, c, result, kind);
+  // After these, fitted by quadrature, Stata's margins takes its effects
+  // analytically, not by the chain rule it uses after the other xt models.
+  result.analyticMargins = true;
   result.margins = marginsSpec(result, kind, "re");
   session.estimates = result;
   session.results.e = {
@@ -3063,7 +3150,8 @@ function populationAveraged(session, parsed, text, ctx, kind) {
     sample: f.sample,
     theta: b,
     cov,
-    eform: MODELS[kind].eform,
+    // xtprobit, pa shows exp(b) under eform.
+    eform: MODELS[kind].eform ?? ["eform", "exp(b)"],
     offset,
     gee,
     ...groups,
@@ -3124,7 +3212,7 @@ function populationAveraged(session, parsed, text, ctx, kind) {
       ctx.out(`(Std. err. adjusted for clustering on ${ivar})`.padStart(78));
     const eform = coefficientTable(session, ctx, result, f, options, [], []);
     // One equation, so only the note on the constant.
-    if (eform && constant)
+    if (eform && constant && kind !== "probit")
       wrapped(
         session,
         ctx,
@@ -3195,6 +3283,10 @@ function averagedMargins(model, kind) {
           kind === "poisson"
             ? "Exponentiated linear prediction"
             : `Pr(${model.depvar} != 0)`,
+        offsetExpression:
+          kind === "poisson"
+            ? "Exponentiated linear prediction considering offset"
+            : `Pr(${model.depvar} != 0) considering offset`,
       },
       xb: {
         link: [(e) => e, () => 1, () => 0],
@@ -3230,8 +3322,23 @@ function choosePrediction(model, predictions, fallback, stated, text) {
       `prediction ${name}() is not available with margins after ${model.command}${model.xt ? `, ${model.xt}` : ""}; ${names.join(", ")} ${names.length > 1 ? "are" : "is"}`,
       198,
     );
+  const offset = model.offset;
   return {
     ...chosen,
+    // Every prediction margins takes here includes the offset, as predict's
+    // do; the pa mean says so in its Expression line.
+    ...(offset
+      ? {
+          offset: (i) => offset.value(i),
+          expression: chosen.offsetExpression ?? chosen.expression,
+        }
+      : {}),
+    // margins' effects follow Stata's numerical chain rule
+    // (margins-chain.js), which steps the constant or, without one (the
+    // fixed-effects models, noconstant), the first coefficient whose
+    // column is nowhere zero; a linear prediction needs none, and nor do
+    // the models fitted by quadrature, whose effects Stata takes exactly.
+    chain: !model.analyticMargins && name !== "xb" && !chosen.aux,
     text: rest,
     predict: found || stated ? `predict(${name})` : "predict()",
   };

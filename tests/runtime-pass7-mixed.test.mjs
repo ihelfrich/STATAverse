@@ -289,6 +289,10 @@ quietly regress y x
 estimates store d`).rc,
     0,
   );
+  // lrtest.ado makes its mixed checks, and gives its notes, only when the
+  // current estimates are mixed's.
+  assert.equal(s.run("lrtest a b").rc, 0);
+  assert.equal(s.run("estimates restore c").rc, 0);
   const failed = s.run("lrtest a b");
   assert.equal(failed.rc, 498);
   assert.match(

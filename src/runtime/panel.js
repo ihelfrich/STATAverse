@@ -420,14 +420,19 @@ function ols(columns, y, w = null) {
 }
 
 function xtreg(session, text, ctx) {
+  const parsed = parseWithPanel(
+    session,
+    "anything [if] [in] [aweight fweight pweight iweight] [, FE RE BE Robust VCE(string) Level(cilevel) THeta I(varname) | MLE PA SA]",
+    text,
+  );
+  // xtreg.ado checks its varlist before _xt xtsets the data on i().
+  if (parsed.options.i) design(session, parsed.anything, [], true);
+  panelOption(session, parsed.options.i, ctx);
+  unknownOption(parsed);
   const panel = session.panel;
   // _xt.ado's message.
   if (!panel?.id) throw new StataError("must specify panelvar; use xtset", 459);
-  const parsed = session.parse(
-      "anything [if] [in] [aweight fweight pweight iweight] [, FE RE BE Robust VCE(string) Level(cilevel) THeta | MLE PA SA]",
-      text,
-    ),
-    options = parsed.options,
+  const options = parsed.options,
     data = session.data,
     id = data.get(panel.id).data,
     wtype = parsed.weight?.type ?? null;
@@ -1208,32 +1213,69 @@ function operatedColumn(session, operators, values) {
   return column;
 }
 
+/**
+ * The old i(varname) option, as _xt.ado takes it: the data are xtset on the
+ * variable named, with the time variable when that still works, and a
+ * warning when it replaces another panel variable.
+ */
+export function panelOption(session, typed, ctx) {
+  if (!typed) return;
+  const name = session.varlist(typed)[0],
+    before = session.panel,
+    quiet = { ...ctx, out: () => {} };
+  if (before?.id === name) return;
+  if (before?.id) ctx.out(`warning: existing panel variable is not ${name}`);
+  try {
+    // _xt.ado keeps the time variable and its delta.
+    const delta = before?.delta ?? 1;
+    xtset(
+      session,
+      before?.time
+        ? `${name} ${before.time}${delta === 1 ? "" : `, delta(${delta})`}`
+        : name,
+      quiet,
+    );
+  } catch (error) {
+    if (!(error instanceof StataError)) throw error;
+    xtset(session, name, quiet);
+  }
+}
+
+/**
+ * Parses a command that takes i(): an option it does not know is held
+ * back, as the ado-file passes it on with * and meets it only after _xt
+ * has xtset the data on i(). unknownOption throws it then.
+ */
+export function parseWithPanel(session, schema, text) {
+  try {
+    return session.parse(schema, text);
+  } catch (error) {
+    if (!(error instanceof StataError) || !error.allowed) throw error;
+    const loose = session.parse(schema.replace(/\]\s*$/, " *]"), text);
+    loose.unknown = error;
+    return loose;
+  }
+}
+
+/**
+ * The option held back by parseWithPanel, if any. invalid gives ml's
+ * "word invalid", which xtlogit and xtprobit print, in place of syntax's
+ * message.
+ */
+export function unknownOption(parsed, invalid = false) {
+  if (!parsed.unknown) return;
+  if (invalid) throw new StataError(`${parsed.options["*"][0]} invalid`, 198);
+  throw parsed.unknown;
+}
+
 // xtsum follows xtsum.ado: each statistic in %9.0g, N and n in %8.0f, and
 // T or T-bar in %8.0g. A string variable gets a row of missing values.
 function xtsum(session, text, ctx) {
   const parsed = session.parse("[anything] [if] [in] [, I(varname)]", text),
-    data = session.data;
-  // i() names the panel variable, as _xt.ado takes it: the data are xtset
-  // on it, with the time variable when that still works.
-  if (parsed.options.i) {
-    const name = session.varlist(parsed.options.i)[0],
-      before = session.panel,
-      quiet = { ...ctx, out: () => {} };
-    if (before?.id && before.id !== name)
-      ctx.out(`warning: existing panel variable is not ${name}`);
-    try {
-      xtset(session, before?.time ? `${name} ${before.time}` : name, quiet);
-    } catch (error) {
-      if (!(error instanceof StataError)) throw error;
-      xtset(session, name, quiet);
-    }
-  }
-  const panel = session.panel;
-  if (!panel?.id) throw new StataError("must specify panelvar; use xtset", 459);
-  const id = data.get(panel.id).data,
-    time = panel.time ? data.get(panel.time).data : null,
+    data = session.data,
     // Each entry is a variable or, as varlist(ts) allows, a time-series
-    // operator applied to one, such as L.w or D2.w.
+    // operator applied to one, such as L.w or D2.w. xtsum.ado checks them
+    // before _xt xtsets the data on i().
     entries = (
       parsed.anything.trim() ? parsed.anything.trim().split(/\s+/) : ["_all"]
     ).flatMap((word) => {
@@ -1258,7 +1300,12 @@ function xtsum(session, text, ctx) {
           operator: true,
         };
       });
-    }),
+    });
+  panelOption(session, parsed.options.i, ctx);
+  const panel = session.panel;
+  if (!panel?.id) throw new StataError("must specify panelvar; use xtset", 459);
+  const id = data.get(panel.id).data,
+    time = panel.time ? data.get(panel.time).data : null,
     group = ctx.group ? { groups: [ctx.group] } : null,
     marked = new Set(session.rows(parsed, group)),
     // The panels in the order sort ivar tvar puts them, each with its rows.

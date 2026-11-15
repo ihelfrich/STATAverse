@@ -14,6 +14,7 @@ import { MISSING, isMissing } from "./values.js";
 import { outcomeMargins } from "./outcome-margins.js";
 import { zColumn } from "./models.js";
 import { contrastTables, distribution } from "./contrast.js";
+import { chainDerivatives } from "./margins-chain.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 // For each link: the mean, its derivative and second derivative in x'b.
@@ -451,7 +452,10 @@ function margins(session, text, ctx) {
   if (chosen) text = chosen.text;
   const link = chosen?.link ?? linkOf(model),
     aux = chosen?.aux ?? null,
-    V = chosen?.V ?? model.V;
+    V = chosen?.V ?? model.V,
+    // An offset or exposure enters each observation's linear prediction at
+    // its own value, whatever at() and atmeans fix, as in Stata.
+    shift = chosen?.offset ?? null;
   if (!link || !model.sample)
     throw new StataError(
       `margins is not available after ${model.command} yet`,
@@ -464,19 +468,33 @@ function margins(session, text, ctx) {
     );
   const [mean, slope, curve] = link,
     parsed = session.parse(
-      "[anything] [, DYdx(string) AT(string) ATMeans OVER(varlist) Level(cilevel) VSQuish noATLegend | noSE POST EYex(string) DYex(string) EYdx(string) PWcompare CONTrast VCE(string) PRedict(string) EXPression(string)]",
+      "[anything] [if] [in] [, DYdx(string) AT(string) ATMeans OVER(varlist) Level(cilevel) VSQuish noATLegend | noSE POST EYex(string) DYex(string) EYdx(string) PWcompare CONTrast VCE(string) PRedict(string) EXPression(string)]",
       text,
     ),
     options = parsed.options,
     level = options.level,
-    rows = model.sample,
-    // Frequency weights count as that many observations.
-    n = model.wtype === "fweight" ? model.N : rows.length,
+    // if and in take the margins over part of the estimation sample.
+    qualified =
+      parsed.if !== undefined || parsed.in !== undefined
+        ? new Set(session.rows(parsed, null))
+        : null,
+    rows = qualified
+      ? model.sample.filter((i) => qualified.has(i))
+      : model.sample,
+    // Each observation's place in the sample, for its weight.
+    position = new Map(model.sample.map((i, r) => [i, r])),
     // Weights, one per row of the sample, weight every average.
     weightOf = model.weights ? (r) => model.weights[r] : () => 1,
-    total = model.weights ? model.weights.reduce((t, v) => t + v, 0) : n,
-    // Each observation's place in the sample, for its weight.
-    position = new Map(rows.map((i, r) => [i, r])),
+    // Frequency weights count as that many observations.
+    n =
+      model.wtype === "fweight"
+        ? qualified
+          ? rows.reduce((t, i) => t + weightOf(position.get(i)), 0)
+          : model.N
+        : rows.length,
+    total = model.weights
+      ? rows.reduce((t, i) => t + weightOf(position.get(i)), 0)
+      : n,
     k = model.names.length + (aux ? 1 : 0),
     // Every variable that enters the model, in order of first appearance.
     variables = [
@@ -507,14 +525,15 @@ function margins(session, text, ctx) {
       name === "_cons"
         ? 1
         : rows.reduce(
-            (t, i, r) => t + weightOf(r) * model.columns[j].value(i),
+            (t, i) => t + weightOf(position.get(i)) * model.columns[j].value(i),
             0,
           ) / total,
     ),
     variableMeans = new Map(
       variables.map((v) => [
         v.name,
-        rows.reduce((t, i, r) => t + weightOf(r) * v.data[i], 0) / total,
+        rows.reduce((t, i) => t + weightOf(position.get(i)) * v.data[i], 0) /
+          total,
       ]),
     );
   // When the fit omitted a coefficient or left a level with no
@@ -522,7 +541,7 @@ function margins(session, text, ctx) {
   // the design is not a combination of the rows in the estimation sample.
   // The design's null space, over every column (base levels included),
   // tells which; Stata checks each observation's row as margins does.
-  const check = estimability(model, rows);
+  const check = estimability(model, model.sample);
   // Values of the variables for observation i under a set of fixed values.
   // fixed: Map of variable name to a value, or "mean". Stata holds a fixed
   // value, a mean included, in float precision.
@@ -595,7 +614,7 @@ function margins(session, text, ctx) {
       sum = subset.reduce((t, i) => t + share(i), 0);
     for (const i of subset) {
       const r = row(i, fixed),
-        [v, dv] = each(r, xb(r), i),
+        [v, dv] = each(r, xb(r) + (shift ? shift(i) : 0), i),
         part = share(i) / sum;
       value += v * part;
       dv.forEach((d, j) => (gradient[j] += d * part));
@@ -605,8 +624,14 @@ function margins(session, text, ctx) {
       ? { value, gradient }
       : { value: 0, gradient: new Array(k).fill(0), estimable: false };
   };
-  const prediction = (fixed, subset) =>
-    average(
+  // Set when Stata's chain rule finds the prediction does not move as its
+  // coefficient is stepped, as where every prediction is saturated at
+  // one: Stata warns, and an effect is shown as omitted.
+  let constantPrediction = false;
+  const prediction = (fixed, subset) => {
+    if (chosen?.chain && chainOf(fixed, subset)?.flat)
+      constantPrediction = true;
+    return average(
       fixed,
       (r, e) => [
         mean(e),
@@ -614,9 +639,83 @@ function margins(session, text, ctx) {
       ],
       subset,
     );
+  };
   // The effect of a continuous variable: f'(x'b) times the derivative of
   // x'b, which involves other variables when there are interactions.
+  // Where the model asks for it (chosen.chain) Stata takes f' and f''
+  // numerically, stepping the constant or, without one, the first
+  // estimated coefficient whose column is nowhere zero in the rows
+  // averaged (margins-chain.js); its effects and their standard errors
+  // carry that step's error, and so do these. With no such column the
+  // derivatives are analytic, as Stata's then are.
+  const chainOf = (fixed, subset = rows) => {
+    const evaluated = subset.map((i) => row(i, fixed)),
+      constant = model.names.findIndex(
+        (name, j) => name === "_cons" && model.estimable?.[j] !== false,
+      ),
+      chainColumn =
+        constant >= 0
+          ? constant
+          : model.names.findIndex(
+              (name, j) =>
+                !model.columns[j]?.base &&
+                model.estimable?.[j] !== false &&
+                evaluated.every((values) => values[j] !== 0),
+            );
+    if (chainColumn < 0) return null;
+    const shares = subset.map((i) => weightOf(position.get(i))),
+      sum = shares.reduce((t, v) => t + v, 0),
+      cases = subset.map((i, r) => {
+        const values = evaluated[r];
+        return {
+          i,
+          values,
+          // The index at b_j + delta, summed afresh as Stata's predict
+          // does, so that its rounding is Stata's.
+          index: (delta) =>
+            values.reduce(
+              (t, v, j) =>
+                t + v * (j === chainColumn ? model.b[j] + delta : model.b[j]),
+              0,
+            ) + (shift ? shift(i) : 0),
+          x: values[chainColumn],
+          w: shares[r] / sum,
+        };
+      }),
+      derivatives = chainDerivatives(cases, link, model.b[chainColumn]);
+    return { cases, derivatives, flat: derivatives.flat };
+  };
+  const numericEffect = (fixed, variable) => {
+    const chain = chainOf(fixed);
+    if (!chain) return analyticEffect(fixed, variable);
+    const { cases, derivatives } = chain,
+      gradient = new Array(k).fill(0);
+    if (chain.flat) {
+      constantPrediction = true;
+      return { value: 0, gradient, omitted: true };
+    }
+    let value = 0,
+      estimable = true;
+    cases.forEach((c, n) => {
+      const found = derivatives[n],
+        d = slopeRow(c.i, fixed, variable),
+        total = d.reduce((t, v, j) => t + v * model.b[j], 0);
+      value += found.slope * total * c.w;
+      c.values.forEach(
+        (v, j) =>
+          (gradient[j] += (found.curve * v * total + found.slope * d[j]) * c.w),
+      );
+      if (estimable && check) estimable = check(c.values);
+    });
+    return estimable
+      ? { value, gradient }
+      : { value: 0, gradient: new Array(k).fill(0), estimable: false };
+  };
   const effect = (fixed, variable) =>
+    chosen?.chain
+      ? numericEffect(fixed, variable)
+      : analyticEffect(fixed, variable);
+  const analyticEffect = (fixed, variable) =>
     average(fixed, (r, e, i) => {
       const d = slopeRow(i, fixed, variable),
         total = d.reduce((t, v, j) => t + v * model.b[j], 0);
@@ -1220,6 +1319,8 @@ function margins(session, text, ctx) {
       ctx.out(
         `note: ${count(outside)} observation${outside === 1 ? "" : "s"} omitted because of missing values in over() variable${overNames.length > 1 ? "s" : ""}.`,
       );
+    if (constantPrediction)
+      ctx.out("warning: prediction constant over observations.");
     ctx.out("");
     // Number of obs ends at column 78, however wide the count; beside a
     // subpopulation both labels are as wide and the counts aligned.
