@@ -1,8 +1,21 @@
 // Smaller data-management commands: _pctile, pctile, cumul, mvdecode,
 // mvencode, separate, split, insobs, fillin, lookfor and describe.
-import { StataError } from "./errors.js";
+import { StataError, errorLine } from "./errors.js";
 import { greatest } from "./extremes.js";
-import { count, percentile } from "./reports.js";
+import {
+  accurateSum,
+  count,
+  percentile,
+  weightedPercentile,
+  weightedRows,
+} from "./reports.js";
+import { evaluateAll } from "./expression.js";
+import {
+  assumedWeights,
+  genericWeight,
+  optionItems,
+  splitAtComma,
+} from "./syntax.js";
 import { abbreviateVariable, displayInColumns } from "./utilities.js";
 import { abbreviate } from "./estimation.js";
 import { applyFormat } from "./format.js";
@@ -22,8 +35,6 @@ import {
 } from "./values.js";
 
 const plural = (n, word) => `${count(n)} ${word}${n === 1 ? "" : "s"}`;
-const numericValues = (variable, rows) =>
-  rows.map((i) => variable.data[i]).filter((v) => !isMissing(v));
 function numeric(session, name) {
   const variable = session.data.get(name);
   if (isStringType(variable.type))
@@ -47,65 +58,204 @@ function keepingOrder(session, fn) {
   session.data.sortedBy = order;
 }
 
-function pctileScalar(session, text) {
-  const parsed = session.parse(
-      "varname [if] [in] [, Percentiles(numlist) Nquantiles(integer 2)]",
-      text,
-    ),
-    sorted = numericValues(
-      numeric(session, parsed.varlist[0]),
-      session.rows(parsed, null),
-    ).sort((a, b) => a - b),
-    points =
-      parsed.options.percentiles ??
-      Array.from(
-        { length: parsed.options.nquantiles - 1 },
-        (_, k) => (100 * (k + 1)) / parsed.options.nquantiles,
-      );
-  session.results.r = Object.fromEntries(
-    points.map((p, k) => [`r${k + 1}`, percentile(sorted, p)]),
+// ----- _pctile, pctile and the quantiles xtile uses -----
+
+/**
+ * The percentiles _pctile finds of [value, weight] pairs sorted by value.
+ * By default each is the value at p percent of the total weight, or the
+ * mean of it and the next value when the cumulated weight reaches that
+ * point exactly; with no weights (every weight 1) that is Stata's usual
+ * percentile. Under altdef, which takes no weights, each is interpolated
+ * at position (n + 1)p/100 and held at the first or last value beyond it.
+ */
+export function quantilesOf(
+  pairs,
+  points,
+  { weighted = false, altdef = false } = {},
+) {
+  const n = pairs.length,
+    sorted = pairs.map(([value]) => value);
+  if (altdef)
+    return points.map((p) => {
+      const position = ((n + 1) * p) / 100,
+        i = Math.floor(position);
+      if (i < 1) return sorted[0];
+      if (i >= n) return sorted[n - 1];
+      // Weighted as (1 - h) x(i) + h x(i+1), which Stata's last digits
+      // follow.
+      const h = position - i;
+      return (1 - h) * sorted[i - 1] + h * sorted[i];
+    });
+  if (!weighted) return points.map((p) => percentile(sorted, p));
+  const total = accurateSum(pairs, ([, w]) => w);
+  return points.map((p) => weightedPercentile(pairs, total, p));
+}
+
+/**
+ * The observations _pctile, pctile and xtile work with, as Stata's mark
+ * picks them: those that if and in select and whose weight is neither
+ * missing nor zero, with the weights (null without weights). A negative
+ * weight, or a fractional frequency weight, is an error.
+ */
+export function weightedSample(session, parsed) {
+  return weightedRows(session, parsed, session.rows(parsed, null), {
+    expand: false,
+  });
+}
+
+/** [value, weight] pairs of the rows with a value, sorted by value. */
+export function valuePairs(values, rows, weights) {
+  return rows
+    .filter((i) => !isMissing(values[i]))
+    .map((i) => [values[i], weights ? weights[i] : 1])
+    .sort((a, b) => a[0] - b[0]);
+}
+
+/** The name an option was typed as, as Stata's messages repeat it. */
+export function typedOption(text, full, minimum) {
+  const items = optionItems(splitAtComma(text)[1] ?? "");
+  return (
+    items.find(({ name }) => name.length >= minimum && full.startsWith(name))
+      ?.name ?? full
   );
 }
 
-function pctile(session, text) {
-  const m =
-    /^\s*((?:byte|int|long|float|double)\s+)?([A-Za-z_]\w*)\s*=\s*([^,]+?)(\s+(?:if|in)\s[^,]*)?(,[\s\S]*)?$/.exec(
-      text,
-    );
-  if (!m) throw new StataError("invalid syntax", 198);
+/** nquantiles(#) read as an integer, refused as Stata's syntax refuses it. */
+function wholeNumber(argument, typed) {
+  const text = argument.trim();
+  if (!/^[+-]?\d+$/.test(text))
+    throw new StataError(`option ${typed}() incorrectly specified`, 198);
+  return Number(text);
+}
+
+const evenly = (nq) =>
+  Array.from({ length: nq - 1 }, (_, k) => (100 * (k + 1)) / nq);
+
+/**
+ * _pctile varname [weight] [if] [in] [, nquantiles(#) | percentiles(numlist)
+ * altdef]: the percentiles in r(r1), r(r2), ... A refused option leaves r()
+ * as it was; finding no observations (a string variable has none) clears
+ * it, and is not an error.
+ */
+function pctileScalar(session, text, ctx) {
   const parsed = session.parse(
-      "[if] [in] [, Nquantiles(integer 2) GENp(name)]",
-      `${m[4] ?? ""}${m[5] ?? ""}`,
+      "varname [if] [in] [aweight fweight pweight iweight] [, Nquantiles(string) Percentiles(numlist) ALTdef]",
+      text,
     ),
+    options = parsed.options;
+  if (parsed.weight && genericWeight(text))
+    ctx.out(assumedWeights(parsed.weight.type));
+  if (options.nquantiles !== undefined && options.percentiles)
+    throw new StataError(
+      `option ${typedOption(text, "nquantiles", 1)}() not allowed`,
+      198,
+    );
+  let points = options.percentiles;
+  if (points) {
+    if (points.some((p) => !(p > 0 && p < 100)))
+      throw new StataError("percentiles must be between 0 and 100", 198);
+    if (points.some((p, k) => k && p < points[k - 1]))
+      throw new StataError("percentiles() must be in ascending order", 198);
+  } else {
+    const nq =
+      options.nquantiles === undefined
+        ? 2
+        : wholeNumber(options.nquantiles, typedOption(text, "nquantiles", 1));
+    if (nq < 2 || nq > 4097)
+      throw new StataError("nquantiles must be between 2 and 4097", 198);
+    points = evenly(nq);
+  }
+  if (options.altdef && parsed.weight)
+    throw new StataError("option altdef not allowed", 198);
+  const variable = session.data.get(parsed.varlist[0]),
+    { rows, weights } = weightedSample(session, parsed),
+    // A string variable has no values to take percentiles of.
+    pairs = isStringType(variable.type)
+      ? []
+      : valuePairs(variable.data, rows, weights);
+  // _pctile says so and stops, but returns 0, with r() cleared.
+  if (!pairs.length) {
+    session.results.r = {};
+    ctx.out(errorLine(session, "no observations"));
+    return;
+  }
+  const found = quantilesOf(pairs, points, {
+    weighted: Boolean(weights),
+    altdef: options.altdef,
+  });
+  session.results.r = Object.fromEntries(
+    found.map((value, k) => [`r${k + 1}`, value]),
+  );
+}
+
+/**
+ * pctile newvar = exp [weight] [if] [in] [, nquantiles(#) genp(newvar)
+ * altdef]: the quantiles in the first observations of a new variable, as
+ * pctile.ado makes them with _pctile. genp() holds the percentages; its
+ * label names the temporary variable pctile.ado labels it with, which is
+ * the third temporary name of the program (after its sort marker and
+ * touse), counted on from those the caller holds.
+ */
+function pctile(session, text, ctx) {
+  const parsed = session.parse(
+      "newvarname =exp [if] [in] [aweight fweight pweight] [, Nquantiles(string) ALTdef Genp(string)]",
+      text,
+    ),
+    options = parsed.options,
     data = session.data,
-    compiled = session.compile(m[3]),
-    env = { start: 0, count: data.n, sums: [] },
-    sorted = session
-      .rows(parsed, null)
-      .map((i) => compiled.evaluate(i, env))
-      .filter((v) => !isMissing(v))
-      .sort((a, b) => a - b),
-    nq = parsed.options.nquantiles;
+    name = parsed.varlist[0];
+  if (parsed.weight && genericWeight(text))
+    ctx.out(assumedWeights(parsed.weight.type));
+  const nq =
+    options.nquantiles === undefined
+      ? 2
+      : wholeNumber(options.nquantiles, typedOption(text, "nquantiles", 1));
+  if (parsed.weight && options.altdef)
+    throw new StataError("altdef option cannot be used with weights", 198);
+  if (nq < 2)
+    throw new StataError(
+      "nquantiles() must be greater than or equal to 2",
+      198,
+    );
   if (nq > data.n + 1)
     throw new StataError(
       "nquantiles() must be less than or equal to number of observations plus one",
       198,
     );
-  const points = Array.from({ length: nq - 1 }, (_, k) => (100 * (k + 1)) / nq),
+  const percentages = (options.genp ?? "").trim().split(/\s+/).filter(Boolean);
+  for (const percentage of percentages) newName(session, percentage);
+  if (percentages.length > 1)
+    throw new StataError("only one variable allowed in genp()", 198);
+  const compiled = session.compile(parsed.exp);
+  if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
+  const { rows, weights } = weightedSample(session, parsed),
+    pairs = valuePairs(evaluateAll(compiled, data.n), rows, weights);
+  // pctile.ado's count, and then _pctile, leave their results in r().
+  if (!pairs.length) {
+    session.results.r = { N: 0 };
+    throw new StataError("no observations", 2000);
+  }
+  const points = evenly(nq),
+    found = quantilesOf(pairs, points, {
+      weighted: Boolean(weights),
+      altdef: options.altdef,
+    }),
     fill = (list) =>
       Array.from({ length: data.n }, (_, i) =>
         i < list.length ? list[i] : MISSING,
-      );
+      ),
+    held = `__${String(session.temporary + 2).padStart(6, "0")}`;
+  session.results.r = Object.fromEntries(
+    found.map((value, k) => [`r${k + 1}`, value]),
+  );
   keepingOrder(session, () => {
-    data.generate(
-      newName(session, m[2]),
-      fill(points.map((p) => percentile(sorted, p))),
-      { type: m[1]?.trim() },
-    );
-    data.get(m[2]).label = `percentiles of ${m[3].trim()}`;
-    if (parsed.options.genp) {
-      data.generate(newName(session, parsed.options.genp), fill(points));
-      data.get(parsed.options.genp).label = "percentages";
+    data.generate(name, fill(found), {
+      type: parsed.typed[0] ? parsed.types[0] : undefined,
+    });
+    data.get(name).label = `percentiles of ${parsed.exp.trim()}`;
+    if (percentages.length) {
+      data.generate(percentages[0], fill(points), { type: "float" });
+      data.get(percentages[0]).label = `percentages for ${held}`;
     }
   });
 }
@@ -340,8 +490,12 @@ function split(session, text, ctx) {
     data = session.data,
     source = data.get(parsed.varlist[0]),
     options = parsed.options;
+  // split.ado's syntax takes a string variable: varname(str).
   if (!isStringType(source.type))
-    throw new StataError(`${source.name} is not a string variable`, 109);
+    throw new StataError(
+      `numeric variables not allowed in varlist;\n${source.name} is a numeric variable`,
+      109,
+    );
   // limit() is a numlist of one integer above 0.
   if (options.limit !== undefined) {
     const typed = options.limit.trim(),
