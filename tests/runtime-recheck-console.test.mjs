@@ -216,3 +216,273 @@ test("F165: each by() panel is drawn on a canvas of its own place", () => {
   assert.match(graph.svg, /fill="#d9e6eb"/);
   assert.doesNotMatch(graph.svg, /NaN|Infinity/);
 });
+
+// The second look at the F14 fix: merge's and append's messages, and the
+// commands whose "file ... not found" is a paragraph, were run in Stata 19
+// at each linesize from 40 to 100; a few of those lines follow.
+test("F14: merge's, append's and more file messages break as Stata's do", () => {
+  // merge 1:1 and m:1 on keys that are not unique: {p 0 4 2}.
+  const unique = (names, side) =>
+    `${names.includes(" ") ? "variables" : "variable"} ${names} ${names.includes(" ") ? "do" : "does"} not uniquely identify observations in the ${side} data`;
+  assert.deepEqual(
+    errorText(
+      unique("household_id survey_year", "master"),
+      79,
+      "capture noisily merge 1:1 household_id survey_year using hh",
+    ),
+    [
+      "variables household_id survey_year do not uniquely identify observations in",
+      "    the master data",
+    ],
+  );
+  assert.deepEqual(
+    errorText(
+      unique("household_id survey_year", "using"),
+      40,
+      "merge m:1 household_id survey_year using hh",
+    ),
+    [
+      "variables household_id survey_year do",
+      "    not uniquely identify observations",
+      "    in the using data",
+    ],
+  );
+  assert.deepEqual(
+    errorText(unique("id", "master"), 40, "merge 1:1 id using twice"),
+    [
+      "variable id does not uniquely identify",
+      "    observations in the master data",
+    ],
+  );
+  assert.deepEqual(
+    errorText(unique("long_identifier_name", "master"), 40, "merge 1:m x"),
+    [
+      "variable long_identifier_name does not",
+      "    uniquely identify observations in",
+      "    the master data",
+    ],
+  );
+  // append's string/numeric mismatch, and merge's for a key: {p 0 2 2}.
+  assert.deepEqual(
+    errorText(
+      "variable household_identifier is float in master but str4 in using data",
+      40,
+      "capture noisily append using strkey",
+    ),
+    [
+      "variable household_identifier is float",
+      "  in master but str4 in using data",
+    ],
+  );
+  assert.deepEqual(
+    errorText(
+      "variable household_identifier is str4 in master but float in using data",
+      50,
+      "append using numkey",
+    ),
+    [
+      "variable household_identifier is str4 in master",
+      "  but float in using data",
+    ],
+  );
+  assert.deepEqual(
+    errorText(
+      "key variable household_identifier is float in master but str4 in using data",
+      40,
+      "merge 1:1 household_identifier using strkey",
+    ),
+    [
+      "key variable household_identifier is",
+      "  float in master but str4 in using",
+      "  data",
+    ],
+  );
+  // joinby, infile, infix, labelbook and import sasxport5 say a file is not
+  // found as use does; import sasxport8 as import delimited does; estimates
+  // use cuts the line.
+  for (const command of [
+    "capture noisily joinby id using nosuchfile_long_name_here.dta",
+    "infile x using nosuchfile_long_name_here.raw, clear",
+    "inf x using nosuchfile_long_name_here.raw, clear",
+    "infix x 1-2 using nosuchfile_long_name_here.raw, clear",
+    "labelbook using nosuchfile_long_name_here.dta",
+    "import sasxport5 nosuchfile_long_name_here.xpt, clear",
+    "use id using nosuchfile_long_name_here.dta, clear",
+  ]) {
+    const name = command.match(/nosuchfile_long_name_here\.\w+/)[0];
+    assert.deepEqual(
+      errorText(`file ${name} not found`, 40, command),
+      [`file ${name} not`, "    found"],
+      command,
+    );
+  }
+  assert.deepEqual(
+    errorText(
+      "file nosuchfile_long_name_here.v8xpt not found",
+      40,
+      "import sasxport8 nosuchfile_long_name_here.v8xpt, clear",
+    ),
+    ["file nosuchfile_long_name_here.v8xpt not", "found"],
+  );
+  assert.deepEqual(
+    errorText(
+      "file nosuchfile_long_name_here.ster not found",
+      44,
+      "estimates use nosuchfile_long_name_here.ster",
+    ),
+    ["file nosuchfile_long_name_here.ster not foun", "> d"],
+  );
+});
+
+test("F14: a merge on keys that are not unique, as Results shows it", () => {
+  const s = createConsoleSession();
+  s.run(
+    [
+      "clear",
+      "input household_id survey_year income",
+      "1 2020 10",
+      "1 2020 11",
+      "2 2021 12",
+      "end",
+      "save hh, replace",
+    ].join("\n"),
+  );
+  const shown = (command) => {
+    const record = s.run(command).output.at(-1),
+      from = record.lines.length - (record.rc ? (record.fault ?? 2) : 0),
+      red = new Set(record.errorLines ?? []);
+    return record.lines.flatMap((line, k) =>
+      k >= from || red.has(k) ? errorText(line, 79, record.command) : [line],
+    );
+  };
+  assert.deepEqual(shown("merge 1:1 household_id survey_year using hh"), [
+    "variables household_id survey_year do not uniquely identify observations in",
+    "    the master data",
+    "r(459);",
+  ]);
+  assert.deepEqual(
+    shown("capture noisily merge m:1 household_id survey_year using hh"),
+    [
+      "variables household_id survey_year do not uniquely identify observations in",
+      "    the using data",
+    ],
+  );
+});
+
+test("F14: the error that stops a do-file run by do is shown as an error", () => {
+  const s = createConsoleSession();
+  s.addFile(
+    "inner.do",
+    new TextEncoder().encode(
+      "clear\ncapture noisily append using nosuchfile_long_name_here.dta\nuse nosuchfile_long_name_here.dta\n",
+    ),
+  );
+  s.run("set linesize 40");
+  // Stata 19: the message (in red) is a paragraph, then r(601);, then
+  // "end of do-file" and, unless the do was captured, r(601); again.
+  const failed = (command) => {
+    const records = s.run(command).output,
+      record = records.findLast((each) => /^use /.test(each.command));
+    return {
+      red: record.errorLines,
+      fault: record.rc ? Math.min(record.lines.length, record.fault ?? 2) : 0,
+      shown: record.lines.flatMap((line, k) =>
+        (record.errorLines ?? []).includes(k)
+          ? errorText(line, 40, record.command)
+          : [line],
+      ),
+    };
+  };
+  assert.deepEqual(failed("do inner.do"), {
+    red: [0, 1, 4],
+    fault: 0,
+    shown: [
+      "file nosuchfile_long_name_here.dta not",
+      "    found",
+      "r(601);",
+      "",
+      "end of do-file",
+      "r(601);",
+    ],
+  });
+  assert.deepEqual(failed("capture noisily do inner.do"), {
+    red: [0, 1],
+    fault: 0,
+    shown: [
+      "file nosuchfile_long_name_here.dta not",
+      "    found",
+      "r(601);",
+      "",
+      "end of do-file",
+    ],
+  });
+  // A text log holds it as Stata 19's log does.
+  s.run(
+    [
+      "log using nested.log, replace text nomsg",
+      "capture noisily do inner.do",
+      "log close",
+    ].join("\n"),
+    { doFile: true },
+  );
+  assert.equal(
+    s.readFile("nested.log").text,
+    [
+      "",
+      ". capture noisily do inner.do",
+      "",
+      ". clear",
+      "",
+      ". capture noisily append using nosuchfil",
+      "> e_long_name_here.dta",
+      "file nosuchfile_long_name_here.dta not f",
+      "> ound",
+      "",
+      ". use nosuchfile_long_name_here.dta",
+      "file nosuchfile_long_name_here.dta not",
+      "    found",
+      "r(601);",
+      "",
+      "end of do-file",
+      "",
+      ". log close",
+      "",
+    ].join("\n"),
+  );
+});
+
+test("F164: a run that stopped says whether commands before it took effect", () => {
+  const s = createConsoleSession();
+  s.addFile("first.do", new TextEncoder().encode("summarize nosuch\n"));
+  s.run("sysuse study, clear");
+  const finished = (text) => s.run(text).finished;
+  // A loop whose first pass made v1 before its second failed: in Stata, v1
+  // is there after the error.
+  assert.equal(
+    finished("forvalues i = 1/3 {\ngenerate v`i' = `i'\ngenerate v1 = 0\n}"),
+    1,
+  );
+  assert.equal(s.run("confirm variable v1").rc, 0);
+  // Nothing took effect: one failed command, a loop that failed at once,
+  // a do-file that failed on its first line, a captured failure.
+  assert.equal(finished("summarize wagez"), 0);
+  assert.equal(finished("forvalues i = 1/3 {\nsummarize nosuch\n}"), 0);
+  assert.equal(finished("do first.do"), 0);
+  assert.equal(finished("capture summarize nosuch\nsummarize nosuch"), 0);
+  assert.equal(finished("display 1\nsummarize nosuch"), 1);
+});
+
+test("A do-file run by run that fails shows its error once", () => {
+  const s = createConsoleSession();
+  s.addFile(
+    "inner.do",
+    new TextEncoder().encode("display 1\nuse nosuchfile_long_name_here.dta\n"),
+  );
+  // Stata 19: run prints nothing of the file but its error, once.
+  const record = s.run("run inner.do").output.at(-1);
+  assert.equal(record.rc, 601);
+  assert.deepEqual(record.lines, [
+    "file nosuchfile_long_name_here.dta not found",
+    "r(601);",
+  ]);
+});

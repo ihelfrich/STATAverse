@@ -1459,13 +1459,17 @@ async function perform(text, origin) {
 /** The commands a run ran: its records, less the comments it echoed. */
 const ran = (result) =>
   result.output.filter((record) => !record.comment).length;
-function finish(rc, commands, started, output = []) {
+/**
+ * Whether commands of a run that stopped at an error finished before it:
+ * those a loop, a program or a do-file ran count, the one that failed and
+ * a captured one do not.
+ */
+const tookEffect = (result) => (result.finished ?? ran(result) - 1) > 0;
+function finish(rc, commands, started, output = [], before = commands > 1) {
   const seconds = ((performance.now() - started) / 1000).toFixed(2),
     missing = rc === 601 ? missingFile(output) : "";
-  // commands counts the one that failed: only a run that got further than
-  // its first command has commands before the error to speak of.
   status.textContent = rc
-    ? `Stopped at an error, return code ${rc}.${commands > 1 ? " Commands before it took effect." : ""}`
+    ? `Stopped at an error, return code ${rc}.${before ? " Commands before it took effect." : ""}`
     : `Ran ${commands} command${commands === 1 ? "" : "s"} in ${seconds} seconds.`;
   if (missing) {
     // Files are found without regard to case, as Stata finds them on macOS
@@ -1534,7 +1538,8 @@ async function execute(text = source.value, what = "do-file") {
   // Every do-file of the project is there for do, run and include.
   await shareFiles();
   const result = await perform(text, origin);
-  if (result) finish(result.rc, ran(result), started, result.output);
+  if (result)
+    finish(result.rc, ran(result), started, result.output, tookEffect(result));
   return result;
 }
 
@@ -1554,9 +1559,17 @@ async function runSteps(entries, mark) {
     mark(entry.id, "running");
     const result = await perform(entry.lines.join("\n"), { step: entry.id });
     if (!result) return mark(entry.id, "error");
+    const earlier = commands > 0;
     commands += ran(result);
     mark(entry.id, result.rc ? "error" : "done", result);
-    if (result.rc) return finish(result.rc, commands, started, result.output);
+    if (result.rc)
+      return finish(
+        result.rc,
+        commands,
+        started,
+        result.output,
+        earlier || tookEffect(result),
+      );
     const terms = entry.guard ? [] : map.termsOf(entry.id);
     if (terms.length) {
       const estimates = {};
@@ -1894,8 +1907,17 @@ insert.addEventListener("change", () => {
           .at(-1)?.[0]
       : undefined,
     text = own ? item[1].replace(placeholder[0], own) : item[1];
-  // The pattern goes on a line of its own, at the cursor.
-  const { selectionStart: at, value } = source,
+  // The pattern goes on a line of its own: at the cursor when it is at the
+  // start of a line, otherwise under the line it is in, which is kept
+  // whole.
+  const { selectionStart: cursor, value } = source,
+    end = value.indexOf("\n", cursor),
+    at =
+      cursor === 0 || value[cursor - 1] === "\n"
+        ? cursor
+        : end < 0
+          ? value.length
+          : end + 1,
     before = at > 0 && value[at - 1] !== "\n" ? "\n" : "";
   source.setSelectionRange(at, at);
   typeInto(`${before}${text}\n`, false);
@@ -2676,6 +2698,8 @@ async function takeFiles(list) {
             : null,
         );
       if (big) status.textContent = `Read ${file.name}.`;
+      // A file added again is the last added, as the status says.
+      uploads.delete(name);
       uploads.set(name, { blob: file, made: false });
       const kept = await shelve(name, file);
       showVariables(result.memory);

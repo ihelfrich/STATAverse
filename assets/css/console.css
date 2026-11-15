@@ -50,12 +50,17 @@
   align-items: start;
 }
 /* Between a tablet and a wide screen, Results takes more of the width and
-   the page less of a margin, so that its 79 columns still fit. */
-@media (min-width: 901px) and (max-width: 1240px) {
+   the page less of a margin, so that its 79 columns still fit: never less
+   than 79 columns at the smallest text (10.5px), with its padding, borders
+   and a scroll bar, however narrow the window. Above 1420 pixels the wide
+   layout gives Results its full 13px text, so that its text never shrinks
+   as the window grows. */
+@media (min-width: 901px) and (max-width: 1420px) {
   .console-layout {
-    grid-template-columns: minmax(0, 4fr) minmax(0, 6fr);
-    padding-left: 24px;
-    padding-right: 24px;
+    grid-template-columns: minmax(0, 4fr) minmax(548px, 6fr);
+    column-gap: 24px;
+    padding-left: 20px;
+    padding-right: 20px;
   }
 }
 .console-heading,

@@ -307,3 +307,134 @@ test("F167: the page declares an icon and logs no errors", async ({ page }) => {
   await expect(page.locator('link[rel="icon"]')).toHaveCount(1);
   expect(errors).toEqual([]);
 });
+
+// ----- the second look at the console group's fixes -----
+
+const lastError = (page) =>
+  page
+    .locator("#console-output .console-record")
+    .last()
+    .locator(".console-error");
+
+test("F14: merge's message on keys that are not unique is a paragraph", async ({
+  page,
+}) => {
+  await ready(page);
+  // Stata 19 at linesize 40: {p 0 4 2}.
+  await type(page, "set linesize 40");
+  await type(page, "clear");
+  await type(page, "set obs 4");
+  await type(page, "generate id = ceil(_n/2)");
+  await type(page, "save twice");
+  await type(page, "capture noisily merge 1:1 id using twice");
+  await expect(lastError(page)).toHaveText(
+    "variable id does not uniquely identify\n    observations in the master data\n",
+  );
+});
+
+test("F14: the error that stops a do-file run by do is red and broken as Stata breaks it", async ({
+  page,
+}) => {
+  await ready(page);
+  await page
+    .locator("#console-source")
+    .fill(
+      "clear\ncapture noisily append using nosuchfile_long_name_here.dta\nuse nosuchfile_long_name_here.dta\n",
+    );
+  await type(page, "set linesize 40");
+  await type(page, "do main.do");
+  const errors = page
+    .locator("#console-output .console-record")
+    .filter({ hasText: ". use nosuchfile_long_name_here.dta" })
+    .locator(".console-error");
+  await expect(errors).toHaveText([
+    "file nosuchfile_long_name_here.dta not\n    found\nr(601);\n",
+    "r(601);\n",
+  ]);
+  await expect(
+    page
+      .locator("#console-output .console-record")
+      .filter({ hasText: ". use nosuchfile_long_name_here.dta" }),
+  ).toContainText("end of do-file");
+});
+
+test("F155: 79 columns fit in Results at every desktop width, and the text never shrinks as the window grows", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop");
+  await ready(page);
+  await type(page, "sysuse study, clear");
+  await type(page, "regress score hours attendance");
+  let size = 0;
+  for (const width of [
+    901, 920, 950, 1000, 1100, 1240, 1241, 1300, 1420, 1421, 1600,
+  ]) {
+    await page.setViewportSize({ width, height: 900 });
+    const fit = await page.locator("#console-output").evaluate((out) => ({
+      client: out.clientWidth,
+      scroll: out.scrollWidth,
+      size: parseFloat(getComputedStyle(out).fontSize),
+    }));
+    expect(fit.scroll, `${width}px`).toBeLessThanOrEqual(fit.client);
+    expect(fit.size, `${width}px`).toBeGreaterThanOrEqual(10.5);
+    expect(fit.size, `${width}px`).toBeGreaterThanOrEqual(size);
+    size = fit.size;
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+});
+
+test("F161: a file added again is the last added; Insert keeps the line it is in whole", async ({
+  page,
+}) => {
+  await ready(page);
+  page.on("dialog", (dialog) => dialog.accept());
+  const source = page.locator("#console-source");
+  for (const name of ["first.csv", "second.csv", "first.csv"]) {
+    await page.locator("#console-file").setInputFiles(csv(name, "x\n1\n"));
+    await expect(page.locator("#console-status")).toContainText(
+      `Added ${name}`,
+    );
+  }
+  await source.fill("sysuse study, clear\nsummarize\n");
+  // The cursor inside "sysuse": the line stays whole, the command goes
+  // under it.
+  await source.evaluate((box) => box.setSelectionRange(5, 5));
+  await menu(page);
+  await page.locator("#console-insert").selectOption({
+    label:
+      'Read a CSV file you added: import delimited using "myfile.csv", clear',
+  });
+  await expect(source).toHaveValue(
+    'sysuse study, clear\nimport delimited using "first.csv", clear\nsummarize\n',
+  );
+  await expect(page.locator("#console-status")).toContainText(
+    "for first.csv, the last text file you added",
+  );
+});
+
+test("F164: a typed loop that fails after a command in it took effect says so", async ({
+  page,
+}) => {
+  await ready(page);
+  await type(page, "sysuse study, clear");
+  // The block is typed a line at a time, as in Stata's Command window.
+  for (const line of [
+    "forvalues i = 1/3 {",
+    "generate v`i' = `i'",
+    "generate v1 = 0",
+    "}",
+  ])
+    await type(page, line);
+  await expect(page.locator("#console-status")).toHaveText(
+    "Stopped at an error, return code 110. Commands before it took effect.",
+  );
+  for (const line of ["forvalues i = 1/3 {", "summarize nosuch", "}"])
+    await type(page, line);
+  await expect(page.locator("#console-status")).toHaveText(
+    /^Stopped at an error, return code 111\.$/,
+  );
+});

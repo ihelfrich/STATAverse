@@ -7,7 +7,8 @@ import { wrapCharacters } from "./runtime/echo.js";
 
 // "file ... not found", as each command prints it: {p 0 4 2} (later lines
 // indented by four, two columns kept free on the right) or {p 0 0 0}.
-// append prints it as a plain line.
+// append and estimates use print it as a plain line. Every rule here was
+// checked against Stata 19 at each linesize from 40 to 100.
 const FILE_NOT_FOUND = /^file .+ not found$/;
 const PARAGRAPHS = [
   {
@@ -18,17 +19,30 @@ const PARAGRAPHS = [
   },
   {
     command:
-      /^(?:u|us|use|merge|do|ru|run|include|insheet|cross|d|de|des|desc|descr|descri|describ|describe)$/,
+      /^(?:u|us|use|merge|joinby|do|ru|run|include|insheet|inf|infi|infil|infile|infix|cross|labelbook|d|de|des|desc|descr|descri|describ|describe|type|erase|copy|checksum|graph use|import sasxport5)$/,
     message: FILE_NOT_FOUND,
     indent: 4,
     right: 2,
   },
   {
     command:
-      /^import (?:delim|delimi|delimit|delimite|delimited|exc|exce|excel|spss)$/,
+      /^import (?:delim|delimi|delimit|delimite|delimited|exc|exce|excel|sas|spss|sasxport8)$/,
     message: FILE_NOT_FOUND,
     indent: 0,
     right: 0,
+  },
+  {
+    // merge's keys that do not identify observations: {p 0 4 2}.
+    message:
+      /^variables? .+ do(?:es)? not uniquely identify observations in the (?:master|using) data$/,
+    indent: 4,
+    right: 2,
+  },
+  {
+    // append's and merge's string/numeric mismatch: {p 0 2 2}.
+    message: /^(?:key )?variable \S+ is \S+ in master but \S+ in using data$/,
+    indent: 2,
+    right: 2,
   },
 ];
 
@@ -41,7 +55,9 @@ function commandWord(command = "") {
       "",
     )
     .split(/[\s,]+/);
-  return words[0] === "import" ? `import ${words[1] ?? ""}` : words[0];
+  return words[0] === "import" || words[0] === "graph"
+    ? `${words[0]} ${words[1] ?? ""}`
+    : words[0];
 }
 
 /**
