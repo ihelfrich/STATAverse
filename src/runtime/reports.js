@@ -322,7 +322,7 @@ function parseNamingVariables(session, declaration, text) {
 export function summarize(session, text, ctx) {
   const parsed = parseNamingVariables(
     session,
-    "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) Format]",
+    "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) Format NOFVLabel]",
     text,
   );
   if (parsed.options.meanonly && parsed.options.detail)
@@ -407,14 +407,28 @@ export function summarize(session, text, ctx) {
     const at = groupOf.get(k),
       group = groups[at],
       shortened = (text) =>
-        padDisplay(abbreviateAmong(text, 12, session.data.names), 12);
+        padDisplay(abbreviateAmong(text, 12, session.data.names), 12),
+      // A factor variable's level shows its value label, cut to 11
+      // columns; a labelled level alone, as 2.g, is then headed by g.
+      shownLabel = (v) =>
+        v.ts?.factor && v.ts.shown != null && !parsed.options.nofvlabel
+          ? v.ts.shown
+          : null,
+      headed = (g) =>
+        g.headed ||
+        (g.members.length === 1 &&
+          listed[g.members[0]].ts?.base !== undefined &&
+          shownLabel(listed[g.members[0]]) !== null),
+      head = group.headed ? group.base : variable.ts?.base;
     if (group.members[0] === k) {
-      if (at && (group.headed || groups[at - 1].headed))
+      if (at && (headed(group) || headed(groups[at - 1])))
         ctx.out(`${" ".repeat(12)} |`);
-      if (group.headed) ctx.out(`${shortened(group.base)} |`);
+      if (headed(group)) ctx.out(`${shortened(head)} |`);
     }
-    const label = group.headed
-      ? (variable.ts?.label ?? "--.").padStart(12)
+    const label = headed(group)
+      ? shownLabel(variable) !== null
+        ? padDisplay(`${cutLabel(shownLabel(variable), 11).text} `, 12)
+        : (variable.ts?.label ?? "--.").padStart(12)
       : shortened(variable.ts?.alone ? variable.ts.name : name);
     ctx.out(
       analytic
@@ -563,6 +577,52 @@ function detail(ctx, variable, m, shape, formats, observed, frequency) {
 // Screen columns, as Stata's udstrlen() counts them, come from format.js.
 // padDisplay comes from values.js.
 export { displayWidth, padDisplay };
+
+/**
+ * A label cut to fit `limit` columns, as Stata 19 cuts the labels of
+ * mean's and proportion's tables: { text, width }. A label of at most 32
+ * characters (a name's length) without blanks is abbreviated as a name
+ * is, by columns: as much of its start as fits before ~ and its last
+ * character. Any other is cut to two columns less and "..": by columns
+ * when what is kept takes no more bytes in UTF-8 than the whole label
+ * takes columns, less two, and otherwise by bytes, a character the cut
+ * falls inside kept unless it is wide (CJK). width is what the label
+ * counts for in the header, where that character counts one column.
+ * Recorded from Stata 19 over some 200 labels of Latin, Cyrillic and CJK
+ * text, and as summarize cuts a factor level's label.
+ */
+export function cutLabel(text, limit) {
+  const columns = displayWidth(text);
+  if (columns <= limit) return { text, width: columns };
+  const characters = [...text];
+  if (characters.length <= 32 && !/\s/.test(text)) {
+    const last = characters.at(-1),
+      cut = `${truncateColumns(text, limit - 1 - displayWidth(last))}~${last}`;
+    return { text: cut, width: displayWidth(cut) };
+  }
+  const room = limit - 2,
+    byColumns = truncateColumns(text, room);
+  if (utf8Length(byColumns) <= columns - 2)
+    return { text: `${byColumns}..`, width: displayWidth(byColumns) + 2 };
+  let used = 0,
+    kept = "",
+    straddles = false;
+  for (const character of characters) {
+    const size = utf8Length(character);
+    if (used >= room) break;
+    if (used + size > room && displayWidth(character) === 2) {
+      straddles = true;
+      break;
+    }
+    kept += character;
+    used += size;
+  }
+  return {
+    text: `${kept}..`,
+    width: displayWidth(kept) + 2 + (straddles ? 1 : 0),
+  };
+}
+const utf8Length = (text) => new TextEncoder().encode(text).length;
 // Text left-aligned in `width` screen columns.
 export const padDisplayEnd = (text, width) =>
   text + " ".repeat(Math.max(0, width - displayWidth(text)));
@@ -1393,10 +1453,13 @@ export function tabulate(session, text, ctx) {
           ),
           { type: "byte" },
         );
+        // A labelled value is named by its label, unless nolabel asks for
+        // the number, which is then written as an unlabelled one is.
         data.get(name).label =
           `${source.name}==` +
           (typeof value === "string" ||
-          session.data.valueLabels.get(source.valueLabel)?.has(value)
+          (!options.nolabel &&
+            session.data.valueLabels.get(source.valueLabel)?.has(value))
             ? show(0, value)
             : applyFormat(value, "%11.4f"));
       });

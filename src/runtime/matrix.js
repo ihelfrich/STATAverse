@@ -777,9 +777,16 @@ function columnParts(name) {
             : pair >= 0
               ? pair + 1
               : 0;
+  // A statistic over groups of an interaction, 0.h@1.g#2.w, is broken
+  // after its @ and after each #, a line for each.
+  const operators =
+    at >= 0 && hash > at
+      ? rest.slice(0, cut).match(/[^@#]*[@#]/g)
+      : [rest.slice(0, cut)];
   return {
     equation,
     operator: rest.slice(0, cut),
+    operators,
     name: abbreviated(rest.slice(cut)),
   };
 }
@@ -877,15 +884,24 @@ function list(session, text, ctx) {
       Math.max(
         greatest(cells.flat().map((cell) => cell.length)),
         ...parts.map((p) =>
-          Math.max(p.equation.length, p.operator.length, p.name.length),
+          Math.max(
+            p.equation.length,
+            ...p.operators.map((o) => o.length),
+            p.name.length,
+          ),
         ),
       ) + 2,
     stub = greatest(rows.map((n) => Math.max(n.label.length, n.stub ?? 0))),
     linesize = session.settings?.linesize ?? 80,
-    perPanel = Math.max(1, Math.floor((linesize - stub) / width)),
+    perPanel = Math.max(1, Math.floor((linesize - stub - 1) / width)),
+    // The lines of the columns' names: the equation, the operator (or the
+    // pieces of one, a line each, aligned at the bottom) and the name.
+    lines = Math.max(...parts.map((p) => p.operators.length)),
     heads = [
       ...(parts.some((p) => p.equation) ? ["equation"] : []),
-      ...(parts.some((p) => p.operator) ? ["operator"] : []),
+      ...(parts.some((p) => p.operator)
+        ? Array.from({ length: lines }, (_, k) => `operator${k}`)
+        : []),
       "name",
     ];
   if (options.blank !== false) ctx.out("");
@@ -901,7 +917,11 @@ function list(session, text, ctx) {
     for (const head of showNames ? heads : []) {
       let line = "";
       parts.slice(first, last).forEach((p, k) => {
-        const text = p[head],
+        const piece = /^operator(\d+)$/.exec(head),
+          text = piece
+            ? (p.operators[Number(piece[1]) - (lines - p.operators.length)] ??
+              "")
+            : p[head],
           end =
             stub +
             (k + 1) * width +

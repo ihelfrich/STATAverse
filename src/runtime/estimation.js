@@ -317,6 +317,9 @@ export function numericVarlist(session, text) {
  * when given, are the observations whose values give each factor's levels.
  */
 export function design(session, text, rows, constant = true, levelRows) {
+  // A varlist of factor variables groups names in parentheses, so that
+  // by(g) typed without its comma is the names by and g.
+  session.varlistParentheses = "factor";
   // Words split at blanks outside parentheses, so that L(1 2).x is one.
   const tokens =
     rangesJoined(text)
@@ -1569,8 +1572,12 @@ export function coefficientHeader(model, level, label = model.depvar, width) {
 export const unmarked = (name) =>
   name.replace(/(^|#)(\d+)(b?)o\./g, "$1$2$3.").replace(/(^|#)co\./g, "$1c.");
 
-/** Set by the resampling module: runs vce(bootstrap) and vce(jackknife). */
-export const hooks = { resamplingVce: null };
+/**
+ * Set by other modules: resamplingVce runs vce(bootstrap) and
+ * vce(jackknife); regressInstruments fits regress's older two-stage least
+ * squares, regress y x (z), returning false when the varlist has no group.
+ */
+export const hooks = { resamplingVce: null, regressInstruments: null };
 /**
  * regress's fit. Finding no observations, Stata's regress has already
  * cleared e(); finding one, it has marked it as e(sample) and keeps the
@@ -1596,9 +1603,18 @@ function regress(session, text, ctx) {
   const requested = /\bvce\s*\(((?:[^()]|\([^()]*\))*)\)/.exec(text)?.[1];
   if (
     requested &&
-    hooks.resamplingVce?.(session, "regress", text, requested, ctx)
+    hooks.resamplingVce?.(
+      session,
+      "regress",
+      // The prefix fits the variables of a group in parentheses as
+      // regressors, as Stata's vce(bootstrap) reads them.
+      hooks.regressInstruments?.(session, text, null) ?? text,
+      requested,
+      ctx,
+    )
   )
     return;
+  if (hooks.regressInstruments?.(session, text, ctx)) return;
   const parsed = session.parse(
       "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta CLuster(string) BASElevels ALLBASElevels | noHEader EForm(string) ABSorb(varname)]",
       text,

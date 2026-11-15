@@ -94,16 +94,14 @@ test("below the line size 79 mean over() keeps the table of 79", () => {
 test("mean and total refuse what they cannot yet compute, with r(198)", () => {
   // Stata 19 runs these; the browser refuses them by name rather than
   // printing analytic standard errors under another heading.
+  // vce(bootstrap) and vce(jackknife) run the prefix, as in Stata.
   const setup = "set obs 25\ngenerate income = _n\ngenerate w = 1\n";
+  for (const command of [
+    "total income, vce(bootstrap, reps(5) seed(1))",
+    "mean income, vce(jackknife)",
+  ])
+    assert.equal(run(setup + command).last.rc, 0, command);
   for (const [command, message] of [
-    [
-      "total income, vce(bootstrap)",
-      "vce(bootstrap) is not available in the browser yet for total",
-    ],
-    [
-      "mean income, vce(jackknife)",
-      "vce(jackknife) is not available in the browser yet for mean",
-    ],
     [
       "total income, stdize(w) stdweight(w)",
       "option stdize() is not available in the browser yet for total",

@@ -7,12 +7,20 @@ import {
   isFormat,
   parseFormat,
 } from "./format.js";
-import { Ftail, invttail, ttail } from "./distributions.js";
+import { Ftail, ibeta, invttail, ttail } from "./distributions.js";
+import { invnormal } from "./functions-normal.js";
 import { project } from "./diagnostics.js";
 import { operatorGroups } from "./varlist.js";
-import { weightsNotYet } from "./estimation.js";
+import { factorVariables } from "./factor-varlist.js";
+import {
+  hooks,
+  statisticCell,
+  tableResults,
+  weightsNotYet,
+} from "./estimation.js";
 import {
   count,
+  cutLabel,
   displayWidth,
   labelled,
   moments,
@@ -872,51 +880,6 @@ function estimationHeader(ctx, title, n, stub, columns, wanted, linesize) {
 // from Stata 19.
 // Widths are columns of the screen, a wide (CJK) character taking two.
 const stubLabel = (text, stub) => padDisplay(`${text}  `, stub + 1);
-/**
- * A label cut to fit `limit` columns, as Stata 19 cuts the labels of
- * mean's and proportion's tables: { text, width }. A label of at most 32
- * characters (a name's length) without blanks is abbreviated as a name
- * is, by columns: as much of its start as fits before ~ and its last
- * character. Any other is cut to two columns less and "..": by columns
- * when what is kept takes no more bytes in UTF-8 than the whole label
- * takes columns, less two, and otherwise by bytes, a character the cut
- * falls inside kept unless it is wide (CJK). width is what the label
- * counts for in the header, where that character counts one column.
- * Recorded from Stata 19 over some 200 labels of Latin, Cyrillic and CJK
- * text.
- */
-function cutLabel(text, limit) {
-  const columns = displayWidth(text);
-  if (columns <= limit) return { text, width: columns };
-  const characters = [...text];
-  if (characters.length <= 32 && !/\s/.test(text)) {
-    const last = characters.at(-1),
-      cut = `${truncateColumns(text, limit - 1 - displayWidth(last))}~${last}`;
-    return { text: cut, width: displayWidth(cut) };
-  }
-  const room = limit - 2,
-    byColumns = truncateColumns(text, room);
-  if (utf8Length(byColumns) <= columns - 2)
-    return { text: `${byColumns}..`, width: displayWidth(byColumns) + 2 };
-  let used = 0,
-    kept = "",
-    straddles = false;
-  for (const character of characters) {
-    const size = utf8Length(character);
-    if (used >= room) break;
-    if (used + size > room && displayWidth(character) === 2) {
-      straddles = true;
-      break;
-    }
-    kept += character;
-    used += size;
-  }
-  return {
-    text: `${kept}..`,
-    width: displayWidth(kept) + 2 + (straddles ? 1 : 0),
-  };
-}
-const utf8Length = (text) => new TextEncoder().encode(text).length;
 const shortened = (text, limit) => cutLabel(text, limit).text;
 // The width a group's label asks the header line for: the label cut to 28
 // columns (the table's limit at the line size 79, and one), and one.
@@ -925,6 +888,13 @@ const labelWanted = (text) => cutLabel(text, 28).width + 1;
 const labelLimit = (session) =>
   Math.max(79, session.settings.linesize ?? 79) - 52;
 const characters = (text) => [...text].length;
+// The labels of a table whose first column is a legend's: one less than
+// that column, 12 at 79 columns.
+const narrowLimit = (session) =>
+  Math.min(
+    labelLimit(session),
+    Math.max(12, (session.settings.linesize ?? 79) - 67) - 1,
+  );
 
 // The lines that name a group of observations of over(): its values joined
 // by blanks (by "#" when any of its variables has a value label), or,
@@ -1004,6 +974,31 @@ function overVariables(session, text) {
   });
 }
 
+/**
+ * over()'s variables are factor variables: in the observations if and in
+ * select, whatever is missing, a value that is not a whole number, or is
+ * negative, is Stata's r(452).
+ */
+export function overLevels(over, rows) {
+  for (const v of over) {
+    let fault = null;
+    for (const i of rows) {
+      const x = v.data[i];
+      if (isMissing(x)) continue;
+      if (!Number.isInteger(x)) {
+        fault = "noninteger";
+        break;
+      }
+      if (x < 0) fault = "negative";
+    }
+    if (fault)
+      throw new StataError(
+        `invalid over() option;\n${v.name}:  factor variables may not contain ${fault} values`,
+        452,
+      );
+  }
+}
+
 // An estimate, its standard error and confidence interval as mean and
 // proportion show them, in columns of 11, 11, 14 and 12; a missing
 // standard error leaves the rest missing.
@@ -1046,6 +1041,38 @@ function weightedTotal(values, weights, type, all) {
   return { mean: sum, se: Math.sqrt((sumW * squares) / (sumW - 1)) };
 }
 
+/**
+ * estat after mean, total, proportion and ratio, whose estat_vce_only
+ * takes vce, and after mean sd: each estimate's mean and standard
+ * deviation, or with variance its variance. Returns false for estat vce,
+ * which the models' estat shows.
+ */
+export function meanEstat(session, model, text, ctx) {
+  const what = text.trim().split(/[\s,]/)[0];
+  if (what.length >= 3 && "vce".startsWith(what)) return false;
+  if (what !== "sd") {
+    if (!what) throw new StataError("subcommand required", 321);
+    throw new StataError(`invalid subcommand ${what}`, 321);
+  }
+  if (!(model.meanResults || model.svySd) || model.command !== "mean")
+    throw new StataError("mean estimation results not found", 301);
+  const { options } = session.parse(
+    "[, VARiance SRSsubpop]",
+    text.trim().slice(what.length),
+  );
+  if (model.svySd) {
+    model.svySd(ctx, Boolean(options.variance), Boolean(options.srssubpop));
+    return true;
+  }
+  showMeanOrTotal(
+    session,
+    model.meanResults,
+    { level: 95, estatSd: { variance: Boolean(options.variance) } },
+    ctx,
+  );
+  return true;
+}
+
 export const mean = (session, text, ctx) =>
   meanOrTotal(session, text, ctx, false);
 const total = (session, text, ctx) => meanOrTotal(session, text, ctx, true);
@@ -1060,6 +1087,18 @@ const SHOWN = new Set([
   "coeflegend",
   "nofvlabel",
 ]);
+
+/**
+ * vce(bootstrap ...) or vce(jackknife ...), however abbreviated, written
+ * out for the prefix to run; null for any other vce().
+ */
+function replicationVce(text) {
+  const m =
+    /^\s*(bs|boot(?:s(?:t(?:r(?:ap?)?)?)?)?|jk|jknife|jack(?:k(?:n(?:i(?:fe?)?)?)?)?)(?![\w])([\s\S]*)$/.exec(
+      text ?? "",
+    );
+  return m ? `${m[1][0] === "b" ? "bootstrap" : "jackknife"}${m[2]}` : null;
+}
 
 /**
  * mean's and total's vce(): analytic, or cluster clustvar (also given as
@@ -1124,6 +1163,8 @@ function clusteredMean(values, weights, clusters, G) {
 
 /** mean and total: the same table of an estimate for each variable. */
 function meanOrTotal(session, text, ctx, totals) {
+  // The varlist takes factor variables, and groups names in parentheses.
+  session.varlistParentheses = "factor";
   const command = totals ? "total" : "mean",
     // With nothing before the options, mean and total show their last
     // results again.
@@ -1145,12 +1186,8 @@ function meanOrTotal(session, text, ctx, totals) {
       );
   }
   if (replay) {
-    const last = session.meanTotalResults;
-    if (
-      !last ||
-      last.e !== session.results.e ||
-      session.results.e.cmd !== command
-    )
+    const model = session.estimates;
+    if (!model?.meanResults || model.command !== command)
       throw new StataError("last estimates not found", 301);
     for (const name of Object.keys(options))
       if (!SHOWN.has(name) && options[name] !== undefined)
@@ -1158,9 +1195,23 @@ function meanOrTotal(session, text, ctx, totals) {
           `option ${name}${typeof options[name] === "string" ? "()" : ""} not allowed`,
           198,
         );
-    showMeanOrTotal(session, last, options, ctx);
+    showMeanOrTotal(session, model.meanResults, options, ctx);
     return;
   }
+  // vce(bootstrap) and vce(jackknife) run the prefix on the command as
+  // typed.
+  const requested = replicationVce(options.vce);
+  if (
+    requested &&
+    hooks.resamplingVce?.(
+      session,
+      command,
+      ctx.commandText ?? text,
+      requested,
+      ctx,
+    )
+  )
+    return;
   if (options.stdize !== undefined || options.stdweight !== undefined)
     throw new StataError(
       `option stdize() is not available in the browser yet for ${command}`,
@@ -1197,6 +1248,7 @@ function meanOrTotal(session, text, ctx, totals) {
         `over variable ${v.name} not allowed in varlist`,
         198,
       );
+  overLevels(over, session.rows(parsed, null));
   const cluster = clusterOf(session, options, command),
     // mean uses the observations complete on every variable named, on the
     // over() variables and on the cluster variable.
@@ -1312,20 +1364,120 @@ function meanOrTotal(session, text, ctx, totals) {
         cells: groups.map((group) => estimate(group.rows, variable)),
       })),
     };
-  session.estimates = null;
-  // e() in the order Stata 19 lists it.
+  const { V, sd, sizes } = meanCovariance(
+      groups.map((group) => group.rows),
+      variables,
+      weights,
+      type,
+      cluster,
+      G,
+      rows.length,
+      totals,
+    ),
+    cells = results.variables.flatMap((v) => v.cells),
+    // A cell's variance is its standard error squared, as the table shows
+    // it.
+    known = cells.map((cell) => !cell.empty && !isMissing(cell.se));
+  cells.forEach((cell, a) => {
+    if (known[a]) V[a][a] = cell.se ** 2;
+    else for (let b = 0; b < cells.length; b++) V[a][b] = V[b][a] = 0;
+  });
+  // e(b)'s names: y, 1.g (from mean i.g) or c.y@1.g#2.h; a constraint
+  // writes the first level of an i.g or an over() group as 1bn.
+  const names = results.variables.flatMap((v) =>
+      results.groups.map((group) =>
+        over.length
+          ? `c${group.empty ? "o" : ""}.${v.name}@${group.factor.replace(/bn\./g, ".")}`
+          : v.name,
+      ),
+    ),
+    shownNames = results.variables.flatMap((v, k) =>
+      results.groups.map((group) =>
+        over.length
+          ? `c${group.empty ? "o" : ""}.${v.name}@${group.factor}`
+          : v.ts?.factor && !v.ts.alone && firstLevel(results.variables, k)
+            ? v.name.replace(/^(\d+)\./, "$1bn.")
+            : v.name,
+      ),
+    ),
+    stripe = (values, rowName = "y1") => ({
+      rowNames: [rowName],
+      colNames: names,
+      values: [values],
+    }),
+    fitRows = [...new Set(rows)];
+  results.names = names;
+  results.shownNames = shownNames;
+  results.sd = sd;
+  session.estimates = {
+    command,
+    title: totals ? "Total estimation" : "Mean estimation",
+    // lincom heads its table with the statistic.
+    depvar: totals ? "Total" : "Mean",
+    // e(b) names its estimates alone, bootstrapped too.
+    unnamedEquation: true,
+    names,
+    shownNames,
+    b: cells.map((cell) => cell.estimate),
+    V,
+    estimable: cells.map((cell) => !cell.empty),
+    N: n,
+    df_r: results.df,
+    dist: "t",
+    vce: cluster
+      ? "cluster"
+      : parsed.weight?.type === "pweight"
+        ? "robust"
+        : "analytic",
+    ...(cluster ? { vcetype: "Robust" } : {}),
+    sample: fitRows,
+    level,
+    replayedBy: [command],
+    eMatrices: totals ? ["_N", "error"] : ["sd", "_N", "error"],
+    // Stata refuses predict after mean and total.
+    noPredict: true,
+    meanResults: results,
+    // estat sd: each estimate's mean and standard deviation.
+    sd: totals ? null : sd,
+    resampledDisplay: (out, shownLevel, resampled) =>
+      showMeanOrTotal(session, results, { level: shownLevel }, out, resampled),
+    coefficientDisplay(out, shownLevel) {
+      const r = session.results.r;
+      coefficientDisplay(
+        this,
+        (o) =>
+          showMeanOrTotal(
+            session,
+            results,
+            { level: shownLevel, coeflegend: true, noheader: true },
+            o,
+          ),
+        shownLevel,
+        out,
+      );
+      session.results.r = r;
+    },
+  };
+  // e() in the order Stata 19 lists it: with frequency or importance
+  // weights e(N) comes before e(N_over).
+  const weight = parsed.weight?.type,
+    counts = postedCounts(
+      weight,
+      n,
+      groups.filter((group) => group.rows.length).length,
+    );
   session.results.e = {
     ...(cluster ? { N_clust: G } : {}),
     df_r: results.df,
-    N_over: groups.length,
-    N: n,
+    ...counts,
     k_eq: 1,
     rank: groups.filter((group) => group.rows.length).length * variables.length,
     cmdline: `${command} ${(ctx.commandText ?? text).trim()}`,
     cmd: command,
-    vce: cluster ? "cluster" : "analytic",
+    vce: session.estimates.vce,
     ...(cluster ? { vcetype: "Robust", clustvar: cluster.name } : {}),
     title: totals ? "Total estimation" : "Mean estimation",
+    ...(weight ? { wexp: `= ${parsed.weight.exp.trim()}`, wtype: weight } : {}),
     estat_cmd: "estat_vce_only",
     varlist: variables
       .map((v) => (v.ts?.factor ? v.ts.name : v.name))
@@ -1333,32 +1485,306 @@ function meanOrTotal(session, text, ctx, totals) {
     marginsnotok: "_ALL",
     ...(over.length ? { over: over.map((v) => v.name).join(" ") } : {}),
     properties: "b V",
+    ...(totals ? {} : { "matrix:sd": stripe(sd) }),
+    "matrix:_N": stripe(sizes, "r1"),
+    "matrix:error": {
+      rowNames: ["r1"],
+      colNames: names.map((_, k) => `c${k + 1}`),
+      values: [names.map(() => 0)],
+    },
   };
-  results.e = session.results.e;
-  session.meanTotalResults = results;
-  // e(sample) marks the observations the estimates used.
-  session.postedSample = rows;
+  if (!over.length && ctx.factorBases?.length)
+    postBases(session, results, ctx.factorBases);
   showMeanOrTotal(session, results, options, ctx);
+}
+
+/**
+ * The base ib2.g leaves out of mean's or total's table, which Stata 19
+ * posts in e(b) where its level falls, as 2b.g: zero, with no variance,
+ * its sd zero and its error 5. lincom and test read it as zero.
+ */
+function postBases(session, results, bases) {
+  const model = session.estimates,
+    e = session.results.e,
+    k = model.names.length,
+    // Each estimate's place among the columns with the bases.
+    at = [];
+  let shift = 0;
+  for (let a = 0; a < k; a++) {
+    while (bases[shift]?.index === a) shift++;
+    at.push(a + shift);
+  }
+  const total = k + bases.length,
+    isBase = new Set(bases.map((base, j) => base.index + j)),
+    spread = (values, fill) => {
+      const out = new Array(total).fill(fill);
+      values.forEach((v, a) => (out[at[a]] = v));
+      return out;
+    },
+    baseNames = new Map(bases.map((base, j) => [base.index + j, base.name])),
+    named = (list) =>
+      spread(list, null).map((name, c) => name ?? baseNames.get(c));
+  results.cellToModel = at;
+  model.bases = isBase;
+  model.names = named(model.names);
+  model.shownNames = named(model.shownNames);
+  model.b = spread(model.b, 0);
+  model.V = Array.from({ length: total }, (_, r) =>
+    Array.from({ length: total }, (_, c) => {
+      const a = at.indexOf(r),
+        b = at.indexOf(c);
+      return a < 0 || b < 0 ? 0 : model.V[a][b];
+    }),
+  );
+  model.estimable = spread(model.estimable, false);
+  const restripe = (matrix, fill) =>
+    matrix && {
+      ...matrix,
+      colNames: model.names,
+      values: [spread(matrix.values[0], fill(matrix.values[0]))],
+    };
+  if (e["matrix:sd"]) e["matrix:sd"] = restripe(e["matrix:sd"], () => 0);
+  e["matrix:_N"] = restripe(e["matrix:_N"], (values) => values[0]);
+  e["matrix:error"] = {
+    rowNames: ["r1"],
+    colNames: model.names.map((_, c) => `c${c + 1}`),
+    values: [model.names.map((_, c) => (isBase.has(c) ? 5 : 0))],
+  };
+  e.varlist = named(e.varlist.split(" ")).join(" ");
+}
+
+/**
+ * ereturn display after mean, total or proportion: the table as a
+ * coefficient table, the statistic's name over the first column, with t
+ * tests and intervals of the estimate plus or minus t times its standard
+ * error. The rows are the table's own, laid out as its legend lays them
+ * out (render shows the legend's table).
+ */
+function coefficientDisplay(model, render, level, ctx) {
+  const lines = [];
+  render({ ...ctx, out: (line) => lines.push(line) });
+  // From the rule, or the note on clusters above it.
+  let first = lines.findIndex((line) => /^-+$/.test(line));
+  if (first > 0 && /^\s*\(Std\. err\. adjusted/.test(lines[first - 1])) first--;
+  const shown = lines.slice(first),
+    df = model.df_r,
+    critical = invttail(df, (1 - level / 100) / 2),
+    robust = !!model.vcetype;
+  let a = 0;
+  for (const line of shown) {
+    const legend = /^(.*\|)\s+\S+\s+Legend$/.exec(line);
+    if (legend) {
+      const stub = legend[1].length - 2;
+      if (robust)
+        ctx.out(
+          `${" ".repeat(stub)} |${" ".repeat(18 - model.vcetype.length / 2)}${model.vcetype}`,
+        );
+      ctx.out(
+        `${model.depvar.slice(0, stub).padStart(stub)} | Coefficient  ${robust ? "std" : "Std"}. err.      t    P>|t|     [${g(level)}% conf. interval]`,
+      );
+      continue;
+    }
+    const cell = /^(.*\|)\s*\S+\s+_b\[[^\]]*\]$/.exec(line);
+    if (!cell) {
+      ctx.out(line);
+      continue;
+    }
+    while (model.bases?.has(a)) a++;
+    const b = model.b[a],
+      se = Math.sqrt(model.V[a][a]),
+      t = se > 0 ? b / se : MISSING,
+      p = isMissing(t) ? MISSING : 2 * ttail(df, Math.abs(t)),
+      [low, high] =
+        se > 0 ? [b - critical * se, b + critical * se] : [MISSING, MISSING];
+    ctx.out(
+      `${cell[1]}${g(b).padStart(11)}${g(se).padStart(11)}${statisticCell(t)}${applyFormat(p, "%8.3f")}${g(low).padStart(13)}${g(high).padStart(12)}`,
+    );
+    a++;
+  }
+  ctx.out("");
+}
+
+// e(N_over) and e(N), in the order mean, total and proportion post them:
+// e(N) first when frequency or importance weights sum to it.
+const postedCounts = (weight, N, N_over) =>
+  weight === "fweight" || weight === "iweight" ? { N, N_over } : { N_over, N };
+
+// The width a name asks of a legend's first column: as much as leaves the
+// legend's table (66 columns more) within the line, and at least 12.
+const legendWidth = (session, width) =>
+  Math.min(width, Math.max(12, (session.settings.linesize ?? 79) - 67));
+
+// Whether the k-th column is the first level of its factor's group.
+const firstLevel = (variables, k) =>
+  !k || variables[k - 1].ts?.base !== variables[k].ts.base;
+
+/**
+ * The covariance of mean's (or total's) estimates, each variable in each
+ * group of over() (the variables outer), with each one's standard
+ * deviation and number of observations. An estimate's score in an
+ * observation of its group is w (y - mean) / W, W the group's sum of
+ * weights; the covariance of two estimates of one group is, by the
+ * weight: unweighted (frequency weights repeated), the sum of the
+ * products of the deviations over n (n - 1); aweights, the weighted sum
+ * over W (n - 1); iweights, over W (W - 1); pweights, n/(n - 1) times
+ * the sum of the products of the scores over the whole sample. Estimates
+ * of different groups do not covary, unless clustered: then the scores
+ * are summed within clusters and the covariance is G/(G - 1) times the
+ * sum of their products. A total's is its mean's times both groups' W.
+ * The standard deviation is the plain one, as aweights and pweights
+ * weight it (the weighted sum of squares over W, times n/(n - 1)), and as
+ * frequencies with iweights. Checked against Stata 19.
+ */
+function meanCovariance(
+  groups,
+  variables,
+  weights,
+  type,
+  cluster,
+  G,
+  all,
+  totals,
+) {
+  const K = groups.length,
+    k = variables.length * K,
+    V = Array.from({ length: k }, () => new Array(k).fill(0)),
+    sd = new Array(k).fill(MISSING),
+    sizes = new Array(k).fill(0),
+    sums = groups.map((group) =>
+      weights ? group.reduce((t, i) => t + weights[i], 0) : group.length,
+    ),
+    w = (i) => (weights ? weights[i] : 1),
+    means = variables.map((v) =>
+      groups.map((group, j) =>
+        group.length
+          ? group.reduce((t, i) => t + w(i) * v.data[i], 0) / sums[j]
+          : 0,
+      ),
+    ),
+    at = (p, j) => p * K + j,
+    units = cluster ? new Map() : null;
+  groups.forEach((group, j) => {
+    const n = new Set(group).size,
+      W = sums[j],
+      dev = (p, i) => variables[p].data[i] - means[p][j];
+    variables.forEach((_, p) => {
+      sizes[at(p, j)] = n;
+      let squares = 0;
+      for (const i of group) squares += w(i) * dev(p, i) ** 2;
+      sd[at(p, j)] = Math.sqrt(
+        type === "aweight" || type === "pweight"
+          ? ((squares / W) * group.length) / (group.length - 1)
+          : squares / (W - 1),
+      );
+    });
+    if (cluster) {
+      for (const i of group) {
+        const key = cluster.data[i];
+        if (!units.has(key)) units.set(key, new Float64Array(k));
+        const scores = units.get(key);
+        variables.forEach((_, p) => {
+          scores[at(p, j)] += (w(i) * dev(p, i)) / W;
+        });
+      }
+      return;
+    }
+    const divisor =
+      type === "pweight"
+        ? ((all - 1) * W * W) / all
+        : type === "aweight"
+          ? W * (group.length - 1)
+          : type === "iweight"
+            ? W * (W - 1)
+            : group.length * (group.length - 1);
+    variables.forEach((_, p) =>
+      variables.forEach((_, q) => {
+        if (q > p) return;
+        let total = 0;
+        for (const i of group)
+          total +=
+            (type === "pweight" ? w(i) ** 2 : w(i)) * dev(p, i) * dev(q, i);
+        V[at(p, j)][at(q, j)] = V[at(q, j)][at(p, j)] = total / divisor;
+      }),
+    );
+  });
+  if (cluster) {
+    for (const scores of units.values())
+      for (let a = 0; a < k; a++)
+        for (let b = 0; b < k; b++) V[a][b] += scores[a] * scores[b];
+    for (let a = 0; a < k; a++)
+      for (let b = 0; b < k; b++) V[a][b] *= G / (G - 1);
+  }
+  if (totals)
+    for (let a = 0; a < k; a++)
+      for (let b = 0; b < k; b++) V[a][b] *= sums[a % K] * sums[b % K];
+  return { V, sd, sizes };
 }
 
 /**
  * mean's or total's table from its results, as the display options ask:
  * level(), noheader, cformat(), coeflegend and nofvlabel. r() holds
- * r(table) and r(mcmethod), as Stata leaves it.
+ * r(table) and r(mcmethod), as Stata leaves it. After bootstrap or
+ * jackknife (`resampled`: { method, reps, se, critical, note, mse }) the
+ * table has their heads and standard errors and the header the number of
+ * replications.
  */
-function showMeanOrTotal(session, results, options, ctx) {
+function showMeanOrTotal(session, results, options, ctx, resampled = null) {
   const { totals, n, df, cluster, over } = results,
     level = options.level,
-    critical = invttail(df, (1 - level / 100) / 2),
-    limit = labelLimit(session),
+    critical = resampled
+      ? resampled.critical
+      : invttail(df, (1 - level / 100) / 2),
+    legend = Boolean(options.coeflegend),
+    // estat sd: each estimate's mean and standard deviation (or variance).
+    deviations = options.estatSd,
+    // A legend's table, and estat sd's, keep their first column within
+    // the legend's width, the names and labels cut to it.
+    limit = legend || deviations ? narrowLimit(session) : labelLimit(session),
     labels = results.groups.map((group) =>
       options.nofvlabel ? group.plain : group.labels,
     ),
     joiner = results.labelled && !options.nofvlabel ? "#" : " ",
     named = results.variables.map((v) => nameLines(v.name, over, limit)),
     lines = labels.map((pieces) => groupLines(pieces, limit, joiner)),
+    factorGroups = operatorGroups(results.variables),
+    factorGroupOf = new Map(
+      factorGroups.flatMap((group, at) => group.members.map((k) => [k, at])),
+    ),
+    // A level of a factor variable, as from mean i.g, is shown by its
+    // value label, cut to fit, else by its value.
+    levelLabel = (v) =>
+      v.ts.shown != null && !options.nofvlabel
+        ? cutLabel(v.ts.shown, limit)
+        : { text: v.ts.label.trimEnd(), width: characters(v.ts.label) - 1 },
+    // What each row of a table without over() asks of the first column:
+    // a name as long as it is, up to the limit and one (a legend's table
+    // keeps 12); a factor variable's name and its levels' labels. The
+    // header (`header`) is laid out for the whole name, and for a label
+    // cut to 28 columns.
+    rowWidths = (header) =>
+      over.length
+        ? []
+        : results.variables.flatMap((v, k) => {
+            const group = factorGroups[factorGroupOf.get(k)],
+              name = (text) =>
+                header
+                  ? characters(text)
+                  : Math.min(limit + 1, characters(text));
+            if (!group.headed)
+              return [
+                legend ? legendWidth(session, name(v.name)) : name(v.name),
+              ];
+            const label = levelLabel(v);
+            return [
+              name(group.base),
+              header && v.ts.shown != null && !options.nofvlabel
+                ? labelWanted(v.ts.shown)
+                : label.width + 1,
+            ];
+          }),
     stub = Math.max(
       12,
+      ...rowWidths(false),
       ...(over.length
         ? named.flat().map((line) => Math.min(limit + 1, line.length))
         : []),
@@ -1373,96 +1799,157 @@ function showMeanOrTotal(session, results, options, ctx) {
       options.cformat === undefined
         ? (value) => g(value)
         : (value) => applyFormat(value, options.cformat.trim()).trim(),
-    legend = Boolean(options.coeflegend),
-    width = stub + (legend ? 66 : 50),
+    width = stub + (legend ? 66 : deviations ? 25 : 50),
     title = totals ? "Total estimation" : "Mean estimation",
+    errorOf = (cell, a) =>
+      resampled ? resampled.se[results.cellToModel?.[a] ?? a] : cell.se,
     // The interval of an estimate whose standard error is 0 is missing.
-    bounds = ({ estimate, se }) =>
+    bounds = ({ estimate }, se) =>
       se === 0 || isMissing(se)
         ? [MISSING, MISSING]
         : [estimate - critical * se, estimate + critical * se],
-    row = (cell, name) =>
-      legend
-        ? `${format(cell.estimate).padStart(11)}  _b[${name}]`
-        : cell.empty
-          ? `${format(0).padStart(11)}  (no observations)`
-          : estimateColumns(cell.estimate, cell.se, ...bounds(cell), format),
+    row = (cell, name, a) => {
+      if (deviations) {
+        const sd = results.sd[a];
+        return `${format(cell.estimate).padStart(11)}${format(deviations.variance ? sd ** 2 : sd).padStart(12)}`;
+      }
+      if (legend)
+        return `${format(cell.estimate).padStart(11)}  _b[${results.shownNames?.[a] ?? name}]`;
+      if (cell.empty) return `${format(0).padStart(11)}  (no observations)`;
+      const se = errorOf(cell, a);
+      return estimateColumns(cell.estimate, se, ...bounds(cell, se), format);
+    },
     names = results.variables.map((v) =>
       results.groups.map((group) =>
         over.length
           ? `c${group.empty ? "o" : ""}.${v.name}@${group.factor}`
           : v.name,
       ),
-    );
-  ctx.out("");
-  if (!options.noheader) {
+    ),
+    cellCount = results.groups.length;
+  // After a prefix the blank line is the prefix's.
+  if (!resampled) ctx.out("");
+  if (!options.noheader && !deviations) {
     // The header is laid out for the narrowest table with a legend.
     const wanted = legend
-      ? 12
-      : Math.max(
-          ...(over.length
-            ? named.map((name) => nameWanted(name, limit + 2))
-            : []),
-          ...labels.map((pieces, j) => {
-            const label = pieces.join(joiner);
-            return lines[j].length > 1
-              ? characters(label) + 1
-              : labelWanted(label);
-          }),
-        );
+        ? 12
+        : Math.max(
+            ...(over.length
+              ? named.map((name) => nameWanted(name, limit + 2))
+              : rowWidths(true)),
+            ...labels.map((pieces, j) => {
+              const label = pieces.join(joiner);
+              return lines[j].length > 1
+                ? characters(label) + 1
+                : labelWanted(label);
+            }),
+          ),
+      headerAt =
+        (legend
+          ? 12
+          : headerWidth(stub, wanted, session.settings.linesize ?? 79)) + 50,
+      shownN = applyFormat(n, "%14.0fc").trim(),
+      shownReps = resampled ? count(resampled.reps) : "",
+      digits = Math.max(shownN.length, shownReps.length),
+      // With strata the title stands alone, their number beside the count.
+      left = resampled?.nstrata
+        ? `Number of strata = ${count(resampled.nstrata)}`
+        : title;
+    if (left !== title) {
+      ctx.out(title);
+      ctx.out("");
+    }
     ctx.out(
-      `${title}${`Number of obs = ${applyFormat(n, "%14.0fc").trim()}`.padStart((legend ? 12 : headerWidth(stub, wanted, session.settings.linesize ?? 79)) + 50 - title.length)}`,
+      `${left}${`Number of obs = ${shownN.padStart(digits)}`.padStart(headerAt - left.length)}`,
     );
+    if (resampled)
+      ctx.out(
+        `Replications  = ${shownReps.padStart(digits)}`.padStart(headerAt),
+      );
     ctx.out("");
   }
-  if (cluster)
+  if (resampled?.note) ctx.out(resampled.note.padStart(width));
+  else if (cluster && !resampled && !deviations)
     ctx.out(
       `(Std. err. adjusted for ${count(cluster.G)} clusters in ${cluster.name})`.padStart(
         width,
       ),
     );
   ctx.out("-".repeat(width));
-  const word = totals ? "Total" : " Mean";
-  if (legend) ctx.out(`${" ".repeat(stub)} |      ${word}   Legend`);
-  else {
-    if (cluster) ctx.out(`${" ".repeat(stub)} |               Robust`);
+  const word = totals ? "Total" : " Mean",
+    pad = " ".repeat(stub),
+    interval = `[${g(level)}% conf. interval]`.padStart(25);
+  if (deviations)
     ctx.out(
-      `${" ".repeat(stub)} |      ${word}   ${cluster ? "std. err." : "Std. err."}${`[${g(level)}% conf. interval]`.padStart(25)}`,
+      `${over.length ? "Over".padStart(stub) : pad} |       Mean   ${deviations.variance ? " Variance" : "Std. dev."}`,
+    );
+  else if (legend) ctx.out(`${pad} |      ${word}   Legend`);
+  else if (resampled?.method === "bootstrap") {
+    ctx.out(
+      `${pad} |   Observed   ${resampled.mse ? "Bstrap *" : "Bootstrap         Normal-based"}`,
+    );
+    ctx.out(`${pad} |      ${word.toLowerCase()}   std. err.${interval}`);
+  } else {
+    if (resampled)
+      ctx.out(
+        `${pad} |              ${resampled.mse ? "Jknife *" : "Jackknife"}`,
+      );
+    else if (cluster) ctx.out(`${pad} |               Robust`);
+    ctx.out(
+      `${pad} |      ${word}   ${cluster || resampled ? "std. err." : "Std. err."}${interval}`,
     );
   }
   ctx.out(`${"-".repeat(stub + 1)}+${"-".repeat(width - stub - 2)}`);
-  // The levels of a factor variable, as from mean i.g, are rows under
-  // its name, labelled by level, with a blank row between groups.
-  const factorGroups = operatorGroups(results.variables),
-    factorGroupOf = new Map(
-      factorGroups.flatMap((group, at) => group.members.map((k) => [k, at])),
-    );
+  // The levels of a factor variable are rows under its name, with a blank
+  // row between groups.
   results.variables.forEach((variable, k) => {
     if (!over.length) {
       const at = factorGroupOf.get(k),
         group = factorGroups[at];
       if (group.members[0] === k) {
         if (at && (group.headed || factorGroups[at - 1].headed))
-          ctx.out(`${" ".repeat(stub)} |`);
-        if (group.headed) ctx.out(`${group.base.padStart(stub)} |`);
+          ctx.out(`${pad} |`);
+        if (group.headed)
+          ctx.out(`${abbreviateName(group.base, stub).padStart(stub)} |`);
       }
       ctx.out(
-        `${(group.headed ? variable.ts.label : variable.name).padStart(stub)} |${row(variable.cells[0], names[k][0])}`,
+        `${group.headed ? stubLabel(levelLabel(variable).text, stub) : `${abbreviateName(variable.name, stub).padStart(stub)} `}|${row(variable.cells[0], names[k][0], k)}`,
       );
       return;
     }
-    if (k) ctx.out(`${" ".repeat(stub)} |`);
+    if (k) ctx.out(`${pad} |`);
     printName(ctx, named[k], stub);
     variable.cells.forEach((cell, j) =>
-      printGroup(ctx, lines[j], stub, row(cell, names[k][j])),
+      printGroup(
+        ctx,
+        lines[j],
+        stub,
+        row(cell, names[k][j], k * cellCount + j),
+      ),
     );
   });
   ctx.out("-".repeat(width));
+  if (resampled) return;
   ctx.out("");
+  if (deviations) {
+    const stripe = (values) => ({
+      rowNames: ["r1"],
+      colNames: results.names,
+      values: [values],
+    });
+    session.results.r = {
+      "matrix:sd": stripe([...results.sd]),
+      "matrix:variance": stripe(results.sd.map((sd) => sd ** 2)),
+      "matrix:mean": stripe(
+        results.variables.flatMap((v) => v.cells.map((cell) => cell.estimate)),
+      ),
+    };
+    return;
+  }
   const cells = results.variables.flatMap((v) => v.cells),
     tables = cells.map((cell) => {
       const t = cell.estimate / cell.se,
-        [ll, ul] = bounds(cell);
+        [ll, ul] = bounds(cell, cell.se);
       return [
         cell.estimate,
         cell.se,
@@ -1481,7 +1968,7 @@ function showMeanOrTotal(session, results, options, ctx) {
     mcmethod: "noadjust",
     "matrix:table": {
       rowNames: ["b", "se", "t", "pvalue", "ll", "ul", "df", "crit", "eform"],
-      colNames: names.flat(),
+      colNames: results.names ?? names.flat(),
       values: tables[0].map((_, r) => tables.map((column) => column[r])),
     },
   };
@@ -1490,16 +1977,35 @@ function showMeanOrTotal(session, results, options, ctx) {
 /**
  * proportion of one or more variables, each in a block of its own, over
  * the observations complete on all of them; with percent the estimates are
- * shown as percentages in %9.2f.
+ * shown as percentages in %9.2f. Typed alone it shows its results again.
  */
+const PROPORTION_SHOWN =
+  "Level(cilevel) percent NOLabel CItype(string) noHEADer noLEGend COEFLegend CFormat(string)";
 function proportion(session, text, ctx) {
+  // The varlist is of factor variables, and groups names in parentheses.
+  session.varlistParentheses = "factor";
+  if (/^\s*(,[\s\S]*)?$/.test(text)) {
+    const model = session.estimates;
+    if (!model?.proportionDisplay)
+      throw new StataError("last estimates not found", 301);
+    const { options } = session.parse(`[, ${PROPORTION_SHOWN}]`, text);
+    model.proportionDisplay(ctx, options);
+    return;
+  }
   const parsed = session.parse(
-      "varlist [if] [in] [fweight pweight iweight] [, Level(cilevel) percent | OVer(string) VCE(string) CItype(string)]",
+      `varlist [if] [in] [fweight pweight iweight] [, ${PROPORTION_SHOWN} VCE(string) OVer(string) | STDize(string) STDWeight(string) NOSTDRescale]`,
       text,
     ),
-    level = parsed.options.level,
-    percent = Boolean(parsed.options.percent),
-    variables = parsed.varlist.map((name) => {
+    options = parsed.options;
+  // vce(bootstrap) and vce(jackknife) run the prefix.
+  const requested = replicationVce(options.vce);
+  if (
+    requested &&
+    hooks.resamplingVce?.(session, "proportion", text, requested, ctx)
+  )
+    return;
+  citypeOf(options.citype);
+  const variables = parsed.varlist.map((name) => {
       const variable = session.data.get(name);
       if (isStringType(variable.type))
         throw new StataError(
@@ -1508,111 +2014,576 @@ function proportion(session, text, ctx) {
         );
       return variable;
     }),
+    [overText, overOptions] =
+      options.over === undefined ? [null, null] : splitAtComma(options.over);
+  // over()'s nolabel is accepted and changes nothing, as in Stata 19.
+  if (overOptions !== null && !/^\s*(nol(a(b(el?)?)?)?)?\s*$/.test(overOptions))
+    throw new StataError("invalid over() option", 198);
+  const over = overText === null ? [] : overVariables(session, overText);
+  for (const v of over)
+    if (variables.includes(v))
+      throw new StataError(
+        `over variable ${v.name} not allowed in varlist`,
+        198,
+      );
+  overLevels(over, session.rows(parsed, null));
+  const cluster = proportionCluster(session, options.vce),
     { rows, weights, type, n } = estimationSample(
       session,
       parsed,
       session
         .rows(parsed, null)
-        .filter((i) => variables.every((v) => present(v.data[i]))),
+        .filter(
+          (i) =>
+            variables.every((v) => present(v.data[i])) &&
+            over.every((v) => present(v.data[i])) &&
+            (!cluster || present(cluster.data[i])),
+        ),
     );
   if (!rows.length) throw new StataError("no observations", 2000);
+  // Each variable is a factor variable, of whole values not below zero.
+  for (const variable of variables)
+    for (const i of rows) {
+      const v = variable.data[i];
+      if (v < 0 || !Number.isInteger(v))
+        throw new StataError(
+          `${variable.name}:  factor variables may not contain ${v < 0 ? "negative" : "noninteger"} values`,
+          452,
+        );
+    }
   if (parsed.weight && genericWeight(text))
     ctx.out(assumedWeights(parsed.weight.type));
-  const critical = invttail(n - 1, (1 - level / 100) / 2),
-    sumW = weights ? rows.reduce((t, i) => t + weights[i], 0) : rows.length,
+  const sumW = weights ? rows.reduce((t, i) => t + weights[i], 0) : rows.length,
+    weightOf = (i) => (weights ? weights[i] : 1),
     blocks = variables.map((variable) => {
       const levels = [...new Set(rows.map((i) => variable.data[i]))].sort(
         ascending,
       );
       return {
-        variable,
+        name: variable.name,
         levels,
         labels: levels.map((value) => labelled(session, variable, value)),
+        plain: levels.map((value) => labelled(session, variable, value, false)),
       };
     }),
-    limit = labelLimit(session),
+    // The groups of over(): every combination of its variables' levels in
+    // the sample, the first variable varying slowest, as mean's; without
+    // over(), the whole sample.
+    found = new Map();
+  for (const i of rows) {
+    const values = over.map((v) => v.data[i]),
+      key = values.join("\u0001");
+    if (!found.has(key)) found.set(key, { values, rows: [] });
+    found.get(key).rows.push(i);
+  }
+  const overLevelsOf = over.map((_, k) =>
+      [...new Set([...found.values()].map((group) => group.values[k]))].sort(
+        ascending,
+      ),
+    ),
+    groups = (
+      over.length
+        ? overLevelsOf
+            .reduce(
+              (combinations, values) =>
+                combinations.flatMap((start) =>
+                  values.map((value) => [...start, value]),
+                ),
+              [[]],
+            )
+            .map(
+              (values) =>
+                found.get(values.join("\u0001")) ?? { values, rows: [] },
+            )
+        : [{ values: [], rows }]
+    ).map((group) => ({
+      ...group,
+      weight: group.rows.reduce((t, i) => t + weightOf(i), 0),
+      // Its name in e(b), 1.g#2.w, and as a constraint writes it, the
+      // first level of each variable as 1bn.
+      factor: group.values.map((v, k) => `${v}.${over[k].name}`).join("#"),
+      shown: group.values
+        .map(
+          (v, k) =>
+            `${v}${v === overLevelsOf[k][0] ? "bn" : ""}.${over[k].name}`,
+        )
+        .join("#"),
+      label: group.values
+        .map((v, k) => labelled(session, over[k], v))
+        .join("#"),
+    })),
+    // Each estimate: a level of a variable within a group of over().
+    cells = variables.flatMap((variable, k) =>
+      blocks[k].levels.flatMap((value, j) =>
+        groups.map((group) => ({ variable, value, group, first: !j })),
+      ),
+    ),
+    names = cells.map(
+      ({ variable, value, group }) =>
+        `${value}.${variable.name}${over.length ? `@${group.factor}` : ""}`,
+    ),
+    // A constraint and the legend write the first level of each variable
+    // as 1bn.
+    shownNames = cells.map(
+      ({ variable, value, group, first }) =>
+        `${value}${first ? "bn" : ""}.${variable.name}${over.length ? `@${group.shown}` : ""}`,
+    ),
+    counts = cells.map(({ variable, value, group }) =>
+      group.rows.reduce(
+        (t, i) => t + (variable.data[i] === value ? weightOf(i) : 0),
+        0,
+      ),
+    ),
+    p = cells.map(({ group }, a) =>
+      group.weight > 0 ? counts[a] / group.weight : 0,
+    ),
+    // A level a group of over() does not have.
+    empty = cells.map((cell, a) =>
+      over.length
+        ? !cell.group.rows.some((i) => cell.variable.data[i] === cell.value)
+        : false,
+    ),
+    indicator = (a, i) => Number(cells[a].variable.data[i] === cells[a].value),
+    inside = (a, i) =>
+      !over.length ||
+      over.every((v, k) => v.data[i] === cells[a].group.values[k]),
+    // An observation's score for an estimate: w (d - p) / W over its
+    // group, zero outside it.
+    score = (a, i) =>
+      inside(a, i)
+        ? (weightOf(i) * (indicator(a, i) - p[a])) / cells[a].group.weight
+        : 0,
+    k = cells.length,
+    V = Array.from({ length: k }, () => new Array(k).fill(0)),
+    G = cluster ? new Set(rows.map((i) => cluster.data[i])).size : 0;
+  // The covariance of two estimates: with clusters, G/(G-1) times the sum
+  // over clusters of the products of their scores; with a sampling weight
+  // the same over observations, n/(n-1) times; otherwise, within a group,
+  // the (weighted) covariance of the indicators over the group's
+  // (weighted) number of observations, and none between groups.
+  if (cluster) {
+    const units = new Map();
+    for (const i of rows) {
+      const key = cluster.data[i];
+      if (!units.has(key)) units.set(key, new Float64Array(k));
+      const scores = units.get(key);
+      for (let a = 0; a < k; a++) scores[a] += score(a, i);
+    }
+    for (const scores of units.values())
+      for (let a = 0; a < k; a++)
+        for (let b = 0; b < k; b++) V[a][b] += scores[a] * scores[b];
+    for (let a = 0; a < k; a++)
+      for (let b = 0; b < k; b++) V[a][b] *= G / (G - 1);
+  } else
+    for (let a = 0; a < k; a++)
+      for (let b = 0; b <= a; b++) {
+        if (cells[a].group !== cells[b].group) continue;
+        const W = cells[a].group.weight;
+        let total = 0;
+        for (const i of cells[a].group.rows)
+          total +=
+            type === "pweight"
+              ? score(a, i) * score(b, i)
+              : weightOf(i) * indicator(a, i) * indicator(b, i);
+        V[a][b] = V[b][a] =
+          type === "pweight"
+            ? (rows.length / (rows.length - 1)) * total
+            : W > 0
+              ? (total / W - p[a] * p[b]) / W
+              : 0;
+      }
+  // A standard error as the table shows it.
+  const se = cells.map((cell, a) =>
+      cluster || type === "pweight"
+        ? Math.sqrt(V[a][a])
+        : cell.group.weight > 0
+          ? Math.sqrt((p[a] * (1 - p[a])) / cell.group.weight)
+          : MISSING,
+    ),
+    // The table's blocks: a variable's levels, or with over() each level
+    // in each group, labelled as the level and the group.
+    shownBlocks = over.length
+      ? blocks.map((block, j) => {
+          const own = cells.filter((cell) => cell.variable === variables[j]);
+          return {
+            name: `${block.name}@${over.map((v) => v.name).join("#")}`,
+            levels: own,
+            labels: own.map(
+              (cell) =>
+                `${block.labels[block.levels.indexOf(cell.value)]} ${cell.group.label}`,
+            ),
+          };
+        })
+      : blocks,
+    df = cluster ? G - 1 : n - 1,
+    level = options.level,
+    fitted = {
+      n,
+      df,
+      p,
+      se,
+      blocks: shownBlocks,
+      names,
+      shownNames,
+      empty,
+      cluster: cluster && { G, name: cluster.name },
+      sumW,
+      // A sampling weight or clusters make the variance a design's.
+      design: Boolean(cluster) || type === "pweight",
+      citype: citypeOf(options.citype),
+    },
+    // The table as asked; percent and citype() are the asking's alone.
+    display = (out, asked = {}, resampled = null) => {
+      const r = showProportion(
+        session,
+        { ...fitted, citype: citypeOf(asked.citype) },
+        asked,
+        out,
+        resampled,
+      );
+      if (r) fitted.table = r;
+    };
+  display(ctx, options);
+  session.estimates = {
+    command: "proportion",
+    title: "Proportion estimation",
+    // lincom heads its table with the statistic.
+    depvar: "Proportion",
+    unnamedEquation: true,
+    names,
+    shownNames,
+    b: p,
+    V,
+    estimable: names.map(() => true),
+    N: n,
+    df_r: df,
+    dist: "t",
+    vce: cluster ? "cluster" : type === "pweight" ? "robust" : "analytic",
+    ...(cluster ? { vcetype: "Robust" } : {}),
+    sample: [...new Set(rows)],
+    level,
+    replayedBy: ["proportion"],
+    eMatrices: ["freq", "_N", "error"],
+    // Stata refuses predict after proportion.
+    noPredict: true,
+    proportionDisplay: display,
+    resampledDisplay: (out, shownLevel, resampled) =>
+      display(out, { level: shownLevel, citype: fitted.citype }, resampled),
+    coefficientDisplay(out, shownLevel) {
+      const r = session.results.r;
+      coefficientDisplay(
+        this,
+        (o) =>
+          showProportion(
+            session,
+            fitted,
+            { level: shownLevel, coeflegend: true, noheader: true },
+            o,
+          ),
+        shownLevel,
+        out,
+      );
+      session.results.r = r;
+    },
+    // r(table) holds the logit (or normal) interval the table showed; a
+    // prefix's copy of the fit, with its own variance, has the usual one.
+    tableResults() {
+      if (this.V === V) return fitted.table;
+      return tableResults(
+        session,
+        { ...this, tableResults: undefined },
+        "",
+        "proportion",
+      );
+    },
+  };
+  const stripe = (values) => ({ rowNames: ["r1"], colNames: names, values }),
+    wexp = parsed.weight ? `= ${parsed.weight.exp.trim()}` : "";
+  // e() as Stata 19's proportion posts it.
+  session.results.e = {
+    ...(cluster ? { N_clust: G } : {}),
+    df_r: df,
+    ...postedCounts(parsed.weight?.type, n, groups.length),
+    k_eq: 1,
+    // In each group, the levels it has less one.
+    rank: variables.reduce(
+      (t, variable) =>
+        t +
+        groups.reduce((u, group) => {
+          const had = new Set(group.rows.map((i) => variable.data[i])).size;
+          return u + Math.max(0, had - 1);
+        }, 0),
+      0,
+    ),
+    cmdline: `proportion ${text.trim()}`,
+    cmd: "proportion",
+    vce: session.estimates.vce,
+    ...(cluster ? { vcetype: "Robust", clustvar: cluster.name } : {}),
+    title: "Proportion estimation",
+    ...(parsed.weight ? { wexp, wtype: parsed.weight.type } : {}),
+    estat_cmd: "estat_vce_only",
+    varlist: blocks
+      .flatMap((block) => block.levels.map((v) => `${v}.${block.name}`))
+      .join(" "),
+    marginsnotok: "_ALL",
+    ...(over.length ? { over: over.map((v) => v.name).join(" ") } : {}),
+    properties: "b V",
+    "matrix:freq": stripe([counts]),
+    "matrix:_N": stripe([cells.map(({ group }) => new Set(group.rows).size)]),
+    "matrix:error": {
+      rowNames: ["r1"],
+      colNames: names.map((_, a) => `c${a + 1}`),
+      values: [names.map(() => 0)],
+    },
+  };
+}
+
+// proportion's citype(): logit (the default) or normal.
+function citypeOf(text) {
+  const word = (text ?? "").trim();
+  if (!word) return "logit";
+  if (/^(logit|normal|wilson|exact|jeffreys|agresti)$/.test(word)) return word;
+  throw new StataError(
+    `invalid citype() option;\n${word} is not a recognized CI type`,
+    198,
+  );
+}
+
+/** The x at which the regularized incomplete beta I_x(a, b) is p. */
+function inverseBeta(a, b, p) {
+  let low = 0,
+    high = 1;
+  for (let k = 0; k < 200 && high - low > 1e-17; k++) {
+    const middle = (low + high) / 2;
+    if (ibeta(a, b, middle) < p) low = middle;
+    else high = middle;
+  }
+  return (low + high) / 2;
+}
+
+// proportion's vce(): analytic or cluster clustvar.
+function proportionCluster(session, text) {
+  const vce = (text ?? "").trim();
+  if (!vce || /^a(n(a(l(y(t(ic?)?)?)?)?)?)?$/.test(vce)) return null;
+  const [word, ...rest] = vce.split(/\s+/);
+  if (/^cl(u(s(t(er?)?)?)?)?$/.test(word)) {
+    if (rest.length !== 1)
+      throw new StataError("option vce() misspecified", 198);
+    return session.data.get(session.varlist(rest[0])[0]);
+  }
+  throw new StataError(`vcetype ${word} not allowed`, 198);
+}
+
+/**
+ * proportion's table: a block for each variable, its levels labelled, as
+ * the display options ask (level(), percent, nolabel, noheader,
+ * coeflegend, cformat()); after bootstrap or jackknife (`resampled`) with
+ * their heads and standard errors, as proportions. Without `resampled`,
+ * r() holds r(table).
+ */
+function showProportion(session, fitted, options, ctx, resampled = null) {
+  const { n, df, p, blocks, cluster, citype } = fitted,
+    level = options.level ?? 95,
+    legend = Boolean(options.coeflegend),
+    percent = Boolean(options.percent) && !resampled,
+    se = resampled ? resampled.se : fitted.se,
+    critical = resampled
+      ? resampled.critical
+      : invttail(df, (1 - level / 100) / 2),
+    limit = legend ? narrowLimit(session) : labelLimit(session),
+    labelsOf = (block) => block.labels,
+    // A variable's name asks for its length, up to the limit and one; a
+    // legend's table keeps 12.
+    nameWidth = (name) => Math.min(limit + 1, characters(name)),
     stub = Math.max(
       12,
+      ...blocks.map((block) =>
+        legend
+          ? legendWidth(session, nameWidth(block.name))
+          : nameWidth(block.name),
+      ),
       ...blocks.flatMap((block) =>
-        block.labels.map((label) => cutLabel(label, limit).width + 1),
+        labelsOf(block).map((label) => cutLabel(label, limit).width + 1),
       ),
     ),
-    shape = percent
-      ? (value) => applyFormat(100 * value, "%9.2f").trim()
-      : (value) => g(value);
-  estimationHeader(
-    ctx,
-    percent ? "Percent estimation" : "Proportion estimation",
-    n,
-    stub,
-    [
-      "                                   Logit",
-      ` ${percent ? "   Percent" : "Proportion"}   Std. err.     [${g(level)}% conf. interval]`,
-    ],
-    Math.max(
-      12,
-      ...blocks.flatMap((block) =>
-        block.labels.map((label) => labelWanted(label)),
+    width = stub + (legend ? 66 : 50),
+    format =
+      options.cformat !== undefined
+        ? (value) => applyFormat(value, options.cformat.trim()).trim()
+        : percent
+          ? (value) => applyFormat(100 * value, "%9.2f").trim()
+          : (value) => g(value),
+    alpha = 1 - level / 100,
+    z = invnormal(1 - alpha / 2);
+  let truncated = false;
+  const interval = (a) => {
+      // A proportion of 0 or 1 has no interval.
+      if (!(p[a] > 0 && p[a] < 1) || !(se[a] > 0)) return [MISSING, MISSING];
+      if (citype === "normal")
+        return [p[a] - critical * se[a], p[a] + critical * se[a]];
+      if (citype === "logit") {
+        // Formed on the logit scale and transformed back.
+        const logit = Math.log(p[a] / (1 - p[a])),
+          half = (critical * se[a]) / (p[a] * (1 - p[a])),
+          back = (v) => 1 / (1 + Math.exp(-v));
+        return [back(logit - half), back(logit + half)];
+      }
+      // The binomial intervals take the number of observations, or under
+      // a sampling weight or clusters the effective number, p(1 - p)/se^2,
+      // scaled by (z/t)^2 for the degrees of freedom (Korn and Graubard).
+      const m = fitted.design
+          ? ((p[a] * (1 - p[a])) / se[a] ** 2) * (z / critical) ** 2
+          : fitted.sumW,
+        k = p[a] * m;
+      if (citype === "wilson") {
+        const centre = (p[a] + (z * z) / (2 * m)) / (1 + (z * z) / m),
+          half =
+            (z / (1 + (z * z) / m)) *
+            Math.sqrt((p[a] * (1 - p[a])) / m + (z * z) / (4 * m * m));
+        return [centre - half, centre + half];
+      }
+      if (citype === "agresti") {
+        // About the proportion of k + z^2/2 in m + z^2. Stata cuts an
+        // upper end above 1 to 1, with a note, and leaves a lower end below
+        // 0 as it is.
+        const size = m + z * z,
+          centre = (k + (z * z) / 2) / size,
+          half = z * Math.sqrt((centre * (1 - centre)) / size);
+        if (centre + half > 1) truncated = true;
+        return [centre - half, Math.min(1, centre + half)];
+      }
+      // Clopper-Pearson's exact interval, or Jeffreys's, from the beta
+      // distribution.
+      return citype === "exact"
+        ? [
+            inverseBeta(k, m - k + 1, alpha / 2),
+            inverseBeta(k + 1, m - k, 1 - alpha / 2),
+          ]
+        : [
+            inverseBeta(k + 0.5, m - k + 0.5, alpha / 2),
+            inverseBeta(k + 0.5, m - k + 0.5, 1 - alpha / 2),
+          ];
+    },
+    kind = {
+      logit: "Logit",
+      normal: "Normal",
+      wilson: "Wilson",
+      exact: "Exact",
+      jeffreys: "Jeffreys",
+      agresti: "Agresti-Coull",
+    }[citype],
+    // The interval's kind, centred over its columns.
+    above = (before) => before.padEnd(38 - Math.ceil(kind.length / 2)) + kind;
+  if (!resampled) ctx.out("");
+  if (!options.noheader && options.header !== false) {
+    const title = percent ? "Percent estimation" : "Proportion estimation",
+      wanted = legend
+        ? 12
+        : Math.max(
+            12,
+            ...blocks.map((block) => characters(block.name)),
+            ...blocks.flatMap((block) =>
+              labelsOf(block).map((label) => labelWanted(label)),
+            ),
+          ),
+      headerAt =
+        (legend
+          ? 12
+          : headerWidth(stub, wanted, session.settings.linesize ?? 79)) + 50,
+      shownN = applyFormat(n, "%14.0fc").trim(),
+      shownReps = resampled ? count(resampled.reps) : "",
+      digits = Math.max(shownN.length, shownReps.length),
+      // With strata the title stands alone, their number beside the count.
+      left = resampled?.nstrata
+        ? `Number of strata = ${count(resampled.nstrata)}`
+        : title;
+    if (left !== title) {
+      ctx.out(title);
+      ctx.out("");
+    }
+    ctx.out(
+      `${left}${`Number of obs = ${shownN.padStart(digits)}`.padStart(headerAt - left.length)}`,
+    );
+    if (resampled)
+      ctx.out(
+        `Replications  = ${shownReps.padStart(digits)}`.padStart(headerAt),
+      );
+    ctx.out("");
+  }
+  if (resampled?.note) ctx.out(resampled.note.padStart(width));
+  else if (cluster && !resampled)
+    ctx.out(
+      `(Std. err. adjusted for ${count(cluster.G)} clusters in ${cluster.name})`.padStart(
+        width,
       ),
-    ),
-    session.settings.linesize ?? 79,
-  );
+    );
+  ctx.out("-".repeat(width));
+  const pad = " ".repeat(stub),
+    statistic = percent ? "   Percent" : "Proportion",
+    conf = `[${g(level)}% conf. interval]`.padStart(25);
+  if (legend) ctx.out(`${pad} | ${statistic}   Legend`);
+  else if (resampled?.method === "bootstrap") {
+    ctx.out(
+      `${pad} |${above(`   Observed   ${resampled.mse ? "Bstrap *" : "Bootstrap"}`)}`,
+    );
+    ctx.out(`${pad} | proportion   std. err.${conf}`);
+  } else {
+    ctx.out(
+      `${pad} |${above(
+        resampled
+          ? `              ${resampled.mse ? "Jknife *" : "Jackknife"}`
+          : cluster
+            ? "               Robust"
+            : "",
+      )}`,
+    );
+    ctx.out(
+      `${pad} | ${statistic}   ${cluster || resampled ? "std. err." : "Std. err."}${conf}`,
+    );
+  }
+  ctx.out(`${"-".repeat(stub + 1)}+${"-".repeat(width - stub - 2)}`);
+  let a = 0;
   const columns = [];
-  blocks.forEach(({ variable, levels, labels }, k) => {
-    if (k) ctx.out(`${" ".repeat(stub)} |`);
-    ctx.out(`${variable.name.padStart(stub)} |`);
-    levels.forEach((value, j) => {
-      const inside = (i) => variable.data[i] === value,
-        p = weights
-          ? rows.reduce((t, i) => t + (inside(i) ? weights[i] : 0), 0) / sumW
-          : rows.filter(inside).length / rows.length,
-        // A sampling weight's standard error is linearized; otherwise it
-        // is that of a proportion of the (weighted) number of observations.
-        se =
-          type === "pweight"
-            ? Math.sqrt(
-                ((rows.length / (rows.length - 1)) *
-                  rows.reduce(
-                    (t, i) => t + (weights[i] * (Number(inside(i)) - p)) ** 2,
-                    0,
-                  )) /
-                  sumW ** 2,
-              )
-            : Math.sqrt((p * (1 - p)) / sumW),
-        // The interval is formed on the logit scale and transformed back.
-        logit = Math.log(p / (1 - p)),
-        half = (critical * se) / (p * (1 - p)),
-        back = (v) => 1 / (1 + Math.exp(-v)),
-        inner = p > 0 && p < 1,
-        lower = inner ? back(logit - half) : p,
-        upper = inner ? back(logit + half) : p,
-        t = p / se;
+  blocks.forEach((block, k) => {
+    // A variable with one level is a row of its own, named as 0.h.
+    const alone = block.levels.length === 1;
+    if (k && (alone || blocks[k - 1].levels.length > 1)) ctx.out(`${pad} |`);
+    if (!alone) ctx.out(`${abbreviateName(block.name, stub).padStart(stub)} |`);
+    labelsOf(block).forEach((label) => {
+      const [lower, upper] = interval(a),
+        t = p[a] / se[a];
       columns.push({
-        name: `${value}${j ? "" : "bn"}.${variable.name}`,
+        name: fitted.names[a],
         values: [
-          p,
-          se,
+          p[a],
+          se[a],
           t,
-          Number.isFinite(t) ? 2 * ttail(n - 1, Math.abs(t)) : MISSING,
+          Number.isFinite(t) ? 2 * ttail(df, Math.abs(t)) : MISSING,
           lower,
           upper,
-          n - 1,
+          df,
           critical,
           0,
         ],
       });
       ctx.out(
-        `${stubLabel(shortened(labels[j], limit), stub)}|${estimateColumns(
-          p,
-          se,
-          lower,
-          upper,
-          shape,
-        )}`,
+        `${alone ? `${abbreviateName(fitted.names[a], stub).padStart(stub)} ` : stubLabel(shortened(label, limit), stub)}|${
+          legend
+            ? `${format(p[a]).padStart(11)}  _b[${fitted.shownNames[a]}]`
+            : fitted.empty?.[a]
+              ? `${"0".padStart(11)}  (no observations)`
+              : estimateColumns(p[a], se[a], lower, upper, format)
+        }`,
       );
+      a++;
     });
   });
-  ctx.out("-".repeat(stub + 50));
+  ctx.out("-".repeat(width));
+  if (truncated && !legend)
+    ctx.out(
+      "Note: The Agresti–Coull CI was truncated at 1 at the upper endpoint.",
+    );
+  if (resampled) return null;
   ctx.out("");
   // r() as Stata leaves it after an estimation table.
   session.results.r = {
@@ -1625,79 +2596,7 @@ function proportion(session, text, ctx) {
       ),
     },
   };
-  // e() as Stata 19's proportion posts it. The covariance of two
-  // indicators is that of the proportions' sampling: the (weighted)
-  // covariance over the (weighted) number of observations, or with a
-  // sampling weight the linearized one.
-  const cells = blocks.flatMap(({ variable, levels }) =>
-      levels.map((value) => ({ variable, value })),
-    ),
-    names = cells.map(({ variable, value }) => `${value}.${variable.name}`),
-    weightOf = (i) => (weights ? weights[i] : 1),
-    p = cells.map(
-      ({ variable, value }) =>
-        rows.reduce(
-          (t, i) => t + (variable.data[i] === value ? weightOf(i) : 0),
-          0,
-        ) / sumW,
-    ),
-    V = cells.map(() => []);
-  cells.forEach((a, j) =>
-    cells.forEach((b, k) => {
-      if (k > j) return;
-      let total = 0;
-      for (const i of rows) {
-        const dj = Number(a.variable.data[i] === a.value),
-          dk = Number(b.variable.data[i] === b.value);
-        total +=
-          type === "pweight"
-            ? weights[i] ** 2 * (dj - p[j]) * (dk - p[k])
-            : weightOf(i) * dj * dk;
-      }
-      V[j][k] = V[k][j] =
-        type === "pweight"
-          ? ((rows.length / (rows.length - 1)) * total) / sumW ** 2
-          : (total / sumW - p[j] * p[k]) / sumW;
-    }),
-  );
-  const stripe = (values) => ({ rowNames: ["y1"], colNames: names, values }),
-    wexp = parsed.weight ? `= ${parsed.weight.exp.trim()}` : "";
-  session.estimates = null;
-  session.results.e = {
-    df_r: n - 1,
-    N_over: 1,
-    N: n,
-    k_eq: 1,
-    rank: blocks.reduce((t, block) => t + block.levels.length - 1, 0),
-    cmdline: `proportion ${text.trim()}`,
-    cmd: "proportion",
-    vce: type === "pweight" ? "robust" : "analytic",
-    title: percent ? "Percent estimation" : "Proportion estimation",
-    ...(parsed.weight ? { wexp, wtype: parsed.weight.type } : {}),
-    estat_cmd: "estat_vce_only",
-    varlist: names.join(" "),
-    marginsnotok: "_ALL",
-    properties: "b V",
-    "matrix:b": stripe([p]),
-    "matrix:V": { rowNames: [...names], colNames: names, values: V },
-    "matrix:freq": {
-      rowNames: ["r1"],
-      colNames: names,
-      values: [p.map((value) => value * sumW)],
-    },
-    "matrix:_N": {
-      rowNames: ["r1"],
-      colNames: names,
-      values: [names.map(() => new Set(rows).size)],
-    },
-    "matrix:error": {
-      rowNames: ["r1"],
-      colNames: names.map((_, k) => `c${k + 1}`),
-      values: [names.map(() => 0)],
-    },
-    "function:sample": true,
-  };
-  session.postedSample = rows;
+  return session.results.r;
 }
 
 /**
@@ -1711,7 +2610,12 @@ function anova(session, text, ctx) {
       text,
     ),
     words =
-      (weightsNotYet(parsed, "anova"), parsed.anything.trim().split(/\s+/)),
+      (weightsNotYet(parsed, "anova"),
+      // Parentheses around names only group them: anova y (g) is anova y g.
+      parsed.anything
+        .replace(/(^|\s)\(([^().#]*)\)(?=\s|$)/g, "$1 $2 ")
+        .trim()
+        .split(/\s+/)),
     data = session.data,
     dependent = data.get(session.varlist(words[0])[0]);
   if (isStringType(dependent.type)) throw new StataError("type mismatch", 109);
@@ -1899,6 +2803,6 @@ function anova(session, text, ctx) {
 export const TABLE_COMMANDS = [
   { name: "table", minimum: 5, run: table },
   { name: "proportion", minimum: 4, run: proportion },
-  { name: "total", minimum: 5, run: total },
+  { name: "total", minimum: 5, run: factorVariables(total) },
   { name: "anova", minimum: 3, run: anova },
 ];
