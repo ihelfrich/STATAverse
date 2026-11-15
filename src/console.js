@@ -1210,7 +1210,11 @@ function busy(running) {
   run.disabled = running;
   reset.disabled = running;
   examples.disabled = running;
-  commandLine.disabled = running;
+  // The command line stays open during a run: what is typed and entered
+  // then waits its turn, as in Stata's Command window, and no keystroke is
+  // lost.
+  // (It starts closed, until the session is ready.)
+  if (!running) commandLine.disabled = false;
   map.setBusy(running);
   $("console-download").disabled = running;
   $("console-download-data").disabled = running;
@@ -2040,6 +2044,8 @@ runSelection.addEventListener("click", () =>
 // twice changes nothing in Stata.
 let restoring = false;
 stop.addEventListener("click", async () => {
+  // What was typed to run after this run is dropped with it.
+  entered.length = 0;
   if (restoring) {
     status.textContent =
       "Stop was pressed: the session is being put back as it was when the run stopped. This ends by itself.";
@@ -2299,7 +2305,7 @@ function setOpened(lines, closer = "}") {
 $("console-prompt").addEventListener("submit", (event) => {
   event.preventDefault();
   const text = commandLine.value.trim();
-  if ((!text && !typedBlock.length) || commandLine.disabled) return;
+  if (!text && !typedBlock.length) return;
   if (text && history.at(-1) !== text) history.push(text);
   recalled = history.length;
   commandLine.value = "";
@@ -2313,10 +2319,27 @@ $("console-prompt").addEventListener("submit", (event) => {
     return;
   }
   setOpened([]);
-  const whole = lines.join("\n");
+  runTyped(lines.join("\n"));
+});
+// Commands entered while a run is going, in the order they were entered.
+// Stop drops them.
+const entered = [];
+function runTyped(whole) {
+  if (isRunning) {
+    entered.push(whole);
+    status.textContent =
+      entered.length === 1
+        ? "The command you entered runs when this run ends."
+        : `The ${entered.length} commands you entered run when this run ends, in order.`;
+    idle.push(() => {
+      const next = entered.shift();
+      if (next !== undefined) runTyped(next);
+    });
+    return;
+  }
   ranTyped.push(whole);
   execute(whole, "command").then(() => commandLine.focus());
-});
+}
 commandLine.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && typedBlock.length) {
     event.preventDefault();
