@@ -21723,3 +21723,121 @@ display _rc
 egen m3 = mean(wage) if wage > 1
 egen m4 = mean(wage), by(region)
 list
+=== pass8-console-r3-lone-equals-left
+clear
+set obs 6
+generate str5 region = cond(_n < 4, "North", "South")
+generate wage = 10 + _n
+generate x = _n
+capture noisily list if region = "North" | wage > 2
+display _rc
+capture noisily list if region = 3
+display _rc
+capture noisily list if wage = "North"
+display _rc
+capture noisily list if wage = region
+display _rc
+capture noisily count if region + "a" = 1
+display _rc
+capture noisily drop if wage > 2 & x = region
+display _rc
+capture noisily summarize wage if region = "North"
+display _rc
+capture noisily summarize wage if x = region
+display _rc
+capture noisily summarize wage if x + 1 = "a"
+display _rc
+capture noisily summarize wage if wage = 1
+display _rc
+capture noisily regress wage x if region = "North"
+display _rc
+capture noisily tabulate region if region = "North"
+display _rc
+capture noisily mean wage if region = 3
+display _rc
+capture noisily generate z = 1 if region = "North"
+display _rc
+capture noisily generate z = 1 if wage = "North"
+display _rc
+capture noisily replace x = 1 if region == "South" | region = "North"
+display _rc
+capture noisily replace x = 1 if x + 1 = "a"
+display _rc
+=== pass8-console-r3-series-before-tsset
+clear
+set obs 10
+set seed 3
+generate t = _n
+generate y = runiform()
+generate wage = 10 + 5*runiform()
+capture noisily regress y L.y
+display _rc
+capture noisily regress D.y wage
+display _rc
+capture noisily summarize L.y
+display _rc
+capture noisily summarize y D.y
+display _rc
+capture noisily list L.y in 1/2
+display _rc
+capture noisily correlate y L.y
+display _rc
+capture noisily scatter y L.y
+display _rc
+capture noisily mean L.y
+display _rc
+capture noisily tabulate L.y
+display _rc
+capture noisily newey y wage, lag(1)
+display _rc
+capture noisily dfuller y
+display _rc
+=== pass8-console-r3-assert-contradictions
+clear
+set obs 40
+generate x = _n
+capture noisily assert x > 100
+capture noisily assert x > 39
+capture noisily assert 0
+capture noisily assert x > 100 if x > 5
+capture noisily assert x > 100 in 1
+capture noisily assert x > 100 in 1/2
+capture noisily assert x > 100 if x == 3
+capture noisily assert x[_n] > 100
+capture noisily assert x[1] > 100 + _n
+capture noisily assert _N > 100
+capture noisily assert x[1] == 2
+keep in 1/2
+capture noisily assert x > 100
+=== pass8-console-r3-margins-option-before-comma
+clear
+set obs 40
+set seed 3
+generate wage = 10 + 5*runiform()
+generate age = 20 + _n
+quietly regress wage age
+capture noisily margins age dydx(age)
+display _rc
+capture noisily margins dydx(age)
+display _rc
+capture noisily margins age atmeans
+display _rc
+=== pass8-console-r3-preserve-in-program
+clear
+set obs 50
+generate x = _n
+program define cut10
+  preserve
+  keep in 1/10
+  display "inside " _N
+end
+cut10
+count
+program define cut20
+  preserve
+  keep in 1/20
+  summarize nosuch
+end
+capture noisily cut20
+count
+program drop cut10 cut20

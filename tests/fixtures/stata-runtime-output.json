@@ -156795,6 +156795,325 @@
       ]
     },
     {
+      "id": "pass8-console-r3-lone-equals-left",
+      "source": "clear\nset obs 6\ngenerate str5 region = cond(_n < 4, \"North\", \"South\")\ngenerate wage = 10 + _n\ngenerate x = _n\ncapture noisily list if region = \"North\" | wage > 2\ndisplay _rc\ncapture noisily list if region = 3\ndisplay _rc\ncapture noisily list if wage = \"North\"\ndisplay _rc\ncapture noisily list if wage = region\ndisplay _rc\ncapture noisily count if region + \"a\" = 1\ndisplay _rc\ncapture noisily drop if wage > 2 & x = region\ndisplay _rc\ncapture noisily summarize wage if region = \"North\"\ndisplay _rc\ncapture noisily summarize wage if x = region\ndisplay _rc\ncapture noisily summarize wage if x + 1 = \"a\"\ndisplay _rc\ncapture noisily summarize wage if wage = 1\ndisplay _rc\ncapture noisily regress wage x if region = \"North\"\ndisplay _rc\ncapture noisily tabulate region if region = \"North\"\ndisplay _rc\ncapture noisily mean wage if region = 3\ndisplay _rc\ncapture noisily generate z = 1 if region = \"North\"\ndisplay _rc\ncapture noisily generate z = 1 if wage = \"North\"\ndisplay _rc\ncapture noisily replace x = 1 if region == \"South\" | region = \"North\"\ndisplay _rc\ncapture noisily replace x = 1 if x + 1 = \"a\"\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        {
+          "command": "generate str5 region = cond(_n < 4, \"North\", \"South\")",
+          "lines": []
+        },
+        { "command": "generate wage = 10 + _n", "lines": [] },
+        { "command": "generate x = _n", "lines": [] },
+        {
+          "command": "capture noisily list if region = \"North\" | wage > 2",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily list if region = 3",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily list if wage = \"North\"",
+          "lines": ["=exp not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily list if wage = region",
+          "lines": ["=exp not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily count if region + \"a\" = 1",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily drop if wage > 2 & x = region",
+          "lines": ["=exp not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily summarize wage if region = \"North\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily summarize wage if x = region",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily summarize wage if x + 1 = \"a\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily summarize wage if wage = 1",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily regress wage x if region = \"North\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily tabulate region if region = \"North\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily mean wage if region = 3",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily generate z = 1 if region = \"North\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily generate z = 1 if wage = \"North\"",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily replace x = 1 if region == \"South\" | region = \"North\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily replace x = 1 if x + 1 = \"a\"",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] }
+      ]
+    },
+    {
+      "id": "pass8-console-r3-series-before-tsset",
+      "source": "clear\nset obs 10\nset seed 3\ngenerate t = _n\ngenerate y = runiform()\ngenerate wage = 10 + 5*runiform()\ncapture noisily regress y L.y\ndisplay _rc\ncapture noisily regress D.y wage\ndisplay _rc\ncapture noisily summarize L.y\ndisplay _rc\ncapture noisily summarize y D.y\ndisplay _rc\ncapture noisily list L.y in 1/2\ndisplay _rc\ncapture noisily correlate y L.y\ndisplay _rc\ncapture noisily scatter y L.y\ndisplay _rc\ncapture noisily mean L.y\ndisplay _rc\ncapture noisily tabulate L.y\ndisplay _rc\ncapture noisily newey y wage, lag(1)\ndisplay _rc\ncapture noisily dfuller y\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 10",
+          "lines": ["Number of observations (_N) was 0, now 10."]
+        },
+        { "command": "set seed 3", "lines": [] },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "generate y = runiform()", "lines": [] },
+        { "command": "generate wage = 10 + 5*runiform()", "lines": [] },
+        {
+          "command": "capture noisily regress y L.y",
+          "lines": ["time variable not set"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily regress D.y wage",
+          "lines": ["time variable not set"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily summarize L.y",
+          "lines": ["time variable not set"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily summarize y D.y",
+          "lines": ["time variable not set"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily list L.y in 1/2",
+          "lines": ["time variable not set"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily correlate y L.y",
+          "lines": ["time variable not set"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily scatter y L.y",
+          "lines": ["time variable not set"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily mean L.y",
+          "lines": ["time-series operators not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily tabulate L.y",
+          "lines": ["factor-variable and time-series operators not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily newey y wage, lag(1)",
+          "lines": ["time variable not set, use -tsset varname ...-"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily dfuller y",
+          "lines": ["time variable not set, use tsset varname ..."]
+        },
+        { "command": "display _rc", "lines": ["111"] }
+      ]
+    },
+    {
+      "id": "pass8-console-r3-assert-contradictions",
+      "source": "clear\nset obs 40\ngenerate x = _n\ncapture noisily assert x > 100\ncapture noisily assert x > 39\ncapture noisily assert 0\ncapture noisily assert x > 100 if x > 5\ncapture noisily assert x > 100 in 1\ncapture noisily assert x > 100 in 1/2\ncapture noisily assert x > 100 if x == 3\ncapture noisily assert x[_n] > 100\ncapture noisily assert x[1] > 100 + _n\ncapture noisily assert _N > 100\ncapture noisily assert x[1] == 2\nkeep in 1/2\ncapture noisily assert x > 100\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        {
+          "command": "capture noisily assert x > 100",
+          "lines": [
+            "40 contradictions in 40 observations",
+            "assertion is false"
+          ]
+        },
+        {
+          "command": "capture noisily assert x > 39",
+          "lines": [
+            "39 contradictions in 40 observations",
+            "assertion is false"
+          ]
+        },
+        {
+          "command": "capture noisily assert 0",
+          "lines": ["assertion is false"]
+        },
+        {
+          "command": "capture noisily assert x > 100 if x > 5",
+          "lines": [
+            "35 contradictions in 35 observations",
+            "assertion is false"
+          ]
+        },
+        {
+          "command": "capture noisily assert x > 100 in 1",
+          "lines": ["assertion is false"]
+        },
+        {
+          "command": "capture noisily assert x > 100 in 1/2",
+          "lines": ["2 contradictions in 2 observations", "assertion is false"]
+        },
+        {
+          "command": "capture noisily assert x > 100 if x == 3",
+          "lines": ["assertion is false"]
+        },
+        {
+          "command": "capture noisily assert x[_n] > 100",
+          "lines": [
+            "40 contradictions in 40 observations",
+            "assertion is false"
+          ]
+        },
+        {
+          "command": "capture noisily assert x[1] > 100 + _n",
+          "lines": [
+            "40 contradictions in 40 observations",
+            "assertion is false"
+          ]
+        },
+        {
+          "command": "capture noisily assert _N > 100",
+          "lines": ["assertion is false"]
+        },
+        {
+          "command": "capture noisily assert x[1] == 2",
+          "lines": ["assertion is false"]
+        },
+        { "command": "keep in 1/2", "lines": ["(38 observations deleted)"] },
+        {
+          "command": "capture noisily assert x > 100",
+          "lines": ["2 contradictions in 2 observations", "assertion is false"]
+        }
+      ]
+    },
+    {
+      "id": "pass8-console-r3-margins-option-before-comma",
+      "source": "clear\nset obs 40\nset seed 3\ngenerate wage = 10 + 5*runiform()\ngenerate age = 20 + _n\nquietly regress wage age\ncapture noisily margins age dydx(age)\ndisplay _rc\ncapture noisily margins dydx(age)\ndisplay _rc\ncapture noisily margins age atmeans\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "set seed 3", "lines": [] },
+        { "command": "generate wage = 10 + 5*runiform()", "lines": [] },
+        { "command": "generate age = 20 + _n", "lines": [] },
+        { "command": "quietly regress wage age", "lines": [] },
+        {
+          "command": "capture noisily margins age dydx(age)",
+          "lines": ["variable dydx not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily margins dydx(age)",
+          "lines": ["variable dydx not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily margins age atmeans",
+          "lines": ["variable atmeans not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] }
+      ]
+    },
+    {
+      "id": "pass8-console-r3-preserve-in-program",
+      "source": "clear\nset obs 50\ngenerate x = _n\nprogram define cut10\n  preserve\n  keep in 1/10\n  display \"inside \" _N\nend\ncut10\ncount\nprogram define cut20\n  preserve\n  keep in 1/20\n  summarize nosuch\nend\ncapture noisily cut20\ncount\nprogram drop cut10 cut20\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 50",
+          "lines": ["Number of observations (_N) was 0, now 50."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        {
+          "command": "program define cut10",
+          "lines": [
+            "  1.   preserve",
+            "  2.   keep in 1/10",
+            "  3.   display \"inside \" _N",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "cut10",
+          "lines": ["(40 observations deleted)", "inside 10"]
+        },
+        { "command": "count", "lines": ["  50"] },
+        {
+          "command": "program define cut20",
+          "lines": [
+            "  1.   preserve",
+            "  2.   keep in 1/20",
+            "  3.   summarize nosuch",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "capture noisily cut20",
+          "lines": ["(30 observations deleted)", "variable nosuch not found"]
+        },
+        { "command": "count", "lines": ["  50"] },
+        { "command": "program drop cut10 cut20", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

@@ -20,7 +20,7 @@ async function answer(data) {
   return kind === "run"
     ? session.run(source, {
         doFile: data.doFile,
-        stopAt: data.stopAt ?? -1,
+        stopAfter: data.stopAfter ?? -1,
         endless: true,
         // A run put back after Stop is quiet; any other says what it has
         // printed as it goes, so that Stop keeps it.

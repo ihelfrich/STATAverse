@@ -1145,7 +1145,7 @@
   margin: 0 14px 12px;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr));
   gap: 12px;
 }
 #console-datasets li {
@@ -1806,7 +1806,7 @@ body.is-dropping::after {
 }
 #console-datasets {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
   gap: 0 24px;
 }
 #console-datasets li {
@@ -2556,4 +2556,17 @@ th[aria-sort="descending"] .browse-sort::after {
   z-index: 2;
   background: var(--paper);
   box-shadow: 0 -26px 0 var(--paper);
+}
+/* At the narrowest phones the site's links wrap, so that the page does not
+   scroll sideways. */
+@media (max-width: 420px) {
+  .console-page .app-header nav {
+    flex-wrap: wrap;
+    height: auto;
+    gap: 2px 18px;
+    padding-bottom: 8px;
+  }
+  .console-page .app-header nav a {
+    padding: 8px 0 6px;
+  }
 }

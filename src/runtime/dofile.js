@@ -140,6 +140,8 @@ export function parseBlocks(commands) {
           options: program[2] ?? "",
           body,
           line,
+          // The line of its end, for the echo of its definition.
+          end: commands[at - 1].line,
         });
       } else if (/^inp(?:ut?)?(\s|$)/.test(text)) {
         // The rows, and the line each starts on, so that input can echo

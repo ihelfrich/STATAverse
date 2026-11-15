@@ -252,6 +252,32 @@ export function loneEquals(text) {
   return null;
 }
 
+/**
+ * What stands on either side of a lone = found by loneEquals: the operands
+ * between it and the nearest & or | at its own depth (Stata binds = as
+ * tightly as ==), as { left, right } texts.
+ */
+export function equalsOperands(text, lone) {
+  const edge = (from, step) => {
+    let depth = 0,
+      quote = false,
+      i = from;
+    for (; i >= 0 && i < text.length; i += step) {
+      const c = text[i];
+      if (c === '"') quote = !quote;
+      if (quote) continue;
+      if ((step > 0 ? "([" : ")]").includes(c)) depth++;
+      else if ((step > 0 ? ")]" : "([").includes(c) && --depth < 0) break;
+      else if (!depth && (c === "&" || c === "|")) break;
+    }
+    return i;
+  };
+  return {
+    left: text.slice(edge(lone.at - 1, -1) + 1, lone.at).trim(),
+    right: text.slice(lone.at + 1, edge(lone.at + 1, 1)).trim(),
+  };
+}
+
 // Finds where each clause of the part before the comma begins.
 export function clauses(head, expAllowed = true) {
   const found = [];

@@ -77,6 +77,9 @@ function doFile(mode) {
     session.loopDepth = 0;
     let failure = null,
       exited = false;
+    // The data a do-file preserves are put back when it ends; include runs
+    // its lines as the caller's own.
+    if (mode !== "include") session.enterScope();
     try {
       session.runNodes(parseBlocks(splitCommands(stored.text)), frame, output);
     } catch (error) {
@@ -86,6 +89,7 @@ function doFile(mode) {
         if (error.code) failure = new StataError("", error.code);
       } else failure = error;
     } finally {
+      if (mode !== "include") session.leaveScope();
       session.doDepth -= 1;
       session.sourceLines = sourceLines;
       session.loopDepth = loopDepth;
@@ -101,7 +105,12 @@ function doFile(mode) {
         }
         if (last) failure.recorded = true;
         if (last && mode === "do")
-          last.lines.push("", "end of do-file", `r(${failure.code});`);
+          last.lines.push(
+            "",
+            "end of do-file",
+            // A captured do-file reports no return code after it.
+            ...(ctx.flags?.capture ? [] : [`r(${failure.code});`]),
+          );
       } else if (!failure && mode === "do") {
         if (exited && last) last.lines.push("", "end of do-file");
         else

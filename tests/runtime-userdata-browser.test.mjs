@@ -144,14 +144,23 @@ test("comment lines in a loop echo as Stata 19 echoes them", () => {
       line: 1,
     },
   );
-  // A program's body is not run where it is written; its loop is not echoed.
+  // A program's body is not run where it is written: its definition is
+  // echoed with its lines numbered from 1, as Stata 19's log shows it, and
+  // its loop is not echoed when it runs.
   const program = createConsoleSession().run(
     "program define twice\n  forvalues i = 1/2 {\n    display `i'\n  }\nend\ntwice",
   ).output;
   assert.deepEqual(
     program.map((r) => r.command),
-    ["twice"],
+    ["program define twice", "twice"],
   );
+  assert.deepEqual(program[0].echo, [
+    "  1.   forvalues i = 1/2 {",
+    "  2.     display `i'",
+    "  3.   }",
+    "  4. end",
+  ]);
+  assert.deepEqual(program[1].lines, ["1", "2"]);
 });
 
 test("graph export writes .svg, .png and .pdf with Stata 19's messages", () => {

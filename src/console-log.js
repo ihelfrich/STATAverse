@@ -1,13 +1,23 @@
 // log using, log close, log off, log on and log query in the Console. A log
 // is a file in the session's folder, as save writes one, so that dir lists
 // it and the page offers it for download; it holds what Stata's log holds:
-// a header, each command after it with what it printed, and the closing
-// lines. A text log is plain text; an SMCL log carries Stata's markup.
+// a header, then all that Results shows after it, and the closing lines. A
+// text log is plain text; an SMCL log carries Stata's markup.
+//
+// Results are made of records, and a record can hold the work of many
+// commands (a loop, a do-file run by do), so a log command marks its place
+// among the lines: a line that begins with MARK, taken out before anything
+// is shown, says where the command's own lines begin and where they end.
+// The log is then written line by line in the order Results shows them, and
+// each log begins and ends where its command stood, even inside a loop.
 import { StataError } from "./runtime/errors.js";
 
-const RULE = "-".repeat(79),
-  MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" "),
-  FOLDER = "/stataverse";
+const MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" "),
+  FOLDER = "/stataverse",
+  MARK = "\u0000log\u0000";
+
+/** Whether a line of a record is one of the logs' marks. */
+export const isLogMark = (line) => line.startsWith(MARK);
 
 /** When, as a log's header writes it: 14 Nov 2026, 18:02:04. */
 function stamp(now = new Date()) {
@@ -19,17 +29,60 @@ function stamp(now = new Date()) {
 const smclText = (line) =>
   line.replace(/[{}]/g, (c) => (c === "{" ? "{c -(}" : "{c )-}"));
 
+/** A run of rule characters as SMCL draws it: {hline n} and {c +}. */
+const ruled = (text) =>
+  text.replace(/-+|\+/g, (piece) =>
+    piece === "+" ? "{c +}" : `{hline ${piece.length}}`,
+  );
+
+/**
+ * One line of output in SMCL: rules and the bars of a table as Stata draws
+ * them, numbers after a table's bar as results, a list's box with its
+ * corners. `box` remembers whether a list's box is open.
+ */
+function smclLine(line, box) {
+  if (line === "") return "{txt}";
+  // A table's rule: -------------+----------
+  if (/^-+(\+-+)+$/.test(line)) return `{txt}${ruled(line)}`;
+  // A list's box: its top, the rule under its header, and its bottom.
+  const edge = /^(\s*)\+(-+)\+$/.exec(line);
+  if (edge) {
+    box.open = !box.open;
+    return `{txt}${edge[1]}{c ${box.open ? "TLC" : "BLC"}}{hline ${edge[2].length}}{c ${box.open ? "TRC" : "BRC"}}`;
+  }
+  const inner = /^(\s*)\|(-+)\|$/.exec(line);
+  if (inner && box.open)
+    return `{txt}${inner[1]}{c LT}{hline ${inner[2].length}}{c RT}`;
+  const text = smclText(line);
+  // A row of a list: what is between its bars is a result.
+  const row = /^(\s*(?:\d+\.)?\s*)\|(.*)\|$/.exec(text);
+  if (row && box.open) return `{txt}${row[1]}{c |}{res}${row[2]}{txt}{c |}`;
+  // A row of a table: its label, a bar, then numbers as results.
+  const bar = text.lastIndexOf(" |");
+  if (bar > 0 && !/[|]/.test(text.slice(0, bar))) {
+    const label = text.slice(0, bar + 1),
+      values = text.slice(bar + 2);
+    return /\d/.test(values) && !/[A-Za-z]{2}/.test(values)
+      ? `{txt}${label}{c |}{res}${values}`
+      : `{txt}${label}{c |}${values}`;
+  }
+  return `{txt}${text}`;
+}
+
 /**
  * The logs of one session. `files` is how to read and write a file in the
- * session's folder: { has(name), text(name), write(name, text) }.
+ * session's folder, and what the session's settings are: { has(name),
+ * text(name), write(name, text), linesize(), logtype() }.
  */
 export function createLogs(files) {
-  const open = new Map(),
-    // The logs being written, as the records of runs are taken in.
-    active = new Set();
-  // What a run's commands did to the logs, by the record each belongs to.
-  let events = [];
+  const open = new Map();
+  // What each mark stands for, and the marks of the command running now
+  // that close its lines when it is recorded.
+  const events = new Map();
+  let ending = [],
+    next = 0;
 
+  const rule = () => "-".repeat(files.linesize?.() ?? 79);
   const fields = (log, when, word) => [
     `      name:  ${log.name}`,
     `       log:  ${log.path}`,
@@ -43,25 +96,44 @@ export function createLogs(files) {
   };
   const smclHeader = (log, word, when) =>
     `{txt}{sf}{ul off}{.-}\n      name:  {res}${log.name}\n       {txt}log:  {res}${log.path}\n  {txt}log type:  {res}${log.type}\n${" ".repeat(10 - word.length)}{txt}${word}:  {res}${when}\n{txt}\n`;
+  const smclFooter = (log, when) =>
+    `      {txt}name:  {res}${log.name}\n       {txt}log:  {res}${log.path}\n  {txt}log type:  {res}${log.type}\n {txt}closed on:  {res}${when}\n{txt}{.-}\n{smcl}\n{txt}{sf}{ul off}`;
 
-  /** The log a close, off, on or query is about; null when none is open. */
+  /**
+   * Marks where a log command's lines begin; `event` is applied where they
+   * end, once the command is recorded, so that capture or quietly, which
+   * keep its lines out of Results, do not keep the log from changing.
+   */
+  function mark(ctx, event) {
+    const id = String(++next);
+    events.set(id, event);
+    ctx.out(`${MARK}b${id}`);
+    ending.push(`${MARK}e${id}`);
+  }
+
+  /** The logs a close, off or on is about: the unnamed log, or those named. */
   function target(word) {
-    if (word && word !== "_all") {
+    if (word === "_all") return [...open.values()];
+    if (word) {
       const log = open.get(word);
       if (!log) throw new StataError(`log ${word} not found`, 111);
       return [log];
     }
-    if (word === "_all") return [...open.values()];
-    if (open.has("<unnamed>")) return [open.get("<unnamed>")];
-    return open.size === 1 ? [...open.values()] : [];
+    return open.has("<unnamed>") ? [open.get("<unnamed>")] : [];
   }
 
-  function using(rest, ctx, at) {
+  function using(rest, ctx) {
     const m =
       /^(?:"([^"]+)"|([^\s,]+))\s*(?:,(.*))?$/.exec(rest.trim()) ?? null;
     if (!m) throw new StataError("invalid file specification", 198);
     let file = (m[1] ?? m[2]).replace(/^.*[\\/]/, "");
-    const options = { replace: false, append: false, type: "", name: "" };
+    const options = {
+      replace: false,
+      append: false,
+      type: "",
+      name: "",
+      nomsg: false,
+    };
     for (const raw of (m[3] ?? "").match(/[A-Za-z]+(\([^)]*\))?/g) ?? []) {
       const word = /^[A-Za-z]+/.exec(raw)[0],
         value = /\(([^)]*)\)/.exec(raw)?.[1]?.trim() ?? "";
@@ -72,7 +144,7 @@ export function createLogs(files) {
       else if (word === "text" || word === "t") options.type = "text";
       else if (word === "smcl" || word === "s") options.type = "smcl";
       else if (word === "name" && value) options.name = value;
-      else if (word === "nomsg") continue;
+      else if (word === "nomsg") options.nomsg = true;
       else throw new StataError(`option ${word} not allowed`, 198);
     }
     if (options.replace && options.append)
@@ -88,159 +160,264 @@ export function createLogs(files) {
           : `log file ${name} already open`,
         604,
       );
+    // With no type named, set logtype decides, and a .log file is text.
+    const chosen = options.type || files.logtype?.() || "smcl";
     if (!/\.[A-Za-z0-9]+$/.test(file))
-      file += options.type === "text" ? ".log" : ".smcl";
-    const type = options.type || (/\.log$/i.test(file) ? "text" : "smcl"),
+      file += chosen === "text" ? ".log" : ".smcl";
+    const type =
+        options.type ||
+        (/\.log$/i.test(file)
+          ? "text"
+          : /\.smcl$/i.test(file)
+            ? "smcl"
+            : chosen),
       path = `${FOLDER}/${file}`,
       exists = files.has(file);
     if (exists && !options.replace && !options.append)
       throw new StataError(`file ${path} already exists`, 602);
-    if (options.replace && !exists) ctx.out(`(file ${path} not found)`);
-    const log = { name, file, path, type, on: true, text: "" };
-    if (options.append && exists) log.text = files.text(file);
-    const when = stamp(),
-      header = [RULE, ...fields(log, when, "opened on")];
-    for (const line of header) ctx.out(line);
+    const log = {
+      name,
+      file,
+      path,
+      type,
+      on: true,
+      writing: false,
+      nomsg: options.nomsg,
+      text: options.append && exists ? files.text(file) : "",
+    };
+    // quietly log using and nomsg write no header, as Stata's do.
+    const quiet = !!ctx.flags?.quiet || options.nomsg,
+      when = stamp();
+    mark(ctx, { kind: "open", log, quiet, when });
+    if ((options.replace || options.append) && !exists)
+      ctx.out(`(file ${path} not found)`);
+    if (!options.nomsg)
+      for (const line of [rule(), ...fields(log, when, "opened on")])
+        ctx.out(line);
     open.set(name, log);
-    // quietly log using writes no header, as Stata's does.
-    const quiet = !!ctx.flags?.quiet;
     if (type === "smcl")
-      log.text += quiet
-        ? "{smcl}\n{txt}{sf}{ul off}"
-        : `{smcl}\n${smclHeader(log, "opened on", when)}`;
-    else if (!quiet) log.text += `${header.join("\n")}\n`;
+      log.text += quiet ? "{smcl}\n{txt}{sf}{ul off}" : "{smcl}\n";
     write(log);
-    events.push({ at, kind: "open", log });
   }
 
-  /** Runs a log command; `at` is the record it will be shown as. */
-  function command(text, ctx, at) {
+  /** Runs a log command. */
+  function command(text, ctx) {
     const m = /^(\w*)\s*(.*)$/s.exec(text.trim()),
       word = m[1],
       rest = m[2].trim();
     if (!word || "query".startsWith(word)) {
-      const logs = target(rest);
-      if (!logs.length) return ctx.out("no log file open");
-      for (const log of logs) {
+      // Stata answers about the unnamed log, "(closed)" when there is none;
+      // _all adds the named ones.
+      const shown = (log) => {
         ctx.out(`      name:  ${log.name}`);
         ctx.out(`       log:  ${log.path}, ${log.on ? "on" : "off"}`);
         ctx.out(`  log type:  ${log.type}`);
+      };
+      if (rest && rest !== "_all") return shown(target(rest)[0]);
+      const unnamed = open.get("<unnamed>");
+      if (unnamed) shown(unnamed);
+      else ctx.out("(closed)");
+      if (rest === "_all") {
+        let after = !!unnamed;
+        for (const log of open.values()) {
+          if (log === unnamed) continue;
+          if (after) ctx.out("");
+          shown(log);
+          after = true;
+        }
       }
       return;
     }
-    if (word === "using" || word === "u") return using(rest, ctx, at);
+    if (word === "using" || word === "u") return using(rest, ctx);
     if (word === "close" || word === "c") {
       const logs = target(rest);
       if (!logs.length) {
         if (rest === "_all") return;
         throw new StataError("no log file open", 606);
       }
+      const when = stamp();
+      mark(ctx, { kind: "close", logs, when });
       for (const log of logs) {
-        const lines = [...fields(log, stamp(), "closed on"), RULE];
-        for (const line of lines) ctx.out(line);
+        if (!log.nomsg)
+          for (const line of [...fields(log, when, "closed on"), rule()])
+            ctx.out(line);
         open.delete(log.name);
-        events.push({ at, kind: "close", log, lines });
       }
       return;
     }
     if (word === "off" || word === "on") {
       const logs = target(rest);
       if (!logs.length) throw new StataError("no log file open", 606);
-      for (const log of logs) {
-        if (log.on === (word === "on")) continue;
-        log.on = word === "on";
-        const when = stamp(),
-          lines =
-            word === "off"
-              ? [...fields(log, when, "paused on"), RULE]
-              : [RULE, ...fields(log, when, "resumed on")];
+      const on = word === "on",
+        changed = logs.filter((log) => log.on !== on);
+      if (!changed.length) return ctx.out(`(log already ${word})`);
+      const when = stamp();
+      mark(ctx, { kind: word, logs: changed, when });
+      for (const log of changed) {
+        log.on = on;
+        const lines = on
+          ? [rule(), ...fields(log, when, "resumed on")]
+          : [...fields(log, when, "paused on"), rule()];
         for (const line of lines) ctx.out(line);
-        events.push({ at, kind: word, log, lines, when });
       }
       return;
     }
     throw new StataError(`invalid syntax`, 198);
   }
 
-  /** Writes one record of Results into each log that is open and on. */
-  function record(record, logs) {
-    for (const log of logs) {
-      if (log.type === "smcl") {
-        // As Stata writes it: a blank line before each command, the lines
-        // of a loop numbered in text and their commands as commands.
-        const gap = /\{txt\}\n$/.test(log.text) ? "" : "{txt}\n",
-          echo = (record.echo ?? []).map((line) => {
-            const numbered = /^(\s*\d+)\.(.*)$/.exec(line);
-            return numbered
-              ? `{txt}${numbered[1]}{com}.${smclText(numbered[2])}\n`
-              : `${smclText(line)}\n`;
-          }),
-          lines = record.lines.map((line) =>
-            line === RULE
-              ? "{txt}{.-}\n"
-              : line === ""
-                ? "{txt}\n"
-                : `{txt}${smclText(line)}\n`,
+  // The logs open where the lines taken so far stand, which may be
+  // before the command that closed them has been reached.
+  const live = new Set();
+  /** Writes one line of Results into each log that is being written. */
+  function put(line, skip, render) {
+    for (const log of live)
+      if (log.writing && !skip?.includes(log))
+        add(log, `${log.type === "smcl" ? render(log, line) : line}\n`);
+  }
+
+  /** Applies what a log command did, where its lines end. */
+  function apply(event) {
+    if (event.kind === "open") {
+      const log = event.log;
+      live.add(log);
+      log.writing = true;
+      if (!event.quiet) {
+        if (log.type === "smcl")
+          add(log, smclHeader(log, "opened on", event.when));
+        else
+          add(
+            log,
+            `${[rule(), ...fields(log, event.when, "opened on")].join("\n")}\n`,
           );
-        add(
-          log,
-          `${gap}{com}. ${smclText(record.command)}\n${echo.join("")}${lines.join("")}`,
-        );
+      }
+      return;
+    }
+    for (const log of event.logs) {
+      if (event.kind === "close") {
+        if (log.writing && !log.nomsg)
+          add(
+            log,
+            log.type === "smcl"
+              ? smclFooter(log, event.when)
+              : `${[...fields(log, event.when, "closed on"), rule()].join("\n")}\n`,
+          );
+        else if (log.type === "smcl") add(log, "{smcl}\n{txt}{sf}{ul off}");
+        log.writing = false;
+        live.delete(log);
+      } else if (event.kind === "off") {
+        if (log.type === "smcl")
+          add(
+            log,
+            `      {txt}name:  {res}${log.name}\n       {txt}log:  {res}${log.path}\n  {txt}log type:  {res}${log.type}\n {txt}paused on:  {res}${event.when}\n{txt}{.-}\n`,
+          );
+        else
+          add(
+            log,
+            `${[...fields(log, event.when, "paused on"), rule()].join("\n")}\n`,
+          );
+        log.writing = false;
       } else {
-        const gap = log.text && !log.text.endsWith("\n\n") ? "\n" : "";
+        log.writing = true;
         add(
           log,
-          `${gap}${[`. ${record.command}`, ...(record.echo ?? []), ...record.lines].join("\n")}\n`,
+          log.type === "smcl"
+            ? smclHeader(log, "resumed on", event.when)
+            : `${[rule(), ...fields(log, event.when, "resumed on")].join("\n")}\n`,
         );
       }
     }
   }
 
   /**
-   * Takes the records of a run from `from` up to `to` into the logs, with
-   * what the log commands among them did: a log is written from the
-   * command after its log using, and ends with its log close.
+   * Takes the records of a run from `from` up to `to` into the logs, line
+   * by line as Results shows them, and takes the marks out of them.
    */
   function take(records, from, to) {
     for (let k = from; k < to; k++) {
-      record(
-        records[k],
-        [...active].filter((log) => log.writing),
-      );
-      for (const event of events.filter((each) => each.at === k)) {
-        const log = event.log;
-        if (event.kind === "open") {
-          active.add(log);
-          log.writing = true;
-        } else if (event.kind === "close") {
-          if (log.type === "smcl") add(log, "{smcl}\n{txt}{sf}{ul off}");
-          active.delete(log);
-        } else if (event.kind === "off") log.writing = false;
-        else {
-          log.writing = true;
-          add(
-            log,
-            log.type === "smcl"
-              ? smclHeader(log, "resumed on", event.when)
-              : `${event.lines.join("\n")}\n`,
-          );
+      const record = records[k],
+        box = { open: false },
+        // The lines of a log command itself go to the other logs only:
+        // its own log gets its header or closing lines from the command.
+        skip = [];
+      const render = (log, line, kind = "out") => {
+        if (kind === "command") return `{com}. ${smclText(line)}`;
+        if (kind === "echo") {
+          const numbered = /^(\s*\d+)\.(.*)$/.exec(line);
+          return numbered
+            ? `{txt}${numbered[1]}{com}.${smclText(numbered[2])}`
+            : `{com}${smclText(line)}`;
         }
+        if (kind === "error")
+          return /^r\(\d+\);$/.test(line)
+            ? `{txt}{search ${line.slice(0, -1)}, local:${line}}`
+            : `{err}${smclText(line)}`;
+        return smclLine(line, box);
+      };
+      const lines = record.lines,
+        // The lines at the end that are the record's error.
+        fault = record.rc ? (record.fault ?? 2) : 0,
+        plain = lines.filter((line) => !isLogMark(line)).length;
+      // A blank line before each command, as Results shows one: none when
+      // what came before already ended with one, as a table does.
+      for (const log of live)
+        if (log.writing && !/(^|\n)(\{txt\})?\n$/.test(log.text))
+          add(log, log.type === "smcl" ? "{txt}\n" : "\n");
+      put(`. ${record.command}`, null, (log, line) =>
+        render(log, line.slice(2), "command"),
+      );
+      for (const line of record.echo ?? [])
+        put(line, null, (log, each) => render(log, each, "echo"));
+      let shown = 0;
+      for (const line of lines) {
+        if (isLogMark(line)) {
+          const id = line.slice(MARK.length + 1),
+            event = events.get(id);
+          if (!event) continue;
+          if (line[MARK.length] === "b") skip.push(...(event.logs ?? []));
+          else {
+            events.delete(id);
+            for (const log of event.logs ?? [])
+              if (skip.includes(log)) skip.splice(skip.indexOf(log), 1);
+            apply(event);
+          }
+          continue;
+        }
+        const kind = shown++ >= plain - fault ? "error" : "out";
+        put(line, skip, (log, each) => render(log, each, kind));
       }
+      record.lines = lines.filter((line) => !isLogMark(line));
     }
-    events = events.filter((event) => event.at >= to);
   }
 
   return {
     command,
     take,
-    /** A new run: what earlier runs did is done. */
+    /** The marks that end the lines of the log command just recorded. */
+    ends() {
+      const out = ending;
+      ending = [];
+      return out;
+    },
+    /**
+     * Applies, in the order they were run, what log commands did whose
+     * lines were never shown, as under run or quietly do: called once the
+     * records they would have been in are all taken.
+     */
+    settle() {
+      for (const [id, event] of [...events].sort((a, b) => a[0] - b[0])) {
+        events.delete(id);
+        apply(event);
+      }
+    },
+    /** A new run. */
     start() {
-      events = [];
+      ending = [];
     },
     clear() {
       open.clear();
-      active.clear();
-      events = [];
+      live.clear();
+      events.clear();
+      ending = [];
     },
   };
 }

@@ -21,6 +21,11 @@ async function runFile(page, text, ran) {
   await page.locator("#console-run").click();
   await expect(page.locator("#console-status")).toContainText(ran);
 }
+async function openData(page) {
+  const box = page.locator("#drawer-data");
+  if ((await box.getAttribute("open")) === null)
+    await box.locator("> summary").click();
+}
 const lastRecord = (page) =>
   page.locator("#console-output .console-record").last();
 const tabs = (page) =>
@@ -105,8 +110,8 @@ test("Stop keeps the data in memory and what the run printed", async ({
   await page.waitForTimeout(1500);
   await page.keyboard.press("Control+.");
   await expect(page.locator("#console-status")).toContainText(
-    "as they were before the command that was stopped",
-    { timeout: 20000 },
+    "as they do after Break in Stata",
+    { timeout: 30000 },
   );
   const results = page.locator("#console-output");
   await expect(results).toContainText("before the loop");
@@ -118,12 +123,141 @@ test("Stop keeps the data in memory and what the run printed", async ({
     "5,000 observations",
   );
   // The data, the variable made before the loop and the command line's
-  // locals are all there; the loop itself did not take effect.
+  // locals are all there, and so are the loop's finished iterations, as
+  // after Break in Stata.
   await type(page, "summarize score k");
   await expect(lastRecord(page)).toContainText("5,000");
-  await type(page, "display k[1] + `kept'");
-  await expect(lastRecord(page)).toContainText("43");
+  await type(page, "display `kept'");
+  await expect(lastRecord(page)).toContainText("42");
+  await type(page, 'display cond(k[1] > 1, "loop kept", "loop lost")');
+  await expect(lastRecord(page)).toContainText("loop kept");
 });
+
+test("Stop pressed twice keeps the data in memory", async ({ page }) => {
+  await ready(page);
+  await type(page, "clear");
+  await type(page, "set obs 300000");
+  await type(page, "generate a = _n");
+  await type(page, "generate b = 2 * _n");
+  await type(page, "generate c = 3 * _n");
+  await runFile(page, "while 1 {\n  local j = 1\n}\n", "Running");
+  await page.waitForTimeout(800);
+  await page.keyboard.press("Control+.");
+  await page.waitForTimeout(250);
+  await page.keyboard.press("Control+.");
+  await expect(page.locator("#console-status")).toContainText(
+    "as they do after Break in Stata",
+    { timeout: 30000 },
+  );
+  await expect(page.locator("#console-memory")).toContainText(
+    "300,000 observations, 3 variables",
+  );
+  await type(page, "count");
+  await expect(lastRecord(page)).toContainText("300,000");
+});
+
+test("Stop after a data file was removed keeps the data that came from it", async ({
+  page,
+}) => {
+  await ready(page);
+  await page.locator("#console-file").setInputFiles({
+    name: "mine.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("a,b\n1,2\n3,4\n5,6\n"),
+  });
+  await expect(page.locator("#console-status")).toContainText("Added mine.csv");
+  await type(page, "import delimited mine.csv, clear");
+  await type(page, "generate k = 1");
+  await type(page, "count");
+  await expect(lastRecord(page)).toContainText("3");
+  await openData(page);
+  await page.getByRole("button", { name: "Remove mine.csv" }).click();
+  await expect(page.locator("#console-status")).toContainText(
+    "mine.csv was removed",
+  );
+  // A file of the same name with other contents, added before the Stop,
+  // is not what the earlier import read.
+  await page.locator("#console-file").setInputFiles({
+    name: "mine.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("a,b\n9,9\n"),
+  });
+  await expect(page.locator("#console-status")).toContainText("Added mine.csv");
+  await runFile(page, "while 1 {\n  local j = 1\n}\n", "Running");
+  await page.waitForTimeout(600);
+  await page.keyboard.press("Control+.");
+  await expect(page.locator("#console-status")).toContainText(
+    "as they do after Break in Stata",
+    { timeout: 30000 },
+  );
+  await expect(page.locator("#console-status")).not.toContainText("differ");
+  await expect(page.locator("#console-memory")).toContainText(
+    "3 observations, 3 variables",
+  );
+  await type(page, "list");
+  await expect(lastRecord(page)).toContainText("5   6   1");
+});
+
+test("adding a data file does not replace changed data in memory", async ({
+  page,
+}) => {
+  await ready(page);
+  await type(page, "clear");
+  await type(page, "set obs 5");
+  await type(page, "generate id = _n");
+  await type(page, "generate cleaned = id*2");
+  await page.locator("#console-file").setInputFiles({
+    name: "other.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("id,z\n1,9\n2,8\n"),
+  });
+  await expect(page.locator("#console-status")).toContainText(
+    "The data in memory are unchanged",
+  );
+  await type(page, "confirm variable cleaned");
+  await expect(lastRecord(page)).not.toContainText("not found");
+  await type(page, "count");
+  await expect(lastRecord(page)).toContainText("5");
+});
+
+test("a program typed at the command line is shown in Results", async ({
+  page,
+}) => {
+  await ready(page);
+  await type(page, "display 0");
+  await type(page, "program define hi");
+  await type(page, 'display "hello"');
+  await type(page, "end");
+  const record = lastRecord(page);
+  await expect(record).toContainText(". program define hi");
+  await expect(record).toContainText('1. display "hello"');
+  await expect(record).toContainText("2. end");
+  await type(page, "hi");
+  await expect(lastRecord(page)).toContainText("hello");
+});
+
+for (const width of [320, 340, 360, 375])
+  test(`the dataset list fits the Data drawer at ${width} px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await ready(page);
+    await openData(page);
+    const load = page.getByRole("button", { name: "Load study" });
+    await expect(load).toBeVisible();
+    const drawer = await page.locator("#console-datasets").boundingBox();
+    for (const row of await page.locator("#console-datasets li").all()) {
+      const box = await row.boundingBox();
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+    }
+    const button = await load.boundingBox();
+    expect(button.x + button.width).toBeLessThanOrEqual(
+      drawer.x + drawer.width + 0.5,
+    );
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(width);
+  });
 
 test("a block typed at the command line runs when it is closed", async ({
   page,

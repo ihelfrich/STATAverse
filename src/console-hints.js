@@ -301,7 +301,7 @@ function loneIf(command) {
 // Options students write before the comma. The function of egen and the
 // at() of a time-series operator are not options, so only these are read.
 const EARLY =
-  /\b(by|dydx|eyex|dyex|eydx|at|over|vce|absorb|cluster|level|group|time|select|ar|ma|lags)\(/;
+  /\b(by|dydx|eyex|dyex|eydx|at|over|vce|absorb|cluster|level|group|time|select|ar|ma|lags)\s*\(/;
 
 /**
  * An option written before the comma, as in margins dydx(x): { option,
@@ -341,7 +341,11 @@ function earlyOption(command, word) {
     rest = command.slice(comma + 1).trim();
   return {
     option: found[1],
-    fix: `${head.slice(0, at).trimEnd()}, ${head.slice(at).trim()}${rest ? ` ${rest}` : ""}`,
+    // by (region) is written by(region), as options are.
+    fix: `${head.slice(0, at).trimEnd()}, ${head
+      .slice(at)
+      .trim()
+      .replace(/^(\w+)\s+\(/, "$1(")}${rest ? ` ${rest}` : ""}`,
   };
 }
 

@@ -22,8 +22,9 @@ const SPLIT =
   "-------------+----------------------------------------------------------------";
 
 function newey(session, text, ctx) {
+  // newey's own wording sets tsset off with dashes.
   if (!session.panel?.time)
-    throw new StataError("time variable not set, use tsset varname ...", 111);
+    throw new StataError("time variable not set, use -tsset varname ...-", 111);
   if (session.panel.id)
     throw new StataError("newey on panel data is not available yet", 198);
   const parsed = session.parse(

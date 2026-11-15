@@ -138,12 +138,18 @@ async function takeHere(message, progress) {
   return giveFile(local, message.name, message.as, bytes);
 }
 // What the session has been asked to do since it was last cleared, so that
-// after Stop a new session can be brought back to where the old one was.
-let journal = [];
-function ask(message, progress, stream) {
-  if (message.kind === "reset") journal = [];
-  else if (message.kind === "run" || message.kind === "file")
-    journal.push(message);
+// after Stop a new session can be brought back to where the old one was:
+// the runs, and every file given or taken away, in order, with the files
+// the session had when it was cleared. A file added again, or removed,
+// after a run that read it is then read as that run read it.
+let journal = [],
+  journalBase = new Map();
+const JOURNALED = new Set(["run", "file", "take", "binary", "remove"]);
+function ask(message, progress, stream, { kept = true } = {}) {
+  if (kept && message.kind === "reset") {
+    journal = [];
+    journalBase = new Map(uploads);
+  } else if (kept && JOURNALED.has(message.kind)) journal.push(message);
   if (!worker) {
     local ??= createConsoleSession();
     if (message.kind === "take") return takeHere(message, progress);
@@ -1284,6 +1290,9 @@ async function perform(text, origin) {
       command: "",
       echo: [],
       partial: [],
+      // How many commands the run had finished when it last said so: Stop
+      // puts the session back to that point, which is what Results show.
+      count: 0,
     },
     flush = () => {
       clearTimeout(heard.timer);
@@ -1306,6 +1315,7 @@ async function perform(text, origin) {
         progress.commands = commands;
       },
       (piece) => {
+        heard.count = piece.count ?? heard.count;
         if (!piece.records) {
           heard.partial = piece.partial;
           return;
@@ -1321,12 +1331,18 @@ async function perform(text, origin) {
         heard.timer ||= setTimeout(flush, 300);
       },
     );
+    // How the run ended, so that putting it back after a Stop can tell
+    // whether it ran the same way again.
+    message.rc = result.rc;
+    message.records = result.output.length;
   } catch (error) {
     if (error.stopped) {
-      // Break: the commands before the one stopped took effect, and a new
-      // session is brought to that point; the one stopped is shown with
-      // what it printed, then --Break-- and r(1), as Stata shows it.
-      message.stopAt = heard.node;
+      // Break: every command that had finished when Stop was pressed (as
+      // far as Results show) took effect, inside a loop or a do-file too,
+      // and a new session is brought to that point; the one stopped is
+      // shown with what it printed, then --Break-- and r(1), as Stata
+      // shows it.
+      message.stopAfter = heard.count;
       heard.waiting.push({
         command: heard.command || text.trim().split("\n")[0],
         echo: heard.echo,
@@ -1341,6 +1357,8 @@ async function perform(text, origin) {
       return null;
     }
     clearTimeout(heard.timer);
+    // Put back after a Stop, this run is expected to fail the same way.
+    message.faulted = true;
     // Anything that is not a Stata error is a fault in the interpreter.
     append(
       `\nThe interpreter stopped unexpectedly: ${error.message}\n`,
@@ -1494,49 +1512,78 @@ async function runSteps(entries, mark) {
 /**
  * A new worker with the student's files, and a new session in it. With
  * `replay`, what the old session was asked to do since it was cleared is
- * done again, quietly, so that the new one holds the same data, results
- * and macros; the run that was stopped is done up to the command stopped.
- * Returns false when that could not be done and the session is new.
+ * done again, quietly and in order: the files it had then, each run and
+ * each file added or removed since, so that the new one holds the same
+ * data, results, macros and logs; the run that was stopped is done up to
+ * where Stop found it. Each run is checked to end as it ended before; one
+ * that does not is named in the status, for the data may then differ.
+ * Returns false when the session could not be put back.
  */
 async function restart(message, replay = false) {
-  const steps = replay ? journal.slice() : [];
+  const steps = replay ? journal.slice() : [],
+    base = replay ? new Map(journalBase) : new Map();
   await startWorker();
-  // Files graph export made are given back after the runs are put back,
-  // so that a graph export without replace among them finds no file there.
-  const made = [...uploads].filter(([, file]) => file.made && steps.length);
-  for (const [name, file] of uploads)
-    if (!(file.made && steps.length))
-      await sendUpload(name, file).catch(() => {});
-  const giveMade = async () => {
-    for (const [name, file] of made)
-      await sendUpload(name, file).catch(() => {});
-  };
   if (!steps.length) {
+    for (const [name, file] of uploads)
+      await sendUpload(name, file).catch(() => {});
     await newSession(message);
     return true;
   }
-  let memory = null;
+  let memory = null,
+    differs = null;
   try {
-    memory = (await ask({ kind: "reset", dataset: "" })).memory;
-    restoring = true;
-    stop.hidden = !worker;
-    for (const step of steps)
-      memory = (await ask({ ...step, quiet: true })).memory ?? memory;
-    await giveMade();
+    // The files the session had when it was last cleared; the journal
+    // gives and takes away the rest as they were.
+    for (const [name, file] of base)
+      await sendUpload(name, file, null, { kept: false }).catch(() => {});
+    memory = (
+      await ask({ kind: "reset", dataset: "" }, null, null, { kept: false })
+    ).memory;
+    for (const step of steps) {
+      let reply;
+      try {
+        reply = await ask({ ...step, quiet: true }, null, null, {
+          kept: false,
+        });
+      } catch (error) {
+        // Only a worker that has died ends the putting back. A file that
+        // cannot be read again (changed on disk since), or a run that
+        // fails in the interpreter where it did not before, is named.
+        if (error.lost || !worker) throw error;
+        if (!step.faulted)
+          differs ??=
+            step.kind === "run"
+              ? `${step.source.trim().split("\n")[0]} stopped in the interpreter this time`
+              : `${step.name} could not be read again`;
+        continue;
+      }
+      memory = reply.memory ?? memory;
+      if (
+        step.kind === "run" &&
+        step.stopAfter === undefined &&
+        step.rc !== undefined &&
+        (reply.rc !== step.rc || reply.output.length !== step.records)
+      )
+        differs ??= `${step.source.trim().split("\n")[0]} ended differently this time (return code ${reply.rc}, not ${step.rc})`;
+    }
   } catch (error) {
-    restoring = false;
-    // Stopped again while it was put back: the second Stop clears it.
-    if (error.stopped) return false;
+    journal = [];
+    journalBase = new Map(uploads);
+    if (!worker) await startWorker();
+    for (const [name, file] of uploads)
+      await sendUpload(name, file, null, { kept: false }).catch(() => {});
     await newSession(
-      "Stopped. The session could not be put back as it was, so it was cleared: the data in memory are gone; the do-file text and Results are unchanged.",
+      `Stopped. The session could not be put back as it was (${error.message}), so it was cleared: the data in memory are gone; the do-file text and Results are unchanged.`,
     );
-    await giveMade();
     return false;
   }
-  restoring = false;
+  journal = steps;
+  journalBase = base;
   known = null;
   showVariables(memory);
-  status.textContent = message;
+  status.textContent = differs
+    ? `${message} But in putting the session back, ${differs}, so the data may not be as they were: check them before going on.`
+    : message;
   return true;
 }
 async function newSession(message) {
@@ -1947,14 +1994,21 @@ run.addEventListener("click", () => (mapping ? map.runAll() : execute()));
 runSelection.addEventListener("click", () =>
   execute(selectedLines(), "selection"),
 );
-let restoring = false,
-  stops = 0;
+// Whether a Stop is being dealt with: the run ended and the session being
+// put back. Pressing Stop again then changes nothing, as pressing Break
+// twice changes nothing in Stata.
+let restoring = false;
 stop.addEventListener("click", async () => {
-  // Ending the worker is the only way to interrupt it. What it printed
-  // stays in Results; a new session is then brought to where the old one
-  // was before the command that was stopped, as Break leaves Stata.
-  const again = restoring,
-    turn = ++stops;
+  if (restoring) {
+    status.textContent =
+      "Stop was pressed: the session is being put back as it was when the run stopped. This ends by itself.";
+    return;
+  }
+  restoring = true;
+  // Ending the worker is the only way to interrupt it. What the run has
+  // already said (what it printed, how far it got) is let in first, so
+  // that the point it is put back to is the one Results show.
+  await new Promise((resolve) => setTimeout(resolve, 60));
   worker?.terminate();
   worker = null;
   stopped = null;
@@ -1962,21 +2016,14 @@ stop.addEventListener("click", async () => {
   // The run's own ending (what it printed, where it stopped) comes first.
   await new Promise((resolve) => setTimeout(resolve, 0));
   fox.idle();
-  if (again) {
-    journal = [];
-    status.textContent = "Stopped again. Starting a new session…";
-    await restart(
-      "Stopped while the session was being put back, so it was cleared: the data in memory are gone; the do-file text and Results are unchanged.",
-    );
-  } else {
-    const where = stopped?.line ? ` on line ${stopped.line}` : "";
-    status.textContent = `Stopped${where}. Putting the data back as they were before that command…`;
-    await restart(
-      `Stopped${where} (--Break--). The data and results are as they were before the command that was stopped; the commands before it took effect.`,
-      true,
-    );
-  }
-  if (turn === stops) busy(false);
+  const where = stopped?.line ? ` on line ${stopped.line}` : "";
+  status.textContent = `Stopped${where}. Putting the session back as it was when the run stopped (the commands run since it was last cleared are run again, which takes about as long as they took)…`;
+  await restart(
+    `Stopped${where} (--Break--). The commands that had finished when you pressed Stop took effect, as they do after Break in Stata.`,
+    true,
+  );
+  restoring = false;
+  busy(false);
 });
 // Ctrl or ⌘ + . stops a run, as Break does in Stata for Mac.
 document.addEventListener("keydown", (event) => {
@@ -2274,16 +2321,23 @@ function showUploads() {
   if (mapping) map.draw();
 }
 /** Gives the session one of the student's files; progress as it is read. */
-function sendUpload(name, file, progress) {
+function sendUpload(name, file, progress, options) {
   if (file.made)
     return file.blob
       .arrayBuffer()
       .then((buffer) =>
-        ask({ kind: "binary", name, bytes: new Uint8Array(buffer) }),
+        ask(
+          { kind: "binary", name, bytes: new Uint8Array(buffer) },
+          null,
+          null,
+          options,
+        ),
       );
   return ask(
     { kind: "take", name, file: file.blob, as: fileKind(name) },
     progress,
+    null,
+    options,
   );
 }
 /** Graphs written by graph export, made into files and kept. */
@@ -2379,8 +2433,16 @@ async function takeFiles(list) {
     );
   }
   showUploads();
-  // One data file is loaded straight away, so there is something to see.
-  if (loaded && !isRunning) {
+  // One data file is loaded straight away when memory is empty, so there
+  // is something to see. Data already in memory are never replaced: adding
+  // a file to the folder does not touch memory in Stata, and it may be a
+  // file to merge.
+  const empty = !memoryNow.variables.length && !(memoryNow.observations > 0);
+  if (loaded && !isRunning && !empty)
+    notes.push(
+      `The data in memory are unchanged; ${loaded} loads it in their place.`,
+    );
+  else if (loaded && !isRunning) {
     ranTyped.push(loaded);
     const ran = await execute(`${loaded}\ndescribe`, "command");
     notes.push(
