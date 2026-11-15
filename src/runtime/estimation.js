@@ -59,6 +59,10 @@ function crossProducts(columns, w) {
   const k = columns.length,
     n = k ? columns[0].length : 0,
     sums = new Float64Array(k * k),
+    // The rounding error of each sum, carried as Neumaier's compensated
+    // summation carries it: Stata accumulates in more than double
+    // precision, and its last digits come out only so.
+    errors = new Float64Array(k * k),
     row = new Float64Array(k);
   for (let i = 0; i < n; i++) {
     for (let a = 0; a < k; a++) row[a] = columns[a][i];
@@ -67,14 +71,36 @@ function crossProducts(columns, w) {
       const v = w ? weight * row[a] : row[a];
       if (v === 0) continue;
       const at = a * k;
-      for (let b = a; b < k; b++) sums[at + b] += v * row[b];
+      for (let b = a; b < k; b++) {
+        const term = v * row[b],
+          sum = sums[at + b],
+          t = sum + term;
+        errors[at + b] +=
+          Math.abs(sum) >= Math.abs(term) ? sum - t + term : term - t + sum;
+        sums[at + b] = t;
+      }
     }
   }
   return Array.from({ length: k }, (_, a) =>
     Array.from({ length: k }, (_, b) =>
-      a <= b ? sums[a * k + b] : sums[b * k + a],
+      a <= b
+        ? sums[a * k + b] + errors[a * k + b]
+        : sums[b * k + a] + errors[b * k + a],
     ),
   );
+}
+
+/** A compensated sum of f(i) over 0..n-1 (see crossProducts). */
+function compensated(n, f) {
+  let sum = 0,
+    error = 0;
+  for (let i = 0; i < n; i++) {
+    const term = f(i),
+      t = sum + term;
+    error += Math.abs(sum) >= Math.abs(term) ? sum - t + term : term - t + sum;
+    sum = t;
+  }
+  return sum + error;
 }
 
 export const RULE = "-".repeat(78);
@@ -779,6 +805,9 @@ export function fit(session, parsed, by) {
       !!hc ||
       parsed.weight?.type === "pweight" ||
       /^(r(o(b(u(st?)?)?)?)?|hc1)$/.test(vceText.trim());
+  // HC3's leverage correction is not defined for sampling weights.
+  if (hc === "hc3" && parsed.weight?.type === "pweight")
+    throw new StataError("pweights not allowed with option vce(hc3)", 198);
   if (vceText && !robust && !/^(ols|conventional)$/.test(vceText.trim()))
     refuseVce(
       vceText.trim(),
@@ -837,9 +866,7 @@ export function fit(session, parsed, by) {
     active = columns.filter((c) => !c.base && !c.forcedOmit),
     x = active.map((c) => obs.map(c.value)),
     mean = (v) =>
-      (w
-        ? v.reduce((a, b, i) => a + w[i] * b, 0)
-        : v.reduce((a, b) => a + b, 0)) / n,
+      compensated(v.length, w ? (i) => w[i] * v[i] : (i) => v[i]) / n,
     ybar = constant ? mean(y) : 0,
     xbar = x.map((v) => (constant ? mean(v) : 0)),
     yc = y.map((v) => v - ybar),
@@ -850,9 +877,7 @@ export function fit(session, parsed, by) {
   // With factor variables in the list, Stata's _rmcoll has already omitted
   // each variable collinear with those before it, the later of two.
   const cross = (a, b) =>
-      w
-        ? a.reduce((t, v, i) => t + w[i] * v * b[i], 0)
-        : a.reduce((t, v, i) => t + v * b[i], 0),
+      compensated(a.length, w ? (i) => w[i] * a[i] * b[i] : (i) => a[i] * b[i]),
     // The cross-products of the centred columns, each summed over the
     // observations in order as cross() sums it, in one pass over the data.
     gram = crossProducts(xc, w),
@@ -931,40 +956,67 @@ export function fit(session, parsed, by) {
     bread[last][last] = 1 / n + means.reduce((t, v, i) => t + v * am[i], 0);
   }
   const z = (i) => [...kept.map((k) => x[k][i]), ...(constant ? [1] : [])];
-  let covariance,
+  let vanishing = null,
+    covariance,
     clusters = null;
   if (!robust) {
     const s2 = rss / dfResidual;
     covariance = bread.map((row) => row.map((v) => v * s2));
   } else {
+    // The meat's sums carry their rounding error, as crossProducts' do.
     const meat = Array.from({ length: size }, () => new Array(size).fill(0)),
+      slack = Array.from({ length: size }, () => new Array(size).fill(0)),
       add = (score) =>
         score.forEach((si, i) =>
-          score.forEach((sj, j) => (meat[i][j] += si * sj)),
+          score.forEach((sj, j) => {
+            const term = si * sj,
+              sum = meat[i][j],
+              t = sum + term;
+            slack[i][j] +=
+              Math.abs(sum) >= Math.abs(term) ? sum - t + term : term - t + sum;
+            meat[i][j] = t;
+          }),
         );
     let scale;
     if (cluster) {
-      const sums = new Map();
+      const sums = new Map(),
+        own = new Array(size).fill(0);
       obs.forEach((row, i) => {
         const key = cluster.data[row],
           score = z(i).map((v) => v * residuals[i] * (w ? w[i] : 1)),
           sum = sums.get(key) ?? new Array(size).fill(0);
-        score.forEach((v, k) => (sum[k] += v));
+        score.forEach((v, k) => {
+          sum[k] += v;
+          own[k] += v * v;
+        });
         sums.set(key, sum);
       });
       for (const sum of sums.values()) add(sum);
+      // A coefficient whose scores sum to zero within every cluster, as a
+      // dummy for a group inside one cluster does, has no variance: what
+      // is left of its sums is rounding, far below the scores themselves.
+      vanishing = own.map((s, k) => {
+        let t = 0;
+        for (const sum of sums.values()) t += sum[k] ** 2;
+        return s > 0 && t <= 1e-20 * s;
+      });
       clusters = sums.size;
       scale = (clusters / (clusters - 1)) * ((n - 1) / (n - rank));
     } else if (hc) {
       // HC2 divides each squared residual by 1 - h, HC3 by its square.
+      // With weights the leverage is w x(X'WX)^-1x' and the score w e x.
       for (let i = 0; i < n; i++) {
         const row = z(i),
-          h = row.reduce(
-            (t, a, r) =>
-              t + a * row.reduce((u, b, c) => u + bread[r][c] * b, 0),
-            0,
-          ),
-          weight = residuals[i] / (hc === "hc2" ? Math.sqrt(1 - h) : 1 - h);
+          wi = w ? w[i] : 1,
+          h =
+            wi *
+            row.reduce(
+              (t, a, r) =>
+                t + a * row.reduce((u, b, c) => u + bread[r][c] * b, 0),
+              0,
+            ),
+          weight =
+            (wi * residuals[i]) / (hc === "hc2" ? Math.sqrt(1 - h) : 1 - h);
         add(row.map((v) => v * weight));
       }
       scale = 1;
@@ -973,6 +1025,7 @@ export function fit(session, parsed, by) {
         add(z(i).map((v) => v * residuals[i] * (w ? w[i] : 1)));
       scale = n / (n - rank);
     }
+    meat.forEach((row, i) => row.forEach((_, j) => (row[j] += slack[i][j])));
     const bm = bread.map((row) =>
       meat[0].map((_, j) => row.reduce((t, v, k) => t + v * meat[k][j], 0)),
     );
@@ -989,7 +1042,15 @@ export function fit(session, parsed, by) {
   // variance that is only nearly singular, as for year and year squared,
   // keeps its F; the tolerance of symmetricRank() separates the two as the
   // cases recorded from Stata 19 do.
-  const vRank = robust ? symmetricRank(covariance) : rank,
+  const vRank = robust
+      ? symmetricRank(
+          vanishing
+            ? covariance
+                .filter((_, k) => !vanishing[k])
+                .map((row) => row.filter((_, k) => !vanishing[k]))
+            : covariance,
+        )
+      : rank,
     shortRank = vRank < rank;
   let F = MISSING;
   if (dfModel > 0 && dfResidual > 0 && !shortRank) {
@@ -1050,7 +1111,7 @@ export function fit(session, parsed, by) {
     // adjusted R-squared is missing and the root MSE is 0, as in Stata.
     r2_a:
       tss && dfResidual > 0
-        ? 1 - ((rss / dfResidual) * (n - (constant ? 1 : 0))) / tss
+        ? 1 - ((1 - mss / tss) * (n - (constant ? 1 : 0))) / dfResidual
         : MISSING,
     rmse: dfResidual > 0 ? Math.sqrt(rss / dfResidual) : 0,
     // Analytic weights enter Stata's likelihood as precisions: each
@@ -1515,6 +1576,33 @@ export const statisticCell = (value) =>
     : applyFormat(value, "%9.2f");
 
 /**
+ * A column's standardized coefficient after regress: b times its standard
+ * deviation over that of the outcome, both over the estimation sample and
+ * with the fit's weights (frequency weights repeat the rows).
+ */
+function betaOf(session, model, k) {
+  const w = model.weights,
+    sd = (values) => {
+      let total = 0,
+        sum = 0;
+      values.forEach((v, r) => {
+        total += w ? w[r] : 1;
+        sum += (w ? w[r] : 1) * v;
+      });
+      const m = sum / total;
+      return Math.sqrt(
+        values.reduce((t, v, r) => t + (w ? w[r] : 1) * (v - m) ** 2, 0) /
+          (total - 1),
+      );
+    },
+    dependent = session.data.get(model.depvar);
+  return (
+    (model.b[k] * sd(model.sample.map(model.columns[k].value))) /
+    sd(model.sample.map((i) => dependent.data[i]))
+  );
+}
+
+/**
  * The standard error, test statistic and two-sided p-value of coefficient
  * k. A variance of zero or one that is not a number (an exact fit, or no
  * residual degrees of freedom) leaves all three missing, shown as ".".
@@ -1571,9 +1659,45 @@ export const hooks = { resamplingVce: null };
  * cleared e(); finding one, it has marked it as e(sample) and keeps the
  * estimates before it.
  */
-function regressFit(session, parsed) {
+function regressFit(session, parsed, ctx) {
   try {
-    return fit(session, { ...parsed, positiveWeights: true }, null);
+    const options = parsed.options;
+    if (options.hascons && options.constant !== false) {
+      // hascons: the regressors hold a constant of their own, so regress
+      // adds none, but measures the fit about the mean. When they span no
+      // constant Stata says so and fits one after all.
+      const own = fit(
+        session,
+        {
+          ...parsed,
+          options: { ...options, constant: false },
+          positiveWeights: true,
+        },
+        null,
+      );
+      if (spansConstant(own)) return centred(session, own, true);
+      ctx.out("note: option hascons false.");
+    }
+    const model = fit(session, { ...parsed, positiveWeights: true }, null);
+    // tsscons measures a fit without a constant about the mean.
+    if (options.tsscons && !model.constant)
+      return centred(session, model, false);
+    if (options.mse1) {
+      // mse1 sets the mean squared error to 1: the variance is (X'X)^-1
+      // and the residual degrees of freedom are the observations; a
+      // robust variance keeps all but the root MSE.
+      model.rmse = 1;
+      if (model.vce === "ols") {
+        const n = model.N;
+        model.V = model.xtxInverse.map((row) => row.slice());
+        model.dfResidual = model.df_r = n;
+        model.F = model.df_m > 0 ? model.mss / model.df_m : model.F;
+        model.r2_a = model.tss
+          ? 1 - model.rss / n / (model.tss / (n - (model.constant ? 1 : 0)))
+          : MISSING;
+      }
+    }
+    return model;
   } catch (error) {
     if (error instanceof StataError && error.empty) forgetEstimates(session);
     if (error instanceof StataError && error.sample) {
@@ -1595,10 +1719,11 @@ function regress(session, text, ctx) {
   )
     return;
   const parsed = session.parse(
-      "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta CLuster(string) BASElevels ALLBASElevels | noHEader EForm(string) ABSorb(varname)]",
+      "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta CLuster(string) BASElevels ALLBASElevels noHEader NOTABle COEFLegend CFORMAT(string) PFORMAT(string) SFORMAT(string) VSQUISH NOOMITted NOEMPTYcells DEPname(string) NOCI NOPValues NOFVLABel FVWRAP(string) FVWRAPON(string) NOLSTRETCH HAScons TSScons MSE1 EForm(string) | ABSorb(varname)]",
       text,
     ),
-    model = regressFit(session, parsed),
+    display = regressDisplay(parsed.options, ctx),
+    model = regressFit(session, parsed, ctx),
     level = parsed.options.level,
     // A replay of a clustered fit with beta shows no beta coefficients.
     noBeta = !!model.clusters && !!parsed.options.beta,
@@ -1659,24 +1784,28 @@ function regress(session, text, ctx) {
       ctx.out(
         `note: ${unmarked(column.name)} omitted because of collinearity.`,
       );
-  ctx.out("");
-  if (wide) {
+  // noheader leaves out the header and the blank line before it, notable
+  // the table; a clustered fit's note stays above the table.
+  const header = display.header,
+    clusterNote = model.clusters
+      ? `(Std. err. adjusted for ${count(model.clusters)} clusters in ${model.clusterName})`.padStart(
+          78,
+        )
+      : null;
+  if (header) ctx.out("");
+  if (header && wide) {
     side.forEach((line, k) =>
       ctx.out((k ? "" : "Linear regression").padEnd(48) + line),
     );
-    if (model.clusters) {
+    if (clusterNote) {
       ctx.out("");
-      ctx.out(
-        `(Std. err. adjusted for ${count(model.clusters)} clusters in ${model.clusterName})`.padStart(
-          78,
-        ),
-      );
+      if (display.table) ctx.out(clusterNote);
     } else ctx.out("");
-  } else {
+  } else if (header) {
     const n11 = (value) => g(value, "%11.0g").padStart(12),
-      totalDf = model.N - (model.constant ? 1 : 0),
+      totalDf = model.N - (model.constant || model.centred ? 1 : 0),
       row = (label, ss, df) =>
-        `${label.padStart(12)} |${n11(ss)}${count(df).padStart(10)}${n11(ss / df)}`,
+        `${label.padStart(12)} |${n11(ss)}${count(df).padStart(10)}${n11(df ? ss / df : MISSING)}`,
       left = [
         "      Source |       SS           df       MS   ",
         "-------------+----------------------------------",
@@ -1687,55 +1816,249 @@ function regress(session, text, ctx) {
       ];
     left.forEach((line, k) => ctx.out(line.padEnd(48) + side[k]));
     ctx.out("");
-  }
-  if (parsed.options.beta) {
-    const robust = model.vce !== "ols",
-      sd = (values) => {
-        const m = values.reduce((a, b) => a + b, 0) / values.length;
-        return Math.sqrt(
-          values.reduce((t, v) => t + (v - m) ** 2, 0) / (values.length - 1),
-        );
-      },
-      dependent = session.data.get(model.depvar),
-      sdY = sd(model.sample.map((i) => dependent.data[i]));
-    // The beta table's first column follows the same width rule.
-    const width = tableWidth(session, model);
-    ctx.out("-".repeat(66 + width));
-    if (robust)
-      ctx.out(
-        `${" ".repeat(width + 1)}|${" ".repeat(Math.max(0, 18 - model.vcetype.length / 2))}${model.vcetype}`,
-      );
-    ctx.out(
-      `${abbreviate(model.depvar, width).padStart(width)} | Coefficient  ${robust ? "std" : "Std"}. err.      t    P>|t|                     Beta`,
+  } else if (clusterNote && display.table) ctx.out(clusterNote);
+  if (display.table)
+    regressTable(session, model, level, display, noBeta).forEach(ctx.out);
+  ctx.out("");
+}
+
+/**
+ * Reads regress's display options as _get_diopts reads them, before the
+ * fit: the formats of the columns (a note for one too wide, an error for
+ * one that is not numeric), and the options that cannot be combined.
+ */
+function regressDisplay(options, ctx) {
+  if (options.noci && options.nopvalues)
+    throw new StataError(
+      "only one of options noci or nopvalues is allowed",
+      198,
     );
-    ctx.out(`${"-".repeat(width + 1)}+${"-".repeat(64)}`);
-    termRows(
-      session,
-      model,
-      (k) => {
-        const { se, t, p } = coefficientTest(model, k),
-          beta =
+  // Stata's defaults, which are what the browser shows.
+  if (options.fvwrap !== undefined && options.fvwrap.trim() !== "1")
+    throw new StataError(
+      "option fvwrap() is not available in the browser yet; it wraps a factor's label on one line, as fvwrap(1) does",
+      198,
+    );
+  if (options.fvwrapon !== undefined && options.fvwrapon.trim() !== "word")
+    throw new StataError(
+      "option fvwrapon() is not available in the browser yet; it wraps at word boundaries, as fvwrapon(word) does",
+      198,
+    );
+  const eform = options.eform?.trim();
+  if (options.eform !== undefined && (!eform || eform.length > 11))
+    throw new StataError("option eform() incorrectly specified", 198);
+  return {
+    cformat: columnFormat("cformat", options.cformat, 9, ctx),
+    sformat: columnFormat("sformat", options.sformat, 8, ctx),
+    pformat: columnFormat("pformat", options.pformat, 5, ctx),
+    header: options.header !== false,
+    table: !options.notable,
+    legend: !!options.coeflegend,
+    beta: !!options.beta,
+    eform,
+    noci: !!options.noci,
+    nopvalues: !!options.nopvalues,
+    vsquish: !!options.vsquish,
+    noomitted: !!options.noomitted,
+    noempty: !!options.noemptycells,
+    depname: options.depname?.trim() || null,
+    nofvlabel: !!options.nofvlabel,
+    nolstretch: !!options.nolstretch,
+  };
+}
+
+/**
+ * regress's coefficient table, laid out as its display options ask: the
+ * legend of each coefficient's name (coeflegend), beta coefficients, the
+ * table without its intervals (noci) or p-values (nopvalues), columns in
+ * the formats given, exponentiated coefficients (eform), and rows left out
+ * (vsquish, noomitted, noemptycells).
+ */
+function regressTable(session, model, level, display, noBeta) {
+  const labels = session.data.valueLabels;
+  // nofvlabel names levels by their values.
+  if (display.nofvlabel) session.data.valueLabels = new Map();
+  try {
+    const w = display.nolstretch ? 12 : tableWidth(session, model),
+      robust = model.vce !== "ols",
+      std = robust ? "std" : "Std",
+      label = abbreviate(display.depname ?? model.depvar, w).padStart(w),
+      { cformat, sformat, pformat, eform } = display,
+      shown = (v) => (eform ? Math.exp(v) : v),
+      number = (v, width) =>
+        (isMissing(v)
+          ? "."
+          : cformat
+            ? applyFormat(v, cformat).trim()
+            : g(v)
+        ).padStart(width),
+      statistic = (v) =>
+        sformat
+          ? (isMissing(v) ? "." : applyFormat(v, sformat).trim()).padStart(9)
+          : statisticCell(v),
+      pvalue = (v) =>
+        pformat
+          ? (isMissing(v) ? "." : applyFormat(v, pformat).trim()).padStart(8)
+          : applyFormat(v, "%8.3f"),
+      right = display.legend
+        ? 64
+        : display.noci
+          ? 39
+          : display.nopvalues
+            ? 48
+            : 64,
+      rule = "-".repeat(w + 2 + right),
+      vcetype = robust
+        ? [
+            `${" ".repeat(w + 1)}|${" ".repeat(Math.max(0, 18 - (model.vcetype ?? "Robust").length / 2))}${model.vcetype ?? "Robust"}`,
+          ]
+        : [],
+      title = eform ? `${eform.padStart(11)} ` : " Coefficient",
+      interval = `[${g(level, "%9.0g")}% conf. interval]`,
+      critical = invttail(model.df_r, (1 - level / 100) / 2),
+      bounds = (k, se, missing) =>
+        [-1, 1].map((sign) =>
+          missing || !Number.isFinite(critical)
+            ? MISSING
+            : shown(model.b[k] + sign * critical * se),
+        ),
+      heads = display.legend
+        ? [`${label} | Coefficient  Legend`]
+        : [
+            ...vcetype,
+            display.beta
+              ? `${label} |${title}  ${std}. err.      t    P>|t|                     Beta`
+              : display.noci
+                ? `${label} |${title}  ${std}. err.      t    P>|t|`
+                : display.nopvalues
+                  ? `${label} |${title}  ${std}. err.${interval.padStart(25)}`
+                  : `${label} |${title}  ${std}. err.      t    P>|t|     ${interval}`,
+          ],
+      stripe = coefficientSpace(model).entries.map(stripeName),
+      // The legend names every row, an omitted coefficient's too.
+      table = display.legend
+        ? { ...model, estimable: model.names.map(() => true) }
+        : model,
+      cells = (k) => {
+        if (display.legend)
+          return `${number(model.b[k], 11)}  _b[${stripe[k]}]`;
+        const { se, t, p, missing } = coefficientTest(model, k),
+          b = shown(model.b[k]),
+          spread = eform && !missing ? b * se : se;
+        if (display.beta) {
+          const beta =
             model.names[k] === "_cons" || noBeta
               ? MISSING
-              : (model.b[k] * sd(model.sample.map(model.columns[k].value))) /
-                sdY;
-        return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${statisticCell(t)}${applyFormat(p, "%8.3f")}${g(beta).padStart(25)}`;
+              : betaOf(session, model, k);
+          return `${number(b, 11)}${number(spread, 11)}${statistic(t)}${pvalue(p)}${number(beta, 25)}`;
+        }
+        const [lower, upper] = bounds(k, se, missing);
+        if (display.noci)
+          return `${number(b, 11)}${number(spread, 11)}${statistic(t)}${pvalue(p)}`;
+        if (display.nopvalues)
+          return `${number(b, 11)}${number(spread, 11)}${number(lower, 14)}${number(upper, 12)}`;
+        return `${number(b, 11)}${number(spread, 11)}${statistic(t)}${pvalue(p)}${number(lower, 13)}${number(upper, 12)}`;
       },
-      width,
-      0,
-      // A base level's beta, zero, sits at the end of the line.
-      "0".padStart(45),
-    ).forEach(ctx.out);
-  } else {
-    const width = tableWidth(session, model);
-    coefficientHeader(model, level, model.depvar, width).forEach(ctx.out);
-    coefficientRows(session, model, level, width).forEach(ctx.out);
-    ctx.out("-".repeat(66 + width));
-    ctx.out("");
-    return;
+      // A base level or omitted coefficient shows 0, or 1 exponentiated.
+      fixed = cformat
+        ? applyFormat(eform ? 1 : 0, cformat).trim()
+        : eform
+          ? 1
+          : 0,
+      gap = `${" ".repeat(w + 1)}|`,
+      rows = termRows(
+        session,
+        table,
+        cells,
+        w,
+        fixed,
+        display.beta ? "0".padStart(45) : "",
+      ).filter(
+        (line) =>
+          !(display.vsquish && line === gap) &&
+          !(display.noomitted && /\|\s+\S+\s+\(omitted\)/.test(line)) &&
+          !(display.noempty && /\|\s+\S+\s+\(empty\)/.test(line)) &&
+          // The constant Stata keeps at zero after hascons is not shown.
+          !(model.hiddenCons && new RegExp(`^\\s*_cons \\|`).test(line)),
+      );
+    return [
+      rule,
+      ...heads,
+      `${"-".repeat(w + 1)}+${"-".repeat(right)}`,
+      ...rows,
+      rule,
+    ];
+  } finally {
+    session.data.valueLabels = labels;
   }
-  ctx.out("-".repeat(66 + tableWidth(session, model)));
-  ctx.out("");
+}
+
+/** Whether the columns of a fit without a constant span one. */
+function spansConstant(model) {
+  const rows = model.sample,
+    w = model.weights,
+    weight = (r) => (w ? w[r] : 1),
+    used = model.names.map((_, k) => k).filter((k) => model.estimable[k]);
+  if (!used.length) return false;
+  const value = (k, r) => model.columns[k].value(rows[r]),
+    xw1 = used.map((k) =>
+      compensated(rows.length, (r) => weight(r) * value(k, r)),
+    ),
+    coefficients = used.map((k) =>
+      used.reduce((t, j, c) => t + model.xtxInverse[k][j] * xw1[c], 0),
+    ),
+    total = compensated(rows.length, weight),
+    left = compensated(
+      rows.length,
+      (r) =>
+        weight(r) *
+        (1 - used.reduce((t, k, c) => t + coefficients[c] * value(k, r), 0)) **
+          2,
+    );
+  return left <= 1e-9 * total;
+}
+
+/**
+ * A fit without a constant measured about the mean of the outcome, as
+ * hascons and tsscons ask: the total sum of squares is centred, the model
+ * sum of squares what the regressors explain of it, and the model's
+ * degrees of freedom count the constant they hold. After hascons e(b) ends
+ * with a constant Stata keeps at zero and does not show.
+ */
+function centred(session, model, hascons) {
+  const y = session.data.get(model.depvar).data,
+    rows = model.sample,
+    w = model.weights,
+    weight = (r) => (w ? w[r] : 1),
+    total = compensated(rows.length, weight),
+    mean = compensated(rows.length, (r) => weight(r) * y[rows[r]]) / total,
+    tss = compensated(rows.length, (r) => weight(r) * (y[rows[r]] - mean) ** 2),
+    n = model.N,
+    dfR = model.dfResidual,
+    mss = tss - model.rss;
+  Object.assign(model, {
+    tss,
+    mss,
+    r2: tss ? mss / tss : MISSING,
+    centred: true,
+  });
+  model.r2_a = dfR > 0 && tss ? 1 - ((1 - model.r2) * (n - 1)) / dfR : MISSING;
+  if (model.vce === "ols") {
+    model.df_m = Math.max(0, model.rank - 1);
+    model.F = model.df_m > 0 ? mss / model.df_m / (model.rss / dfR) : 0;
+  }
+  if (hascons) {
+    model.hasConstant = model.hiddenCons = true;
+    model.names = [...model.names, "_cons"];
+    model.b = [...model.b, 0];
+    model.V = [...model.V.map((row) => [...row, 0]), model.names.map(() => 0)];
+    model.xtxInverse = [
+      ...model.xtxInverse.map((row) => [...row, 0]),
+      model.names.map(() => 0),
+    ];
+    model.estimable = [...model.estimable, false];
+  }
+  return model;
 }
 
 /**
@@ -1749,14 +2072,6 @@ function regressResults(session, model, text, parsed) {
     ),
     stripe = coefficientSpace(model).entries.map(stripeName),
     plain = model.names.filter((name) => name !== "_cons"),
-    sd = (values) => {
-      const m = values.reduce((a, b) => a + b, 0) / values.length;
-      return Math.sqrt(
-        values.reduce((t, v) => t + (v - m) ** 2, 0) / (values.length - 1),
-      );
-    },
-    dependent = session.data.get(model.depvar),
-    sdY = sd(model.sample.map((i) => dependent.data[i])),
     s2 = model.dfResidual > 0 ? model.rss / model.dfResidual : MISSING;
   return {
     ...(model.clusters ? { N_clust: model.clusters } : {}),
@@ -1771,7 +2086,9 @@ function regressResults(session, model, text, parsed) {
     rss: model.rss,
     r2_a: model.r2_a,
     ll: model.ll,
-    ...(model.constant && !isMissing(model.ll) && !isMissing(model.r2)
+    ...((model.constant || model.hasConstant) &&
+    !isMissing(model.ll) &&
+    !isMissing(model.r2)
       ? { ll_0: model.ll + (model.N / 2) * Math.log(1 - model.r2) }
       : {}),
     rank: model.rank,
@@ -1794,7 +2111,7 @@ function regressResults(session, model, text, parsed) {
       ? {}
       : {
           "matrix:beta": {
-            rowNames: ["y1"],
+            rowNames: ["r1"],
             colNames: stripe.filter((name) => name !== "_cons"),
             values: [
               model.names
@@ -1802,9 +2119,7 @@ function regressResults(session, model, text, parsed) {
                   name === "_cons"
                     ? null
                     : model.estimable[k]
-                      ? (model.b[k] *
-                          sd(model.sample.map(model.columns[k].value))) /
-                        sdY
+                      ? betaOf(session, model, k)
                       : 0,
                 )
                 .filter((v) => v !== null),
@@ -1908,7 +2223,7 @@ export function predict(session, text, ctx) {
     return panelPredict(session, early, text, ctx);
   const model = estimates(session),
     parsed = session.parse(
-      "newvarname [if] [in] [, XB Residuals STDP STDF STDR RSTAndard RSTUdent COOKsd Leverage Hat DFIts DFBeta(string) COVratio Welsch | SCores]",
+      "newvarname [if] [in] [, XB Residuals STDP STDF STDR RSTAndard RSTUdent COOKsd Leverage Hat DFIts DFBeta(string) COVratio Welsch D XBD DResiduals | SCores]",
       text,
     ),
     options = parsed.options,
@@ -1940,7 +2255,8 @@ export function predict(session, text, ctx) {
     throw new StataError("option residuals not allowed", 198);
   if (options.stdp && model.iv?.estimator === "gmm")
     throw new StataError("option stdp not allowed with GMM estimator", 198);
-  if (!chosen.length) ctx.out("(option xb assumed; fitted values)");
+  if (!chosen.length && !options.d && !options.xbd && !options.dresiduals)
+    ctx.out("(option xb assumed; fitted values)");
   if (extra.length) {
     if (model.command !== "regress")
       throw new StataError(
@@ -1999,11 +2315,30 @@ export function predict(session, text, ctx) {
       );
     return;
   }
+  // areg_p's own statistics: the absorbed effect d, xb + d, and the
+  // residual with d left in, which no other estimator has.
+  const absorbedStat = ["d", "xbd", "dresiduals"].find((name) => options[name]);
+  if (absorbedStat) {
+    if (model.command !== "areg")
+      throw new StataError(`option ${absorbedStat} not allowed`, 198);
+    // _pred_se takes xb or stdp and passes the rest on to _predict, which
+    // knows none of these; with residuals or another of them, areg_p
+    // finds no statistic it knows.
+    if (options.xb || options.stdp)
+      throw new StataError(`option ${absorbedStat} not allowed`, 198);
+    if (
+      options.residuals ||
+      ["d", "xbd", "dresiduals"].filter((name) => options[name]).length > 1
+    )
+      throw new StataError("invalid syntax", 198);
+  }
   const data = session.data,
     // Only residuals read the dependent variable: the linear prediction
     // needs the regressors alone.
-    dependent = options.residuals ? data.get(model.depvar) : null,
-    values = new Array(data.n).fill(MISSING);
+    dependent =
+      options.residuals || options.dresiduals ? data.get(model.depvar) : null,
+    values = new Array(data.n).fill(MISSING),
+    inSample = model.absorb ? new Set(model.sample) : null;
   let missing = 0;
   session.select(parsed, null, (i) => {
     let xb = 0;
@@ -2019,34 +2354,53 @@ export function predict(session, text, ctx) {
     )
       return;
     row.forEach((v, k) => (xb += v * model.b[k]));
-    values[i] = options.residuals
-      ? isMissing(dependent.data[i])
-        ? MISSING
-        : dependent.data[i] - xb
-      : options.stdp
-        ? Math.sqrt(quadratic(row, model.V))
-        : xb;
+    // After areg, residuals, d and xb + d are of the estimation sample
+    // alone; dresiduals are of every observation.
+    if (
+      inSample &&
+      (options.residuals || options.d || options.xbd) &&
+      !inSample.has(i)
+    )
+      return;
+    values[i] =
+      options.residuals || options.dresiduals
+        ? isMissing(dependent.data[i])
+          ? MISSING
+          : dependent.data[i] - xb
+        : options.stdp
+          ? Math.sqrt(quadratic(row, model.V))
+          : options.d
+            ? 0
+            : xb;
   });
-  // areg's residuals leave out the absorbed effect: the mean, within each
+  // The absorbed effect is the mean, weighted as the fit was, within each
   // absorbed group of the estimation sample, of what xb does not explain.
-  if (options.residuals && model.absorb) {
+  // Residuals leave it out; d is it, and xbd adds it to xb.
+  if ((options.residuals || options.d || options.xbd) && model.absorb) {
     const group = data.get(model.absorb).data,
+      outcome = data.get(model.depvar).data,
       totals = new Map();
-    for (const i of model.sample) {
+    model.sample.forEach((i, r) => {
       const xb = model.names.reduce(
           (t, name, k) =>
             t + model.b[k] * (name === "_cons" ? 1 : model.columns[k].value(i)),
           0,
         ),
+        weight = model.weights ? model.weights[r] : 1,
         entry = totals.get(group[i]) ?? [0, 0];
-      entry[0] += dependent.data[i] - xb;
-      entry[1] += 1;
+      entry[0] += weight * (outcome[i] - xb);
+      entry[1] += weight;
       totals.set(group[i], entry);
-    }
+    });
     values.forEach((v, i) => {
       if (isMissing(v)) return;
-      const entry = totals.get(group[i]);
-      values[i] = entry ? v - entry[0] / entry[1] : MISSING;
+      const entry = totals.get(group[i]),
+        effect = entry ? entry[0] / entry[1] : MISSING;
+      values[i] = isMissing(effect)
+        ? MISSING
+        : options.residuals
+          ? v - effect
+          : v + effect;
     });
   }
   for (const v of values) if (isMissing(v)) missing++;
@@ -2060,15 +2414,21 @@ export function predict(session, text, ctx) {
     model.command === "newey" || (model.command === "regress" && !options.xb);
   data.get(parsed.varlist[0]).label = options.residuals
     ? "Residuals"
-    : options.stdp
-      ? model.command === "newey"
-        ? `S.E. of prediction of ${model.depvar}`
-        : "S.E. of the prediction"
-      : fitted
-        ? "Fitted values"
-        : model.command === "areg" && !options.xb
-          ? "Xb"
-          : "Linear prediction";
+    : absorbedStat
+      ? {
+          d: `d[${model.absorb}]`,
+          xbd: `Xb + d[${model.absorb}]`,
+          dresiduals: `d[${model.absorb}] + residual`,
+        }[absorbedStat]
+      : options.stdp
+        ? model.command === "newey"
+          ? `S.E. of prediction of ${model.depvar}`
+          : "S.E. of the prediction"
+        : fitted
+          ? "Fitted values"
+          : model.command === "areg" && !options.xb
+            ? "Xb"
+            : "Linear prediction";
   if (missing)
     ctx.out(
       `(${count(missing)} missing value${missing === 1 ? "" : "s"} generated)`,
@@ -2288,6 +2648,12 @@ export function coefficientSpace(model) {
  * A coefficient's name in the stripe of e(b) and r(table): the equation
  * and the name, an omitted coefficient written as Stata writes it.
  */
+/**
+ * The key under which a command's e() names the results Stata keeps hidden:
+ * display e(instd) shows them, ereturn list does not.
+ */
+export const HIDDEN = Symbol.for("stataverse.hidden-results");
+
 export const stripeName = (entry) => {
   const name = entry.omitted ? omittedName(entry.name) : entry.name;
   return entry.equation ? `${entry.equation}:${name}` : name;
@@ -2297,7 +2663,7 @@ export const stripeName = (entry) => {
  * How Stata writes an omitted coefficient: o.k, 3o.reg, 1o.a#co.x; a base
  * level keeps its b, as in 0b.a#1o.b.
  */
-const omittedName = (name) =>
+export const omittedName = (name) =>
   name
     .split("#")
     .map((part) =>

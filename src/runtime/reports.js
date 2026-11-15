@@ -84,11 +84,13 @@ export function moments(values) {
     if (v < min) min = v;
     if (v > max) max = v;
   }
+  // The squared deviations are summed with their rounding error carried,
+  // as Stata's more precise accumulation sums them: its last digits of
+  // r(Var) come out only so.
   const sum = accurateSum(values),
-    mean = sum / n;
-  let ss = 0;
-  for (const v of values) ss += (v - mean) ** 2;
-  const variance = n > 1 ? ss / (n - 1) : MISSING;
+    mean = sum / n,
+    ss = accurateSum(values, (v) => (v - mean) ** 2),
+    variance = n > 1 ? ss / (n - 1) : MISSING;
   return {
     n,
     sum,
@@ -441,6 +443,14 @@ export function summarize(session, text, ctx) {
         sum: m.sum,
       }
     : { N: 0, sum_w: 0, sum: 0 };
+  // meanonly leaves the count, the sums, the mean and the extremes, in
+  // that order, and no variance.
+  if (parsed.options.meanonly) {
+    const { N, sum_w, sum, mean, min, max } = session.results.r;
+    session.results.r = m.n
+      ? { N, sum_w, sum, mean, min, max }
+      : { N: 0, sum_w: 0, sum: 0 };
+  }
   if (parsed.options.detail && m.n) {
     // With detail, Stata stores the moments before the sum and the
     // extremes, and return list shows them in that order.

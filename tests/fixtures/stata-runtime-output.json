@@ -184878,6 +184878,1985 @@
       ]
     },
     {
+      "id": "recheck-linear-hc-weights",
+      "source": "clear\nset obs 120\nset seed 5101\ngenerate x = rnormal()\ngenerate z = runiform()\ngenerate w = 1 + floor(runiform()*4)\ngenerate y = 1 + 2*x + z + rnormal()*(1 + x^2)\nregress y x z [aw=w], vce(hc2)\nregress y x z [aw=w], vce(hc3)\nregress y x z [pw=w], vce(hc2)\nregress y x z [iw=w], vce(hc3)\nregress y x z [fw=w], vce(hc3)\ncapture noisily regress y x z [pw=w], vce(hc3)\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 120",
+          "lines": ["Number of observations (_N) was 0, now 120."]
+        },
+        { "command": "set seed 5101", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        { "command": "generate z = runiform()", "lines": [] },
+        { "command": "generate w = 1 + floor(runiform()*4)", "lines": [] },
+        {
+          "command": "generate y = 1 + 2*x + z + rnormal()*(1 + x^2)",
+          "lines": []
+        },
+        {
+          "command": "regress y x z [aw=w], vce(hc2)",
+          "lines": [
+            "(sum of wgt is 289)",
+            "",
+            "Linear regression                               Number of obs     =        120",
+            "                                                F(2, 117)         =       5.31",
+            "                                                Prob > F          =     0.0062",
+            "                                                R-squared         =     0.3797",
+            "                                                Root MSE          =     2.7617",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Robust HC2",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    2.10185   .6578051     3.20   0.002     .7991018    3.404599",
+            "           z |   1.385408    1.15035     1.20   0.231    -.8928008    3.663617",
+            "       _cons |   .8986323   .4740962     1.90   0.060    -.0402903    1.837555",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x z [aw=w], vce(hc3)",
+          "lines": [
+            "(sum of wgt is 289)",
+            "",
+            "Linear regression                               Number of obs     =        120",
+            "                                                F(2, 117)         =       4.76",
+            "                                                Prob > F          =     0.0103",
+            "                                                R-squared         =     0.3797",
+            "                                                Root MSE          =     2.7617",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Robust HC3",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    2.10185   .6973432     3.01   0.003     .7207988    3.482902",
+            "           z |   1.385408   1.206591     1.15   0.253    -1.004181    3.774997",
+            "       _cons |   .8986323    .489138     1.84   0.069    -.0700799    1.867344",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x z [pw=w], vce(hc2)",
+          "lines": [
+            "(sum of wgt is 289)",
+            "",
+            "Linear regression                               Number of obs     =        120",
+            "                                                F(2, 117)         =       5.31",
+            "                                                Prob > F          =     0.0062",
+            "                                                R-squared         =     0.3797",
+            "                                                Root MSE          =     2.7617",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Robust HC2",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    2.10185   .6578051     3.20   0.002     .7991018    3.404599",
+            "           z |   1.385408    1.15035     1.20   0.231    -.8928008    3.663617",
+            "       _cons |   .8986323   .4740962     1.90   0.060    -.0402903    1.837555",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x z [iw=w], vce(hc3)",
+          "lines": [
+            "(sum of wgt is 289)",
+            "",
+            "Linear regression                               Number of obs     =        120",
+            "                                                F(2, 117)         =       4.76",
+            "                                                Prob > F          =     0.0103",
+            "                                                R-squared         =     0.3797",
+            "                                                Root MSE          =     2.7617",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Robust HC3",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    2.10185   .6973432     3.01   0.003     .7207988    3.482902",
+            "           z |   1.385408   1.206591     1.15   0.253    -1.004181    3.774997",
+            "       _cons |   .8986323    .489138     1.84   0.069    -.0700799    1.867344",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x z [fw=w], vce(hc3)",
+          "lines": [
+            "Linear regression                               Number of obs     =        289",
+            "                                                F(2, 286)         =      18.65",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.3797",
+            "                                                Root MSE          =     2.7412",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |             Robust HC3",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |    2.10185     .34453     6.10   0.000     1.423714    2.779986",
+            "           z |   1.385408   .6268805     2.21   0.028     .1515233    2.619293",
+            "       _cons |   .8986323   .2687002     3.34   0.001     .3697514    1.427513",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily regress y x z [pw=w], vce(hc3)",
+          "lines": ["pweights not allowed with option vce(hc3)"]
+        },
+        { "command": "display _rc", "lines": ["198"] }
+      ]
+    },
+    {
+      "id": "recheck-linear-estat-vif",
+      "source": "clear\nset obs 150\nset seed 5102\ngenerate x1 = rnormal()\ngenerate x2 = .6*x1 + rnormal()\ngenerate x3 = runiform()\ngenerate w = 1 + floor(runiform()*3)\ngenerate c = 1 + floor(runiform()*10)\ngenerate y = 1 + x1 + x2 + x3 + rnormal()\nquietly regress y x1 x2 x3 [aw=w]\nestat vif\nestat vif, uncentered\nestat vif, uncentered nosort\nquietly regress y x1 x2 x3 [pw=w]\nestat vif\nquietly regress y x1 x2 x3, vce(cluster c)\nestat vif\nreturn list\ncapture noisily estat vif, junk\ndisplay _rc\ncapture noisily estat vif x1\ndisplay _rc\nquietly regress y x1 x2 x3, noconstant\ncapture noisily estat vif\ndisplay _rc\nestat vif, uncentered\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 150",
+          "lines": ["Number of observations (_N) was 0, now 150."]
+        },
+        { "command": "set seed 5102", "lines": [] },
+        { "command": "generate x1 = rnormal()", "lines": [] },
+        { "command": "generate x2 = .6*x1 + rnormal()", "lines": [] },
+        { "command": "generate x3 = runiform()", "lines": [] },
+        { "command": "generate w = 1 + floor(runiform()*3)", "lines": [] },
+        { "command": "generate c = 1 + floor(runiform()*10)", "lines": [] },
+        { "command": "generate y = 1 + x1 + x2 + x3 + rnormal()", "lines": [] },
+        { "command": "quietly regress y x1 x2 x3 [aw=w]", "lines": [] },
+        {
+          "command": "estat vif",
+          "lines": [
+            "    Variable |       VIF       1/VIF",
+            "-------------+----------------------",
+            "          x2 |      1.55    0.646785",
+            "          x1 |      1.54    0.650040",
+            "          x3 |      1.01    0.993640",
+            "-------------+----------------------",
+            "    Mean VIF |      1.36"
+          ]
+        },
+        {
+          "command": "estat vif, uncentered",
+          "lines": [
+            "    Variable |       VIF       1/VIF",
+            "-------------+----------------------",
+            "       _cons |      4.27    0.234305",
+            "          x3 |      4.21    0.237745",
+            "          x2 |      1.58    0.631211",
+            "          x1 |      1.56    0.642869",
+            "-------------+----------------------",
+            "    Mean VIF |      2.90"
+          ]
+        },
+        {
+          "command": "estat vif, uncentered nosort",
+          "lines": [
+            "    Variable |       VIF       1/VIF",
+            "-------------+----------------------",
+            "          x1 |      1.56    0.642869",
+            "          x2 |      1.58    0.631211",
+            "          x3 |      4.21    0.237745",
+            "       _cons |      4.27    0.234305",
+            "-------------+----------------------",
+            "    Mean VIF |      2.90"
+          ]
+        },
+        { "command": "quietly regress y x1 x2 x3 [pw=w]", "lines": [] },
+        {
+          "command": "estat vif",
+          "lines": [
+            "    Variable |       VIF       1/VIF",
+            "-------------+----------------------",
+            "          x2 |      1.55    0.646785",
+            "          x1 |      1.54    0.650040",
+            "          x3 |      1.01    0.993640",
+            "-------------+----------------------",
+            "    Mean VIF |      1.36"
+          ]
+        },
+        {
+          "command": "quietly regress y x1 x2 x3, vce(cluster c)",
+          "lines": []
+        },
+        {
+          "command": "estat vif",
+          "lines": [
+            "    Variable |       VIF       1/VIF",
+            "-------------+----------------------",
+            "          x1 |      1.55    0.644937",
+            "          x2 |      1.55    0.645573",
+            "          x3 |      1.00    0.997348",
+            "-------------+----------------------",
+            "    Mean VIF |      1.37"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "              r(vif_3) =  1.002659201622009",
+            "              r(vif_2) =  1.549012541770935",
+            "              r(vif_1) =  1.550538897514343",
+            "",
+            "macros:",
+            "             r(name_3) : \"x3\"",
+            "             r(name_2) : \"x2\"",
+            "             r(name_1) : \"x1\""
+          ]
+        },
+        {
+          "command": "capture noisily estat vif, junk",
+          "lines": ["option junk not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily estat vif x1",
+          "lines": ["varlist not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        { "command": "quietly regress y x1 x2 x3, noconstant", "lines": [] },
+        {
+          "command": "capture noisily estat vif",
+          "lines": [
+            "not appropriate after regress, nocons;",
+            "use option uncentered to get uncentered VIFs"
+          ]
+        },
+        { "command": "display _rc", "lines": ["301"] },
+        {
+          "command": "estat vif, uncentered",
+          "lines": [
+            "    Variable |       VIF       1/VIF",
+            "-------------+----------------------",
+            "          x2 |      1.55    0.644111",
+            "          x1 |      1.55    0.644550",
+            "          x3 |      1.00    0.999111",
+            "-------------+----------------------",
+            "    Mean VIF |      1.37"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-linear-beta-weights",
+      "source": "clear\nset obs 100\nset seed 5103\ngenerate x = rnormal()\ngenerate z = rnormal()\ngenerate w = 1 + floor(runiform()*5)\ngenerate y = 1 + x - z + rnormal()\nregress y x z [aw=w], beta\nmatrix list e(beta)\nregress y x z [pw=w], beta\nregress y x z [fw=w], beta\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 100",
+          "lines": ["Number of observations (_N) was 0, now 100."]
+        },
+        { "command": "set seed 5103", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        { "command": "generate z = rnormal()", "lines": [] },
+        { "command": "generate w = 1 + floor(runiform()*5)", "lines": [] },
+        { "command": "generate y = 1 + x - z + rnormal()", "lines": [] },
+        {
+          "command": "regress y x z [aw=w], beta",
+          "lines": [
+            "(sum of wgt is 283)",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =       100",
+            "-------------+----------------------------------   F(2, 97)        =     83.83",
+            "       Model |  169.463187         2  84.7315935   Prob > F        =    0.0000",
+            "    Residual |  98.0454515        97  1.01077785   R-squared       =    0.6335",
+            "-------------+----------------------------------   Adj R-squared   =    0.6259",
+            "       Total |  267.508639        99  2.70210746   Root MSE        =    1.0054",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|                     Beta",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.047909   .0992993    10.55   0.000                 .6492069",
+            "           z |  -.8347579   .1054228    -7.92   0.000                -.4871155",
+            "       _cons |   .8804371   .1010613     8.71   0.000                        .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(beta)",
+          "lines": [
+            "e(beta)[1,2]",
+            "             x           z",
+            "r1   .64920688  -.48711545"
+          ]
+        },
+        {
+          "command": "regress y x z [pw=w], beta",
+          "lines": [
+            "(sum of wgt is 283)",
+            "",
+            "Linear regression                               Number of obs     =        100",
+            "                                                F(2, 97)          =      73.73",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.6335",
+            "                                                Root MSE          =     1.0054",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|                     Beta",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.047909   .0994811    10.53   0.000                 .6492069",
+            "           z |  -.8347579   .1503197    -5.55   0.000                -.4871155",
+            "       _cons |   .8804371   .1072746     8.21   0.000                        .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x z [fw=w], beta",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       283",
+            "-------------+----------------------------------   F(2, 280)       =    241.98",
+            "       Model |  479.580819         2   239.79041   Prob > F        =    0.0000",
+            "    Residual |  277.468628       280  .990959385   R-squared       =    0.6335",
+            "-------------+----------------------------------   Adj R-squared   =    0.6309",
+            "       Total |  757.049447       282  2.68457251   Root MSE        =    .99547",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|                     Beta",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.047909   .0584458    17.93   0.000                 .6492069",
+            "           z |  -.8347579   .0620499   -13.45   0.000                -.4871155",
+            "       _cons |   .8804371   .0594828    14.80   0.000                        .",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-linear-areg-predict",
+      "source": "clear\nset obs 90\nset seed 5104\ngenerate g = 1 + floor(runiform()*6)\ngenerate x = rnormal()\ngenerate w = 1 + floor(runiform()*4)\ngenerate y = g + x + rnormal()\nquietly areg y x [aw=w] if g != 3, absorb(g)\npredict r, residuals\npredict d, d\npredict xbd, xbd\npredict dr, dresiduals\nsummarize r d xbd dr\ndescribe r d xbd dr\ncapture noisily predict q, d xb\ndisplay _rc\nquietly regress y x\ncapture noisily predict q, d\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 90",
+          "lines": ["Number of observations (_N) was 0, now 90."]
+        },
+        { "command": "set seed 5104", "lines": [] },
+        { "command": "generate g = 1 + floor(runiform()*6)", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        { "command": "generate w = 1 + floor(runiform()*4)", "lines": [] },
+        { "command": "generate y = g + x + rnormal()", "lines": [] },
+        {
+          "command": "quietly areg y x [aw=w] if g != 3, absorb(g)",
+          "lines": []
+        },
+        {
+          "command": "predict r, residuals",
+          "lines": ["(13 missing values generated)"]
+        },
+        {
+          "command": "predict d, d",
+          "lines": ["(13 missing values generated)"]
+        },
+        {
+          "command": "predict xbd, xbd",
+          "lines": ["(13 missing values generated)"]
+        },
+        { "command": "predict dr, dresiduals", "lines": [] },
+        {
+          "command": "summarize r d xbd dr",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           r |         77    .0148151    .9935432  -1.923147   2.282857",
+            "           d |         77     -.06331    2.158315   -2.85298   2.462442",
+            "         xbd |         77    3.311409    2.283674  -.6171738   7.128054",
+            "          dr |         90   -.0820272    2.186194  -3.824617   4.270575"
+          ]
+        },
+        {
+          "command": "describe r d xbd dr",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "r               float   %9.0g                 Residuals",
+            "d               float   %9.0g                 d[g]",
+            "xbd             float   %9.0g                 Xb + d[g]",
+            "dr              float   %9.0g                 d[g] + residual"
+          ]
+        },
+        {
+          "command": "capture noisily predict q, d xb",
+          "lines": ["option d not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "quietly regress y x", "lines": [] },
+        {
+          "command": "capture noisily predict q, d",
+          "lines": ["option d not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] }
+      ]
+    },
+    {
+      "id": "recheck-linear-margins-weights",
+      "source": "clear\nset obs 140\nset seed 5105\ngenerate f = runiform() < .4\ngenerate x = 8 + floor(runiform()*10)\ngenerate w = .5 + runiform()\ngenerate y = 2 + x + 3*f + .5*x*f + rnormal()\nquietly regress y c.x##i.f [aw=w]\nmargins, atmeans\nquietly regress y c.x##i.f [pw=w]\nmargins, at((mean) _all x=12)\nmargins, at(x=generate(x+1))\nmargins, at(x=generate(x*1.1) f=(0 1))\nmargins, dydx(f) at(x=gen(x-1))\ncapture noisily margins, at(f=generate(f))\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 140",
+          "lines": ["Number of observations (_N) was 0, now 140."]
+        },
+        { "command": "set seed 5105", "lines": [] },
+        { "command": "generate f = runiform() < .4", "lines": [] },
+        { "command": "generate x = 8 + floor(runiform()*10)", "lines": [] },
+        { "command": "generate w = .5 + runiform()", "lines": [] },
+        {
+          "command": "generate y = 2 + x + 3*f + .5*x*f + rnormal()",
+          "lines": []
+        },
+        { "command": "quietly regress y c.x##i.f [aw=w]", "lines": [] },
+        {
+          "command": "margins, atmeans",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 140",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "At: x   = 12.89348 (mean)",
+            "    0.f = .6086025 (mean)",
+            "    1.f = .3913975 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   18.51611    .087488   211.64   0.000     18.34309    18.68912",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly regress y c.x##i.f [pw=w]", "lines": [] },
+        {
+          "command": "margins, at((mean) _all x=12)",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 140",
+            "Model VCE: Robust",
+            "",
+            "Expression: Linear prediction, predict()",
+            "At: x   =       12",
+            "    0.f = .6086025 (mean)",
+            "    1.f = .3913975 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   17.44772   .0935579   186.49   0.000     17.26271    17.63274",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, at(x=generate(x+1))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 140",
+            "Model VCE: Robust",
+            "",
+            "Expression: Linear prediction, predict()",
+            "At: x = x+1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   19.75149   .0998679   197.78   0.000     19.55399    19.94898",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, at(x=generate(x*1.1) f=(0 1))",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 140",
+            "Model VCE: Robust",
+            "",
+            "Expression: Linear prediction, predict()",
+            "1._at: x = x*1.1",
+            "       f =     0",
+            "2._at: x = x*1.1",
+            "       f =     1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         _at |",
+            "          1  |   16.19874   .1293522   125.23   0.000     15.94294    16.45455",
+            "          2  |   26.05857   .1733084   150.36   0.000     25.71584     26.4013",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(f) at(x=gen(x-1))",
+          "lines": [
+            "Conditional marginal effects                               Number of obs = 140",
+            "Model VCE: Robust",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  1.f",
+            "At: x = x-1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         1.f |    8.64199   .2034063    42.49   0.000     8.239741    9.044238",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "capture noisily margins, at(f=generate(f))",
+          "lines": [
+            "invalid at() option;",
+            "invalid at() specification;",
+            "suboption generate() not allowed with factor variables"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] }
+      ]
+    },
+    {
+      "id": "recheck-linear-iv-estat",
+      "source": "clear\nset obs 200\nset seed 5106\ngenerate z1 = rnormal()\ngenerate z2 = rnormal()\ngenerate z3 = rnormal()\ngenerate u = rnormal()\ngenerate x = rnormal()\ngenerate h = z1 + z2 + .5*z3 + u + rnormal()\ngenerate y = 1 + h + x + u + rnormal()\nquietly ivregress 2sls y x (h = z1 z2 z3)\nestat firststage, all\ncapture noisily estat firststage, junk\ndisplay _rc\ncapture noisily estat firststage x\ndisplay _rc\ncapture noisily estat endogenous x\ndisplay _rc\ncapture noisily estat endogenous, junk\ndisplay _rc\nestat endogenous h\nestat overid, forcenonrobust\ncapture noisily estat overid, lags(1)\ndisplay _rc\nquietly ivregress 2sls y x (h = z1 z2 z3), vce(robust)\nestat firststage, all\nquietly ivregress gmm y x (h = z1 z2 z3)\nestat overid\ncapture noisily estat overid, junk\ndisplay _rc\nquietly ivregress gmm y x (h = z1 z2 z3), wmatrix(unadjusted)\nestat overid\ndisplay r(J_df) \" \" %9.0g r(HansenJ) \" \" %9.0g r(p_HansenJ)\nquietly ivregress liml y x (h = z1 z2 z3)\ncapture noisily estat overid, junk\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "set seed 5106", "lines": [] },
+        { "command": "generate z1 = rnormal()", "lines": [] },
+        { "command": "generate z2 = rnormal()", "lines": [] },
+        { "command": "generate z3 = rnormal()", "lines": [] },
+        { "command": "generate u = rnormal()", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        {
+          "command": "generate h = z1 + z2 + .5*z3 + u + rnormal()",
+          "lines": []
+        },
+        { "command": "generate y = 1 + h + x + u + rnormal()", "lines": [] },
+        { "command": "quietly ivregress 2sls y x (h = z1 z2 z3)", "lines": [] },
+        {
+          "command": "estat firststage, all",
+          "lines": [
+            "  First-stage regression summary statistics",
+            "  --------------------------------------------------------------------------",
+            "               |            Adjusted      Partial",
+            "      Variable |   R-sq.       R-sq.        R-sq.      F(3,195)   Prob > F",
+            "  -------------+------------------------------------------------------------",
+            "             h |  0.5351      0.5255       0.5351       74.8018    0.0000",
+            "  --------------------------------------------------------------------------",
+            "",
+            "",
+            "  Shea's partial R-squared",
+            "  --------------------------------------------------",
+            "               |     Shea's             Shea's",
+            "      Variable |  partial R-sq.   adj. partial R-sq.",
+            "  -------------+------------------------------------",
+            "             h |     0.5351             0.5279",
+            "  --------------------------------------------------",
+            "",
+            "",
+            "  Minimum eigenvalue statistic = 74.8018",
+            "",
+            "  Critical Values                      # of endogenous regressors:    1",
+            "  H0: Instruments are weak             # of excluded instruments:     3",
+            "  ---------------------------------------------------------------------",
+            "                                     |    5%     10%     20%     30%",
+            "  2SLS relative bias                 |  13.91    9.08    6.46    5.39",
+            "  -----------------------------------+---------------------------------",
+            "                                     |   10%     15%     20%     25%",
+            "  2SLS size of nominal 5% Wald test  |  22.30   12.83    9.54    7.80",
+            "  LIML size of nominal 5% Wald test  |   6.46    4.36    3.69    3.32",
+            "  ---------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily estat firststage, junk",
+          "lines": ["option junk not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily estat firststage x",
+          "lines": ["varlist not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily estat endogenous x",
+          "lines": ["x not endogenous in original model"]
+        },
+        { "command": "display _rc", "lines": ["498"] },
+        {
+          "command": "capture noisily estat endogenous, junk",
+          "lines": ["option junk not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "estat endogenous h",
+          "lines": [
+            "  Tests of endogeneity",
+            "  H0: Variables are exogenous",
+            "",
+            "  Durbin (score) chi2(1)          =  20.4022  (p = 0.0000)",
+            "  Wu-Hausman F(1,196)             =  22.2655  (p = 0.0000)"
+          ]
+        },
+        {
+          "command": "estat overid, forcenonrobust",
+          "lines": [
+            "  Tests of overidentifying restrictions:",
+            "",
+            "  Sargan chi2(2)         =  .075561  (p = 0.9629)",
+            "  Basmann chi2(2)        =    .0737  (p = 0.9638)"
+          ]
+        },
+        {
+          "command": "capture noisily estat overid, lags(1)",
+          "lines": ["lags() only valid with models with HAC VCEs"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "quietly ivregress 2sls y x (h = z1 z2 z3), vce(robust)",
+          "lines": []
+        },
+        {
+          "command": "estat firststage, all",
+          "lines": [
+            "  First-stage regression summary statistics",
+            "  --------------------------------------------------------------------------",
+            "               |            Adjusted      Partial       Robust",
+            "      Variable |   R-sq.       R-sq.        R-sq.      F(3,195)   Prob > F",
+            "  -------------+------------------------------------------------------------",
+            "             h |  0.5351      0.5255       0.5351       73.0432    0.0000",
+            "  --------------------------------------------------------------------------",
+            "",
+            "",
+            "  Shea's partial R-squared",
+            "  --------------------------------------------------",
+            "               |     Shea's             Shea's",
+            "      Variable |  partial R-sq.   adj. partial R-sq.",
+            "  -------------+------------------------------------",
+            "             h |     0.5351             0.5279",
+            "  --------------------------------------------------"
+          ]
+        },
+        { "command": "quietly ivregress gmm y x (h = z1 z2 z3)", "lines": [] },
+        {
+          "command": "estat overid",
+          "lines": [
+            "  Test of overidentifying restriction:",
+            "",
+            "  Hansen's J chi2(2) = .089749 (p = 0.9561)"
+          ]
+        },
+        {
+          "command": "capture noisily estat overid, junk",
+          "lines": ["junk not allowed after GMM estimation"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "quietly ivregress gmm y x (h = z1 z2 z3), wmatrix(unadjusted)",
+          "lines": []
+        },
+        {
+          "command": "estat overid",
+          "lines": [
+            "  Test of overidentifying restriction:",
+            "",
+            "  Hansen's J chi2(2) = .075561 (p = 0.9629)"
+          ]
+        },
+        {
+          "command": "display r(J_df) \" \" %9.0g r(HansenJ) \" \" %9.0g r(p_HansenJ)",
+          "lines": ["2  .0755615  .9629241"]
+        },
+        { "command": "quietly ivregress liml y x (h = z1 z2 z3)", "lines": [] },
+        {
+          "command": "capture noisily estat overid, junk",
+          "lines": ["option junk not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] }
+      ]
+    },
+    {
+      "id": "recheck-linear-nlcom-returns",
+      "source": "clear\nset obs 80\nset seed 5107\ngenerate x = rnormal()\ngenerate z = rnormal()\ngenerate y = 1 + 2*x + z + rnormal()\nquietly regress y x z\nnlcom _b[x]/_b[z]\nreturn list\nmatrix list r(table)\nnlcom (ratio: _b[x]/_b[z]) (product: _b[x]*_b[z]), level(90)\nmatrix list r(b)\nmatrix list r(V)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 80",
+          "lines": ["Number of observations (_N) was 0, now 80."]
+        },
+        { "command": "set seed 5107", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        { "command": "generate z = rnormal()", "lines": [] },
+        { "command": "generate y = 1 + 2*x + z + rnormal()", "lines": [] },
+        { "command": "quietly regress y x z", "lines": [] },
+        {
+          "command": "nlcom _b[x]/_b[z]",
+          "lines": [
+            "       _nl_1: _b[x]/_b[z]",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _nl_1 |   1.919279   .1977538     9.71   0.000     1.531689    2.306869",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "              r(level) =  95",
+            "                  r(N) =  80",
+            "",
+            "matrices:",
+            "              r(table) :  9 x 1",
+            "                  r(b) :  1 x 1",
+            "                  r(V) :  1 x 1"
+          ]
+        },
+        {
+          "command": "matrix list r(table)",
+          "lines": [
+            "r(table)[9,1]",
+            "            _nl_1",
+            "     b   1.919279",
+            "    se   .1977538",
+            "     z  9.7053963",
+            "pvalue  2.860e-22",
+            "    ll  1.5316887",
+            "    ul  2.3068693",
+            "    df          .",
+            "  crit   1.959964",
+            " eform          0"
+          ]
+        },
+        {
+          "command": "nlcom (ratio: _b[x]/_b[z]) (product: _b[x]*_b[z]), level(90)",
+          "lines": [
+            "       ratio: _b[x]/_b[z]",
+            "     product: _b[x]*_b[z]",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      z    P>|z|     [90% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       ratio |   1.919279   .1977538     9.71   0.000     1.594003    2.244555",
+            "     product |   1.975895   .2095693     9.43   0.000     1.631184    2.320606",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list r(b)",
+          "lines": [
+            "r(b)[1,2]",
+            "        ratio    product",
+            "c1   1.919279  1.9758953"
+          ]
+        },
+        {
+          "command": "matrix list r(V)",
+          "lines": [
+            "symmetric r(V)[2,2]",
+            "              ratio     product",
+            "  ratio   .03910657",
+            "product  -.02430901   .04391931"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-linear-iv-areg-results",
+      "source": "clear\nset obs 160\nset seed 5108\ngenerate z1 = rnormal()\ngenerate z2 = rnormal()\ngenerate x = rnormal()\ngenerate g = 1 + floor(runiform()*5)\ngenerate h = z1 + z2 + rnormal()\ngenerate y = 1 + h + x + rnormal()\nquietly ivregress 2sls y x (h = z1 z2)\ndisplay \"[\" e(endog) \"] [\" e(exog) \"] [\" e(exogr) \"] [\" e(instd) \"] [\" e(insts) \"] \" e(k_endog) \" \" e(kappa) \" \" e(iterations)\ndisplay \"[\" e(cmdline) \"] [\" e(estat_cmd) \"] [\" e(footnote) \"] [\" e(marginsnotok) \"] [\" e(predict) \"]\"\nquietly ivregress liml y x (h = z1 z2)\ndisplay \"[\" e(cmdline) \"] \" e(df_r) \" \" e(k_endog)\nquietly ivregress gmm y x (h = z1 z2)\ndisplay \"[\" e(wmatrix) \"] \" e(iterations) \" \" e(df_r)\nquietly ivregress 2sls y x (h = z1 z2), vce(robust)\nmatrix list e(V_modelbased)\nquietly areg y x, absorb(g)\ndisplay \"[\" e(cmdline) \"] [\" e(predict) \"] [\" e(footnote) \"] [\" e(marginsnotok) \"] \" e(sum_w) \" \" e(rc) \" [\" e(model) \"] [\" e(estmethod) \"] [\" e(title2) \"]\"\nquietly areg y x, absorb(g) vce(robust)\nmatrix list e(V_modelbased)\nquietly areg y x, absorb(g) vce(cluster g)\ndisplay \"[\" e(marginsnotok) \"] \" e(sum_w) \" \" e(mss) \" \" e(p)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 160",
+          "lines": ["Number of observations (_N) was 0, now 160."]
+        },
+        { "command": "set seed 5108", "lines": [] },
+        { "command": "generate z1 = rnormal()", "lines": [] },
+        { "command": "generate z2 = rnormal()", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        { "command": "generate g = 1 + floor(runiform()*5)", "lines": [] },
+        { "command": "generate h = z1 + z2 + rnormal()", "lines": [] },
+        { "command": "generate y = 1 + h + x + rnormal()", "lines": [] },
+        { "command": "quietly ivregress 2sls y x (h = z1 z2)", "lines": [] },
+        {
+          "command": "display \"[\" e(endog) \"] [\" e(exog) \"] [\" e(exogr) \"] [\" e(instd) \"] [\" e(insts) \"] \" e(k_endog) \" \" e(kappa) \" \" e(iterations)",
+          "lines": ["[h] [x z1 z2] [x] [h] [x z1 z2] 1 1 0"]
+        },
+        {
+          "command": "display \"[\" e(cmdline) \"] [\" e(estat_cmd) \"] [\" e(footnote) \"] [\" e(marginsnotok) \"] [\" e(predict) \"]\"",
+          "lines": [
+            "[ivregress 2sls  y x (h = z1 z2)] [ivregress_estat] [ivreg_footnote] [Residuals SCores] [ivregress_p]"
+          ]
+        },
+        { "command": "quietly ivregress liml y x (h = z1 z2)", "lines": [] },
+        {
+          "command": "display \"[\" e(cmdline) \"] \" e(df_r) \" \" e(k_endog)",
+          "lines": ["[ivregress liml y x (h = z1 z2)] . 1"]
+        },
+        { "command": "quietly ivregress gmm y x (h = z1 z2)", "lines": [] },
+        {
+          "command": "display \"[\" e(wmatrix) \"] \" e(iterations) \" \" e(df_r)",
+          "lines": ["[robust] 1 ."]
+        },
+        {
+          "command": "quietly ivregress 2sls y x (h = z1 z2), vce(robust)",
+          "lines": []
+        },
+        {
+          "command": "matrix list e(V_modelbased)",
+          "lines": [
+            "symmetric e(V_modelbased)[3,3]",
+            "                h           x       _cons",
+            "    h   .00310021",
+            "    x   .00012539   .00575124",
+            "_cons  -.00025063   .00053127   .00632127"
+          ]
+        },
+        { "command": "quietly areg y x, absorb(g)", "lines": [] },
+        {
+          "command": "display \"[\" e(cmdline) \"] [\" e(predict) \"] [\" e(footnote) \"] [\" e(marginsnotok) \"] \" e(sum_w) \" \" e(rc) \" [\" e(model) \"] [\" e(estmethod) \"] [\" e(title2) \"]\"",
+          "lines": [
+            "[areg y x, absorb(g)] [areg_p] [areg_footnote] [Residuals SCore D XBD] 160 0 [ols] [areg] [Absorbed variable: g]"
+          ]
+        },
+        { "command": "quietly areg y x, absorb(g) vce(robust)", "lines": [] },
+        {
+          "command": "matrix list e(V_modelbased)",
+          "lines": [
+            "symmetric e(V_modelbased)[2,2]",
+            "               x      _cons",
+            "    x  .00586357",
+            "_cons  .00055247  .00630205"
+          ]
+        },
+        {
+          "command": "quietly areg y x, absorb(g) vce(cluster g)",
+          "lines": []
+        },
+        {
+          "command": "display \"[\" e(marginsnotok) \"] \" e(sum_w) \" \" e(mss) \" \" e(p)",
+          "lines": ["[Residuals SCore D XBD] 160 195.84614 .00064342"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-linear-meanonly",
+      "source": "clear\nset obs 30\nset seed 5109\ngenerate x = rnormal(5, 2)\ngenerate w = 1 + floor(runiform()*3)\nsummarize x, meanonly\nreturn list\nsummarize x [aw=w], meanonly\nreturn list\nsummarize x if x > 100, meanonly\nreturn list\nsummarize x\nreturn list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "set seed 5109", "lines": [] },
+        { "command": "generate x = rnormal(5, 2)", "lines": [] },
+        { "command": "generate w = 1 + floor(runiform()*3)", "lines": [] },
+        { "command": "summarize x, meanonly", "lines": [] },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  30",
+            "              r(sum_w) =  30",
+            "                r(sum) =  153.8906536102295",
+            "               r(mean) =  5.129688453674317",
+            "                r(min) =  1.073422789573669",
+            "                r(max) =  9.015215873718262"
+          ]
+        },
+        { "command": "summarize x [aw=w], meanonly", "lines": [] },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  30",
+            "              r(sum_w) =  61",
+            "                r(sum) =  295.5924165248871",
+            "               r(mean) =  4.845777320080116",
+            "                r(min) =  1.073422789573669",
+            "                r(max) =  9.015215873718262"
+          ]
+        },
+        { "command": "summarize x if x > 100, meanonly", "lines": [] },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  0",
+            "              r(sum_w) =  0",
+            "                r(sum) =  0"
+          ]
+        },
+        {
+          "command": "summarize x",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |         30    5.129688    2.140327   1.073423   9.015216"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  30",
+            "              r(sum_w) =  30",
+            "               r(mean) =  5.129688453674317",
+            "                r(Var) =  4.581000346566838",
+            "                 r(sd) =  2.140327158769621",
+            "                r(min) =  1.073422789573669",
+            "                r(max) =  9.015215873718262",
+            "                r(sum) =  153.8906536102295"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-linear-regress-display",
+      "source": "clear\nset obs 200\nset seed 4021\ngenerate educ = 8 + floor(runiform()*10)\ngenerate region = 1 + floor(runiform()*4)\nlabel define reg 1 \"North\" 2 \"South\" 3 \"East\" 4 \"West\"\nlabel values region reg\ngenerate female = runiform() < .5\ngenerate male = 1 - female\ngenerate wage = 5 + .8*educ + 2*female + region + rnormal()*3\ngenerate educ2 = 2*educ\ngenerate one = 1\ngenerate school = 1 + floor(runiform()*12)\nregress wage educ i.region, coeflegend\nregress wage educ i.region, noheader\nregress wage educ, notable\nregress wage educ i.region, cformat(%9.3f)\nregress wage educ, pformat(%5.2f) sformat(%8.3f)\nregress wage educ i.region, vsquish\nregress wage educ educ2 female, noomitted\nregress wage educ, depname(y)\nregress wage educ i.region, noci\nregress wage educ, nopvalues\ncapture noisily regress wage educ, noci nopvalues\ndisplay _rc\nregress wage educ i.region, nofvlabel\nregress wage educ one, hascons\nregress wage educ female male, hascons\nregress wage educ female, hascons\nregress wage educ, noconstant tsscons\nregress wage educ, mse1\nregress wage educ, mse1 vce(robust)\nregress wage educ i.region, noemptycells\nregress wage educ, nolstretch\nregress wage educ, vce(robust) noheader\nregress wage educ, vce(cluster school) noheader\nregress wage educ, vce(robust) coeflegend\nregress wage educ, vce(robust) noci\nregress wage educ, beta noheader\nregress wage educ i.region, beta cformat(%9.3f)\nregress wage educ i.region, eform(exp b)\nregress wage educ i.region, eform(exp b) noci\ncapture noisily regress wage educ, eform(Exponentiated)\ndisplay _rc\nregress wage educ, cformat(%9.2f) pformat(%4.2f) sformat(%7.2f) noci\nregress wage educ i.region, coeflegend baselevels\nregress wage educ i.region, noci vsquish nofvlabel depname(pay) level(90)\nregress wage educ, nopvalues level(99.5)\nregress wage educ educ2, coeflegend\nregress\nregress, coeflegend\nregress, noheader cformat(%8.3f)\nregress, noci\nregress, vsquish\ncapture noisily regress, depname(y)\ndisplay _rc\nregress wage educ, cformat(%12.3f)\ncapture noisily regress wage educ, cformat(%s)\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "set seed 4021", "lines": [] },
+        { "command": "generate educ = 8 + floor(runiform()*10)", "lines": [] },
+        { "command": "generate region = 1 + floor(runiform()*4)", "lines": [] },
+        {
+          "command": "label define reg 1 \"North\" 2 \"South\" 3 \"East\" 4 \"West\"",
+          "lines": []
+        },
+        { "command": "label values region reg", "lines": [] },
+        { "command": "generate female = runiform() < .5", "lines": [] },
+        { "command": "generate male = 1 - female", "lines": [] },
+        {
+          "command": "generate wage = 5 + .8*educ + 2*female + region + rnormal()*3",
+          "lines": []
+        },
+        { "command": "generate educ2 = 2*educ", "lines": [] },
+        { "command": "generate one = 1", "lines": [] },
+        {
+          "command": "generate school = 1 + floor(runiform()*12)",
+          "lines": []
+        },
+        {
+          "command": "regress wage educ i.region, coeflegend",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(4, 195)       =     27.99",
+            "       Model |   1144.2956         4  286.073901   Prob > F        =    0.0000",
+            "    Residual |  1993.34823       195  10.2222986   R-squared       =    0.3647",
+            "-------------+----------------------------------   Adj R-squared   =    0.3517",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.1972",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Legend",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7874987  _b[educ]",
+            "             |",
+            "      region |",
+            "      South  |   1.111127  _b[2.region]",
+            "       East  |   2.201023  _b[3.region]",
+            "       West  |   3.040071  _b[4.region]",
+            "             |",
+            "       _cons |   7.183069  _b[_cons]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ i.region, noheader",
+          "lines": [
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7874987   .0802996     9.81   0.000     .6291315     .945866",
+            "             |",
+            "      region |",
+            "      South  |   1.111127   .6484731     1.71   0.088    -.1677945    2.390048",
+            "       East  |   2.201023   .6109317     3.60   0.000     .9961408    3.405905",
+            "       West  |   3.040071   .6239884     4.87   0.000     1.809439    4.270704",
+            "             |",
+            "       _cons |   7.183069   1.120048     6.41   0.000     4.974105    9.392032",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ, notable",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 198)       =     75.82",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       198  11.4585977   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2733",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3851"
+          ]
+        },
+        {
+          "command": "regress wage educ i.region, cformat(%9.3f)",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(4, 195)       =     27.99",
+            "       Model |   1144.2956         4  286.073901   Prob > F        =    0.0000",
+            "    Residual |  1993.34823       195  10.2222986   R-squared       =    0.3647",
+            "-------------+----------------------------------   Adj R-squared   =    0.3517",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.1972",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |      0.787      0.080     9.81   0.000        0.629       0.946",
+            "             |",
+            "      region |",
+            "      South  |      1.111      0.648     1.71   0.088       -0.168       2.390",
+            "       East  |      2.201      0.611     3.60   0.000        0.996       3.406",
+            "       West  |      3.040      0.624     4.87   0.000        1.809       4.271",
+            "             |",
+            "       _cons |      7.183      1.120     6.41   0.000        4.974       9.392",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ, pformat(%5.2f) sformat(%8.3f)",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 198)       =     75.82",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       198  11.4585977   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2733",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3851",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7341561   .0843109    8.708    0.00     .5678935    .9004188",
+            "       _cons |   9.368777   1.081138    8.666    0.00     7.236754     11.5008",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ i.region, vsquish",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(4, 195)       =     27.99",
+            "       Model |   1144.2956         4  286.073901   Prob > F        =    0.0000",
+            "    Residual |  1993.34823       195  10.2222986   R-squared       =    0.3647",
+            "-------------+----------------------------------   Adj R-squared   =    0.3517",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.1972",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7874987   .0802996     9.81   0.000     .6291315     .945866",
+            "      region |",
+            "      South  |   1.111127   .6484731     1.71   0.088    -.1677945    2.390048",
+            "       East  |   2.201023   .6109317     3.60   0.000     .9961408    3.405905",
+            "       West  |   3.040071   .6239884     4.87   0.000     1.809439    4.270704",
+            "       _cons |   7.183069   1.120048     6.41   0.000     4.974105    9.392032",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ educ2 female, noomitted",
+          "lines": [
+            "note: educ omitted because of collinearity.",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(2, 197)       =     44.57",
+            "       Model |  977.425476         2  488.712738   Prob > F        =    0.0000",
+            "    Residual |  2160.21836       197  10.9655754   R-squared       =    0.3115",
+            "-------------+----------------------------------   Adj R-squared   =    0.3045",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3114",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       educ2 |   .3636487    .041253     8.82   0.000     .2822945    .4450028",
+            "      female |   1.474177   .4684706     3.15   0.002     .5503155    2.398037",
+            "       _cons |   8.717457   1.077686     8.09   0.000     6.592175    10.84274",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ, depname(y)",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 198)       =     75.82",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       198  11.4585977   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2733",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3851",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7341561   .0843109     8.71   0.000     .5678935    .9004188",
+            "       _cons |   9.368777   1.081138     8.67   0.000     7.236754     11.5008",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ i.region, noci",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(4, 195)       =     27.99",
+            "       Model |   1144.2956         4  286.073901   Prob > F        =    0.0000",
+            "    Residual |  1993.34823       195  10.2222986   R-squared       =    0.3647",
+            "-------------+----------------------------------   Adj R-squared   =    0.3517",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.1972",
+            "",
+            "-----------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|",
+            "-------------+---------------------------------------",
+            "        educ |   .7874987   .0802996     9.81   0.000",
+            "             |",
+            "      region |",
+            "      South  |   1.111127   .6484731     1.71   0.088",
+            "       East  |   2.201023   .6109317     3.60   0.000",
+            "       West  |   3.040071   .6239884     4.87   0.000",
+            "             |",
+            "       _cons |   7.183069   1.120048     6.41   0.000",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ, nopvalues",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 198)       =     75.82",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       198  11.4585977   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2733",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3851",
+            "",
+            "--------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "        educ |   .7341561   .0843109      .5678935    .9004188",
+            "       _cons |   9.368777   1.081138      7.236754     11.5008",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily regress wage educ, noci nopvalues",
+          "lines": ["only one of options noci or nopvalues is allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "regress wage educ i.region, nofvlabel",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(4, 195)       =     27.99",
+            "       Model |   1144.2956         4  286.073901   Prob > F        =    0.0000",
+            "    Residual |  1993.34823       195  10.2222986   R-squared       =    0.3647",
+            "-------------+----------------------------------   Adj R-squared   =    0.3517",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.1972",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7874987   .0802996     9.81   0.000     .6291315     .945866",
+            "             |",
+            "      region |",
+            "          2  |   1.111127   .6484731     1.71   0.088    -.1677945    2.390048",
+            "          3  |   2.201023   .6109317     3.60   0.000     .9961408    3.405905",
+            "          4  |   3.040071   .6239884     4.87   0.000     1.809439    4.270704",
+            "             |",
+            "       _cons |   7.183069   1.120048     6.41   0.000     4.974105    9.392032",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ one, hascons",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 198)       =     75.82",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       198  11.4585977   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2733",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3851",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7341561   .0843109     8.71   0.000     .5678935    .9004188",
+            "         one |   9.368777   1.081138     8.67   0.000     7.236754     11.5008",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ female male, hascons",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(2, 197)       =     44.57",
+            "       Model |  977.425476         2  488.712738   Prob > F        =    0.0000",
+            "    Residual |  2160.21836       197  10.9655754   R-squared       =    0.3115",
+            "-------------+----------------------------------   Adj R-squared   =    0.3045",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3114",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7272973    .082506     8.82   0.000      .564589    .8900057",
+            "      female |   10.19163    1.08947     9.35   0.000     8.043113    12.34015",
+            "        male |   8.717457   1.077686     8.09   0.000     6.592175    10.84274",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ female, hascons",
+          "lines": [
+            "note: option hascons false.",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(2, 197)       =     44.57",
+            "       Model |  977.425476         2  488.712738   Prob > F        =    0.0000",
+            "    Residual |  2160.21836       197  10.9655754   R-squared       =    0.3115",
+            "-------------+----------------------------------   Adj R-squared   =    0.3045",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3114",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7272973    .082506     8.82   0.000      .564589    .8900057",
+            "      female |   1.474177   .4684706     3.15   0.002     .5503155    2.398037",
+            "       _cons |   8.717457   1.077686     8.09   0.000     6.592175    10.84274",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ, noconstant tsscons",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(0, 199)       =      0.00",
+            "       Model |  8.37257098         0           .   Prob > F        =         .",
+            "    Residual |  3129.27126       199  15.7249812   R-squared       =    0.0027",
+            "-------------+----------------------------------   Adj R-squared   =    0.0027",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.9655",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   1.446636   .0218667    66.16   0.000     1.403515    1.489756",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ, mse1",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 200)       =    868.84",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       200  11.3440117   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2805",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =         1",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7341561   .0249068    29.48   0.000     .6850425    .7832698",
+            "       _cons |   9.368777   .3193856    29.33   0.000     8.738981    9.998572",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ, mse1 vce(robust)",
+          "lines": [
+            "Linear regression                               Number of obs     =        200",
+            "                                                F(1, 198)         =      75.68",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.2769",
+            "                                                Root MSE          =          1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "        wage | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7341561   .0843929     8.70   0.000     .5677318    .9005804",
+            "       _cons |   9.368777   1.053569     8.89   0.000     7.291119    11.44643",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ i.region, noemptycells",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(4, 195)       =     27.99",
+            "       Model |   1144.2956         4  286.073901   Prob > F        =    0.0000",
+            "    Residual |  1993.34823       195  10.2222986   R-squared       =    0.3647",
+            "-------------+----------------------------------   Adj R-squared   =    0.3517",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.1972",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7874987   .0802996     9.81   0.000     .6291315     .945866",
+            "             |",
+            "      region |",
+            "      South  |   1.111127   .6484731     1.71   0.088    -.1677945    2.390048",
+            "       East  |   2.201023   .6109317     3.60   0.000     .9961408    3.405905",
+            "       West  |   3.040071   .6239884     4.87   0.000     1.809439    4.270704",
+            "             |",
+            "       _cons |   7.183069   1.120048     6.41   0.000     4.974105    9.392032",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ, nolstretch",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 198)       =     75.82",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       198  11.4585977   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2733",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3851",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7341561   .0843109     8.71   0.000     .5678935    .9004188",
+            "       _cons |   9.368777   1.081138     8.67   0.000     7.236754     11.5008",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ, vce(robust) noheader",
+          "lines": [
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "        wage | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7341561   .0843929     8.70   0.000     .5677318    .9005804",
+            "       _cons |   9.368777   1.053569     8.89   0.000     7.291119    11.44643",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ, vce(cluster school) noheader",
+          "lines": [
+            "                                (Std. err. adjusted for 12 clusters in school)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "        wage | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7341561   .0431005    17.03   0.000     .6392925    .8290198",
+            "       _cons |   9.368777   .6877575    13.62   0.000     7.855033    10.88252",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ, vce(robust) coeflegend",
+          "lines": [
+            "Linear regression                               Number of obs     =        200",
+            "                                                F(1, 198)         =      75.68",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.2769",
+            "                                                Root MSE          =     3.3851",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Legend",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7341561  _b[educ]",
+            "       _cons |   9.368777  _b[_cons]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ, vce(robust) noci",
+          "lines": [
+            "Linear regression                               Number of obs     =        200",
+            "                                                F(1, 198)         =      75.68",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.2769",
+            "                                                Root MSE          =     3.3851",
+            "",
+            "-----------------------------------------------------",
+            "             |               Robust",
+            "        wage | Coefficient  std. err.      t    P>|t|",
+            "-------------+---------------------------------------",
+            "        educ |   .7341561   .0843929     8.70   0.000",
+            "       _cons |   9.368777   1.053569     8.89   0.000",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ, beta noheader",
+          "lines": [
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|                     Beta",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7341561   .0843109     8.71   0.000                 .5262213",
+            "       _cons |   9.368777   1.081138     8.67   0.000                        .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ i.region, beta cformat(%9.3f)",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(4, 195)       =     27.99",
+            "       Model |   1144.2956         4  286.073901   Prob > F        =    0.0000",
+            "    Residual |  1993.34823       195  10.2222986   R-squared       =    0.3647",
+            "-------------+----------------------------------   Adj R-squared   =    0.3517",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.1972",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|                     Beta",
+            "-------------+----------------------------------------------------------------",
+            "        educ |      0.787      0.080     9.81   0.000                    0.564",
+            "             |",
+            "      region |",
+            "      South  |      1.111      0.648     1.71   0.088                    0.113",
+            "       East  |      2.201      0.611     3.60   0.000                    0.242",
+            "       West  |      3.040      0.624     4.87   0.000                    0.328",
+            "             |",
+            "       _cons |      7.183      1.120     6.41   0.000                        .",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ i.region, eform(exp b)",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(4, 195)       =     27.99",
+            "       Model |   1144.2956         4  286.073901   Prob > F        =    0.0000",
+            "    Residual |  1993.34823       195  10.2222986   R-squared       =    0.3647",
+            "-------------+----------------------------------   Adj R-squared   =    0.3517",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.1972",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage |      exp b   Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   2.197892   .1764899     9.81   0.000      1.87598    2.575042",
+            "             |",
+            "      region |",
+            "      South  |   3.037779   1.969918     1.71   0.088     .8455276    10.91402",
+            "       East  |   9.034249   5.519309     3.60   0.000     2.707812    30.14156",
+            "       West  |   20.90674   13.04556     4.87   0.000     6.107021      71.572",
+            "             |",
+            "       _cons |   1316.943    1475.04     6.41   0.000     144.6194    11992.44",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ i.region, eform(exp b) noci",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(4, 195)       =     27.99",
+            "       Model |   1144.2956         4  286.073901   Prob > F        =    0.0000",
+            "    Residual |  1993.34823       195  10.2222986   R-squared       =    0.3647",
+            "-------------+----------------------------------   Adj R-squared   =    0.3517",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.1972",
+            "",
+            "-----------------------------------------------------",
+            "        wage |      exp b   Std. err.      t    P>|t|",
+            "-------------+---------------------------------------",
+            "        educ |   2.197892   .1764899     9.81   0.000",
+            "             |",
+            "      region |",
+            "      South  |   3.037779   1.969918     1.71   0.088",
+            "       East  |   9.034249   5.519309     3.60   0.000",
+            "       West  |   20.90674   13.04556     4.87   0.000",
+            "             |",
+            "       _cons |   1316.943    1475.04     6.41   0.000",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily regress wage educ, eform(Exponentiated)",
+          "lines": ["option eform() incorrectly specified"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "regress wage educ, cformat(%9.2f) pformat(%4.2f) sformat(%7.2f) noci",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 198)       =     75.82",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       198  11.4585977   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2733",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3851",
+            "",
+            "-----------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|",
+            "-------------+---------------------------------------",
+            "        educ |       0.73       0.08     8.71    0.00",
+            "       _cons |       9.37       1.08     8.67    0.00",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ i.region, coeflegend baselevels",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(4, 195)       =     27.99",
+            "       Model |   1144.2956         4  286.073901   Prob > F        =    0.0000",
+            "    Residual |  1993.34823       195  10.2222986   R-squared       =    0.3647",
+            "-------------+----------------------------------   Adj R-squared   =    0.3517",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.1972",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Legend",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7874987  _b[educ]",
+            "             |",
+            "      region |",
+            "      North  |          0  _b[1b.region]",
+            "      South  |   1.111127  _b[2.region]",
+            "       East  |   2.201023  _b[3.region]",
+            "       West  |   3.040071  _b[4.region]",
+            "             |",
+            "       _cons |   7.183069  _b[_cons]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ i.region, noci vsquish nofvlabel depname(pay) level(90)",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(4, 195)       =     27.99",
+            "       Model |   1144.2956         4  286.073901   Prob > F        =    0.0000",
+            "    Residual |  1993.34823       195  10.2222986   R-squared       =    0.3647",
+            "-------------+----------------------------------   Adj R-squared   =    0.3517",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.1972",
+            "",
+            "-----------------------------------------------------",
+            "         pay | Coefficient  Std. err.      t    P>|t|",
+            "-------------+---------------------------------------",
+            "        educ |   .7874987   .0802996     9.81   0.000",
+            "      region |",
+            "          2  |   1.111127   .6484731     1.71   0.088",
+            "          3  |   2.201023   .6109317     3.60   0.000",
+            "          4  |   3.040071   .6239884     4.87   0.000",
+            "       _cons |   7.183069   1.120048     6.41   0.000",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ, nopvalues level(99.5)",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 198)       =     75.82",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       198  11.4585977   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2733",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3851",
+            "",
+            "--------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.   [99.5% conf. interval]",
+            "-------------+------------------------------------------------",
+            "        educ |   .7341561   .0843109      .4948113     .973501",
+            "       _cons |   9.368777   1.081138      6.299605    12.43795",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress wage educ educ2, coeflegend",
+          "lines": [
+            "note: educ omitted because of collinearity.",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 198)       =     75.82",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       198  11.4585977   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2733",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3851",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Legend",
+            "-------------+----------------------------------------------------------------",
+            "        educ |          0  _b[o.educ]",
+            "       educ2 |   .3670781  _b[educ2]",
+            "       _cons |   9.368777  _b[_cons]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 198)       =     75.82",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       198  11.4585977   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2733",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3851",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |          0  (omitted)",
+            "       educ2 |   .3670781   .0421555     8.71   0.000     .2839468    .4502094",
+            "       _cons |   9.368777   1.081138     8.67   0.000     7.236754     11.5008",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress, coeflegend",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 198)       =     75.82",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       198  11.4585977   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2733",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3851",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Legend",
+            "-------------+----------------------------------------------------------------",
+            "        educ |          0  _b[o.educ]",
+            "       educ2 |   .3670781  _b[educ2]",
+            "       _cons |   9.368777  _b[_cons]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress, noheader cformat(%8.3f)",
+          "lines": [
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |      0.000  (omitted)",
+            "       educ2 |      0.367      0.042     8.71   0.000        0.284       0.450",
+            "       _cons |      9.369      1.081     8.67   0.000        7.237      11.501",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress, noci",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 198)       =     75.82",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       198  11.4585977   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2733",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3851",
+            "",
+            "-----------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|",
+            "-------------+---------------------------------------",
+            "        educ |          0  (omitted)",
+            "       educ2 |   .3670781   .0421555     8.71   0.000",
+            "       _cons |   9.368777   1.081138     8.67   0.000",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress, vsquish",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 198)       =     75.82",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       198  11.4585977   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2733",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3851",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |          0  (omitted)",
+            "       educ2 |   .3670781   .0421555     8.71   0.000     .2839468    .4502094",
+            "       _cons |   9.368777   1.081138     8.67   0.000     7.236754     11.5008",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily regress, depname(y)",
+          "lines": ["option depname() not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "regress wage educ, cformat(%12.3f)",
+          "lines": [
+            "note: invalid cformat(), using default",
+            "",
+            "      Source |       SS           df       MS      Number of obs   =       200",
+            "-------------+----------------------------------   F(1, 198)       =     75.82",
+            "       Model |  868.841491         1  868.841491   Prob > F        =    0.0000",
+            "    Residual |  2268.80234       198  11.4585977   R-squared       =    0.2769",
+            "-------------+----------------------------------   Adj R-squared   =    0.2733",
+            "       Total |  3137.64383       199  15.7670544   Root MSE        =    3.3851",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   .7341561   .0843109     8.71   0.000     .5678935    .9004188",
+            "       _cons |   9.368777   1.081138     8.67   0.000     7.236754     11.5008",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily regress wage educ, cformat(%s)",
+          "lines": ["'%s' found where numeric format expected"]
+        },
+        { "command": "display _rc", "lines": ["7"] }
+      ]
+    },
+    {
+      "id": "recheck-linear-coef-synonym",
+      "source": "clear\nset obs 50\nset seed 3\ngenerate x = rnormal()\ngenerate y = 2 + x + rnormal()\nquietly regress y x\ndisplay _coef[x]\ndisplay _coef[_cons] + _b[x]\ncapture noisily display [y]_coef[x]\ngenerate p = _coef[_cons] + _coef[x]*x\nsummarize p\nlincom _coef[x] - 1\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 50",
+          "lines": ["Number of observations (_N) was 0, now 50."]
+        },
+        { "command": "set seed 3", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        { "command": "generate y = 2 + x + rnormal()", "lines": [] },
+        { "command": "quietly regress y x", "lines": [] },
+        { "command": "display _coef[x]", "lines": ["1.1274414"] },
+        { "command": "display _coef[_cons] + _b[x]", "lines": ["3.3618418"] },
+        {
+          "command": "capture noisily display [y]_coef[x]",
+          "lines": ["equation [y] not found"]
+        },
+        { "command": "generate p = _coef[_cons] + _coef[x]*x", "lines": [] },
+        {
+          "command": "summarize p",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           p |         50    2.247676    1.084104   .0635712   4.377635"
+          ]
+        },
+        {
+          "command": "lincom _coef[x] - 1",
+          "lines": [
+            " ( 1)  x = 1",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   .1274414   .1290266     0.99   0.328     -.131984    .3868668",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-linear-string-factor",
+      "source": "clear\nset obs 60\nset seed 5111\ngenerate x = rnormal()\ngenerate str5 s = cond(runiform() < .5, \"north\", \"south\")\ngenerate y = x + rnormal()\nquietly regress y x\ncapture noisily testparm i.s\ndisplay _rc\ncapture noisily margins s\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "set seed 5111", "lines": [] },
+        { "command": "generate x = rnormal()", "lines": [] },
+        {
+          "command": "generate str5 s = cond(runiform() < .5, \"north\", \"south\")",
+          "lines": []
+        },
+        { "command": "generate y = x + rnormal()", "lines": [] },
+        { "command": "quietly regress y x", "lines": [] },
+        {
+          "command": "capture noisily testparm i.s",
+          "lines": ["s:  string variables may not be used as factor variables"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily margins s",
+          "lines": ["s:  string variables may not be used as factor variables"]
+        },
+        { "command": "display _rc", "lines": ["109"] }
+      ]
+    },
+    {
+      "id": "recheck-linear-ivregress-specs",
+      "source": "clear\nset obs 100\nset seed 5\ngenerate z1 = rnormal()\ngenerate z2 = rnormal()\ngenerate z3 = rnormal()\ngenerate educ = rnormal()\ngenerate hours = z1 + z2 + rnormal()\ngenerate exper = z3 + rnormal()\ngenerate wage = 1 + hours + educ + rnormal()\ncapture noisily ivregress 2sls wage educ (hours = )\ndisplay _rc\ncapture noisily ivregress foo wage (hours = z1)\ndisplay _rc\ncapture noisily ivregress wage educ (hours = z1)\ndisplay _rc\nivregress 2sls wage educ hours\ncapture noisily ivregress 2sls wage educ (hours z1)\ndisplay _rc\ncapture noisily ivregress 2sls wage (= z1)\ndisplay _rc\ncapture noisily ivregress 2sls\ndisplay _rc\ncapture noisily ivregress 2sls wage educ (hours = z1 z2), vce(hc3)\ndisplay _rc\ncapture noisily ivregress 2sls wage educ (hours = z1 z2), vce(ols)\ndisplay _rc\ncapture noisily ivregress gmm wage educ (hours = z1 z2), wmatrix(junk)\ndisplay _rc\ncapture noisily ivregress 2sls wage educ (hours = z1 z2) (exper = z3)\ndisplay _rc\ncapture noisily ivregress 2sls (hours = z1)\ndisplay _rc\ncapture noisily ivregress 2SLS wage (hours = z1)\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 100",
+          "lines": ["Number of observations (_N) was 0, now 100."]
+        },
+        { "command": "set seed 5", "lines": [] },
+        { "command": "generate z1 = rnormal()", "lines": [] },
+        { "command": "generate z2 = rnormal()", "lines": [] },
+        { "command": "generate z3 = rnormal()", "lines": [] },
+        { "command": "generate educ = rnormal()", "lines": [] },
+        { "command": "generate hours = z1 + z2 + rnormal()", "lines": [] },
+        { "command": "generate exper = z3 + rnormal()", "lines": [] },
+        {
+          "command": "generate wage = 1 + hours + educ + rnormal()",
+          "lines": []
+        },
+        {
+          "command": "capture noisily ivregress 2sls wage educ (hours = )",
+          "lines": [":", "too few variables specified"]
+        },
+        { "command": "display _rc", "lines": ["102"] },
+        {
+          "command": "capture noisily ivregress foo wage (hours = z1)",
+          "lines": ["foo not a valid estimator"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily ivregress wage educ (hours = z1)",
+          "lines": ["wage not a valid estimator"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "ivregress 2sls wage educ hours",
+          "lines": [
+            "Instrumental-variables 2SLS regression            Number of obs   =        100",
+            "                                                  Wald chi2(2)    =     412.99",
+            "                                                  Prob > chi2     =     0.0000",
+            "                                                  R-squared       =     0.8051",
+            "                                                  Root MSE        =     1.0582",
+            "",
+            "------------------------------------------------------------------------------",
+            "        wage | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "        educ |   1.181423   .1030205    11.47   0.000     .9795061    1.383339",
+            "       hours |   1.014491   .0596593    17.00   0.000     .8975608    1.131421",
+            "       _cons |   .9466169   .1063696     8.90   0.000     .7381364    1.155097",
+            "------------------------------------------------------------------------------",
+            "(no endogenous regressors)"
+          ]
+        },
+        {
+          "command": "capture noisily ivregress 2sls wage educ (hours z1)",
+          "lines": [
+            "invalid syntax",
+            "syntax is \"(all instrumented variables = instrument variables)\"",
+            "the equal sign \"=\" is required"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily ivregress 2sls wage (= z1)",
+          "lines": [
+            "cannot specify additional instruments without endogenous",
+            "regressors unless you use the GMM estimator"
+          ]
+        },
+        { "command": "display _rc", "lines": ["498"] },
+        {
+          "command": "capture noisily ivregress 2sls",
+          "lines": [":", "too few variables specified"]
+        },
+        { "command": "display _rc", "lines": ["102"] },
+        {
+          "command": "capture noisily ivregress 2sls wage educ (hours = z1 z2), vce(hc3)",
+          "lines": ["option vce() incorrectly specified"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily ivregress 2sls wage educ (hours = z1 z2), vce(ols)",
+          "lines": ["option vce() incorrectly specified"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily ivregress gmm wage educ (hours = z1 z2), wmatrix(junk)",
+          "lines": ["option wmatrix() incorrectly specified"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily ivregress 2sls wage educ (hours = z1 z2) (exper = z3)",
+          "lines": [
+            "invalid syntax",
+            "syntax is \"(all instrumented variables = instrument variables)\""
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily ivregress 2sls (hours = z1)",
+          "lines": ["=exp not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily ivregress 2SLS wage (hours = z1)",
+          "lines": ["2SLS not a valid estimator"]
+        },
+        { "command": "display _rc", "lines": ["198"] }
+      ]
+    },
+    {
+      "id": "recheck-linear-cluster-rank",
+      "source": "clear\nset obs 60\nset seed 5112\ngenerate g = ceil(_n/3)\ngenerate c = ceil(g/4)\nforvalues k = 1/6 {\ngenerate x`k' = rnormal()\n}\ngenerate y = g/5 + x1 - x2 + rnormal()\nareg y x1-x6, absorb(g) vce(cluster c)\ndisplay e(df_m) \" \" e(rank)\nquietly regress y x1 i.g, vce(cluster g)\ndisplay e(df_m) \" \" e(rank)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "set seed 5112", "lines": [] },
+        { "command": "generate g = ceil(_n/3)", "lines": [] },
+        { "command": "generate c = ceil(g/4)", "lines": [] },
+        {
+          "command": "forvalues k = 1/6 {",
+          "lines": ["  2. generate x`k' = rnormal()", "  3. }"]
+        },
+        { "command": "generate y = g/5 + x1 - x2 + rnormal()", "lines": [] },
+        {
+          "command": "areg y x1-x6, absorb(g) vce(cluster c)",
+          "lines": [
+            "Linear regression, absorbing indicators             Number of obs     =     60",
+            "Absorbed variable: g                                No. of categories =     20",
+            "                                                    F(4, 4)           =      .",
+            "                                                    Prob > F          =      .",
+            "                                                    R-squared         = 0.8192",
+            "                                                    Adj R-squared     = 0.6863",
+            "                                                    Root MSE          = 0.9701",
+            "",
+            "                                      (Std. err. adjusted for 5 clusters in c)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .5885344   .2367088     2.49   0.068    -.0686744    1.245743",
+            "          x2 |  -.8943375   .1195963    -7.48   0.002     -1.22639   -.5622849",
+            "          x3 |   .1959746   .1336726     1.47   0.217      -.17516    .5671093",
+            "          x4 |   .1476787   .1921106     0.77   0.485    -.3857058    .6810632",
+            "          x5 |   -.025308   .3164973    -0.08   0.940    -.9040455    .8534295",
+            "          x6 |  -.0574945    .101317    -0.57   0.601    -.3387956    .2238067",
+            "       _cons |   2.154834   .0650576    33.12   0.000     1.974205    2.335463",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display e(df_m) \" \" e(rank)", "lines": ["4 4"] },
+        { "command": "quietly regress y x1 i.g, vce(cluster g)", "lines": [] },
+        { "command": "display e(df_m) \" \" e(rank)", "lines": ["0 1"] }
+      ]
+    },
+    {
+      "id": "recheck-linear-summarize-precision",
+      "source": "clear\nset obs 199\nset seed 5113\ngenerate x = exp(rnormal(2, .6))\nquietly summarize x\nreturn list\ndisplay %21.0g r(Var)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 199",
+          "lines": ["Number of observations (_N) was 0, now 199."]
+        },
+        { "command": "set seed 5113", "lines": [] },
+        { "command": "generate x = exp(rnormal(2, .6))", "lines": [] },
+        { "command": "quietly summarize x", "lines": [] },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  199",
+            "              r(sum_w) =  199",
+            "               r(mean) =  9.177100151627506",
+            "                r(Var) =  33.95958442290765",
+            "                 r(sd) =  5.827485257202086",
+            "                r(min) =  1.189180850982666",
+            "                r(max) =  38.26322937011719",
+            "                r(sum) =  1826.242930173874"
+          ]
+        },
+        {
+          "command": "display %21.0g r(Var)",
+          "lines": [" 33.95958442290765333"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

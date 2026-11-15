@@ -11,7 +11,8 @@ import { abbreviate, estimates, quadratic } from "./estimation.js";
 import { parseNumlist } from "./numlist.js";
 import { draw, titleOf } from "./graphics.js";
 import { count, labelled } from "./reports.js";
-import { MISSING, isMissing } from "./values.js";
+import { MISSING, isMissing, isStringType } from "./values.js";
+import { evaluateAll } from "./expression.js";
 import { outcomeMargins } from "./outcome-margins.js";
 import { zColumn } from "./models.js";
 import { contrastTables, distribution } from "./contrast.js";
@@ -197,6 +198,11 @@ export function marginTermsOf(session, text, factors) {
     const found = session.varlist(word.replace(/^i\./, ""));
     if (found.length !== 1)
       throw new StataError(`${word}: one factor variable is needed here`, 198);
+    if (isStringType(session.data.get(found[0]).type))
+      throw new StataError(
+        `${found[0]}:  string variables may not be used as factor variables`,
+        109,
+      );
     if (!factors.has(found[0]))
       throw new StataError(
         `factor ${found[0]} not found in list of covariates`,
@@ -580,12 +586,13 @@ function margins(session, text, ctx) {
   const getter = (i, fixed) => (variable) => {
     const value = fixed.get(variable.name);
     if (value === undefined) return variable.data[i];
+    if (value.generate) return value.generate[i];
     return Math.fround(
       value === "mean" ? variableMeans.get(variable.name) : value,
     );
   };
-  // The share of the sample at a level of a factor, in float as Stata
-  // holds a mean.
+  // The weighted share of the sample at a level of a factor, in float as
+  // Stata holds a mean.
   const shares = new Map(),
     shareOf = (variable, level) => {
       const key = `${variable.name} ${level}`;
@@ -593,7 +600,11 @@ function margins(session, text, ctx) {
         shares.set(
           key,
           Math.fround(
-            rows.filter((i) => variable.data[i] === level).length / n,
+            rows.reduce(
+              (t, i) =>
+                variable.data[i] === level ? t + weightOf(position.get(i)) : t,
+              0,
+            ) / total,
           ),
         );
       return shares.get(key);
@@ -903,6 +914,37 @@ function margins(session, text, ctx) {
       } else if ((m = /^([A-Za-z_][\w*?~-]*)\s*=\s*/.exec(rest))) {
         const name = covariate(m[1]);
         rest = rest.slice(m[0].length);
+        // generate(exp) sets the variable to an expression's value in each
+        // observation, as at(x = generate(x + 1)) asks.
+        const made = /^gen(e(r(a(te?)?)?)?)?\s*\(/.exec(rest);
+        if (made) {
+          let depth = 0,
+            end = -1;
+          for (let c = made[0].length - 1; c < rest.length; c++) {
+            if (rest[c] === "(") depth++;
+            else if (rest[c] === ")" && --depth === 0) {
+              end = c;
+              break;
+            }
+          }
+          if (end < 0) throw new StataError("invalid at() option", 198);
+          const text = rest.slice(made[0].length, end).trim();
+          if (factors.has(name))
+            throw new StataError(
+              "invalid at() option;\ninvalid at() specification;\nsuboption generate() not allowed with factor variables",
+              198,
+            );
+          const compiled = session.compile(text);
+          if (compiled.type !== "numeric")
+            throw new StataError("type mismatch", 109);
+          entries.push([
+            name,
+            [{ generate: evaluateAll(compiled, session.data.n), text }],
+          ]);
+          atNames.push(name);
+          rest = rest.slice(end + 1).trimStart();
+          continue;
+        }
         const value = /^(\((?:[^()]|\([^()]*\))*\)|[^\s()]+)\s*/.exec(rest);
         if (!value)
           throw new StataError(
@@ -991,6 +1033,7 @@ function margins(session, text, ctx) {
   // dydx() factor that at() fixes, when another is left free, as Stata 19
   // titles dydx(*) at(age=30 educ=2) with female free.
   const allFixed = (set) => {
+    // A value at() generates counts as fixed, as Stata titles it.
     const free = covariates.filter((name) => !set.has(name));
     return (
       !free.length ||
@@ -1325,7 +1368,9 @@ function margins(session, text, ctx) {
           value:
             value === "mean"
               ? g(columnMeans[model.names.indexOf(name)])
-              : g(value),
+              : value.generate
+                ? value.text
+                : g(value),
           note: value === "mean" ? " (mean)" : "",
           hidden,
         },

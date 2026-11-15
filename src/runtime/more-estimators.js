@@ -6,8 +6,12 @@ import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { evaluateAll } from "./expression.js";
 import { project } from "./diagnostics.js";
 import {
+  HIDDEN,
   RULE,
   coefficientHeader,
+  coefficientSpace,
+  stripeName,
+  symmetricRank,
   coefficientRows,
   design,
   fit,
@@ -236,9 +240,8 @@ const robustGmm = (model, what) => {
       198,
     );
 };
-/** Hansen's J after ivregress gmm. */
+/** Hansen's J after ivregress gmm, e(J), whatever the weight matrix. */
 function overidGmm(session, model, ctx) {
-  robustGmm(model, "overid");
   const f = ivFrame(session, model),
     df = f.instruments.length - f.endogenous.length;
   if (df < 1) {
@@ -251,7 +254,10 @@ function overidGmm(session, model, ctx) {
   // Stata says restriction, however many there are.
   ctx.out("  Test of overidentifying restriction:");
   ctx.out("");
-  ctx.out(`  Hansen's J chi2(${df}) = ${six(J)} (p = ${four(p)})`);
+  // ivregress_estat.ado prints J in %8.0g straight after the equals sign.
+  ctx.out(
+    `  Hansen's J chi2(${df}) =${applyFormat(J, "%8.0g")} (p = ${four(p)})`,
+  );
   ctx.out("");
   session.results.r = { J_df: df, p_HansenJ: p, HansenJ: J };
 }
@@ -287,8 +293,42 @@ function endogenousGmm(session, model, ctx) {
   session.results.r = { p_C: p, C, df };
 }
 
-function firststage(session, model, ctx) {
+/**
+ * Shea's partial R-squared, which estat firststage, all shows: with one
+ * endogenous regressor it is the partial R-squared of the first stage,
+ * adjusted by the count of exogenous variables, included and excluded.
+ */
+function sheaTable(f, partial, ctx) {
+  const k = f.exogenous.length + f.instruments.length,
+    adjusted = 1 - ((f.n - 1) / (f.n - k)) * (1 - partial),
+    rule = "  " + "-".repeat(50);
+  ctx.out("");
+  ctx.out("  Shea's partial R-squared");
+  ctx.out(rule);
+  ctx.out("               |     Shea's             Shea's");
+  ctx.out("      Variable |  partial R-sq.   adj. partial R-sq.");
+  ctx.out("  -------------+------------------------------------");
+  ctx.out(
+    `${abbreviate(f.iv.endogenous[0], 12).padStart(14)} |     ${applyFormat(partial, "%5.4f")}             ${applyFormat(adjusted, "%5.4f")}`,
+  );
+  ctx.out(rule);
+  ctx.out("");
+}
+
+function firststage(session, model, ctx, rest) {
+  const { options } = session.parse("[, ALL FORCENONROBUST debug]", rest);
+  if (options.debug)
+    throw new StataError(
+      "option debug of estat firststage is not available in the browser",
+      198,
+    );
+  if (options.forcenonrobust && model.vce !== "unadjusted")
+    throw new StataError(
+      "estat firststage, forcenonrobust after a robust ivregress is not available yet",
+      198,
+    );
   const f = ivFrame(session, model);
+  f.all = !!options.all;
   if (model.iv.columns.endogenous.some((c) => !c.term.variable))
     throw new StataError(
       "estat firststage after a factor-variable endogenous regressor is not available yet",
@@ -339,6 +379,7 @@ function firststage(session, model, ctx) {
   );
   ctx.out(wide);
   ctx.out("");
+  if (f.all) sheaTable(f, partial, ctx);
   ctx.out("");
   ctx.out(`  Minimum eigenvalue statistic = ${six(F)}     `);
   ctx.out("");
@@ -420,13 +461,66 @@ function firststageRobust(f, ctx, session, model) {
   );
   ctx.out(wide);
   ctx.out("");
+  if (f.all) sheaTable(f, partial, ctx);
   ctx.out("");
   session.results.r = {};
 }
 
-function endogenous(session, model, ctx) {
+/**
+ * Reads what follows estat endogenous as ivregress_estat.ado reads it: a
+ * varlist of the endogenous regressors to test, all by default, and the
+ * options of each estimator.
+ */
+function endogenousOptions(session, model, rest) {
+  const estimator = model.iv.estimator,
+    { options, varlist = [] } = session.parse(
+      estimator === "gmm"
+        ? "[varlist(numeric default=none)] [, FORCEWEIGHTS *]"
+        : "[varlist(numeric default=none)] [, FORCENONROBUST FORCEWEIGHTS Lags(integer -1) debug DOALLTESTS]",
+      rest,
+    );
+  if (estimator === "gmm" && options["*"].length)
+    throw new StataError(`${options["*"].join(" ")} not allowed`, 198);
+  if (estimator !== "gmm" && options.lags !== -1)
+    throw new StataError("lags() only valid with models with HAC VCEs", 198);
+  const endogenous = model.iv.endogenous,
+    leftover = varlist.filter((name) => !endogenous.includes(name));
+  if (leftover.length)
+    throw new StataError(
+      `${leftover.join(" ")} not endogenous in original model`,
+      498,
+    );
+  const subset =
+    varlist.length && endogenous.some((name) => !varlist.includes(name));
+  if (
+    subset &&
+    estimator !== "gmm" &&
+    model.vce !== "unadjusted" &&
+    !options.forcenonrobust
+  )
+    throw new StataError(
+      "cannot test a subset of endogenous regressors if a\nrobust, cluster, or HAC VCE was used at estimation",
+      498,
+    );
+  if (subset)
+    throw new StataError(
+      "estat endogenous with a subset of the endogenous regressors is not available yet; name them all, or none",
+      198,
+    );
+  // forcenonrobust changes nothing after an unadjusted variance; after a
+  // robust one the tests it would force are refused below as robust.
+  for (const name of ["debug", "doalltests"])
+    if (options[name])
+      throw new StataError(
+        `option ${name} of estat endogenous is not available in the browser`,
+        198,
+      );
+}
+
+function endogenous(session, model, ctx, rest) {
   if (model.iv.estimator === "liml")
     throw new StataError("not available after LIML estimator", 321);
+  endogenousOptions(session, model, rest);
   if (model.iv.estimator === "gmm") return endogenousGmm(session, model, ctx);
   unadjusted(model, "endogenous");
   // As Stata's ivregress_estat.ado: the residuals of the fit (uc) and of
@@ -472,17 +566,44 @@ function endogenous(session, model, ctx) {
   };
 }
 
-function overid(session, model, ctx) {
-  if (model.iv.estimator === "gmm") return overidGmm(session, model, ctx);
-  unadjusted(model, "overid");
+function overid(session, model, ctx, rest) {
+  const estimator = model.iv.estimator,
+    { options } = session.parse(
+      estimator === "gmm"
+        ? "[, FORCEWEIGHTS *]"
+        : estimator === "liml"
+          ? "[, FORCEWEIGHTS FORCENONROBUST]"
+          : "[, FORCEWEIGHTS Lags(integer -1) FORCENONROBUST]",
+      rest,
+    );
+  if (estimator === "gmm") {
+    if (options["*"].length)
+      throw new StataError(
+        `${options["*"].join(" ")} not allowed after GMM estimation`,
+        198,
+      );
+    return overidGmm(session, model, ctx);
+  }
+  if (estimator === "liml") {
+    // The LIML tests use kappa alone; forcenonrobust lets them be shown
+    // after a robust variance.
+    if (model.vce !== "unadjusted" && !options.forcenonrobust)
+      throw new StataError(
+        "tests not available after LIML estimation with robust VCE\nuse forcenonrobust to override",
+        498,
+      );
+  } else {
+    if (options.lags !== -1)
+      throw new StataError("lags() only valid with models with HAC VCEs", 198);
+    unadjusted(model, "overid");
+  }
   const f = ivFrame(session, model),
     df = f.instruments.length - f.endogenous.length;
   if (df < 1) {
     ctx.out("no overidentifying restrictions");
     throw new StataError("", 498);
   }
-  if (model.iv.estimator === "liml")
-    return overidLiml(session, model, f, df, ctx);
+  if (estimator === "liml") return overidLiml(session, model, f, df, ctx);
   const x = [...f.endogenous, ...f.exogenous],
     e = f.y.map(
       (value, i) =>
@@ -504,7 +625,14 @@ function overid(session, model, ctx) {
   ctx.out("");
   ctx.out("  Tests of overidentifying restrictions:");
   ctx.out("");
-  ctx.out(line(`  Sargan (score) chi2(${df})`, sargan, pSargan));
+  // forcenonrobust drops the word score from the label.
+  ctx.out(
+    line(
+      `  Sargan ${options.forcenonrobust ? "" : "(score) "}chi2(${df})`,
+      sargan,
+      pSargan,
+    ),
+  );
   ctx.out(line(`  Basmann chi2(${df})`, basmann, pBasmann));
   ctx.out("");
   session.results.r = {
@@ -550,7 +678,7 @@ function overidLiml(session, model, f, df, ctx) {
 }
 
 /** Runs a diagnostic after ivregress; returns false when it is not one. */
-export function ivDiagnostic(session, model, what, ctx) {
+export function ivDiagnostic(session, model, what, ctx, text = "") {
   const run = /^first(s(t(a(ge?)?)?)?)?$/.test(what)
     ? firststage
     : /^endog(e(n(o(us?)?)?)?)?$/.test(what)
@@ -569,7 +697,8 @@ export function ivDiagnostic(session, model, what, ctx) {
       `estat ${what} after a weighted ivregress is not available yet`,
       198,
     );
-  run(session, model, ctx);
+  // What follows the subcommand: its varlist and options.
+  run(session, model, ctx, text.trim().slice(what.length));
   return true;
 }
 
@@ -852,7 +981,19 @@ function areg(session, text, ctx) {
       : Ftail(dfAbsorbed, dfResidual, fAbsorb),
     slopeV = V.slice(0, size).map((row) => row.slice(0, size)),
     block = size && dfResidual > 0 ? invertSymmetric(slopeV) : null,
-    F = size && block ? finite(quadratic(b, block) / size) : MISSING,
+    // A robust variance of less than full rank, as with fewer clusters
+    // than coefficients, leaves F missing: e(df_m) is the rank of the
+    // slopes' variance and e(rank) that of the whole, constant included.
+    shortOf = (M) =>
+      (robust || hc2) && dfResidual > 0
+        ? symmetricRank(M.map((row) => row.map((v) => finite(v))))
+        : M.length,
+    vRank = shortOf(V),
+    dfModel = shortOf(slopeV),
+    F =
+      size && block && dfModel === size
+        ? finite(quadratic(b, block) / size)
+        : MISSING,
     r2 = finite(1 - rss / tss),
     r2a = dfResidual > 0 ? finite(1 - s2 / (tss / (n - 1))) : MISSING,
     rmse = dfResidual > 0 ? Math.sqrt(s2) : rss === 0 ? 0 : MISSING,
@@ -884,10 +1025,10 @@ function areg(session, text, ctx) {
       constant: true,
       estimable: position.map((p) => p >= 0),
       N: n,
-      df_m: size,
+      df_m: dfModel,
       df_r: dfR,
       dfResidual: dfR,
-      rank: size + 1,
+      rank: vRank,
       F,
       rss,
       tss,
@@ -906,11 +1047,11 @@ function areg(session, text, ctx) {
       sample: rows,
       level: options.level,
     },
-    p = isMissing(F) ? MISSING : Ftail(size, dfR, F),
+    p = isMissing(F) ? MISSING : Ftail(dfModel, dfR, F),
     values = [
       ["Number of obs", count(n)],
       ["No. of categories", count(groups)],
-      [`F(${size}, ${dfR})`, applyFormat(F, "%9.2f").trim()],
+      [`F(${dfModel}, ${dfR})`, applyFormat(F, "%9.2f").trim()],
       ["Prob > F", applyFormat(p, "%6.4f").trim()],
       ["R-squared", applyFormat(r2, "%6.4f").trim()],
       // A statistic that cannot be computed is left out, as
@@ -927,34 +1068,29 @@ function areg(session, text, ctx) {
     width = Math.max(...values.map(([, v]) => v.length)) + 1,
     left = [model.title, `Absorbed variable: ${absorb.name}`];
   session.estimates = model;
-  session.results.e = {
-    N: n,
-    df_m: size,
-    df_r: dfR,
+  session.results.e = aregResults(session, model, {
+    text,
+    n,
+    dfR,
     F,
     p,
-    r2,
-    r2_a: r2a,
-    rmse,
-    mss: model.mss,
-    rss,
-    tss,
-    ll: model.ll,
-    ll_0: model.ll_0,
-    rank: size + 1,
-    df_a: dfAbsorbed,
-    k_absorb: groups,
-    ...(robust || hc2 ? {} : { F_absorb: fAbsorb, p_absorb: pAbsorb }),
-    ...(clusters ? { N_clust: clusters } : {}),
-    cmd: "areg",
-    title: model.title,
-    depvar: model.depvar,
-    absvar: absorb.name,
-    vce,
-    ...(vcetype ? { vcetype } : {}),
-    ...(asked.cluster ? { clustvar: asked.cluster.name } : {}),
-    ...(wtype ? { wtype, wexp: `= ${parsed.weight.exp}` } : {}),
-  };
+    sumW,
+    dfAbsorbed,
+    groups,
+    fAbsorb,
+    pAbsorb,
+    clusters,
+    vcetype,
+    clustvar: asked.cluster?.name,
+    wexp: wtype ? `= ${parsed.weight.exp}` : null,
+    // (X'X)^-1 of the same fit, which Stata posts as e(V_modelbased).
+    modelBased:
+      vce !== "ols" && dfResidual > 0
+        ? position.map((p) =>
+            position.map((q) => (p < 0 || q < 0 ? 0 : finite(bread[p][q]))),
+          )
+        : null,
+  });
   // [weight=exp] is an analytic weight, and Stata says so first.
   if (wtype && genericWeight(text)) ctx.out(assumedWeights(wtype));
   for (const k of active.keys())
@@ -1001,6 +1137,192 @@ function areg(session, text, ctx) {
       `${`F test of absorbed indicators: F(${dfAbsorbed}, ${dfResidual}) = ${applyFormat(fAbsorb, "%4.3f")}`.padEnd(61)} Prob > F = ${applyFormat(pAbsorb, "%4.3f")}`,
     );
   ctx.out("");
+}
+
+/**
+ * areg's e(), in the order ereturn list shows it after Stata 19's areg,
+ * which differs with the variance: areg.ado posts through _regress and
+ * holds the results while it works, which reverses some of them. Stata's
+ * e(datasignature) is a checksum of its own that the browser does not
+ * compute; it and e(datasignaturevars) are left out.
+ */
+function aregResults(session, model, a) {
+  const vce = model.vce,
+    stripe = coefficientSpace(model).entries.map(stripeName),
+    weights = a.wexp ? { wexp: a.wexp, wtype: model.wtype } : {},
+    sumW = model.wtype ? a.sumW : a.n,
+    common = {
+      cmdline: `areg ${a.text.trim()}`,
+      cmd: "areg",
+      footnote: "areg_footnote",
+      title: model.title,
+      predict: "areg_p",
+    },
+    hidden = {
+      estmethod: "areg",
+      title2: `Absorbed variable: ${model.absorb}`,
+      marginsprop: "nolinearize",
+    },
+    matrices = a.modelBased
+      ? {
+          "matrix:V_modelbased": {
+            rowNames: stripe,
+            colNames: stripe,
+            values: a.modelBased,
+          },
+        }
+      : {};
+  let e;
+  // Clustered on the absorbed variable itself, areg.ado fits through
+  // _regress, which posts as a robust fit does, the cluster count first.
+  if (vce === "cluster" && a.clustvar === model.absorb)
+    e = {
+      N_clust: a.clusters,
+      N: a.n,
+      sum_w: sumW,
+      df_r: a.dfR,
+      r2: model.r2,
+      mss: model.mss,
+      rss: model.rss,
+      r2_a: model.r2_a,
+      df_a: a.dfAbsorbed,
+      tss: model.tss,
+      ll: model.ll,
+      ll_0: model.ll_0,
+      df_m: model.df_m,
+      F: a.F,
+      p: a.p,
+      rank: model.rank,
+      rmse: model.rmse,
+      rc: 0,
+      k_absorb: a.groups,
+      ...common,
+      marginsnotok: "Residuals SCore D XBD",
+      vce,
+      depvar: model.depvar,
+      properties: "b V",
+      model: "ols",
+      absvar: model.absorb,
+      ...weights,
+      vcetype: a.vcetype,
+      clustvar: a.clustvar,
+    };
+  else if (vce === "cluster")
+    e = {
+      rank: model.rank,
+      df_m: model.df_m,
+      F: a.F,
+      N_clust: a.clusters,
+      N: a.n,
+      rss: model.rss,
+      ll: model.ll,
+      ll_0: model.ll_0,
+      tss: model.tss,
+      r2: model.r2,
+      r2_a: model.r2_a,
+      df_r: a.dfR,
+      df_a: a.dfAbsorbed,
+      rmse: model.rmse,
+      k_absorb: a.groups,
+      cmdline: common.cmdline,
+      ...weights,
+      cmd: "areg",
+      footnote: common.footnote,
+      title: common.title,
+      predict: common.predict,
+      marginsnotok: "Residuals SCore",
+      depvar: model.depvar,
+      absvar: model.absorb,
+      clustvar: a.clustvar,
+      vcetype: a.vcetype,
+      vce,
+      properties: "b V",
+    };
+  else if (vce === "ols")
+    e = {
+      F_absorb: a.fAbsorb,
+      p_absorb: a.pAbsorb,
+      rank: model.rank,
+      p: a.p,
+      rc: 0,
+      k_absorb: a.groups,
+      ll_0: model.ll_0,
+      ll: model.ll,
+      tss: model.tss,
+      df_a: a.dfAbsorbed,
+      r2_a: model.r2_a,
+      rss: model.rss,
+      mss: model.mss,
+      rmse: model.rmse,
+      r2: model.r2,
+      F: a.F,
+      df_r: a.dfR,
+      df_m: model.df_m,
+      sum_w: sumW,
+      N: a.n,
+      ...common,
+      marginsnotok: "Residuals SCore D XBD",
+      vce,
+      depvar: model.depvar,
+      properties: "b V",
+      model: "ols",
+      absvar: model.absorb,
+      ...weights,
+    };
+  else {
+    const scalars =
+      vce === "hc2"
+        ? [
+            ["N", a.n],
+            ["sum_w", sumW],
+            ["df_r", a.dfR],
+            ["r2", model.r2],
+            ["mss", model.mss],
+            ["rss", model.rss],
+            ["df_a", a.dfAbsorbed],
+            ["tss", model.tss],
+            ["ll", model.ll],
+            ["ll_0", model.ll_0],
+            ["rank", model.rank],
+            ["r2_a", model.r2_a],
+            ["rmse", model.rmse],
+            ["df_m", model.df_m],
+          ]
+        : [
+            ["N", a.n],
+            ["sum_w", sumW],
+            ["df_r", a.dfR],
+            ["r2", model.r2],
+            ["rmse", model.rmse],
+            ["mss", model.mss],
+            ["rss", model.rss],
+            ["r2_a", model.r2_a],
+            ["df_a", a.dfAbsorbed],
+            ["tss", model.tss],
+            ["ll", model.ll],
+            ["ll_0", model.ll_0],
+            ["df_m", model.df_m],
+          ];
+    e = {
+      ...Object.fromEntries(scalars),
+      F: a.F,
+      p: a.p,
+      ...(vce === "hc2" ? {} : { rank: model.rank }),
+      rc: 0,
+      k_absorb: a.groups,
+      ...common,
+      marginsnotok: "Residuals SCore D XBD",
+      vce,
+      ...(vce === "hc2" ? { vcetype: a.vcetype } : {}),
+      depvar: model.depvar,
+      properties: "b V",
+      model: "ols",
+      absvar: model.absorb,
+      ...weights,
+      ...(vce === "hc2" ? {} : { vcetype: a.vcetype }),
+    };
+  }
+  return Object.assign(e, matrices, hidden, { [HIDDEN]: Object.keys(hidden) });
 }
 
 /** bread * meat * bread, scaled. */

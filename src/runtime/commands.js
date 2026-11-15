@@ -19,7 +19,7 @@ import { ibeta } from "./distributions.js";
 import { invnormal } from "./functions-normal.js";
 import { applySyntax, clauses, loneEquals, splitAtComma } from "./syntax.js";
 import { renderSmcl, stringEnd } from "./smcl.js";
-import { ESTIMATION_COMMANDS, coefficientSpace } from "./estimation.js";
+import { ESTIMATION_COMMANDS, HIDDEN, coefficientSpace } from "./estimation.js";
 import { MODEL_COMMANDS } from "./models.js";
 import { IVREG_COMMANDS } from "./ivreg.js";
 import { numlistCommand } from "./numlist.js";
@@ -2090,7 +2090,10 @@ function returns(kind) {
     if (/^list\b/.test(text)) {
       // Stata lists results in the order its own code stored them, which
       // differs by command; here they are in the order they were set.
-      const entries = Object.entries(target),
+      // Results Stata keeps hidden are left out, as ereturn list leaves
+      // them out.
+      const hidden = new Set(target[HIDDEN] ?? []),
+        entries = Object.entries(target).filter(([key]) => !hidden.has(key)),
         label = (name) => `${kind}(${name})`.padStart(22),
         numbers = entries.filter(([, v]) => typeof v === "number"),
         strings = entries.filter(([, v]) => typeof v === "string" && v !== "");
