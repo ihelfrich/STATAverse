@@ -14,6 +14,7 @@ import { MISSING, isMissing } from "./values.js";
 import { outcomeMargins } from "./outcome-margins.js";
 import { zColumn } from "./models.js";
 import { contrastTables, distribution } from "./contrast.js";
+import { chainDerivatives } from "./margins-chain.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 // For each link: the mean, its derivative and second derivative in x'b.
@@ -433,7 +434,10 @@ function margins(session, text, ctx) {
   if (chosen) text = chosen.text;
   const link = chosen?.link ?? linkOf(model),
     aux = chosen?.aux ?? null,
-    V = chosen?.V ?? model.V;
+    V = chosen?.V ?? model.V,
+    // An offset or exposure enters each observation's linear prediction at
+    // its own value, whatever at() and atmeans fix, as in Stata.
+    shift = chosen?.offset ?? null;
   if (!link || !model.sample)
     throw new StataError(
       `margins is not available after ${model.command} yet`,
@@ -577,7 +581,7 @@ function margins(session, text, ctx) {
       sum = subset.reduce((t, i) => t + share(i), 0);
     for (const i of subset) {
       const r = row(i, fixed),
-        [v, dv] = each(r, xb(r), i),
+        [v, dv] = each(r, xb(r) + (shift ? shift(i) : 0), i),
         part = share(i) / sum;
       value += v * part;
       dv.forEach((d, j) => (gradient[j] += d * part));
@@ -598,7 +602,67 @@ function margins(session, text, ctx) {
     );
   // The effect of a continuous variable: f'(x'b) times the derivative of
   // x'b, which involves other variables when there are interactions.
+  // Without a constant Stata takes f' and f'' numerically, stepping the
+  // first estimated coefficient (margins-chain.js); its effects and their
+  // standard errors carry that step's error, and so do these.
+  const chainColumn = chosen?.chain
+    ? model.names.findIndex(
+        (name, j) =>
+          !model.columns[j]?.base && model.estimable?.[j] !== false,
+      )
+    : -1;
+  const numericEffect = (fixed, variable) => {
+    const gradient = new Array(k).fill(0),
+      shares = rows.map((_, r) => weightOf(r)),
+      sum = shares.reduce((t, v) => t + v, 0),
+      cases = rows.map((i, r) => {
+        const values = row(i, fixed);
+        return {
+          i,
+          values,
+          // The index at b_j + delta, summed afresh as Stata's predict
+          // does, so that its rounding is Stata's.
+          index: (delta) =>
+            values.reduce(
+              (t, v, j) =>
+                t + v * (j === chainColumn ? model.b[j] + delta : model.b[j]),
+              0,
+            ) + (shift ? shift(i) : 0),
+          x: values[chainColumn],
+          w: shares[r] / sum,
+        };
+      }),
+      derivatives = chainDerivatives(cases, link, model.b[chainColumn]);
+    // Observations at x = 0 drop out, and the others' weights with them.
+    const kept = cases.reduce(
+      (t, c, n) => t + (derivatives[n] ? c.w : 0),
+      0,
+    );
+    let value = 0,
+      estimable = true;
+    cases.forEach((c, n) => {
+      const found = derivatives[n];
+      if (!found) return;
+      const d = slopeRow(c.i, fixed, variable),
+        total = d.reduce((t, v, j) => t + v * model.b[j], 0),
+        part = c.w / kept;
+      value += found.slope * total * part;
+      c.values.forEach(
+        (v, j) =>
+          (gradient[j] +=
+            (found.curve * v * total + found.slope * d[j]) * part),
+      );
+      if (estimable && check) estimable = check(c.values);
+    });
+    return estimable
+      ? { value, gradient }
+      : { value: 0, gradient: new Array(k).fill(0), estimable: false };
+  };
   const effect = (fixed, variable) =>
+    chainColumn >= 0
+      ? numericEffect(fixed, variable)
+      : analyticEffect(fixed, variable);
+  const analyticEffect = (fixed, variable) =>
     average(fixed, (r, e, i) => {
       const d = slopeRow(i, fixed, variable),
         total = d.reduce((t, v, j) => t + v * model.b[j], 0);

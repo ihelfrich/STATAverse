@@ -57,6 +57,8 @@ const g = (value, format = "%9.0g") =>
 const reldif = (a, b) => Math.abs(a - b) / (Math.abs(b) + 1);
 const noLog = (text) => /\bnol(o(g)?)?\b/.test(splitAtComma(text)[1] ?? "");
 const LN_SQRT_2PI = 0.5 * Math.log(2 * Math.PI);
+// c(maxdouble): the largest double Stata holds, just below missing.
+const MAX_DOUBLE = 2 ** 1023 - 2 ** 970;
 
 /**
  * ln(n!) to the last bit while n! is finite; for an outcome that is not a
@@ -858,6 +860,27 @@ function quadratureModel(
     for (let j = 0; j < points; j++) total += Math.exp(a[j] - top);
     return top + Math.log(total);
   }
+  // The mode of panel q's posterior for its effect, by Newton's method, and
+  // the spread its curvature gives; null if it cannot be found.
+  function posteriorMode(q, xb, sigma) {
+    let v = 0;
+    for (let step = 0; step < 200; step++) {
+      let gradient = -v / (sigma * sigma),
+        curvature = 1 / (sigma * sigma);
+      for (const r of panels[q]) {
+        term(y[r], xb[r] + v, out, lnFact[r]);
+        gradient += out[1];
+        curvature += out[2];
+      }
+      if (!(Number.isFinite(gradient) && curvature > 0)) return null;
+      // Steps of at most one prior sd keep the exponential in hand.
+      const move = Math.max(-sigma, Math.min(sigma, gradient / curvature));
+      v += move;
+      if (Math.abs(move) <= 1e-10 * (1 + Math.abs(v)))
+        return { mode: v, spread: 1 / Math.sqrt(curvature) };
+    }
+    return null;
+  }
   // Moves panel q's nodes to the posterior mean and spread of its effect.
   function adapt(q, xb, sigma) {
     // Nodes that have lost the posterior altogether, as when sigma_u falls
@@ -876,8 +899,12 @@ function quadratureModel(
       if (!(Number.isFinite(m1) && Number.isFinite(L) && s > 0)) {
         if (reset) return;
         reset = true;
-        centre[q] = 0;
-        spread[q] = sigma;
+        // The posterior lies beyond every node, as for a panel with many
+        // events when sigma_u is large: start again from its mode and
+        // curvature, whence the moments converge.
+        const found = posteriorMode(q, xb, sigma);
+        centre[q] = found ? found.mode : 0;
+        spread[q] = found ? found.spread : sigma;
         continue;
       }
       const settled =
@@ -969,13 +996,41 @@ function quadratureModel(
     }
     return { value, gradient, information };
   }
-  /** The log likelihood with ordinary quadrature, as the search uses. */
+  /**
+   * The log likelihood with ordinary quadrature, as the search uses. For
+   * xtpoisson Stata scales each panel's terms by its likelihood at u = 0,
+   * logF, and holds exp(term - logF) at its largest double, 2^1023: where
+   * sigma_u is large the nodes of a panel with many events exceed it, and
+   * the search's log likelihood is lower than the integral's (_GetRho).
+   */
   function plain(theta) {
     const xb = index(theta),
       sigma = Math.exp(theta[k] / 2);
     let total = 0;
-    for (let q = 0; q < G; q++)
-      total += (weights ? weights[q] : 1) * nodes(q, xb, sigma, 0, sigma);
+    for (let q = 0; q < G; q++) {
+      let L = nodes(q, xb, sigma, 0, sigma);
+      if (kind === "poisson") {
+        const at = (v) => {
+          let l = 0;
+          for (const r of panels[q]) {
+            term(y[r], xb[r] + v, out, lnFact[r]);
+            l += out[0];
+          }
+          return l;
+        };
+        const logF = at(0);
+        let sum = 0;
+        for (let j = 0; j < points; j++)
+          sum +=
+            rule.w[j] *
+            Math.min(
+              Math.exp(at(Math.SQRT2 * sigma * rule.x[j]) - logF),
+              MAX_DOUBLE,
+            );
+        if (sum > 0) L = logF + Math.log(sum / Math.sqrt(Math.PI));
+      }
+      total += (weights ? weights[q] : 1) * L;
+    }
     return total;
   }
   return { evaluate, plain, index };
@@ -3195,6 +3250,10 @@ function averagedMargins(model, kind) {
           kind === "poisson"
             ? "Exponentiated linear prediction"
             : `Pr(${model.depvar} != 0)`,
+        offsetExpression:
+          kind === "poisson"
+            ? "Exponentiated linear prediction considering offset"
+            : `Pr(${model.depvar} != 0)`,
       },
       xb: {
         link: [(e) => e, () => 1, () => 0],
@@ -3230,8 +3289,20 @@ function choosePrediction(model, predictions, fallback, stated, text) {
       `prediction ${name}() is not available with margins after ${model.command}${model.xt ? `, ${model.xt}` : ""}; ${names.join(", ")} ${names.length > 1 ? "are" : "is"}`,
       198,
     );
+  const offset = model.offset;
   return {
     ...chosen,
+    // Every prediction margins takes here includes the offset, as predict's
+    // do; the pa mean says so in its Expression line.
+    ...(offset
+      ? {
+          offset: (i) => offset.value(i),
+          expression: chosen.offsetExpression ?? chosen.expression,
+        }
+      : {}),
+    // Without a constant margins' effects follow Stata's numerical chain
+    // rule (margins-chain.js); a linear prediction needs none.
+    chain: name !== "xb" && !chosen.aux && !model.names.includes("_cons"),
     text: rest,
     predict: found || stated ? `predict(${name})` : "predict()",
   };

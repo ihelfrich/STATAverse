@@ -372,14 +372,15 @@ function ols(columns, y, w = null) {
 }
 
 function xtreg(session, text, ctx) {
+  const parsed = session.parse(
+    "anything [if] [in] [aweight fweight pweight iweight] [, FE RE BE Robust VCE(string) Level(cilevel) THeta I(varname) | MLE PA SA]",
+    text,
+  );
+  panelOption(session, parsed.options.i, ctx);
   const panel = session.panel;
   // _xt.ado's message.
   if (!panel?.id) throw new StataError("must specify panelvar; use xtset", 459);
-  const parsed = session.parse(
-      "anything [if] [in] [aweight fweight pweight iweight] [, FE RE BE Robust VCE(string) Level(cilevel) THeta | MLE PA SA]",
-      text,
-    ),
-    options = parsed.options,
+  const options = parsed.options,
     data = session.data,
     id = data.get(panel.id).data,
     wtype = parsed.weight?.type ?? null;
@@ -1150,26 +1151,32 @@ function operatedColumn(session, operators, values) {
   return column;
 }
 
+/**
+ * The old i(varname) option, as _xt.ado takes it: the data are xtset on the
+ * variable named, with the time variable when that still works, and a
+ * warning when it replaces another panel variable.
+ */
+export function panelOption(session, typed, ctx) {
+  if (!typed) return;
+  const name = session.varlist(typed)[0],
+    before = session.panel,
+    quiet = { ...ctx, out: () => {} };
+  if (before?.id === name) return;
+  if (before?.id) ctx.out(`warning: existing panel variable is not ${name}`);
+  try {
+    xtset(session, before?.time ? `${name} ${before.time}` : name, quiet);
+  } catch (error) {
+    if (!(error instanceof StataError)) throw error;
+    xtset(session, name, quiet);
+  }
+}
+
 // xtsum follows xtsum.ado: each statistic in %9.0g, N and n in %8.0f, and
 // T or T-bar in %8.0g. A string variable gets a row of missing values.
 function xtsum(session, text, ctx) {
   const parsed = session.parse("[anything] [if] [in] [, I(varname)]", text),
     data = session.data;
-  // i() names the panel variable, as _xt.ado takes it: the data are xtset
-  // on it, with the time variable when that still works.
-  if (parsed.options.i) {
-    const name = session.varlist(parsed.options.i)[0],
-      before = session.panel,
-      quiet = { ...ctx, out: () => {} };
-    if (before?.id && before.id !== name)
-      ctx.out(`warning: existing panel variable is not ${name}`);
-    try {
-      xtset(session, before?.time ? `${name} ${before.time}` : name, quiet);
-    } catch (error) {
-      if (!(error instanceof StataError)) throw error;
-      xtset(session, name, quiet);
-    }
-  }
+  panelOption(session, parsed.options.i, ctx);
   const panel = session.panel;
   if (!panel?.id) throw new StataError("must specify panelvar; use xtset", 459);
   const id = data.get(panel.id).data,

@@ -113,6 +113,13 @@ export function lrtest(session, text, ctx) {
   }
   if (a.N !== b.N)
     throw new StataError("observations differ: " + a.N + " vs. " + b.N, 498);
+  // Models from different commands are not compared without force, as
+  // xtprobit (whose header gives the boundary test of rho) with probit.
+  if (a.command !== b.command && !/\bforce\b/.test(options ?? ""))
+    throw new StataError(
+      `test involves different estimators: ${a.command} vs. ${b.command}`,
+      498,
+    );
   const chi2 = 2 * (large.ll - small.ll),
     p = chi2tail(df, chi2),
     shown = (model) =>
