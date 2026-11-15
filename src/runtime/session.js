@@ -1739,13 +1739,16 @@ export class Session {
     order.forEach((row, k) => (back[row] = k));
     data.reorder(order);
     data.sortedBy = model.fitSortedBy ? [...model.fitSortedBy] : [];
+    const sorts = data.sorts ?? 0;
     this.layoutRows = order;
     try {
       return run();
     } finally {
       this.layoutRows = null;
       for (const [key, value] of saved) model[key] = value;
-      if (this.data === data && data.n === n) {
+      // A command that sorted the data itself, as predict after arima sorts
+      // them by time, leaves them in its own order, as in Stata.
+      if (this.data === data && data.n === n && (data.sorts ?? 0) === sorts) {
         data.reorder(back);
         data.sortedBy = sortedBy;
       }

@@ -343,6 +343,8 @@ export class Dataset {
    * each observation came from: index[new position] = old position.
    */
   sort(keys) {
+    // Counted, so that a caller can tell whether a command sorted the data.
+    this.sorts = (this.sorts ?? 0) + 1;
     const columns = keys.map((key) => {
       const k = typeof key === "string" ? { name: key } : key;
       return {
