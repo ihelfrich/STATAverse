@@ -1862,9 +1862,22 @@ body.is-dropping::after {
   #console-source {
     height: clamp(240px, 50vh, 520px);
   }
+  /* On a narrow screen the bar wraps and the menu may end up anywhere in
+     it, so its panel hangs from the bar's right edge, which is always on
+     the screen, rather than from the menu's own. */
+  .console-bar {
+    position: relative;
+  }
+  .console-bar .console-menu {
+    position: static;
+  }
   .console-menu-panel {
     right: auto;
     left: 0;
+  }
+  .console-bar .console-menu-panel {
+    left: auto;
+    right: 0;
   }
 }
 
