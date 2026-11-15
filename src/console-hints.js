@@ -14,7 +14,7 @@ export const RC_HINTS = {
   109: "A string was used where a number was needed, or the other way round.",
   110: "That name is already taken. Use replace to change a variable, or drop it first.",
   111: "No variable has that name. Check the spelling and the capitals against the Variables list.",
-  119: "That statistic belongs after a different kind of model.",
+  119: "That command is out of place here; the message above says what it needs first.",
   132: "A bracket or a quote is opened and never closed.",
   133: "That function does not exist here. Check its spelling.",
   198: "Stata could not read that line. Look for a missing comma, a stray bracket or a misspelt option.",
@@ -660,6 +660,26 @@ function advise(record, { commands = [], variables = [] }) {
     return {
       text: "i() must name variables that take a different value in each observation of the data as they are now (one row per unit in wide data). duplicates report lists the repeated values; reshape error lists the problem observations.",
       help,
+      suggest: [],
+    };
+  // r(119) is Stata's code for a command out of its context: continue or
+  // break outside a loop, st commands before stset, svy before svyset.
+  if (rc === 119 && /^statement out of context/m.test(message))
+    return {
+      text: "continue and break belong inside a loop: foreach, forvalues or while. Outside one there is nothing to continue.",
+      help: "continue",
+      suggest: [],
+    };
+  if (rc === 119 && /^data not st/m.test(message))
+    return {
+      text: "Declare the survival data first with stset, as stset time, failure(died); the st commands read that declaration.",
+      help: "stset",
+      suggest: [],
+    };
+  if (rc === 119 && /^data not set up for svy/m.test(message))
+    return {
+      text: "Declare the survey design first with svyset, as svyset psu [pweight=w], strata(stratum).",
+      help: "svyset",
       suggest: [],
     };
   // The general hints for 601 and 9 are for a missing file and a false

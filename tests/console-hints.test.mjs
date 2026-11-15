@@ -408,3 +408,22 @@ test("a float is offered for change as the decimal it was made from", () => {
   assert.equal(editText(null, "float"), ".");
   assert.equal(editText("abc", "str3"), "abc");
 });
+
+test("r(119) is advised on by what is out of context", async () => {
+  const { createConsoleSession } = await import("../src/console-session.js");
+  const { adviseRecord } = await import("../src/console-hints.js");
+  const cases = [
+    ["continue", /inside a loop/],
+    ["sysuse study, clear\nsts list", /stset/],
+    ["sysuse study, clear\nsvy: mean score", /svyset/],
+  ];
+  for (const [source, pattern] of cases) {
+    const session = createConsoleSession();
+    const { output } = session.run(source);
+    const record = output.at(-1);
+    assert.equal(record.rc, 119, source);
+    const advice = adviseRecord(record, { commands: [], variables: [] });
+    assert.match(advice.text, pattern, source);
+    assert.doesNotMatch(advice.text, /different kind of model/);
+  }
+});
