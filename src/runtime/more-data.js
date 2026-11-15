@@ -175,9 +175,31 @@ function doFile(mode) {
       session.quietDepth = quietDepth;
     }
     // run: what noisily printed, under the run command.
-    if (quietRun)
+    if (quietRun) {
+      // An error in the file is shown once: its message there, and the
+      // r(#) of the run command, which a capture noisily hides.
+      const failed =
+        failure instanceof StataError && failure.recorded
+          ? output.findLast((record) => record.rc)
+          : null;
+      if (failed && failed.lines.at(-1) === `r(${failure.code});`)
+        failed.lines.pop();
       for (const record of output)
         record.lines.forEach((line) => ctx.out(line));
+      if (failure instanceof StataError) {
+        if (!failure.recorded && failure.message) ctx.out(failure.message);
+        failure = Object.assign(new StataError("", failure.code), {
+          hint: failure.hint,
+        });
+      }
+    } else if (
+      mode === "run" &&
+      ctx.flags?.capture &&
+      failure instanceof StataError &&
+      failure.message
+    )
+      // capture run still shows the message of the error that ended it.
+      failure.loud = true;
     if (nested) {
       // Each command after a blank line, as the log shows it; a comment
       // or a blank line of the file directly under the line before.

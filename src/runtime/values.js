@@ -252,7 +252,7 @@ export function defaultFormat(type) {
 }
 
 const RESERVED = new Set(
-  "_all _b byte _coef _cons double float if in int long _n _N _pi _pred _rc _skip strL using with".split(
+  "_all _b byte _coef _cons double float if in int long _n _N _pi _pred _rc _se _skip strL using with".split(
     " ",
   ),
 );

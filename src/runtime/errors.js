@@ -25,3 +25,32 @@ export class Signal extends Error {
 export const ERROR_MARK = "\u0000err\u0000";
 export const errorLine = (session, line) =>
   session.markErrors ? ERROR_MARK + line : line;
+
+// The end of a line display left open with _continue: the next line a
+// loop or a program prints goes on from it. The session joins such lines
+// before it returns them, and takes the mark out.
+export const CONTINUE_MARK = "\u0000c\u0000";
+/**
+ * Lines with those display left open joined to the line after them. A
+ * line of the Console's own marks (a log's) passes between them, and a
+ * line in the error style is not joined.
+ */
+export function joinContinued(lines) {
+  const out = [];
+  let open = -1;
+  for (const line of lines) {
+    if (line.startsWith("\u0000") && !line.startsWith(ERROR_MARK)) {
+      out.push(line);
+      continue;
+    }
+    if (open >= 0 && !line.startsWith(ERROR_MARK)) out[open] += line;
+    else {
+      out.push(line);
+      open = out.length - 1;
+    }
+    if (out[open]?.endsWith(CONTINUE_MARK))
+      out[open] = out[open].slice(0, -CONTINUE_MARK.length);
+    else open = -1;
+  }
+  return out;
+}
