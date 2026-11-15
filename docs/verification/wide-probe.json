@@ -1,8 +1,8 @@
 {
   "basis": "Each case in tools/wide-probe-cases.txt run in a fresh Console session. Pass means the command finished and every assertion on it held; it does not mean agreement with Stata, which the recorded fixtures establish. The cases are a judgement about what students type, not a sample of student work.",
   "cases": 519,
-  "pass": 443,
-  "refused": 76,
+  "pass": 450,
+  "refused": 69,
   "wrong": 0,
   "crash": 0,
   "groups": {
@@ -25,8 +25,8 @@
       "crash": 0
     },
     "est": {
-      "pass": 57,
-      "refused": 11,
+      "pass": 58,
+      "refused": 10,
       "wrong": 0,
       "crash": 0
     },
@@ -37,26 +37,26 @@
       "crash": 0
     },
     "graph": {
-      "pass": 56,
-      "refused": 12,
+      "pass": 57,
+      "refused": 11,
       "wrong": 0,
       "crash": 0
     },
     "prog": {
-      "pass": 96,
-      "refused": 14,
+      "pass": 97,
+      "refused": 13,
       "wrong": 0,
       "crash": 0
     },
     "date": {
-      "pass": 22,
-      "refused": 5,
+      "pass": 25,
+      "refused": 2,
       "wrong": 0,
       "crash": 0
     },
     "ts": {
-      "pass": 20,
-      "refused": 8,
+      "pass": 21,
+      "refused": 7,
       "wrong": 0,
       "crash": 0
     }
@@ -914,7 +914,7 @@
     },
     {
       "group": "est",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||ivreg wage experience (education = near_college)"
     },
     {
@@ -1874,7 +1874,7 @@
     },
     {
       "group": "prog",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||program define showit;;version 17;;syntax varlist(min=2 numeric) [if] [in] [, Level(integer 95) noCONStant];;marksample touse;;regress `varlist' if `touse', level(`level') `constant';;end;;showit wage education, level(90)"
     },
     {
@@ -2304,7 +2304,7 @@
     },
     {
       "group": "date",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||display ustrregexm(\"abc123\", \"\\d+\") \" \" ustrregexra(\"a1b22\", \"\\d\", \"#\") \" \" ustrlen(\"naïve\") \" \" usubstr(\"naïve\", 3, 2) \" \" ustrupper(\"é\")"
     },
     {
@@ -2324,7 +2324,7 @@
     },
     {
       "group": "date",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||display strmatch(\"regress\", \"reg*\") \" \" inlist(\"b\", \"a\", \"b\") \" \" inrange(5, 1, 10) \" \" missing(.) \" \" char(65) \" \" plural(2, \"cat\") \" \" abbrev(\"experience\", 6)"
     },
     {
@@ -2354,7 +2354,7 @@
     },
     {
       "group": "date",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||generate a = autocode(wage, 4, 0, 80);;generate b = recode(wage, 10, 20, 30);;generate c = irecode(wage, 10, 20, 30);;tabulate c"
     },
     {
@@ -2374,7 +2374,7 @@
     },
     {
       "group": "ts",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "macro||generate t = yq(year, quarter);;format t %tq;;tsset t;;generate lg = L.growth;;generate l2 = L2.growth;;generate dg = D.growth;;generate fg = F.growth;;generate d2 = D2.growth;;generate s4 = S4.growth;;summarize lg l2 dg fg d2 s4"
     },
     {
@@ -2584,7 +2584,7 @@
     },
     {
       "group": "graph",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||twoway function y = sin(x), range(0 6)"
     },
     {
