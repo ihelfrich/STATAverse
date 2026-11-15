@@ -389,8 +389,19 @@ function replays(session, command, body) {
       replay?.command === command.name ||
       (!!replay && REPLAYS_ALSO[command.name] === replay.command);
   // Prefix commands replay themselves, and an estimator typed alone after
-  // one of them (svy: regress, then regress) is theirs to show.
+  // one of them (svy: regress, then regress) is theirs to show; after
+  // bootstrap or jackknife the prefix keeps how (see resampling.js).
   if (PREFIX_COMMANDS.has(command.name)) return false;
+  if (
+    session.estimates?.prefixReplay?.commands.includes(command.name) &&
+    !/:/.test(body)
+  ) {
+    try {
+      if (!splitAtComma(body)[0].trim()) return true;
+    } catch {
+      return false;
+    }
+  }
   if (PREFIX_COMMANDS.has(replay?.command)) return false;
   // Only the estimators this replay was written for; the others (mixed,
   // streg, teffects, arima, xtlogit, ...) replay themselves.
@@ -1070,6 +1081,8 @@ export class Session {
    * fit would differ, and the command is refused.
    */
   replay(command, body, ctx, lines) {
+    if (this.estimates?.prefixReplay?.commands.includes(command.name))
+      return this.estimates.prefixReplay.replay(this, body, ctx, command.name);
     const model = this.estimates,
       { shownFit: replay } = model,
       kept = [];

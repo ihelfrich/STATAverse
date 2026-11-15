@@ -1035,10 +1035,11 @@ function margins(session, text, ctx) {
     );
   } else results.push({ label: "_cons", plain: true, ...prediction(sets[0]) });
 
-  // After qreg, newey and prais Stata's margins refers to the normal.
+  // After qreg, newey and prais Stata's margins refers to the normal, and
+  // after jackknife to the distribution of the fit it resampled.
   const t =
-      model.dist !== "z" &&
-      !["qreg", "newey", "prais", "xtreg"].includes(model.command),
+      (model.resampledDist !== undefined ? model.resampledDist : model.dist) !==
+        "z" && !["qreg", "newey", "prais", "xtreg"].includes(model.command),
     critical = t
       ? invttail(model.df_r, (1 - level / 100) / 2)
       : invnormal(1 - (1 - level / 100) / 2),

@@ -2118,8 +2118,12 @@ function heckman(session, text, ctx) {
     );
   const bLambda = second[k1],
     rss = rssOf(second, xStar),
-    deltaBar = own.reduce((t, i) => t + weightOf(i) * delta[i], 0) / n1;
-  let sigma = Math.sqrt(rss / n1 + deltaBar * bLambda * bLambda),
+    // As heckman.ado's GetIval: delta's plain mean over the selected
+    // observations, and the weighted residual sum over the weights' sum
+    // (e(N) of an fweighted fit; a pweighted one normalizes its weights).
+    deltaBar = own.reduce((t, i) => t + delta[i], 0) / own.length,
+    weightSum = own.reduce((t, i) => t + weightOf(i), 0);
+  let sigma = Math.sqrt(rss / weightSum + deltaBar * bLambda * bLambda),
     rho = bLambda / sigma;
   const rho1 = rho,
     method = rhoMethods[0] ?? "rhosigma";
@@ -2213,8 +2217,10 @@ function heckman(session, text, ctx) {
         for (let c = 0; c < K; c++) meat[a][c] += sum[a] * sum[c];
     clusters = groups.size;
     const scale = clusters / (clusters - 1);
-    V = multiply(multiply(full.V, meat), full.V).map((r) =>
-      r.map((v) => v * scale),
+    const sandwich = multiply(multiply(full.V, meat), full.V);
+    // Exactly symmetric, as Stata posts it.
+    V = sandwich.map((r, a) =>
+      r.map((v, c) => ((v + sandwich[c][a]) / 2) * scale),
     );
   }
   const theta = full.theta,
@@ -2429,7 +2435,8 @@ function heckman(session, text, ctx) {
     session.data.get(millsOut).label = "nonselection hazard";
   }
   showHeckman(session, model, ctx, level, display);
-  if (!full.converged) throw new StataError("convergence not achieved", 430);
+  // ml stops at iterate() with a warning, not an error.
+  if (!full.converged) ctx.out("Warning: Convergence not achieved.");
 }
 
 /** One line of an iteration log. */
@@ -3626,7 +3633,10 @@ function matrixRank(V) {
     A = V.map((r, i) => r.map((v, j) => v * scale[i] * scale[j]));
   let rank = 0;
   for (let c = 0; c < n; c++) {
-    if (!(A[c][c] > 1e-12)) continue;
+    // A pivot this small is the noise of convergence in a clustered
+    // variance, which the cluster sums of the scores (zero at the maximum)
+    // leave of rank at most the clusters less one.
+    if (!(A[c][c] > 1e-9)) continue;
     rank++;
     const p = A[c][c];
     for (let r = 0; r < n; r++) {

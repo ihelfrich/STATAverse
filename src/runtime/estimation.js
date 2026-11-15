@@ -2624,6 +2624,32 @@ export function coefficientValue(model, kind, name) {
     if (!entry) throw missing();
     return read(entry);
   }
+  // A fit of several equations (heckman): [#2]x is the second equation's,
+  // and an equation it does not have is not found.
+  if (colon && model.names.some((n) => n.includes(":"))) {
+    const equations = [
+        ...new Set(
+          model.names
+            .filter((n) => n.includes(":"))
+            .map((n) => n.replace(/:.*$/, "")),
+        ),
+      ],
+      given = colon[1].trim(),
+      numbered = /^#(\d+)$/.exec(given),
+      equation = numbered ? equations[Number(numbered[1]) - 1] : given,
+      base =
+        model.baseEquation !== undefined
+          ? String(model.equations?.[model.baseEquation])
+          : null;
+    // mlogit's base outcome is an equation e(b) does not hold.
+    if (equation !== base) {
+      if (equation === undefined || !equations.includes(equation))
+        throw new StataError(`equation [${given}] not found`, 303);
+      const at = coefficientIndex(model, `${equation}:${colon[2].trim()}`);
+      if (at < 0) throw missing();
+      return kind === "_b" ? model.b[at] : Math.sqrt(model.V[at][at]);
+    }
+  }
   if (colon && !model.names.some((n) => n.includes(":"))) {
     const equation = colon[1].trim(),
       main = space.entries[0]?.equation ?? null,

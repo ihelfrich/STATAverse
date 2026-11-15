@@ -299,7 +299,8 @@ test("G27: bootstrap refuses time-series operators and fails a time-series comma
     s,
     "bootstrap _b, reps(10) seed(1): arima y, ar(1)",
     2000,
-    /insufficient observations to compute bootstrap standard errors; no results will be saved/,
+    // Wrapped at the line size, 79, as Stata wraps it.
+    /insufficient observations to compute bootstrap standard errors; no results\nwill be saved/,
   );
   assert.match(
     text(arima),
@@ -315,7 +316,7 @@ test("G27: bootstrap refuses time-series operators and fails a time-series comma
       s,
       command,
       198,
-      /time-series operators are not allowed with bootstrap without panels, see tsset/,
+      /time-series operators are not allowed with bootstrap without panels, see\ntsset/,
     );
   // jackknife leaves an observation out in place, so the lags still reach
   // the one after it.
@@ -374,4 +375,252 @@ test("G34, G35 and G36: equations, titles, nowarn, noisily and weights of the pr
   assert.equal(s.results.e.N_reps, 245);
   assert.equal(s.results.e.N_misreps, 57);
   close(value(s, "_se[m]"), 0.042478995688442843, "_se[m]", 1e-9);
+});
+
+// The ninth round: what the testers found in the eighth pass's repairs.
+
+test("jackknife keeps the if, in and clusters of tsset data in place, so the lags still reach them", () => {
+  const s = session(SERIES);
+  run(s, "jackknife, nodots: regress y L.y if t > 20");
+  assert.equal(s.results.e.N, 180);
+  close(value(s, "_b[L.y]"), 0.2903675857292393, "_b[L.y]", 1e-7);
+  close(value(s, "_se[L.y]"), 0.0676174374258983, "_se[L.y]", 1e-6);
+  run(s, "regress y L.y if t > 20, vce(jackknife, nodots)");
+  assert.equal(s.results.e.N, 180);
+  run(s, "jackknife, nodots: regress y L.y in 50/120");
+  assert.equal(s.results.e.N, 71);
+  close(value(s, "_b[L.y]"), 0.352453967272185642, "_b[L.y]", 1e-7);
+  close(value(s, "_se[L.y]"), 0.1003470333987375729, "_se[L.y]", 1e-6);
+  run(s, "generate cl = ceil(t/10)");
+  run(s, "jackknife, nodots cluster(cl): regress y L.y");
+  assert.equal(s.results.e.N, 199);
+  assert.equal(s.results.e.N_clust, 20);
+  close(value(s, "_se[L.y]"), 0.0622581776581744226, "_se[L.y]", 1e-6);
+});
+
+test("bootstrap's samples of tsset data fail an operator its check misses, as L(1/2).y", () => {
+  const s = session(SERIES);
+  const dotted = refused(
+    s,
+    "bootstrap, reps(10) seed(1): regress y L(1/2).y",
+    2000,
+    /insufficient observations to compute bootstrap standard errors; no results\nwill be saved/,
+  );
+  assert.match(
+    text(dotted),
+    /Bootstrap replications \(10\): xxxxxxxxxx done\nx: Error occurred when bootstrap executed regress\./,
+  );
+  // Without the dots each replicate's error is shown.
+  const quiet = refused(
+    s,
+    "bootstrap _b, reps(5) seed(2) nodots: regress y L(1/2).y",
+    2000,
+  );
+  assert.equal(text(quiet).match(/^not sorted$/gm).length, 5);
+  const arima = refused(
+    s,
+    "bootstrap _b, reps(5) seed(1) nodots: arima y, ar(1)",
+    2000,
+  );
+  assert.match(text(arima), /^repeated time values in sample\nrepeated/m);
+});
+
+test("bootstrap and jackknife show the ancillary rows of tobit, ologit, nbreg and mlogit", () => {
+  const s = session(`${CROSS}
+set seed 777
+generate yc = cond(y < 0, 0, y)
+generate k = floor(runiform()*3)`);
+  const tobit = text(
+    run(s, "bootstrap, reps(8) seed(31) nodots: tobit yc a b, ll(0)"),
+  );
+  assert.match(
+    tobit,
+    /^ {4}var\(e\.yc\)\| {3}3\.515737 {3}\.4338104 {22}2\.760488 {4}4\.477618$/m,
+  );
+  assert.match(tobit, /^ {52}Replications {6}= {6}8$/m);
+  assert.match(
+    tobit,
+    /^Log likelihood = -460\.11356 {25}Pseudo R2 {9}= 0\.1757$/m,
+  );
+  close(value(s, "_se[/var(e.yc)]"), 0.4338103822552389, "_se[var(e)]", 1e-6);
+  close(s.results.e.chi2, 254.215788451072541, "chi2", 1e-6);
+  const ologit = text(
+    run(s, "bootstrap, reps(8) seed(32) nodots: ologit k a b"),
+  );
+  assert.match(
+    ologit,
+    /^ {7}\/cut1 \|  -\.7337373 {3}\.0872497 {21}-\.9047436 {4}-\.562731$/m,
+  );
+  close(value(s, "_se[/cut2]"), 0.0850304528414388, "_se[/cut2]", 1e-6);
+  refused(
+    s,
+    "bootstrap, reps(8) seed(33) nodots: mlogit k a b",
+    198,
+    /^option baseoutcome\(\) is required with prefix bootstrap;\nan error occurred when bootstrap executed mlogit$/m,
+  );
+  refused(
+    s,
+    "jackknife, nodots: mlogit k a b",
+    198,
+    /required with prefix jackknife;/,
+  );
+  const mlogit = text(
+    run(s, "bootstrap, reps(8) seed(40) nodots: mlogit k a b, baseoutcome(0)"),
+  );
+  assert.match(mlogit, /^0 {12}\|  \(base outcome\)$/m);
+  assert.match(mlogit, /^2 {12}\|$/m);
+  close(s.results.e.chi2, 0.6122052775619936, "chi2(4)", 1e-6);
+  close(value(s, "_se[2:a]"), 0.1517665469099111764, "_se[2:a]", 1e-6);
+});
+
+test("bootstrap, jackknife and the fitted command typed alone show the resampled results again", () => {
+  const s = session(CROSS);
+  const first = text(
+    run(s, "bootstrap, reps(20) seed(1) nodots: regress y a b"),
+  );
+  assert.equal(text(run(s, "bootstrap")), first);
+  assert.equal(text(run(s, "regress")), first);
+  assert.match(
+    text(run(s, "bootstrap, level(90)")),
+    /^ {11}a \| {3}2\.168783 {3}\.1439687 {4}15\.06 {3}0\.000 {5}1\.931976 {4}2\.405591$/m,
+  );
+  run(s, "jackknife, nodots: regress y a b");
+  assert.match(text(run(s, "regress")), /F\(2, 301\) {5}= 102\.29/);
+  refused(s, "bootstrap", 301, /last estimates not found/);
+  const h = session(HECKMAN);
+  run(
+    h,
+    "bootstrap, reps(5) seed(1) nodots: heckman wage educ age, select(educ kids married age) twostep",
+  );
+  const own = text(run(h, "heckman"));
+  assert.match(own, /\| {3}Observed {3}Bootstrap {25}Normal-based/);
+  assert.match(own, /Wald chi2\(2\) {6}= {5}311\.90/);
+  // Typed again, the prefix shows them its own way, without rho and sigma.
+  const plain = text(run(h, "bootstrap"));
+  assert.match(
+    plain,
+    /^\(regression model with sample selection\) {16}Replications {2}= {6}5$/m,
+  );
+  assert.doesNotMatch(plain, /rho/);
+});
+
+test("statistics over heckman, stcox and teffects are titled Bootstrap results; _b may join them", () => {
+  const h = session(HECKMAN);
+  run(
+    h,
+    "bootstrap _b[educ], reps(10) seed(3) nodots: heckman wage educ age, select(educ kids married age) twostep",
+  );
+  assert.equal(h.results.e.title, "Bootstrap results");
+  const s = session(CROSS);
+  const mixed = text(
+    run(s, "bootstrap _b (fit: e(r2)), reps(10) seed(4) nodots: regress y a b"),
+  );
+  assert.match(mixed, /^_eq1 {9}\|\n {11}a \| {3}2\.168783 {3}\.1637712/m);
+  assert.deepEqual(s.results.e["matrix:b"].colNames, [
+    "_eq1:a",
+    "_eq1:b",
+    "_eq1:_cons",
+    "fit:_bs_1",
+  ]);
+  run(s, "bootstrap r(mean) (b: r(sd)), reps(20) seed(2) nodots: summarize a");
+  assert.deepEqual(s.results.e["matrix:b"].colNames, ["b:_bs_1", "_eq2:_bs_1"]);
+  refused(
+    s,
+    "bootstrap, reps(5) seed(1) nodots: summarize y",
+    100,
+    /expression list required/,
+  );
+});
+
+test("margins after jackknife logit refers to the normal", () => {
+  const s = session(`${CROSS}
+generate bin = y > 1`);
+  run(s, "jackknife, nodots: logit bin a b");
+  const shown = text(run(s, "margins, dydx(a)"));
+  assert.match(shown, /dy\/dx {3}std\. err\. {6}z {4}P>\|z\|/);
+  close(
+    s.results.r["matrix:table"].values[4][0],
+    0.2329230579503983,
+    "ll",
+    1e-6,
+  );
+  close(
+    s.results.r["matrix:table"].values[5][0],
+    0.3096774734496692,
+    "ul",
+    1e-6,
+  );
+});
+
+test("heckman: [#n]x, unknown equations, clustered rank, weighted starting values and iterate()", () => {
+  const s = session(HECKMAN);
+  run(s, "quietly heckman wage educ age, select(educ kids married age) nolog");
+  close(value(s, "[#1]educ"), 0.0585427870830178623, "[#1]educ");
+  close(value(s, "[#2]kids"), -0.355702760316838118, "[#2]kids");
+  refused(s, "display [nosuch]educ", 303, /equation \[nosuch\] not found/);
+  // [/athrho] after an operator is a coefficient, not a weight.
+  run(s, "count if educ > [wage]educ*100");
+  assert.equal(s.results.r.N, 800);
+  run(s, "generate c5 = mod(_n,5)");
+  run(s, "quietly heckman wage educ, select(educ kids) vce(cluster c5) nolog");
+  assert.equal(s.results.e.rank, 4);
+  const V = s.estimates.V;
+  assert.ok(V.every((row, a) => row.every((v, c) => v === V[c][a])));
+  run(s, "set seed 31");
+  run(s, "generate w = 1 + floor(runiform()*3)");
+  const weighted = text(
+    run(s, "heckman wage educ age [pweight=w], select(educ kids married age)"),
+  );
+  assert.match(
+    weighted,
+    /^Iteration 0: {2}Log pseudolikelihood = -2093\.6453$/m,
+  );
+  assert.doesNotMatch(weighted, /Iteration 4/);
+  close(value(s, "_se[wage:_cons]"), 0.3013478497534316514, "se", 1e-6);
+  const stopped = text(
+    run(
+      s,
+      "heckman wage educ age, select(educ kids married age) robust iterate(1)",
+    ),
+  );
+  assert.match(stopped, /\nWarning: Convergence not achieved\.$/);
+});
+
+test("predict after stcox takes a storage type and gives a factor's base level 0", () => {
+  const s = session(`${SURVIVAL}
+stset time, failure(fail) id(id)`);
+  run(s, "quietly stcox drug age female");
+  run(s, "predict double ss*, scaledsch");
+  assert.equal(s.data.get("ss1").type, "double");
+  run(s, "summarize ss1");
+  close(s.results.r.mean, -0.6784802, "mean", 1e-6);
+  close(s.results.r.sd, 2.084875, "sd", 1e-6);
+  const few = refused(s, "predict q1 q2, schoenfeld", 102);
+  assert.match(
+    text(few),
+    /^ {4}The current estimation results for cox have 3 equations so you must\n {4}specify 3 new variables, or you can use the equation\(\) option and specify\n {4}one variable at a time\.$/m,
+  );
+  run(s, "generate grp = mod(id,3)");
+  run(s, "quietly stcox drug i.grp");
+  run(s, "predict h*, schoenfeld");
+  run(s, "summarize h2");
+  assert.equal(s.results.r.N, 222);
+  assert.equal(s.results.r.max, 0);
+});
+
+test("estat bootstrap refuses level() and teffects as Stata does", () => {
+  const s = session(CROSS);
+  run(s, "bootstrap m=r(mean), reps(30) seed(5) nodots: summarize y");
+  refused(
+    s,
+    "estat bootstrap, percentile level(90)",
+    198,
+    /option level\(\) may not be used when reporting bootstrap results/,
+  );
+  refused(
+    s,
+    "estat bootstrap, bca",
+    198,
+    /saved by the bootstrap\nprefix command/,
+  );
 });

@@ -2966,8 +2966,11 @@ function survivalPredict(session, text, ctx) {
  * stcox: the Schoenfeld residuals at each failure, or scaled, b + d V r
  * for d failures, as stcox_p makes them.
  */
-function schoenfeldPredict(session, model, names, parsed, ctx) {
-  const o = parsed.options,
+function schoenfeldPredict(session, model, typedNames, parsed, ctx) {
+  // A storage type may come first: predict double ss*, scaledsch.
+  const typed = /^(byte|int|long|float|double)\s+([\s\S]*)$/.exec(typedNames),
+    names = typed ? typed[2].trim() : typedNames,
+    o = parsed.options,
     scaled = !!o.scaledsch;
   if (o.schoenfeld && o.scaledsch)
     throw invalid("only one statistic may be specified");
@@ -2997,7 +3000,11 @@ function schoenfeldPredict(session, model, names, parsed, ctx) {
   if (list.length < k)
     throw list.length > 1
       ? new StataError(
-          `too few variables specified\n    The current estimation results for cox have ${k} equations so you must specify ${k} new variables, or you can use the equation() option and specify one variable at a time.`,
+          `too few variables specified\n${indented(
+            `The current estimation results for {bf:cox} have ${k} equations so you must specify ${k} new variables, or you can use the equation() option and specify one variable at a time.`,
+            4,
+            session.settings.linesize ?? 79,
+          )}`,
           102,
         )
       : new StataError(`you must specify ${k} new variables`, 102);
@@ -3015,18 +3022,38 @@ function schoenfeldPredict(session, model, names, parsed, ctx) {
             b + failures * V[a].reduce((t, v, c) => t + v * x.residual[c], 0),
         )
       : x.residual;
+    // A covariate left out (a factor's base level) has a residual of 0.
     model.names.forEach((name, j) => {
       const a = active.indexOf(name);
-      if (a >= 0) columns[j][row] = r[a];
+      columns[j][row] = a >= 0 ? r[a] : 0;
     });
   }
   list.forEach((name, j) => {
-    data.generate(name, columns[j], { type: "float" });
+    data.generate(name, columns[j], { type: typed ? typed[1] : "float" });
     data.get(name).label =
       `${scaled ? "Scaled Schoenfeld" : "Schoenfeld"} residual, ${model.names[j]}`;
   });
 }
 
+/**
+ * A paragraph as SMCL's {p 4 4 2} lays out an error: indented, its lines
+ * no wider than the line size, measured (as Stata does) with the markup
+ * {bf:...} in them, which is then dropped.
+ */
+function indented(text, indent, width) {
+  const lines = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    if (line && indent + line.length + 1 + word.length > width) {
+      lines.push(line);
+      line = word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  lines.push(line);
+  return lines
+    .map((l) => `${" ".repeat(indent)}${l.replace(/\{bf:([^}]*)\}/g, "$1")}`)
+    .join("\n");
+}
 /** Schoenfeld residuals at each failure, as stcox_p computes them. */
 function schoenfeld(model) {
   const { T, T0, D, X, theta, method } = model.survival,

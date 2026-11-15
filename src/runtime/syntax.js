@@ -266,7 +266,13 @@ export function clauses(head, expAllowed = true) {
     if (c === "[" && !flags[i]) {
       // flags is false for brackets; find those opened at the top level.
       const opensAtTop = depthBefore(head, flags, i) === 0;
-      if (opensAtTop && (i === 0 || /\s/.test(head[i - 1])))
+      // After an operator it is a coefficient, [/athrho] or [eq]x, in an
+      // expression: replace w = w + [/athrho], count if x > [eq]x.
+      if (
+        opensAtTop &&
+        (i === 0 || /\s/.test(head[i - 1])) &&
+        !/[-+/^=<>&|!(,]$/.test(head.slice(0, i).trimEnd())
+      )
         found.push({ kind: "weight", at: i, after: i });
     }
   }
