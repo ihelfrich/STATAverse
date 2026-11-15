@@ -1691,17 +1691,26 @@ const PUT_SET_OPTIONS = {
   sheet: { arg: "required" },
   replace: {},
   modify: {},
-  open: {
-    refuse:
-      "Each putexcel here saves the workbook at once; leave out open and putexcel close.",
-  },
+  open: {},
   locale: {
     arg: "required",
     refuse: "The browser writes workbooks as UTF-8 text; leave out locale().",
   },
 };
 
+// What Stata 19 says to putexcel set while a workbook is held open.
+const STILL_OPEN = [
+  "Excel file open",
+  "    Type putexcel save to save the existing open file. Type",
+  "",
+  "        putexcel describe",
+  "",
+  "    to see current settings.",
+  "",
+].join("\n");
+
 function putexcelSet(session, text, ctx) {
+  if (session.putexcel?.open) throw new StataError(STILL_OPEN, 198);
   const [head, optionText] = splitAtCommaSimple(text),
     options = readOptions(optionText, PUT_SET_OPTIONS);
   let name = unquote(head);
@@ -1718,7 +1727,13 @@ function putexcelSet(session, text, ctx) {
       `file ${name} already exists; you must specify either option modify or option replace`,
       602,
     );
-  if (options.replace)
+  // With open, the workbook is held, and what putexcel writes reaches the
+  // file only at putexcel save or putexcel close.
+  if (options.open && (options.replace || options.modify))
+    ctx.out(
+      `note: file will be ${options.replace ? "replaced" : "modified"} when putexcel save command is issued.`,
+    );
+  else if (options.replace)
     ctx.out(
       "note: file will be replaced when the first putexcel command is issued.",
     );
@@ -1727,7 +1742,33 @@ function putexcelSet(session, text, ctx) {
     sheet: sheetSpec?.name || "Sheet1",
     replaceSheet: sheetSpec?.mode === "replace",
     mode: options.replace ? "replace" : options.modify ? "modify" : "create",
+    open: Boolean(options.open),
+    // The workbook held open, once something is written to it.
+    book: null,
   };
+}
+
+/**
+ * putexcel save and putexcel close: either writes the workbook held open
+ * by putexcel set, open, and lets it go. Without open each putexcel has
+ * saved the workbook already, and there is nothing to do.
+ */
+function putexcelFinish(session, rest, ctx) {
+  const state = session.putexcel;
+  if (!state) throw new StataError("no Excel file specified", 198);
+  const tail = rest.trim();
+  if (tail.startsWith(",")) readOptions(tail.slice(1), {});
+  else if (tail) throw new StataError("invalid syntax", 198);
+  if (!state.open) return;
+  state.open = false;
+  const book = state.book;
+  state.book = null;
+  if (!book) {
+    ctx.out("no data written");
+    return;
+  }
+  saveBook(session, state.name, book);
+  ctx.out(`file ${state.name} saved`);
 }
 
 function putexcelDescribe(session, ctx) {
@@ -1739,7 +1780,7 @@ function putexcelDescribe(session, ctx) {
     ["Write mode", state.mode],
     ["Sheetname", state.sheet],
     ["Locale", "UTF-8"],
-    ["Open file handle", "no"],
+    ["Open file handle", state.open ? "yes" : "no"],
   ];
   ctx.out("");
   ctx.out(`  ${"-".repeat(17)}+${"-".repeat(14)}`);
@@ -1847,7 +1888,7 @@ function putexcelCells(session, text, ctx) {
     writes.push({ address, cells: putValue(session, value, options) });
   }
   const fresh = state.mode === "replace" || state.mode === "create",
-    book = openForWriting(session, state.name, fresh);
+    book = state.book ?? openForWriting(session, state.name, fresh);
   let sheet = book.sheets.find((s) => s.name === state.sheet);
   if (!sheet) {
     // Stata 19's messages for a sheet name Excel refuses.
@@ -1874,9 +1915,14 @@ function putexcelCells(session, text, ctx) {
       if (!sheet.rows.has(r)) sheet.rows.set(r, new Map());
       sheet.rows.get(r).set(c, { ...cell, keepStyle: true });
     }
-  saveBook(session, state.name, book);
   state.mode = "modify";
   state.replaceSheet = false;
+  // A workbook held open is saved by putexcel save or putexcel close.
+  if (state.open) {
+    state.book = book;
+    return;
+  }
+  saveBook(session, state.name, book);
   ctx.out(`file ${state.name} saved`);
 }
 
@@ -1966,14 +2012,7 @@ export function putexcel(session, text, ctx) {
   }
   if (m?.[1] === "describe" && !m[2].trim())
     return putexcelDescribe(session, ctx);
-  // Each putexcel here saves the workbook at once: there is nothing left
-  // to close.
-  if (m?.[1] === "close" && !m[2].trim()) return;
-  if (m?.[1] === "save")
-    throw new StataError(
-      `putexcel ${m[1]} is not available in the browser yet`,
-      198,
-      "Each putexcel here saves the workbook at once, so nothing is left to save or close.",
-    );
+  if (m?.[1] === "save" || m?.[1] === "close")
+    return putexcelFinish(session, m[2], ctx);
   return putexcelCells(session, text, ctx);
 }

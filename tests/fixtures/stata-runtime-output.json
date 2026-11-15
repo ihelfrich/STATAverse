@@ -160449,6 +160449,240 @@
       ]
     },
     {
+      "id": "pass8c-estimation-by-prefixes",
+      "source": "clear\nset seed 4711\nset obs 60\ngenerate g = ceil(3*runiform())\ngenerate x = runiform()\ngenerate z = runiform()\ngenerate y = 1 + .7*x + runiform()\ncapture noisily by g: quietly regress y x z\ncapture noisily bysort g: quietly regress y x z\ncapture noisily by g: qui summarize y\ncapture noisily by g: noisily regress y x z\ncapture noisily by g: capture noisily summarize y\ncapture noisily by g: version 17: summarize y\ncapture noisily by g: quietlyx summarize y\nquietly by g: regress y x z\ndisplay e(N)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4711", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate g = ceil(3*runiform())", "lines": [] },
+        { "command": "generate x = runiform()", "lines": [] },
+        { "command": "generate z = runiform()", "lines": [] },
+        { "command": "generate y = 1 + .7*x + runiform()", "lines": [] },
+        {
+          "command": "capture noisily by g: quietly regress y x z",
+          "lines": ["not sorted"]
+        },
+        {
+          "command": "capture noisily bysort g: quietly regress y x z",
+          "lines": ["quietly may not be combined with by"]
+        },
+        {
+          "command": "capture noisily by g: qui summarize y",
+          "lines": ["quietly may not be combined with by"]
+        },
+        {
+          "command": "capture noisily by g: noisily regress y x z",
+          "lines": ["noisily may not be combined with by"]
+        },
+        {
+          "command": "capture noisily by g: capture noisily summarize y",
+          "lines": ["capture may not be combined with by"]
+        },
+        {
+          "command": "capture noisily by g: version 17: summarize y",
+          "lines": ["version may not be combined with by"]
+        },
+        {
+          "command": "capture noisily by g: quietlyx summarize y",
+          "lines": ["command quietlyx is unrecognized"]
+        },
+        { "command": "quietly by g: regress y x z", "lines": [] },
+        { "command": "display e(N)", "lines": ["22"] }
+      ]
+    },
+    {
+      "id": "pass8c-estimation-predict-string",
+      "source": "clear\nset seed 4711\nset obs 200\ngenerate x1 = runiform()\ngenerate female = runiform() < .5\ngenerate educ = floor(3*runiform() + x1)\nquietly oprobit educ x1 female\ncapture noisily predict str5 sp*\ncapture noisily predict str5 sp1 sp2 sp3\ncapture noisily predict str5 q\npredict double sp*\nsummarize sp*\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4711", "lines": [] },
+        {
+          "command": "set obs 200",
+          "lines": ["Number of observations (_N) was 0, now 200."]
+        },
+        { "command": "generate x1 = runiform()", "lines": [] },
+        { "command": "generate female = runiform() < .5", "lines": [] },
+        { "command": "generate educ = floor(3*runiform() + x1)", "lines": [] },
+        { "command": "quietly oprobit educ x1 female", "lines": [] },
+        {
+          "command": "capture noisily predict str5 sp*",
+          "lines": [
+            "(option pr assumed; predicted probabilities)",
+            "type mismatch"
+          ]
+        },
+        {
+          "command": "capture noisily predict str5 sp1 sp2 sp3",
+          "lines": [
+            "(option pr assumed; predicted probabilities)",
+            "too few variables specified",
+            "educ has 4 outcomes and so you must specify 4 new variables, or",
+            "you can use the outcome() option and specify variables one at a time"
+          ]
+        },
+        {
+          "command": "capture noisily predict str5 q",
+          "lines": [
+            "(option pr assumed; predicted probabilities)",
+            "type mismatch"
+          ]
+        },
+        {
+          "command": "predict double sp*",
+          "lines": ["(option pr assumed; predicted probabilities)"]
+        },
+        {
+          "command": "summarize sp*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "         sp1 |        200    .1953218    .0951516   .0542096   .4214689",
+            "         sp2 |        200    .3301544    .0449769   .2118743   .3760918",
+            "         sp3 |        200    .3041642    .0535365   .1748223   .3630248",
+            "         sp4 |        200    .1703595    .0853461   .0421375   .3747873"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8c-estimation-putexcel-open",
+      "source": "clear\nputexcel set p8open.xlsx, replace open\nputexcel describe\nputexcel A1 = 5\nputexcel B1 = matrix(I(2))\ncapture noisily putexcel set p8other.xlsx, replace\nputexcel describe\nputexcel save\nputexcel describe\nputexcel A3 = 7\nputexcel save\nputexcel close\nputexcel set p8open.xlsx, modify open\nputexcel A4 = 8\ncapture noisily putexcel save, foo\ncapture noisily putexcel close now\nputexcel close\nputexcel set p8open.xlsx, modify open sheet(Two)\nputexcel close\nputexcel describe\nputexcel set p8empty.xlsx, replace open\nputexcel save\nimport excel p8open.xlsx, clear\nlist\nputexcel clear\ncapture noisily putexcel close\ncapture noisily putexcel save\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "putexcel set p8open.xlsx, replace open",
+          "lines": [
+            "note: file will be replaced when putexcel save command is issued."
+          ]
+        },
+        {
+          "command": "putexcel describe",
+          "lines": [
+            "  -----------------+--------------",
+            "  Filename         |  p8open.xlsx",
+            "  Filetype         |  xlsx",
+            "  Write mode       |  replace",
+            "  Sheetname        |  Sheet1",
+            "  Locale           |  UTF-8",
+            "  Open file handle |  yes"
+          ]
+        },
+        { "command": "putexcel A1 = 5", "lines": [] },
+        { "command": "putexcel B1 = matrix(I(2))", "lines": [] },
+        {
+          "command": "capture noisily putexcel set p8other.xlsx, replace",
+          "lines": [
+            "Excel file open",
+            "    Type putexcel save to save the existing open file. Type",
+            "",
+            "        putexcel describe",
+            "",
+            "    to see current settings."
+          ]
+        },
+        {
+          "command": "putexcel describe",
+          "lines": [
+            "  -----------------+--------------",
+            "  Filename         |  p8open.xlsx",
+            "  Filetype         |  xlsx",
+            "  Write mode       |  modify",
+            "  Sheetname        |  Sheet1",
+            "  Locale           |  UTF-8",
+            "  Open file handle |  yes"
+          ]
+        },
+        { "command": "putexcel save", "lines": ["file p8open.xlsx saved"] },
+        {
+          "command": "putexcel describe",
+          "lines": [
+            "  -----------------+--------------",
+            "  Filename         |  p8open.xlsx",
+            "  Filetype         |  xlsx",
+            "  Write mode       |  modify",
+            "  Sheetname        |  Sheet1",
+            "  Locale           |  UTF-8",
+            "  Open file handle |  no"
+          ]
+        },
+        { "command": "putexcel A3 = 7", "lines": ["file p8open.xlsx saved"] },
+        { "command": "putexcel save", "lines": [] },
+        { "command": "putexcel close", "lines": [] },
+        {
+          "command": "putexcel set p8open.xlsx, modify open",
+          "lines": [
+            "note: file will be modified when putexcel save command is issued."
+          ]
+        },
+        { "command": "putexcel A4 = 8", "lines": [] },
+        {
+          "command": "capture noisily putexcel save, foo",
+          "lines": ["option foo not allowed"]
+        },
+        {
+          "command": "capture noisily putexcel close now",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "putexcel close", "lines": ["file p8open.xlsx saved"] },
+        {
+          "command": "putexcel set p8open.xlsx, modify open sheet(Two)",
+          "lines": [
+            "note: file will be modified when putexcel save command is issued."
+          ]
+        },
+        { "command": "putexcel close", "lines": ["no data written"] },
+        {
+          "command": "putexcel describe",
+          "lines": [
+            "  -----------------+--------------",
+            "  Filename         |  p8open.xlsx",
+            "  Filetype         |  xlsx",
+            "  Write mode       |  modify",
+            "  Sheetname        |  Two",
+            "  Locale           |  UTF-8",
+            "  Open file handle |  no"
+          ]
+        },
+        {
+          "command": "putexcel set p8empty.xlsx, replace open",
+          "lines": [
+            "note: file will be replaced when putexcel save command is issued."
+          ]
+        },
+        { "command": "putexcel save", "lines": ["no data written"] },
+        {
+          "command": "import excel p8open.xlsx, clear",
+          "lines": ["(3 vars, 4 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------+",
+            "     | A   B   C |",
+            "     |-----------|",
+            "  1. | 5   1   0 |",
+            "  2. | .   0   1 |",
+            "  3. | 7   .   . |",
+            "  4. | 8   .   . |",
+            "     +-----------+"
+          ]
+        },
+        { "command": "putexcel clear", "lines": [] },
+        {
+          "command": "capture noisily putexcel close",
+          "lines": ["no Excel file specified"]
+        },
+        {
+          "command": "capture noisily putexcel save",
+          "lines": ["no Excel file specified"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

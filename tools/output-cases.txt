@@ -22416,3 +22416,61 @@ regress
 regress, level(90)
 logit yb x1, or nolog
 logit
+=== pass8c-estimation-by-prefixes
+clear
+set seed 4711
+set obs 60
+generate g = ceil(3*runiform())
+generate x = runiform()
+generate z = runiform()
+generate y = 1 + .7*x + runiform()
+capture noisily by g: quietly regress y x z
+capture noisily bysort g: quietly regress y x z
+capture noisily by g: qui summarize y
+capture noisily by g: noisily regress y x z
+capture noisily by g: capture noisily summarize y
+capture noisily by g: version 17: summarize y
+capture noisily by g: quietlyx summarize y
+quietly by g: regress y x z
+display e(N)
+=== pass8c-estimation-predict-string
+clear
+set seed 4711
+set obs 200
+generate x1 = runiform()
+generate female = runiform() < .5
+generate educ = floor(3*runiform() + x1)
+quietly oprobit educ x1 female
+capture noisily predict str5 sp*
+capture noisily predict str5 sp1 sp2 sp3
+capture noisily predict str5 q
+predict double sp*
+summarize sp*
+=== pass8c-estimation-putexcel-open
+clear
+putexcel set p8open.xlsx, replace open
+putexcel describe
+putexcel A1 = 5
+putexcel B1 = matrix(I(2))
+capture noisily putexcel set p8other.xlsx, replace
+putexcel describe
+putexcel save
+putexcel describe
+putexcel A3 = 7
+putexcel save
+putexcel close
+putexcel set p8open.xlsx, modify open
+putexcel A4 = 8
+capture noisily putexcel save, foo
+capture noisily putexcel close now
+putexcel close
+putexcel set p8open.xlsx, modify open sheet(Two)
+putexcel close
+putexcel describe
+putexcel set p8empty.xlsx, replace open
+putexcel save
+import excel p8open.xlsx, clear
+list
+putexcel clear
+capture noisily putexcel close
+capture noisily putexcel save

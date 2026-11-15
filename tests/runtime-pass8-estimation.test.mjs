@@ -986,3 +986,77 @@ quietly regress y x1 x2, beta`);
     /\[90% conf\. interval\]/,
   );
 });
+
+test("a prefix after by is refused with r(190), after by's own checks", () => {
+  const s = run(`clear
+set seed 4711
+set obs 30
+generate g = ceil(3*runiform())
+generate y = runiform()
+generate x = runiform()`);
+  // Stata checks the sort order first: not sorted, r(5).
+  assert.equal(s.run("by g: quietly regress y x").rc, 5);
+  assert.equal(s.run("by nothere: quietly regress y x").rc, 111);
+  s.run("sort g");
+  for (const [command, name] of [
+    ["by g: quietly regress y x", "quietly"],
+    ["by g: qui summarize y", "quietly"],
+    ["bysort g: quietly regress y x", "quietly"],
+    ["by g: noisily regress y x", "noisily"],
+    ["by g: capture noisily summarize y", "capture"],
+    ["by g: version 17: summarize y", "version"],
+  ]) {
+    const result = printed(s, command);
+    assert.equal(result.rc, 190, command);
+    assert.equal(
+      result.text.split("\n")[0],
+      `${name} may not be combined with by`,
+    );
+  }
+  // The prefix belongs before by.
+  assert.equal(s.run("quietly by g: summarize y").rc, 0);
+  assert.equal(s.results.r.N, 14);
+  assert.equal(printed(s, "by g: quietlyx summarize y").rc, 199);
+});
+
+test("putexcel set, open holds the workbook until putexcel save or close", () => {
+  const s = run("clear");
+  const steps = (commands) => {
+    for (const command of commands) assert.equal(s.run(command).rc, 0, command);
+  };
+  steps(["putexcel set held.xlsx, replace open", "putexcel A1 = 5"]);
+  // Nothing reaches the file until it is saved.
+  assert.equal(s.files.has("held.xlsx"), false);
+  // Another workbook cannot be set while this one is open.
+  const refused = printed(s, "putexcel set other.xlsx, replace");
+  assert.equal(refused.rc, 198);
+  assert.match(refused.text, /^Excel file open\n {4}Type putexcel save/);
+  assert.match(
+    printed(s, "putexcel describe").text,
+    /Open file handle \| {2}yes/,
+  );
+  assert.equal(printed(s, "putexcel save").text, "file held.xlsx saved");
+  assert.equal(s.files.has("held.xlsx"), true);
+  // save lets the workbook go: each putexcel now saves it at once.
+  assert.match(
+    printed(s, "putexcel describe").text,
+    /Open file handle \| {2}no/,
+  );
+  assert.equal(printed(s, "putexcel A2 = 6").text, "file held.xlsx saved");
+  assert.equal(printed(s, "putexcel close").text, "");
+  steps(["putexcel set held.xlsx, modify open", "putexcel A3 = 7"]);
+  assert.equal(printed(s, "putexcel save, foo").rc, 198);
+  assert.equal(printed(s, "putexcel close now").rc, 198);
+  assert.equal(printed(s, "putexcel close").text, "file held.xlsx saved");
+  // An open workbook with nothing written is not written.
+  steps(["putexcel set empty.xlsx, replace open"]);
+  assert.equal(printed(s, "putexcel close").text, "no data written");
+  assert.equal(s.files.has("empty.xlsx"), false);
+  // putexcel clear lets an open workbook go unsaved, as Stata does.
+  steps(["putexcel set dropped.xlsx, replace open", "putexcel A1 = 1"]);
+  steps(["putexcel clear"]);
+  assert.equal(s.files.has("dropped.xlsx"), false);
+  assert.equal(printed(s, "putexcel close").rc, 198);
+  steps(["import excel held.xlsx, clear"]);
+  assert.deepEqual([...s.data.get("A").data], [5, 6, 7]);
+});

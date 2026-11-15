@@ -908,27 +908,42 @@ export class Session {
   }
 
   dispatch(text, frame, flags, lines, output) {
-    let rest = text;
+    let rest = text,
+      byHere = false;
+    // by runs one command for each group: a prefix after it, as in
+    // by g: quietly regress y x, is refused, as Stata refuses it.
+    const notAfterBy = (name) => {
+      if (byHere)
+        throw new StataError(`${name} may not be combined with by`, 190);
+    };
     for (;;) {
       const word = /^[A-Za-z_][A-Za-z_0-9]*/.exec(rest)?.[0] ?? "";
       const after = rest.slice(word.length);
       if (/^cap(t(u(re?)?)?)?$/.test(word)) {
+        notAfterBy("capture");
         flags.capture = true;
         rest = after.trim();
       } else if (/^qui(e(t(ly?)?)?)?$/.test(word)) {
+        notAfterBy("quietly");
         flags.quiet = true;
         rest = after.trim();
       } else if (/^n(o(i(s(i(ly?)?)?)?)?)?$/.test(word) && word.length <= 7) {
+        notAfterBy("noisily");
         flags.quiet = false;
         flags.noisy = true;
         rest = after.trim();
       } else if (/^(by|bys(o(rt?)?)?)$/.test(word) && /:/.test(after)) {
         const colon = after.indexOf(":");
         flags.by = this.byPrefix(after.slice(0, colon), word !== "by");
+        byHere = true;
         rest = after.slice(colon + 1).trim();
-      } else if (/^vers(i(on?)?)?$/.test(word) && /^\s+[\d.]+\s*:/.test(after))
+      } else if (
+        /^vers(i(on?)?)?$/.test(word) &&
+        /^\s+[\d.]+\s*:/.test(after)
+      ) {
+        notAfterBy("version");
         rest = after.replace(/^\s+[\d.]+\s*:/, "").trim();
-      else break;
+      } else break;
       rest = rest.replace(/^:\s*/, "");
     }
     // noisily prints even inside quietly { }, and so does what it runs.
