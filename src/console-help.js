@@ -146,6 +146,7 @@ export const HELP = {
     "didregress (y x) (treated), group(id) time(year)",
   ],
   dir: ["Lists the files in the session.", "dir"],
+  discard: ["Clears the last estimates and r() results.", "discard"],
   display: [
     "Shows text, or the value of an expression.",
     'display "mean = " r(mean)',
@@ -321,6 +322,18 @@ export const HELP = {
     "lvr2plot",
   ],
   macro: ["Lists or drops macros.", "macro list"],
+  mark: [
+    "Makes a 0/1 variable marking the observations in if, in and a weight.",
+    "mark touse if x > 0",
+  ],
+  markout: [
+    "Sets a marker variable to 0 where any of the variables is missing.",
+    "markout touse y x",
+  ],
+  marksample: [
+    "In a program, marks the observations its syntax chose in a temporary variable.",
+    "marksample touse",
+  ],
   margins: [
     "Predictions and marginal effects after a model.",
     "margins, dydx(x)",

@@ -38,6 +38,14 @@ import { MORE_POSTESTIMATION } from "./more-postestimation.js";
 import { QUANTILE_COMMANDS } from "./quantile.js";
 import { RESAMPLING_COMMANDS, resamplingEstat } from "./resampling.js";
 import { MORE_DATA_COMMANDS } from "./more-data.js";
+import {
+  PROGRAMMING_COMMANDS,
+  ereturnDisplay,
+  ereturnPost,
+  macroCommand,
+  programResults,
+  returnMatrix,
+} from "./programming.js";
 import { STATS_MORE_COMMANDS } from "./stats-more.js";
 import { TABLE_COMMANDS } from "./tables.js";
 import { GLM_COMMANDS } from "./glm.js";
@@ -1108,8 +1116,172 @@ function compress(session, text, ctx) {
   ctx.out(`  (${count(saved)} byte${saved === 1 ? "" : "s"} saved)`);
 }
 
+// Settings ", permanently" may be given with, and their full names.
+const PERMANENT = {
+  more: /^mo(re?)?$/,
+  varabbrev: /^varabbrev$/,
+  rmsg: /^rmsg$/,
+  trace: /^trace$/,
+  type: /^type$/,
+  level: /^l(e(v(el?)?)?)?$/,
+  scheme: /^scheme$/,
+  emptycells: /^emptycells$/,
+  showbaselevels: /^showbaselevels$/,
+  cformat: /^cformat$/,
+  pformat: /^pformat$/,
+  sformat: /^sformat$/,
+  dp: /^dp$/,
+  logtype: /^logtype$/,
+  maxvar: /^maxvar$/,
+  niceness: /^niceness$/,
+  segmentsize: /^segmentsize$/,
+  max_memory: /^max_memory$/,
+  min_memory: /^min_memory$/,
+  scrollbufsize: /^scrollbufsize$/,
+};
+// A setting Stata takes but that would change what the browser prints in
+// ways it does not yet follow: refused, with what to do instead.
+const notYet = (setting, hint) =>
+  new StataError(
+    `set ${setting} is not available in the browser yet`,
+    198,
+    hint,
+  );
+/**
+ * A note indented by 4 and filled to two columns short of the linesize, as
+ * set memory and set matsize print theirs; the blanks between sentences
+ * are kept.
+ */
+function indentedNote(session, ctx, text) {
+  const width = (session.settings.linesize ?? 79) - 2,
+    pieces = text.split(/( +)/);
+  let line = "    " + pieces[0];
+  for (let k = 1; k < pieces.length; k += 2) {
+    const blank = pieces[k],
+      word = pieces[k + 1];
+    if (line.length + blank.length + word.length > width) {
+      ctx.out(line);
+      line = "    " + word;
+    } else line += blank + word;
+  }
+  ctx.out(line);
+}
+function onOff(what, value, setting) {
+  if (setting === "more") {
+    if (!/^(on|off)$/.test(value ?? ""))
+      throw new StataError("on or off required", 100);
+    return value;
+  }
+  if (!value) throw new StataError("on or off required", 100);
+  if (!/^(on|off)$/.test(value))
+    throw new StataError(`'${value}' found where on or off expected`, 198);
+  return value;
+}
 function setCommand(session, text, ctx) {
-  const [what, ...rest] = text.trim().split(/\s+/);
+  const [head, option] = splitAtComma(text),
+    [what = "", ...rest] = head.trim().split(/\s+/),
+    name = Object.keys(PERMANENT).find((key) => PERMANENT[key].test(what));
+  let permanent = false;
+  if (option !== null) {
+    if (/^(ob(s)?|li(n(e(s(i(ze?)?)?)?)?)?|processors)$/.test(what))
+      throw new StataError("options not allowed", 101);
+    if (name && /^\s*perm(a(n(e(n(t(ly?)?)?)?)?)?)?\s*$/.test(option))
+      permanent = true;
+    else if (what === "seed")
+      throw new StataError("',' found where nothing expected", 198);
+    // Any other setting reads its options itself, as before.
+    else if (!name)
+      return setOne(session, what, text.trim().split(/\s+/).slice(1), ctx);
+  }
+  const value = rest.join(" ").trim();
+  if (permanent || ["more", "varabbrev", "trace", "rmsg"].includes(name)) {
+    if (["more", "varabbrev", "trace", "rmsg"].includes(name)) {
+      const state = onOff(what, value, name);
+      if (state === "on" && name === "trace")
+        throw notYet(
+          "trace on",
+          "Run the program's lines one at a time, or display the locals it sets, to see what it does.",
+        );
+      if (state === "on" && name === "rmsg")
+        throw notYet(
+          "rmsg on",
+          "timer on and timer off time a stretch of commands.",
+        );
+      if (state === "off" && name === "varabbrev")
+        throw notYet(
+          "varabbrev off",
+          "Here variable names may always be abbreviated; type them in full to be safe.",
+        );
+    } else setOne(session, what, rest, ctx);
+    if (permanent) ctx.out(`(set ${name} preference recorded)`);
+    return;
+  }
+  if (what === "emptycells") {
+    if (!/^(keep|drop)$/.test(value))
+      throw new StataError("keep or drop required", 100);
+    // With drop, empty cells of an interaction are left out of e(b)
+    // instead of shown; a fit that has any is refused (see design()).
+    session.settings.emptycells = value;
+    return;
+  }
+  if (what === "sortseed") {
+    if (!value) throw invalid();
+    if (!/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(value))
+      throw new StataError("invalid sortseed", 198);
+    session.settings.sortseed = Number(value);
+    return;
+  }
+  if (what === "dp") {
+    if (value === "period") return;
+    if (value === "comma")
+      throw notYet(
+        "dp comma",
+        "The browser shows numbers with a decimal point; set dp period is the setting it follows.",
+      );
+    throw invalid();
+  }
+  if (/^[cps]format$/.test(what)) {
+    if (!value) return;
+    if (parseFormat(value) === null)
+      throw new StataError("invalid numeric format", 7);
+    throw notYet(
+      `${what} ${value}`,
+      `Tables here keep Stata's default formats; set ${what} alone puts the default back.`,
+    );
+  }
+  if (/^mem(o(ry?)?)?$/.test(what)) {
+    if (!value) throw invalid();
+    if (!/^\d+[bkmg]?$/i.test(value))
+      throw new StataError(`'${value}' found where integer expected`, 198);
+    ctx.out("set memory ignored.");
+    indentedNote(
+      session,
+      ctx,
+      "Memory no longer needs to be set in modern Statas; memory adjustments are performed on the fly automatically.",
+    );
+    return;
+  }
+  if (/^matsize$/.test(what)) {
+    if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(value))
+      throw new StataError(
+        `${value || "nothing"} found where number expected`,
+        198,
+      );
+    ctx.out("set matsize ignored.");
+    indentedNote(
+      session,
+      ctx,
+      "Matrix sizes are no longer limited by c(matsize) in modern Statas.  Matrix sizes are now limited by edition of Stata.  See limits for more details.",
+    );
+    return;
+  }
+  if (what === "autotabgraphs") {
+    ctx.out("(-set autotabgraphs- irrelevant in this version of Stata)");
+    return;
+  }
+  setOne(session, what, rest, ctx);
+}
+function setOne(session, what, rest, ctx) {
   if (/^ob(s)?$/.test(what)) {
     const n = session.scalar(rest.join(" ")),
       before = session.data.n;
@@ -1123,7 +1295,11 @@ function setCommand(session, text, ctx) {
     if (!(size >= 40 && size <= 255)) throw invalid();
     session.settings.linesize = size;
   } else if (what === "type") {
-    if (!["float", "double"].includes(rest[0])) throw invalid();
+    if (!["float", "double"].includes(rest[0]))
+      throw new StataError(
+        `'${rest[0] ?? ""}' found where 'float' or 'double' expected`,
+        198,
+      );
     session.data.defaultType = rest[0];
   } else if (what === "logtype" && /^(text|smcl)$/.test(rest[0] ?? "")) {
     // The type log using gives a log when neither text nor smcl is named.
@@ -1180,16 +1356,45 @@ function setCommand(session, text, ctx) {
     throw new StataError(`set ${what} is not supported`, 198);
 }
 
+/** No estimates and no r(), e() or s(), as discard and clear results leave. */
+function clearResults(session) {
+  session.results = { r: {}, e: {}, s: {} };
+  session.estimates = null;
+  if (session.data) session.data.esample = session.data.esampleOf = null;
+}
 function clear(session, text) {
   const what = text.trim();
-  if (what && !["all", "*"].includes(what)) throw invalid();
+  // clear mata, results, matrix, programs, ado, rngstream and frames clear
+  // one thing each; only clear frames, of these, drops the data.
+  const part = /^(mata|results|matrix|programs|ado|rngstream|frames)$/.exec(
+    what,
+  )?.[1];
+  if (part) {
+    if (part === "results") clearResults(session);
+    else if (part === "matrix") {
+      session.matrices?.clear();
+      clearResults(session);
+    } else if (part === "programs") session.programs.clear();
+    else if (part === "frames")
+      session.data = Object.assign(new session.data.constructor(), {
+        defaultType: session.data.defaultType,
+      });
+    return;
+  }
+  if (what && !["all", "*"].includes(what))
+    throw new StataError(
+      `${what.split(/\s+/).find((word) => !["all", "*"].includes(word))} not allowed`,
+      198,
+    );
   session.data = Object.assign(new session.data.constructor(), {
     defaultType: session.data.defaultType,
   });
   if (what) {
     session.scalars.clear();
     session.programs.clear();
-    session.results = { r: {}, e: {}, s: {} };
+    session.matrices?.clear();
+    session.storedEstimates?.clear();
+    clearResults(session);
     // Graphs are dropped too; their windows stay open, empty.
     session.graphs?.clear();
     session.currentGraph = null;
@@ -1448,8 +1653,11 @@ function scalar(session, text, ctx) {
  * the next blank or parse character. Returns the token and the text after
  * it, or null when only blanks are left.
  */
-function firstToken(text, parse = "", quotes = false) {
-  // A blank separates tokens and is never one, even in parse().
+function firstToken(text, parse = " ", quotes = false) {
+  // parse() names the characters that end a token; a blank does only when
+  // it is among them (or none are named). Blanks before a token are
+  // skipped either way, and a blank is never a token.
+  const blanks = parse === "" || /\s/.test(parse);
   parse = parse.replace(/\s/g, "");
   let i = 0;
   while (i < text.length && /\s/.test(text[i])) i++;
@@ -1479,7 +1687,11 @@ function firstToken(text, parse = "", quotes = false) {
   }
   if (parse.includes(text[i]))
     return { token: text[i], rest: text.slice(i + 1) };
-  while (j < text.length && !/\s/.test(text[j]) && !parse.includes(text[j]))
+  while (
+    j < text.length &&
+    !(blanks && /\s/.test(text[j])) &&
+    !parse.includes(text[j])
+  )
     j++;
   return { token: text.slice(i, j), rest: text.slice(j) };
 }
@@ -1494,7 +1706,7 @@ function parseCharacters(options) {
 /** tokenize: the words of a string into the positional locals `1', `2', .... */
 function tokenize(session, text, ctx) {
   const [head, options] = splitAtComma(text);
-  let parse = "";
+  let parse = " ";
   const rest = (options ?? "").trim();
   if (rest) {
     const found = parseCharacters(rest);
@@ -1590,7 +1802,7 @@ function gettoken(session, text, ctx) {
     throw new StataError(`option ${name} not allowed`, 198);
   }
   const value = source.map.get(source.name) ?? "",
-    found = firstToken(value, parse.replace(/ /g, ""), quotes);
+    found = firstToken(value, parse, quotes);
   setMacro(targets[0].map, targets[0].name, found ? found.token : "");
   if (targets[1])
     setMacro(targets[1].map, targets[1].name, found ? found.rest : "");
@@ -1729,12 +1941,12 @@ function xi(session, text, ctx) {
 }
 function temporary(prefix) {
   return (session, text, ctx) => {
-    for (const name of text.trim().split(/\s+/).filter(Boolean))
-      setMacro(
-        ctx.frame.locals,
-        name,
-        `__${prefix}${String(session.temporary++).padStart(6, "0")}`,
-      );
+    for (const name of text.trim().split(/\s+/).filter(Boolean)) {
+      const made = `__${prefix}${String(session.temporary++).padStart(6, "0")}`;
+      setMacro(ctx.frame.locals, name, made);
+      // What a program names this way is dropped when it ends.
+      if (ctx.frame.program) (ctx.frame.temps ??= []).push(made);
+    }
   };
 }
 function args(session, text, ctx) {
@@ -1787,6 +1999,17 @@ function returns(kind) {
       staged = kind === "r" && owner ? ctx.frame.returns.r : null,
       target = staged ?? session.results[kind];
     let m;
+    // ereturn display shows the coefficient table of the estimates.
+    if (kind === "e" && /^di(s(p(l(ay?)?)?)?)?\b/.test(text))
+      return ereturnDisplay(session, text, ctx);
+    if (kind === "e" && /^repost\b\s*\S/.test(text) && owner)
+      throw new StataError(
+        "ereturn repost is not available in the browser yet",
+        198,
+        "Post the changed results again with ereturn post.",
+      );
+    // ereturn repost with nothing to post changes nothing.
+    if (kind === "e" && /^repost\s*$/.test(text) && owner) return;
     if (/^clear\b/.test(text)) {
       // return clear outside an r-class program has nothing to clear: r()
       // stays as it is.
@@ -1797,6 +2020,9 @@ function returns(kind) {
       }
       return void Object.keys(target).forEach((key) => delete target[key]);
     }
+    // ereturn post typed outside any program is allowed, as in Stata.
+    if (kind === "e" && /^post\b/.test(text) && !program)
+      return ereturnPost(session, text.replace(/^post\b/, ""));
     if (!owner && /^(sca|loc|add|mat|post|repost)\w*\b/.test(text))
       throw new StataError(
         `non ${CLASS[kind].replace("class", "-class")} program may not set ${kind}()`,
@@ -1817,6 +2043,9 @@ function returns(kind) {
         label = (name) => `${kind}(${name})`.padStart(22),
         numbers = entries.filter(([, v]) => typeof v === "number"),
         strings = entries.filter(([, v]) => typeof v === "string" && v !== "");
+      // An e-class program's macros list newest first.
+      if (kind === "e" && !session.estimates && programResults.has(target))
+        strings.reverse();
       if (numbers.length) {
         ctx.out("");
         ctx.out("scalars:");
@@ -1890,9 +2119,18 @@ function returns(kind) {
         ctx.out(`${label("sample")}   `);
       } else if (kind === "e") {
         // Matrices without a model, as a bootstrap of statistics keeps.
-        const stored = entries.filter(
+        // What ereturn set lists e(b) and e(V) first, then the others
+        // newest first.
+        let stored = entries.filter(
           ([key, v]) => key.startsWith("matrix:") && v?.values,
         );
+        if (programResults.has(target)) {
+          const first = (key) => key === "matrix:b" || key === "matrix:V";
+          stored = [
+            ...stored.filter(([key]) => first(key)),
+            ...stored.filter(([key]) => !first(key)).reverse(),
+          ];
+        }
         if (stored.length) {
           ctx.out("");
           ctx.out("matrices:");
@@ -1923,12 +2161,24 @@ function returns(kind) {
         ctx.out("");
       return;
     }
+    if (kind === "e" && /^post\b/.test(text))
+      return ereturnPost(session, text.replace(/^post\b/, ""));
+    if (/^mat(r(ix?)?)?\b/.test(text)) {
+      returnMatrix(session, text, target);
+      if (kind === "e") programResults.add(target);
+      return;
+    }
     if ((m = /^sca(?:l(?:ar?)?)?\s+(\w+)\s*=\s*([\s\S]+)$/.exec(text)))
       target[m[1]] = session.scalar(m[2]);
     else if ((m = /^loc(?:al?)?\s+([\s\S]+)$/.exec(text))) {
       const holder = new Map();
       defineMacro(session, ctx.frame, holder, m[1]);
-      for (const [name, value] of holder) target[name] = value;
+      for (const [name, value] of holder) {
+        // A macro set again lists as the newest, as Stata lists e().
+        if (kind === "e") delete target[name];
+        target[name] = value;
+      }
+      if (kind === "e" && owner) programResults.add(target);
     } else throw invalid();
   };
 }
@@ -3171,6 +3421,7 @@ export const COMMANDS = [
   ...QUANTILE_COMMANDS,
   ...RESAMPLING_COMMANDS,
   ...MORE_DATA_COMMANDS,
+  ...PROGRAMMING_COMMANDS,
   ...STATS_MORE_COMMANDS,
   ...TABLE_COMMANDS,
   ...GLM_COMMANDS,
@@ -3230,6 +3481,8 @@ export const COMMANDS = [
         error.hint,
       );
     }
+    // Results shows a line wider than the linesize whole; a text log cuts
+    // it there (see console-log.js).
     for (const line of shown.split("\n")) ctx.out(line);
   }),
   command("scalar", 3, scalar),
@@ -3239,15 +3492,7 @@ export const COMMANDS = [
   command("global", 2, (session, text, ctx) =>
     defineMacro(session, ctx.frame, session.globals, text),
   ),
-  command("macro", 2, (session, text, ctx) => {
-    const m = /^drop\s+([\s\S]+)$/.exec(text.trim());
-    if (!m) throw invalid();
-    for (const name of m[1].trim().split(/\s+/)) {
-      if (name === "_all") session.globals.clear();
-      else if (name.startsWith("_")) ctx.frame.locals.delete(name.slice(1));
-      else session.globals.delete(name);
-    }
-  }),
+  command("macro", 2, macroCommand),
   command("xi", 2, xi),
   command("tokenize", 8, tokenize),
   command("gettoken", 8, gettoken),
@@ -3285,12 +3530,28 @@ export const COMMANDS = [
     });
   }),
   command("restore", 7, (session, text) => {
-    const options = text.replace(/^,/, "").trim();
-    if (!session.preserved.length)
-      throw new StataError("nothing to restore", 622);
-    if (/\bnot\b/.test(options)) return void session.preserved.pop();
-    restoreSaved(session, session.preserved.at(-1));
-    if (!/\bpreserve\b/.test(options)) session.preserved.pop();
+    const [head, options] = splitAtComma(text);
+    if (head.trim()) throw invalid();
+    let not = false,
+      keep = false;
+    for (const word of (options ?? "").trim().split(/\s+/).filter(Boolean))
+      if (word === "not") not = true;
+      else if (/^pre(s(e(r(ve?)?)?)?)?$/.test(word)) keep = true;
+      else
+        throw new StataError(
+          `option ${word.split("(")[0]}${word.includes("(") ? "()" : ""} not allowed`,
+          198,
+        );
+    // Only what this do-file or program preserved can be restored: a
+    // caller's preserved data are the caller's.
+    const depth = session.scopeDepth ?? 0,
+      at = session.preserved.findLastIndex(
+        (saved) => (saved.depth ?? 0) === depth,
+      );
+    if (at < 0) throw new StataError("nothing to restore", 622);
+    if (not) return void session.preserved.splice(at, 1);
+    restoreSaved(session, session.preserved[at]);
+    if (!keep) session.preserved.splice(at, 1);
   }),
   command("version", 4, (session, text) => {
     const release = Number(text.trim());
@@ -3340,7 +3601,19 @@ export const COMMANDS = [
     throw exitSignal("exit", code ? session.scalar(code) : 0);
   }),
   command("continue", 8, (session, text) => {
-    throw exitSignal(/break/.test(text) ? "break" : "continue");
+    const options = splitAtComma(text);
+    if (options[0].trim()) throw invalid();
+    const option = (options[1] ?? "").trim();
+    if (option && !/^break$/.test(option))
+      throw new StataError(
+        `option ${option.split(/[\s(]/)[0]} not allowed`,
+        198,
+      );
+    // continue belongs to a loop of the program or do-file it is in; it
+    // never reaches a loop of the caller.
+    if (!session.loopDepth)
+      throw new StataError("statement out of context", 119);
+    throw exitSignal(option ? "break" : "continue");
   }),
   command("if", 2, (session, text, ctx) => {
     // if exp command: the expression ends where a command name begins.
@@ -3371,14 +3644,67 @@ export const COMMANDS = [
     // it leaves that if's outcome alone, so the next else runs too.
     if (!ctx.frame.lastIf) runWithin(session, text, ctx);
   }),
-  command("program", 2, (session, text) => {
-    const m = /^(drop|dir|list)\s*([\s\S]*)$/.exec(text.trim());
-    if (!m) throw invalid();
-    if (m[1] !== "drop") return;
+  command("program", 2, (session, text, ctx) => {
+    const m = /^(drop|di(?:r)?|l(?:i(?:st?)?)?)\b\s*([\s\S]*)$/.exec(
+      text.trim(),
+    );
+    if (!m) {
+      // program define 1abc: the name is what is wrong.
+      const named = /^(?:de(?:f(?:i(?:ne?)?)?)?\s+)?(\S+)/.exec(text.trim());
+      if (named && !/^[A-Za-z_]\w*,?$/.test(named[1]))
+        throw new StataError(`${named[1].replace(/,$/, "")} invalid name`, 198);
+      throw invalid();
+    }
+    // Programs are listed newest first; a program with no lines is not.
+    const defined = [...session.programs]
+      .filter(([, program]) => program.source?.length)
+      .reverse();
+    // Stata's size of a program: 232 bytes and, for each line, its text
+    // without indentation and 6 bytes more.
+    const size = (program) =>
+      232 +
+      program.source.reduce((total, line) => total + line.text.length + 6, 0);
+    if (m[1].startsWith("d") && m[1] !== "drop") {
+      if (m[2].trim())
+        throw new StataError(`${m[2].trim().split(/\s+/)[0]} not allowed`, 101);
+      let total = 0;
+      for (const [name, program] of defined) {
+        total += size(program);
+        ctx.out(`${String(size(program)).padStart(14)}  ${name}`);
+      }
+      if (defined.length) {
+        ctx.out("      --------");
+        ctx.out(String(total).padStart(14));
+      }
+      ctx.out("");
+      return;
+    }
+    if (m[1] !== "drop") {
+      const names = m[2].trim().split(/\s+/).filter(Boolean),
+        shown =
+          !names.length || names.includes("_all")
+            ? defined
+            : names.map((name) => {
+                const program = session.programs.get(name);
+                if (!program)
+                  throw new StataError(`program ${name} not found`, 111);
+                return [name, program];
+              });
+      for (const [name, program] of shown) {
+        ctx.out("");
+        ctx.out(
+          `${name}${program.options?.trim() ? `, ${program.options.trim()}` : ""}:`,
+        );
+        (program.source ?? []).forEach((line, k) =>
+          ctx.out(`${String(k + 1).padStart(3)}. ${line.indent}${line.text}`),
+        );
+      }
+      return;
+    }
     for (const name of m[2].trim().split(/\s+/)) {
       if (name === "_all") session.programs.clear();
       else if (!session.programs.delete(name))
-        throw new StataError(`${name} not found`, 111);
+        throw new StataError(`program ${name} not found`, 111);
     }
   }),
 ];

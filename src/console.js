@@ -35,6 +35,7 @@ import {
 import { HELP, LANGUAGE, helpUrl } from "./console-help.js";
 import { mountBrowser } from "./console-browse.js";
 import { splitCommands } from "./runtime/dofile.js";
+import { commandLines } from "./runtime/echo.js";
 
 const KEY = "stataverse:console:v1",
   SCHEME_KEY = "stataverse:console:scheme",
@@ -852,8 +853,7 @@ function graphOf(graph) {
 }
 /** A record as Stata's log has it: the command, then what it printed. */
 const recordText = (record) =>
-  [`. ${record.command}`, ...(record.echo ?? []), ...record.lines].join("\n") +
-  "\n";
+  [...commandLines(record, record.width), ...record.lines].join("\n") + "\n";
 /** A short name for a command, for the labels of its buttons. */
 const brief = (command) =>
   command.length > 40 ? `${command.slice(0, 38)}…` : command;
@@ -996,10 +996,9 @@ function recordNode(record) {
   block.className = "console-record";
   block.text = recordText(record);
   command.className = "console-command";
-  // A loop is echoed as Stata echoes it: its lines, numbered, once.
-  command.textContent = [`. ${record.command}`, ...(record.echo ?? [])].join(
-    "\n",
-  );
+  // A loop is echoed as Stata echoes it: its lines, numbered, once. A
+  // line wider than the linesize goes on after "> ", as in Stata.
+  command.textContent = commandLines(record, record.width).join("\n");
   // Copy what one command printed, or save its graph; shown on pointing
   // or focus, and always on a touch screen.
   tools.className = "console-tools";
@@ -1076,7 +1075,9 @@ function recordNode(record) {
     }
   }
   for (const graph of graphs) block.append(graphOf(graph), "\n");
-  block.append("\n");
+  // A comment or a blank line of the do-file is followed directly by the
+  // next line, as in Stata's log; a command by a blank line.
+  if (!record.comment) block.append("\n");
   return block;
 }
 /**
@@ -1465,7 +1466,14 @@ async function execute(text = source.value, what = "do-file") {
   // Every do-file of the project is there for do, run and include.
   await shareFiles();
   const result = await perform(text, origin);
-  if (result) finish(result.rc, result.output.length, started, result.output);
+  if (result)
+    finish(
+      result.rc,
+      // A comment or a blank line echoed from the do-file is not a command.
+      result.output.filter((record) => !record.comment).length,
+      started,
+      result.output,
+    );
   return result;
 }
 

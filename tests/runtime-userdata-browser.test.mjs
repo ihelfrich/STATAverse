@@ -17,14 +17,18 @@ import { mentions, projectZip } from "../src/console-project.js";
 import { deflate, pdfOf } from "../src/console-picture.js";
 import { writeDta } from "../src/console-dta.js";
 
-/** Records as Stata's log shows them. */
+/**
+ * Records as Stata's log shows them: a blank line after each command's
+ * output, none after a comment, a blank line or the prompt at the end of
+ * an included file.
+ */
 const transcript = (output) =>
   output
     .flatMap((record) => [
       `. ${record.command}`,
       ...(record.echo ?? []),
       ...record.lines,
-      "",
+      ...(record.comment ? [] : [""]),
     ])
     .join("\n")
     .trimEnd();
@@ -805,6 +809,7 @@ sub line 2
 subloop 1
 subloop 2
 
+.
 . display "end"
 end`,
   );

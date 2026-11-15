@@ -11,6 +11,7 @@
 // The log is then written line by line in the order Results shows them, and
 // each log begins and ends where its command stood, even inside a loop.
 import { StataError } from "./runtime/errors.js";
+import { commandLines, wrapCharacters } from "./runtime/echo.js";
 
 const MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" "),
   FOLDER = "/stataverse",
@@ -269,10 +270,21 @@ export function createLogs(files) {
   // before the command that closed them has been reached.
   const live = new Set();
   /** Writes one line of Results into each log that is being written. */
-  function put(line, skip, render) {
+  function put(line, skip, render, width = 0) {
     for (const log of live)
       if (log.writing && !skip?.includes(log))
-        add(log, `${log.type === "smcl" ? render(log, line) : line}\n`);
+        add(
+          log,
+          `${
+            log.type === "smcl"
+              ? render(log, line)
+              : // A text log cuts a line wider than the linesize, the rest
+                // after "> ", as Stata's does.
+                width
+                ? wrapCharacters(line, width).join("\n")
+                : line
+          }\n`,
+        );
   }
 
   /** Applies what a log command did, where its lines end. */
@@ -334,7 +346,8 @@ export function createLogs(files) {
    */
   function take(records, from, to) {
     for (let k = from; k < to; k++) {
-      const record = records[k],
+      const previous = k > 0 ? records[k - 1] : null,
+        record = records[k],
         box = { open: false },
         // The lines of a log command itself go to the other logs only:
         // its own log gets its header or closing lines from the command.
@@ -358,15 +371,34 @@ export function createLogs(files) {
         fault = record.rc ? (record.fault ?? 2) : 0,
         plain = lines.filter((line) => !isLogMark(line)).length;
       // A blank line before each command, as Results shows one: none when
-      // what came before already ended with one, as a table does.
+      // what came before already ended with one, as a table does, or was a
+      // comment or a blank line of the do-file, which Stata's log follows
+      // with the next line directly.
       for (const log of live)
-        if (log.writing && !/(^|\n)(\{txt\})?\n$/.test(log.text))
+        if (
+          log.writing &&
+          !previous?.comment &&
+          !/(^|\n)(\{txt\})?\n$/.test(log.text)
+        )
           add(log, log.type === "smcl" ? "{txt}\n" : "\n");
-      put(`. ${record.command}`, null, (log, line) =>
-        render(log, line.slice(2), "command"),
-      );
-      for (const line of record.echo ?? [])
-        put(line, null, (log, each) => render(log, each, "echo"));
+      // A text log has the command cut at the linesize, as Results shows
+      // it; an SMCL log keeps each line whole, for the viewer to wrap.
+      const typed = commandLines(record, record.width);
+      for (const log of live)
+        if (log.writing)
+          add(
+            log,
+            `${
+              log.type === "smcl"
+                ? [
+                    render(log, record.command, "command"),
+                    ...(record.echo ?? []).map((line) =>
+                      render(log, line, "echo"),
+                    ),
+                  ].join("\n")
+                : typed.join("\n")
+            }\n`,
+          );
       let shown = 0;
       for (const line of lines) {
         if (isLogMark(line)) {
@@ -383,7 +415,12 @@ export function createLogs(files) {
           continue;
         }
         const kind = shown++ >= plain - fault ? "error" : "out";
-        put(line, skip, (log, each) => render(log, each, kind));
+        put(
+          line,
+          skip,
+          (log, each) => render(log, each, kind),
+          record.width ?? 79,
+        );
       }
       record.lines = lines.filter((line) => !isLogMark(line));
     }
