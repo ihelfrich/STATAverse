@@ -768,9 +768,24 @@ function margins(session, text, ctx) {
         m = value;
       } else {
         m = /^[^\s()=]+\s*/.exec(rest) ?? [rest];
-        const name = covariate(m[0].trim());
-        entries.push([name, ["mean"]]);
-        atNames.push(name);
+        // A word alone names covariates: _all (or *) is every one of
+        // them and _continuous and _factor the two kinds, each held at the
+        // statistic. Stata takes no other wildcard: at((mean) x*) finds no
+        // covariate x*.
+        const word = m[0].trim();
+        let names;
+        if (word === "_all" || word === "*") names = covariates;
+        else if (word === "_continuous")
+          names = covariates.filter((name) => !factors.has(name));
+        else if (word === "_factor")
+          names = covariates.filter((name) => factors.has(name));
+        else if (/[*?~-]/.test(word)) throw notCovariate(word);
+        else names = [covariate(word)];
+        for (const name of names) {
+          if (entries.some(([seen]) => seen === name)) continue;
+          entries.push([name, ["mean"]]);
+          atNames.push(name);
+        }
       }
       rest = rest.slice(m[0].length);
     }

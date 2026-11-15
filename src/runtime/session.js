@@ -8,7 +8,7 @@ import { splitCommands, parseBlocks } from "./dofile.js";
 import { expandMacros, isMacroName, macroWords } from "./macros.js";
 import { compileExpression } from "./expression.js";
 import { applySyntax, loneEquals, splitAtComma } from "./syntax.js";
-import { parseNumlist } from "./numlist.js";
+import { numlistText, parseNumlist } from "./numlist.js";
 import { expandVarlist } from "./varlist.js";
 import { applyFormat, parseFormat, stringOf } from "./format.js";
 import {
@@ -34,6 +34,18 @@ import { STATA_COMMANDS } from "./stata-commands.js";
 import { perGroup } from "./reports.js";
 
 const MAX_STEPS = 200000;
+// Commands that Stata 19 still runs as the estat test they became.
+const OLD_ESTAT = {
+  hettest: "hettest",
+  vif: "vif",
+  ovtest: "ovtest",
+  imtest: "imtest",
+  szroeter: "szroeter",
+  dwstat: "dwatson",
+  durbina: "durbinalt",
+  bgodfrey: "bgodfrey",
+  archlm: "archlm",
+};
 // Commands that never change the data, after which there is no need to see
 // whether they have (a check that reads every value).
 const READ_ONLY = new Set([
@@ -51,7 +63,10 @@ const READ_ONLY = new Set([
 // and the loops that follow them.
 const PREFIX_WORD =
     /^(?:(cap(?:t(?:u(?:re?)?)?)?)|(qui(?:e(?:t(?:ly?)?)?)?)|(n(?:o(?:i(?:s(?:i(?:ly?)?)?)?)?)?))(?:\s+|$)/,
-  LOOP_HEADER = /^(?:foreach|forv(?:a(?:l(?:u(?:es?)?)?)?)?|while)\s/;
+  LOOP_HEADER = /^(?:foreach|forv(?:a(?:l(?:u(?:es?)?)?)?)?|while)\s/,
+  // The headers that open a block: a loop, if, else, or none ({ alone).
+  BLOCK_HEADER =
+    /^(?:$|(?:foreach|forv(?:a(?:l(?:u(?:es?)?)?)?)?|while|if|else)(?:\s|$))/;
 
 /** The prefixes of a block's header and what is left after them. */
 function prefixesOf(header) {
@@ -113,15 +128,43 @@ function forvaluesRange(text) {
   if (step === 0)
     throw new StataError("forvalues:  increment may not be zero", 198);
   return {
+    // Stata adds the step to the running value and compares the double it
+    // gets with the end, so 1(.1)1.3 stops at 1.2: 1.2 + .1 is a hair over
+    // 1.3.
     *[Symbol.iterator]() {
-      for (let k = 0; ; k++) {
-        // Multiplying avoids accumulating rounding error over a long run.
-        const value = Number((from + k * step).toPrecision(15));
-        if (step > 0 ? value > to : value < to) return;
+      for (let value = from; step > 0 ? value <= to : value >= to;) {
         yield value;
+        value += step;
       }
     },
   };
+}
+// The text of a forvalues value: the most significant digits that fit in
+// 17 columns, the sign aside, so Stata shows 0 + .1 + .1 + .1 as .3,
+// the fifth sum after it as .7999999999999999, .07 added eight times as
+// .5600000000000001 and a sum near zero as -1.38777878078e-16.
+function loopValueText(x) {
+  if (x === 0) return "0";
+  const sign = x < 0 ? "-" : "",
+    a = Math.abs(x),
+    tidy = (s) =>
+      (s.includes(".") ? s.replace(/0+$/, "").replace(/\.$/, "") : s).replace(
+        /^0\./,
+        ".",
+      );
+  for (let p = 17; p >= 1; p--) {
+    const s = a.toPrecision(p);
+    if (s.includes("e")) break;
+    const t = tidy(s);
+    if (t.length <= 17) return sign + t;
+  }
+  for (let d = 16; d >= 0; d--) {
+    const [mantissa, power] = a.toExponential(d).split("e"),
+      exponent = `e${power[0]}${power.slice(1).padStart(2, "0")}`,
+      t = tidy(mantissa).replace(/^\./, "0.") + exponent;
+    if (t.length <= 17 || d === 0) return sign + t;
+  }
+  return sign + String(a);
 }
 // c(current_date) in Stata's form, such as "10 Nov 2026".
 function currentDate() {
@@ -192,6 +235,7 @@ const FAILED_R = new Map([
     "oneway",
     "kwallis",
     "tabi",
+    "numlist",
     "centile",
     "tabulate",
     "tabstat",
@@ -794,8 +838,39 @@ export class Session {
         throw error;
       }
       if (node.kind === "program") {
-        if (this.programs.has(node.name))
-          throw new StataError(`program ${node.name} already defined`, 110);
+        // Stata echoes a definition, its lines numbered from 1, and a
+        // second definition of the same name stops with r(110) at its
+        // first line.
+        const defined = this.programs.has(node.name);
+        if (defined) {
+          const error = new StataError(
+            `program ${node.name} already defined`,
+            110,
+          );
+          error.recorded = true;
+          this.record(output, node.text, [error.message, "r(110);"], 110);
+          throw error;
+        }
+        if (
+          this.foldLoops &&
+          !this.inProgram &&
+          !this.doDepth &&
+          !(this.quietDepth > 0) &&
+          this.sourceLines &&
+          node.end
+        ) {
+          this.record(output, node.text, [], 0);
+          output.at(-1).echo = echoOf(
+            this.sourceLines,
+            node.line,
+            node.end,
+          ).echo.map((line) =>
+            line.replace(
+              /^\s*(\d+)\./,
+              (all, n) => `${String(n - 1).padStart(3)}.`,
+            ),
+          );
+        }
         this.programs.set(node.name, {
           body: parseBlocks(node.body),
           options: node.options,
@@ -813,6 +888,102 @@ export class Session {
    * do-file is shown as Stata shows it: one record, the loop's lines echoed
    * once, then all that it printed. A quiet block shows only its first line.
    */
+  /**
+   * An if, else, bare { } or noisily { } block in a do-file, echoed as
+   * Stata echoes it, line by line as it reads them: its first line, the
+   * commands it runs as they stand in the file, indented, and its }. A
+   * block that does not run echoes all its lines under its first. When a
+   * command in it fails, Stata reads on to the block's }, echoing the
+   * lines it skips, and then reports the error again (r(#)); capture
+   * noisily { } keeps the failing command's r(#) and stops there.
+   */
+  echoedBlock(node, prefixes, frame, output) {
+    const source = (n) =>
+        (this.sourceLines[n - 1] ?? "").replace(/\t/g, "    ").trimEnd(),
+      header = {
+        command: source(node.line).trim(),
+        lines: [],
+        rc: 0,
+        line: node.line,
+      },
+      from = output.length,
+      quietDepth = this.quietDepth ?? 0;
+    output.push(header);
+    // The commands that ran are shown as they stand in the file.
+    const relabel = () => {
+      for (const record of output.slice(from + 1))
+        if (
+          record.line > node.line &&
+          record.line < node.end &&
+          !record.echo &&
+          source(record.line).trim() === record.command
+        )
+          record.command = source(record.line);
+    };
+    node.ran = false;
+    if (prefixes.noisy) this.quietDepth = 0;
+    try {
+      if (prefixes.any) {
+        node.ran = true;
+        this.runNodes(node.body, frame, output);
+      } else this.runBlock(node, frame, output);
+    } catch (error) {
+      this.quietDepth = quietDepth;
+      if (!(error instanceof StataError)) throw error;
+      if (!error.recorded) {
+        // The block's own line failed, as if 1 + "a" { does.
+        error.recorded = true;
+        header.lines = [
+          ...(error.message ? [error.message] : []),
+          `r(${error.code});`,
+        ];
+        header.rc = error.code;
+        throw error;
+      }
+      relabel();
+      const reached =
+          error.reached ??
+          output.slice(from).findLast((record) => record.rc)?.line ??
+          node.line,
+        rest = [];
+      for (let n = reached + 1; n <= node.end; n++) rest.push(source(n));
+      error.reached = node.end;
+      if (prefixes.capture) {
+        this.rc = error.code;
+        // The failure is captured: no command after it stops the file.
+        for (const record of output.slice(from)) record.rc = 0;
+        if (rest.length)
+          output.push({
+            command: rest[0],
+            echo: rest.slice(1).map((line) => `. ${line}`.trimEnd()),
+            lines: [],
+            rc: 0,
+            line: reached + 1,
+          });
+        return;
+      }
+      if (rest.length)
+        output.push({
+          command: rest[0],
+          echo: rest.slice(1).map((line) => `. ${line}`.trimEnd()),
+          lines: [`r(${error.code});`],
+          rc: 0,
+          line: reached + 1,
+        });
+      throw error;
+    }
+    this.quietDepth = quietDepth;
+    if (prefixes.capture) this.rc = 0;
+    if (!node.ran) {
+      header.echo = [];
+      for (let n = node.line + 1; n <= node.end; n++)
+        header.echo.push(`. ${source(n)}`.trimEnd());
+      return;
+    }
+    relabel();
+    this.record(output, source(node.end), [], 0, undefined, node.end);
+  }
+
   block(node, frame, output) {
     const prefixes = prefixesOf(node.header),
       fold =
@@ -821,6 +992,21 @@ export class Session {
         !this.folding &&
         (LOOP_HEADER.test(prefixes.rest + " ") ||
           (!prefixes.rest && prefixes.silent));
+    if (
+      !fold &&
+      this.foldLoops &&
+      !this.inProgram &&
+      !this.folding &&
+      !this.doDepth &&
+      this.sourceLines &&
+      !node.unclosed &&
+      !node.trailing &&
+      node.end > node.line &&
+      (prefixes.any
+        ? !prefixes.rest && !prefixes.silent
+        : /^(?:if\s|else(?:\s|$)|$)/.test(node.header.trim()))
+    )
+      return this.echoedBlock(node, prefixes, frame, output);
     if (!fold) {
       try {
         this.runBlock(node, frame, output);
@@ -990,16 +1176,23 @@ export class Session {
     // noisily prints even inside quietly { }, and so does what it runs.
     if (flags.noisy) this.quietDepth = 0;
     if (!rest) return;
-    const word = /^[A-Za-z_#][A-Za-z_0-9]*/.exec(rest)?.[0];
+    let word = /^[A-Za-z_#][A-Za-z_0-9]*/.exec(rest)?.[0];
+    // hettest, vif and the other old names of estat's tests still run in
+    // Stata 19 and print what estat prints.
+    if (OLD_ESTAT[word] && !this.programs.has(word)) {
+      rest = `estat ${OLD_ESTAT[word]}${rest.slice(word.length)}`;
+      word = "estat";
+    }
     // quietly { di 1 }: a block with its body on the brace's line.
     if (/^\{\s*\S/.test(rest))
       throw new StataError(
         "program error:  code follows on the same line as open brace",
         198,
       );
+    // A } stands alone in the message: }} is "} is not a valid command name".
     if (!word)
       throw new StataError(
-        `${rest.split(/\s/)[0]} is not a valid command name`,
+        `${rest.startsWith("}") ? "}" : rest.split(/\s/)[0]} is not a valid command name`,
         199,
       );
     const body = rest.slice(word.length).replace(/^\s+/, ""),
@@ -1177,13 +1370,21 @@ export class Session {
     if (this.programs.has(word)) return this.call(word, body, ctx);
     // A loop typed without its opening brace, or with its body on the
     // brace's line.
+    // One whose { ends the line reached here only through a prefix with a
+    // colon, quietly: foreach ... {, which Stata reads as a loop made by a
+    // macro expansion.
     if (/^(foreach|forv(a(l(u(es?)?)?)?)?|while)$/.test(word))
-      throw /\{/.test(body)
+      throw /\{\s*$/.test(body)
         ? new StataError(
-            "program error:  code follows on the same line as open brace",
+            `${word.startsWith("forv") ? "forvalues" : word} command may not result from a macro expansion interactively or in do files`,
             198,
           )
-        : new StataError("{ required", 100);
+        : /\{/.test(body)
+          ? new StataError(
+              "program error:  code follows on the same line as open brace",
+              198,
+            )
+          : new StataError("{ required", 100);
     if (STATA_COMMANDS.has(word))
       throw new StataError(
         `${word} is a Stata command that the browser does not run yet`,
@@ -1287,10 +1488,17 @@ export class Session {
     // by's options, sort and rc0, in either order.
     let sorting = false,
       rc0 = false;
+    // Each may be given once; sort takes no argument.
     for (const option of (m[3] ?? "").trim().split(/\s+/).filter(Boolean))
-      if (/^s(o(rt?)?)?$/.test(option)) sorting = true;
-      else if (option === "rc0") rc0 = true;
-      else throw new StataError(`option ${option} not allowed`, 198);
+      if (/^s(o(rt?)?)?$/.test(option) && !sorting) sorting = true;
+      else if (option === "rc0" && !rc0) rc0 = true;
+      else if (/^s(o(rt?)?)?\(/.test(option))
+        throw new StataError("option sort() incorrectly specified", 198);
+      else
+        throw new StataError(
+          `option ${/^s(o(rt?)?)?$/.test(option) ? "sort" : option} not allowed`,
+          198,
+        );
     const keys = this.varlist(m[1]),
       extra = m[2] ? this.varlist(m[2]) : [];
     if (!keys.length) throw new StataError("varlist required", 100);
@@ -1311,6 +1519,14 @@ export class Session {
     // text goes (a loop for its first pass) and then stops with r(198).
     // A } with more after it on its line ends the block the same way, once
     // the block has run.
+    if (node.unclosed && !BLOCK_HEADER.test(prefixesOf(node.header).rest)) {
+      // A command that merely ends in {, as local brace { does, opens no
+      // block in a do-file: Stata runs it and the lines after it, and no }
+      // is owed when the file ends.
+      this.runLine(`${node.header} {`, frame, output);
+      this.runNodes(node.body, frame, output);
+      return;
+    }
     if (node.unclosed || node.trailing) {
       const loop = LOOP_HEADER.test(prefixesOf(node.header).rest + " ");
       if (node.unclosed && loop && !this.inProgram)
@@ -1335,7 +1551,10 @@ export class Session {
       return this.prefixedBlock(node, prefixes, frame, output);
     const header = this.expand(node.header, frame).trim();
     let m;
-    const body = () => this.runNodes(node.body, frame, output);
+    const body = () => {
+      node.ran = true;
+      this.runNodes(node.body, frame, output);
+    };
     // A loop run from a do-file is a unit of its own: exit there leaves the
     // loop, and the do-file goes on. In a program, exit ends the program.
     const outermost = !this.inProgram && !this.loopDepth;
@@ -1383,7 +1602,7 @@ export class Session {
       if (!values) throw new StataError("invalid syntax", 198);
       loop(() => {
         for (const value of values) {
-          frame.locals.set(m[1], formatNumber(value));
+          frame.locals.set(m[1], loopValueText(value));
           once();
         }
       });
@@ -1406,12 +1625,13 @@ export class Session {
       if (taken) body();
       frame.lastIf = taken;
     } else if ((m = /^else(?:\s+if\s+(.*))?$/.exec(header))) {
-      // An else with no if before it runs, as in Stata, and leaves the
-      // next else free to run too.
+      // An else runs when the last if was false or there was none, and
+      // leaves that outcome for the next else; else if is an if of its
+      // own, whose outcome the next else reads.
       if (!frame.lastIf) {
         const taken = m[1] === undefined ? true : this.truth(m[1]);
         if (taken) body();
-        if (frame.lastIf !== null) frame.lastIf = taken;
+        if (m[1] !== undefined) frame.lastIf = taken;
       }
     } else if (!header)
       // A block of its own, { ... }, runs its commands.
@@ -1501,7 +1721,7 @@ export class Session {
     if (/^new(l(i(st?)?)?)?$/.test(kind))
       return rest.split(/\s+/).filter(Boolean);
     if (/^num(l(i(st?)?)?)?$/.test(kind))
-      return parseNumlist(rest).map(formatNumber);
+      return parseNumlist(rest).map(numlistText);
     throw new StataError("invalid syntax", 198);
   }
 

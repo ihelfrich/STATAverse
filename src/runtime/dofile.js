@@ -14,8 +14,11 @@ export function splitCommands(source) {
     line = 1,
     quote = false,
     compound = 0,
-    comment = 0;
+    comment = 0,
+    // Where the text after the last /// starts, while a command goes on.
+    continuedAt = null;
   const flush = () => {
+    continuedAt = null;
     // Runs of blanks are kept as typed: a string literal such as "  a" keeps
     // its blanks, and commands that echo what was typed, such as tab1's
     // heading, need them. Tabs and the line breaks of a continued command
@@ -69,8 +72,10 @@ export function splitCommands(source) {
       const continued = text[i + 2] === "/";
       while (i < text.length && text[i] !== "\n") i++;
       line++;
-      if (continued) current += " ";
-      else if (delimiter === "\n") flush();
+      if (continued) {
+        current += " ";
+        continuedAt = current.length;
+      } else if (delimiter === "\n") flush();
       else current += " ";
     } else if (c === "*" && atCommandStart() && delimiter === "\n") {
       // A line that begins with * is a comment.
@@ -92,6 +97,8 @@ export function splitCommands(source) {
   // A /* comment left open comments out the rest of the file, the command
   // it began in with it; Stata ends the file there without an error.
   if (comment) return out;
+  // A /// on the last line continues into nothing: Stata runs nothing.
+  if (continuedAt !== null && !current.slice(continuedAt).trim()) current = "";
   flush();
   return out;
 }
@@ -134,7 +141,8 @@ export function parseBlocks(commands) {
           body.push(commands[at++]);
         // A program the file never ends is not defined: Stata reaches the
         // end of the file reading it.
-        const unclosed = at >= commands.length;
+        const unclosed = at >= commands.length,
+          end = commands[at]?.line;
         at++;
         nodes.push({
           kind: "program",
@@ -142,6 +150,7 @@ export function parseBlocks(commands) {
           options: program[2] ?? "",
           body,
           line,
+          end,
           text,
           ...(unclosed ? { unclosed } : {}),
         });

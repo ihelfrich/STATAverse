@@ -1,5 +1,6 @@
 // Stata number lists: 1 2 3, 1/5, 5/1, 1(2)9, 1[2]9, 1 2 to 8, 1 2 : 8.
 import { StataError } from "./errors.js";
+import { formatNumber, parseFormat } from "./format.js";
 
 const NUMBER = "[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?";
 const RANGE = new RegExp(`^(${NUMBER})/(${NUMBER})$`),
@@ -7,13 +8,15 @@ const RANGE = new RegExp(`^(${NUMBER})/(${NUMBER})$`),
     `^(${NUMBER})(?:\\((${NUMBER})\\)|\\[(${NUMBER})\\])(${NUMBER})$`,
   ),
   SINGLE = new RegExp(`^${NUMBER}$`);
-const invalid = () => new StataError("invalid numlist", 121);
+const invalid = () => new StataError("invalid numlist", 121),
+  tooMany = () => new StataError("invalid numlist has too many elements", 123),
+  // A numlist holds at most 2,500 numbers in Stata.
+  LIMIT = 2500;
 
-function sequence(from, step, to) {
+function sequence(from, step, to, limit = LIMIT) {
   if (!step || (to - from) / step < 0) throw invalid();
   const count = Math.floor((to - from) / step + 1e-9);
-  if (count > 1e6)
-    throw new StataError("invalid numlist has too many elements", 123);
+  if (count >= limit) throw tooMany();
   const out = [];
   // Multiplying avoids accumulating rounding error over a long list.
   for (let k = 0; k <= count; k++)
@@ -26,9 +29,15 @@ function append(out, values) {
   for (const value of values) out.push(value);
 }
 
-export function parseNumlist(text) {
-  // Commas stand one between two elements, never two together or at an end.
-  if (/,\s*,|^\s*,|,\s*$/.test(text)) throw invalid();
+export function parseNumlist(text, limit = LIMIT) {
+  // Commas stand one between two elements, never two together or first;
+  // one at the end is ignored.
+  if (/,\s*,|^\s*,/.test(text)) throw invalid();
+  // Blanks may stand around / and inside or beside the step of 1 (2) 7.
+  text = text
+    .replace(/\s*\/\s*/g, "/")
+    .replace(/\s*([([])\s*/g, "$1")
+    .replace(/\s*([)\]])\s*/g, "$1");
   const out = [],
     // A comma separates elements as a blank does: 1,2 4 is 1 2 4.
     tokens = text
@@ -46,15 +55,19 @@ export function parseNumlist(text) {
         throw invalid();
       const b = out.at(-1),
         a = out.at(-2);
-      append(out, sequence(b, b - a, Number(to)).slice(1));
+      append(out, sequence(b, b - a, Number(to), limit + 1).slice(1));
     } else if ((m = RANGE.exec(token))) {
       const a = Number(m[1]),
         b = Number(m[2]);
-      append(out, sequence(a, b < a ? -1 : 1, b));
+      append(out, sequence(a, b < a ? -1 : 1, b, limit));
     } else if ((m = STEPPED.exec(token)))
-      append(out, sequence(Number(m[1]), Number(m[2] ?? m[3]), Number(m[4])));
+      append(
+        out,
+        sequence(Number(m[1]), Number(m[2] ?? m[3]), Number(m[4]), limit),
+      );
     else if (SINGLE.test(token)) out.push(Number(token));
     else throw invalid();
+    if (out.length > limit) throw tooMany();
   }
   return out;
 }
@@ -101,7 +114,7 @@ export function numlistCommand(session, text) {
     if (run.length) append(values, parseNumlist(run.join(" ")));
     run = [];
   };
-  if (/,\s*,|^\s*,|,\s*$/.test(list)) throw invalid();
+  if (/,\s*,|^\s*,/.test(list)) throw invalid();
   for (const part of list
     .replace(/,/g, " ")
     .trim()
@@ -114,6 +127,7 @@ export function numlistCommand(session, text) {
       values.push(part);
     } else run.push(part);
   flush();
+  if (values.length > LIMIT) throw tooMany();
   const numbers = values.filter((v) => typeof v === "number");
   const fail = (what, code) => {
     throw new StataError(`invalid numlist has ${what}`, code);
@@ -145,10 +159,19 @@ export function numlistCommand(session, text) {
       fail("elements out of order", 124);
   }
   const shown = (options.sort ? [...values].sort(order) : values).map((v) =>
-    typeof v === "number" ? String(v).replace(/^(-?)0\./, "$1.") : v,
+    typeof v === "number" ? numlistText(v) : v,
   );
   session.results.r = { numlist: shown.join(" ") };
 }
+/**
+ * A number as numlist writes it into r(numlist) and foreach hands it to
+ * the loop: its size in %15.0g, the sign before it, so 1e15 is
+ * 1.00000000e+15 and pi 3.14159265359.
+ */
+export function numlistText(value) {
+  return (value < 0 ? "-" : "") + formatNumber(Math.abs(value), WIDE).trim();
+}
+const WIDE = parseFormat("%15.0g");
 /** Numbers in order, missing values after them. */
 const order = (a, b) =>
   typeof a === "number" && typeof b === "number"

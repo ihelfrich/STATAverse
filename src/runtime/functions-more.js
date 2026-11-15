@@ -97,6 +97,20 @@ function betaden(a, b, x) {
 }
 function tden(df, t) {
   if (!(df > 0)) return MISSING;
+  // With many degrees of freedom the two log gammas nearly cancel and
+  // lose digits; the series for ln G(x + 1/2) - ln G(x), x = df/2, keeps
+  // them, as Stata does: tden(1e8,1) is .24197072330929.
+  if (df >= 500) {
+    const x = df / 2;
+    return Math.exp(
+      -0.5 * Math.log(2 * Math.PI) -
+        1 / (8 * x) +
+        1 / (192 * x ** 3) +
+        1 / (640 * x ** 5) -
+        17 / (14336 * x ** 7) -
+        ((df + 1) / 2) * Math.log1p((t * t) / df),
+    );
+  }
   return Math.exp(
     lngamma((df + 1) / 2) -
       lngamma(df / 2) -
@@ -448,12 +462,12 @@ function weibullFamily(ph) {
       return Number.isFinite(value) ? value : MISSING;
     }),
     inverse: four((a, b, p, g = 0) => {
-      if (!ok(a, b) || !(p >= 0 && p < 1)) return MISSING;
+      if (!ok(a, b) || !(p > 0 && p < 1)) return MISSING;
       const h = -Math.log1p(-p);
       return g + (ph ? Math.pow(h / b, 1 / a) : b * Math.pow(h, 1 / a));
     }),
     inverseTail: four((a, b, q, g = 0) => {
-      if (!ok(a, b) || !(q > 0 && q <= 1)) return MISSING;
+      if (!ok(a, b) || !(q > 0 && q < 1)) return MISSING;
       const h = -Math.log(q);
       return g + (ph ? Math.pow(h / b, 1 / a) : b * Math.pow(h, 1 / a));
     }),
@@ -598,13 +612,17 @@ function ntden(df, delta, t) {
 // ----- recoding, rounding and the limits of the storage types -----
 /** recode(x, x1, ..., xn): the first xk not below x, else xn. */
 function recode(x, ...cuts) {
-  if (isMissing(x)) return MISSING;
+  if (isMissing(x) || !ascending(cuts)) return MISSING;
   for (const cut of cuts.slice(0, -1)) if (x <= cut) return cut;
   return cuts.at(-1);
 }
+// Stata's cut points are numbers that never decrease; recode(2,5,3) and
+// irecode(2,.,3) are missing.
+const ascending = (cuts) =>
+  cuts.every((cut, k) => !isMissing(cut) && (k === 0 || cut >= cuts[k - 1]));
 /** irecode(x, x1, ..., xn): how many of the cuts lie below x. */
 function irecode(x, ...cuts) {
-  if (isMissing(x)) return MISSING;
+  if (isMissing(x) || !ascending(cuts)) return MISSING;
   for (let k = 0; k < cuts.length; k++) if (x <= cuts[k]) return k;
   return cuts.length;
 }
@@ -619,7 +637,11 @@ function autocode(x, n, lo, hi) {
 }
 /** The display width of a format, or missing for one that is not valid. */
 function fmtwidth(format) {
-  const spec = parseFormat(format.trim());
+  // A European format (%9,2f, the comma for the decimal point) is as wide
+  // as its point-decimal twin.
+  const spec = parseFormat(
+    format.trim().replace(/^%(-?0?\d+),(\d+)/, "%$1.$2"),
+  );
   if (!spec) return MISSING;
   if (spec.kind === "date")
     return spec.codes.reduce((total, code) => total + code.width, 0);
@@ -808,6 +830,16 @@ function icuReplacement(template, match) {
   return out;
 }
 function regexReplace(state, s, pattern, to, insensitive, all) {
+  // ustrregexrf leaves its match for ustrregexs(); ustrregexra leaves
+  // none, matched or not, as in Stata.
+  if (all) {
+    const out = replaceMatches(state, s, pattern, to, insensitive, all);
+    state.umatch = null;
+    return out;
+  }
+  return replaceMatches(state, s, pattern, to, insensitive, all);
+}
+function replaceMatches(state, s, pattern, to, insensitive, all) {
   const re = icu(pattern, insensitive !== 0);
   if (!re) return "";
   let out = "",
@@ -839,44 +871,66 @@ function regexReplace(state, s, pattern, to, insensitive, all) {
 
 /** A draw from Stata's uniform stream, which these transform. */
 const uniform = (state) => (state.rng ??= new Generator(state.seed)).uniform();
-/** A random-number function made from one uniform draw. */
-const drawn = (args, min, fn) => ({
+/**
+ * A random-number function made from one uniform draw. Stata checks the
+ * parameters first: outside a function's domain it returns missing and
+ * uses up no draw, so the stream stays in step.
+ */
+const drawn = (args, min, valid, fn) => ({
   args,
   min,
   returns: N,
   state: true,
   lenient: true,
   fn: (state, ...a) => {
+    if (!valid(...a)) return MISSING;
     const value = fn(uniform(state), ...a);
     return Number.isFinite(value) ? value : MISSING;
   },
 });
+// A parameter that is a number, within [low, high].
+const within = (x, low = -Infinity, high = Infinity) =>
+  !isMissing(x) && x >= low && x <= high;
 
 export const MORE_FUNCTIONS = {
-  // Closed-form draws, as Stata makes them from runiform().
-  rlogistic: drawn([N, N], 0, (u, a, b) => {
-    const [m, s] = b === undefined ? [0, a ?? 1] : [a, b];
-    return s > 0 && !isMissing(m) ? m + s * Math.log(u / (1 - u)) : MISSING;
-  }),
-  rcauchy: drawn([N, N], 2, (u, a, b) =>
-    b > 0 && !isMissing(a) ? a + b * Math.tan(Math.PI * (u - 0.5)) : MISSING,
+  // Closed-form draws, as Stata makes them from runiform(), each with the
+  // domain Stata 19 accepts.
+  rlogistic: drawn(
+    [N, N],
+    0,
+    (a, b) =>
+      b === undefined
+        ? a === undefined || (within(a) && a > 0)
+        : within(a) && within(b) && b > 0,
+    (u, a, b) => {
+      const [m, s] = b === undefined ? [0, a ?? 1] : [a, b];
+      return m + s * Math.log(u / (1 - u));
+    },
   ),
-  rlaplace: drawn([N, N], 2, (u, m, b) =>
-    b > 0 && !isMissing(m)
-      ? u < 0.5
-        ? m + b * Math.log(2 * u)
-        : m - b * Math.log(2 * (1 - u))
-      : MISSING,
+  rcauchy: drawn(
+    [N, N],
+    2,
+    (a, b) => within(a, -1e300, 1e300) && within(b, 1e-100, 1e300),
+    (u, a, b) => a + b * Math.tan(Math.PI * (u - 0.5)),
   ),
-  rweibull: drawn([N, N, N], 2, (u, a, b, g = 0) =>
-    a > 0 && b > 0 && !isMissing(g)
-      ? g + b * Math.pow(-Math.log(u), 1 / a)
-      : MISSING,
+  rlaplace: drawn(
+    [N, N],
+    2,
+    (m, b) => within(m, -1e300, 1e300) && within(b, 1e-300, 1e300),
+    (u, m, b) =>
+      u < 0.5 ? m + b * Math.log(2 * u) : m - b * Math.log(2 * (1 - u)),
   ),
-  rweibullph: drawn([N, N, N], 2, (u, a, b, g = 0) =>
-    a > 0 && b > 0 && !isMissing(g)
-      ? g + Math.pow(-Math.log(u) / b, 1 / a)
-      : MISSING,
+  rweibull: drawn(
+    [N, N, N],
+    2,
+    (a, b, g = 0) => within(a, 0.01, 1e6) && within(b) && b > 0 && within(g),
+    (u, a, b, g = 0) => g + b * Math.pow(-Math.log(u), 1 / a),
+  ),
+  rweibullph: drawn(
+    [N, N, N],
+    2,
+    (a, b, g = 0) => within(a, 0.01, 1e6) && within(b) && b > 0 && within(g),
+    (u, a, b, g = 0) => g + Math.pow(-Math.log(u) / b, 1 / a),
   ),
 
   recode: { args: N, min: 3, returns: N, lenient: true, fn: recode },
@@ -1017,7 +1071,10 @@ export const MORE_FUNCTIONS = {
   ln1p: one((x) => (x > -1 ? Math.log1p(x) : MISSING)),
   ln1m: one((x) => (x < 1 ? Math.log1p(-x) : MISSING)),
   cloglog: one((x) => (x > 0 && x < 1 ? Math.log(-Math.log1p(-x)) : MISSING)),
-  invcloglog: one((x) => 1 - Math.exp(-Math.exp(x))),
+  // Past 709.78, exp(x) overflows and Stata returns missing.
+  invcloglog: one((x) =>
+    Number.isFinite(Math.exp(x)) ? 1 - Math.exp(-Math.exp(x)) : MISSING,
+  ),
   digamma: one(digamma),
   trigamma: one(trigamma),
 
@@ -1040,8 +1097,9 @@ export const MORE_FUNCTIONS = {
   betaden: three(betaden),
   gammaden: { args: [N, N, N, N], returns: N, fn: gammaden },
   gammaptail: two(gammaq),
+  // Outside [0, 1] the upper tail is 1 below and 0 above, as in Stata.
   ibetatail: three((a, b, x) =>
-    a > 0 && b > 0 && x >= 0 && x <= 1 ? ibeta(b, a, 1 - x) : MISSING,
+    !(a > 0 && b > 0) ? MISSING : x < 0 ? 1 : x > 1 ? 0 : ibeta(b, a, 1 - x),
   ),
   invgammap: two(invgammap),
   invgammaptail: two(invgammaptail),
@@ -1093,11 +1151,12 @@ export const MORE_FUNCTIONS = {
   exponentialtail: two(
     positive((b, x) => (x < 0 ? MISSING : Math.exp(-x / b))),
   ),
+  // The inverses take probabilities strictly between 0 and 1.
   invexponential: two(
-    positive((b, p) => (p >= 0 && p < 1 ? -b * Math.log1p(-p) : MISSING)),
+    positive((b, p) => (p > 0 && p < 1 ? -b * Math.log1p(-p) : MISSING)),
   ),
   invexponentialtail: two(
-    positive((b, q) => (q > 0 && q <= 1 ? -b * Math.log(q) : MISSING)),
+    positive((b, q) => (q > 0 && q < 1 ? -b * Math.log(q) : MISSING)),
   ),
   logistic: located((m, s, x) => 1 / (1 + Math.exp(-(x - m) / s))),
   logisticden: located((m, s, x) => {

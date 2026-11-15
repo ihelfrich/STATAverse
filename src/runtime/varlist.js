@@ -36,6 +36,9 @@ export function expandVarlist(text, names) {
     }
   for (const word of text.trim().split(/\s+/).filter(Boolean)) {
     if (word === "_all") out.push(...names);
+    // A brace ends Stata's reading of names: sum x { finds no name there.
+    else if (word.startsWith("{"))
+      throw new StataError("nothing found where name expected", 198);
     // A parenthesis with no operator's period, as in ar(1), is read as
     // Stata's recoding syntax.
     else if (/[()]/.test(word) && !word.includes(".") && !word.includes("#"))

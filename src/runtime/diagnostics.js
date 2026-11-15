@@ -348,7 +348,7 @@ function vce(session, model, text, ctx) {
   });
   ctx.out("");
   ctx.out(
-    `${correlation ? "Correlation" : "Covariance"} matrix of coefficients of ${model.command} model`,
+    `${correlation ? "Correlation" : "Covariance"} matrix of coefficients of ${model.legacy ?? model.command} model`,
   );
   ctx.out("");
   const equationOf = (k) => shown[k].equation ?? "_";

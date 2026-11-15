@@ -221,13 +221,8 @@ function baseLevel(spec, levels, variable, sample) {
       throw new StataError("factor level out of range", 175);
     return levels[spec.ordinal - 1];
   }
-  // Stata then reports the base as an empty level and omits another for
-  // collinearity; that is not done here.
-  if (!levels.includes(spec.value))
-    throw new StataError(
-      `ib${spec.value}.${variable.name}: a base level the estimation sample does not have is not available here; choose one of the levels of ${variable.name} it has (${levels.join(" ")})`,
-      198,
-    );
+  // A level the sample does not have: design() keeps it as an empty base
+  // for a factor on its own, and in an interaction no cell is then a base.
   return spec.value;
 }
 /**
@@ -417,7 +412,9 @@ export function design(session, text, rows, constant = true, levelRows) {
   );
   const levelsOf = new Map(),
     // Each factor's base level, null for none.
-    baseOf = new Map();
+    baseOf = new Map(),
+    // The factors named on their own, as i.g, not only in interactions.
+    alone = new Set(terms.filter((t) => t.factor).map((t) => t.factor));
   for (const term of terms)
     for (const c of term.components) {
       if (!c.factor || levelsOf.has(c.variable)) continue;
@@ -439,14 +436,16 @@ export function design(session, text, rows, constant = true, levelRows) {
           `${c.variable.name}:  factor variables may not contain negative values`,
           452,
         );
-      // i(2 3).g: only the levels listed, the first of them the base.
-      const kept = c.only
-        ? levels.filter((level) => c.only.includes(level))
-        : levels;
+      // i(2 3).g: only the levels listed, the first of them the base; a
+      // listed level the sample lacks is kept, as Stata keeps it, and shown
+      // as (empty).
+      const kept = c.only ? [...new Set(c.only)].sort((a, b) => a - b) : levels;
       // ib9.g with no 9 in the sample: Stata keeps 9 as an empty base and
-      // omits another level for collinearity.
+      // omits another level for collinearity. In an interaction it leaves
+      // the absent level out instead, and no cell is a base.
       if (
         c.base?.value !== undefined &&
+        alone.has(c.variable) &&
         kept.length &&
         !kept.includes(c.base.value)
       ) {
@@ -548,7 +547,13 @@ export function design(session, text, rows, constant = true, levelRows) {
           bases,
         };
       });
-    if (term.factor)
+    if (term.factor) {
+      // ib9.g with no 9 in the sample: the levels in order fill the space
+      // the constant leaves, and Stata omits the last of them, whatever
+      // regress's pivoting would have chosen.
+      const absentBase =
+        made.length > 1 &&
+        !sample.some((i) => term.factor.data[i] === baseOf.get(term.factor));
       // A factor on its own: the first level is the base, unless ib#.
       // chose another or ibn. none. A factor with a single level has no
       // base: its level is a column like any other, omitted beside the
@@ -562,45 +567,58 @@ export function design(session, text, rows, constant = true, levelRows) {
           if (!sample.some((i) => term.factor.data[i] === column.level))
             column.empty = column.emptyCell = true;
         }
+        // A level i(5).g lists that the sample lacks is (empty).
+        else if (!sample.some((i) => term.factor.data[i] === column.level)) {
+          column.empty = column.emptyCell = column.collinear = true;
+          column.forcedOmit = true;
+        }
         // A level that adds nothing, such as 2.g beside a dummy for g == 2,
         // is collinear; the likelihood fitters omit it.
-        else if (!independent(column)) column.collinear = true;
+        else if (!independent(column)) {
+          column.collinear = true;
+          if (absentBase) column.forcedOmit = true;
+        }
       });
-    else if (factors.length)
+    } else if (factors.length)
       // In an interaction, cells at base levels give way first: a cell is
       // kept only if it adds something to what is already in the model.
-      [...made]
-        .sort((a, b) => a.bases - b.bases)
-        .forEach((column) => {
-          column.base = !independent(column);
-          // A cell set aside is shown as (empty) when no observation has
-          // its levels, and as (omitted) when none of its levels is a base
-          // and it is collinear with the columns before it.
-          if (column.base) {
-            if (
-              !sample.some((i) =>
-                factors.every(
-                  (c, k) => c.variable.data[i] === column.levels[k],
-                ),
-              )
+      // When a factor's base is a level the sample lacks (ib9.g with no 9),
+      // no cell is a base and Stata omits the last collinear cell, so the
+      // cells are taken in order.
+      (factors.some(
+        (c) =>
+          !levelsOf.get(c.variable).includes(baseOf.get(c.variable)) &&
+          baseOf.get(c.variable) !== null,
+      )
+        ? [...made]
+        : [...made].sort((a, b) => a.bases - b.bases)
+      ).forEach((column) => {
+        column.base = !independent(column);
+        // A cell set aside is shown as (empty) when no observation has
+        // its levels, and as (omitted) when none of its levels is a base
+        // and it is collinear with the columns before it.
+        if (column.base) {
+          if (
+            !sample.some((i) =>
+              factors.every((c, k) => c.variable.data[i] === column.levels[k]),
             )
-              column.empty = column.emptyCell = true;
-            else if (!column.bases) column.omittedCell = true;
-          }
-          // A factor at its base level is marked b, as in 0b.a#1.b; in a
-          // cell left out, every other part is marked o, as in
-          // 0b.a#1o.b and 0b.a#co.x.
-          column.name = term.components
-            .map((c) => {
-              const k = factors.indexOf(c);
-              if (k < 0)
-                return `${column.base ? "co" : "c"}.${c.variable.name}`;
-              const level = column.levels[k],
-                mark = isBase(c.variable, level) ? "b" : column.base ? "o" : "";
-              return `${level}${mark}.${c.variable.name}`;
-            })
-            .join("#");
-        });
+          )
+            column.empty = column.emptyCell = true;
+          else if (!column.bases) column.omittedCell = true;
+        }
+        // A factor at its base level is marked b, as in 0b.a#1.b; in a
+        // cell left out, every other part is marked o, as in
+        // 0b.a#1o.b and 0b.a#co.x.
+        column.name = term.components
+          .map((c) => {
+            const k = factors.indexOf(c);
+            if (k < 0) return `${column.base ? "co" : "c"}.${c.variable.name}`;
+            const level = column.levels[k],
+              mark = isBase(c.variable, level) ? "b" : column.base ? "o" : "";
+            return `${level}${mark}.${c.variable.name}`;
+          })
+          .join("#");
+      });
     // A product of continuous variables joins the columns later cells are
     // tested against.
     else
@@ -671,7 +689,7 @@ export function fit(session, parsed, by) {
   const n = obs.length;
   if (!n) throw new StataError("no observations", 2000);
   const y = obs.map((i) => dependent.data[i]),
-    active = columns.filter((c) => !c.base),
+    active = columns.filter((c) => !c.base && !c.forcedOmit),
     x = active.map((c) => obs.map(c.value)),
     mean = (v) =>
       (w
@@ -715,6 +733,7 @@ export function fit(session, parsed, by) {
   active.forEach((column, k) => {
     if (!chosen.has(k)) column.omitted = true;
   });
+  for (const column of columns) if (column.forcedOmit) column.omitted = true;
   const s = kept.map((a) => kept.map((b) => cross(xc[a], xc[b]))),
     a = kept.length ? invertSymmetric(s) : [];
   if (!a) throw new StataError("the regressors are too collinear to fit", 198);
@@ -1435,12 +1454,12 @@ function regress(session, text, ctx) {
   // Stata's notes, in the order of the columns; a cell of an interaction
   // is named without its omitted markers.
   for (const column of model.columns)
-    if (column.omitted)
-      ctx.out(`note: ${column.name} omitted because of collinearity.`);
-    else if (column.empty)
+    if (column.empty)
       ctx.out(
         `note: ${unmarked(column.name)} identifies no observations in the sample.`,
       );
+    else if (column.omitted)
+      ctx.out(`note: ${column.name} omitted because of collinearity.`);
     else if (column.omittedCell)
       ctx.out(
         `note: ${unmarked(column.name)} omitted because of collinearity.`,

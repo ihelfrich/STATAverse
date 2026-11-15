@@ -757,7 +757,7 @@ function generate(session, text, ctx) {
 
 function replace(session, text, ctx) {
   assignmentSlips(text, false);
-  const parsed = session.parse("varname =exp [if] [in] [, noPROMOTE]", text),
+  const parsed = session.parse("varname =exp [if] [in] [, noPromote]", text),
     name = parsed.varlist[0],
     variable = session.data.get(name),
     string = isStringType(variable.type),
@@ -814,12 +814,16 @@ function replace(session, text, ctx) {
           ? truncateBytes(value, stringWidth(beforeType))
           : coerce(beforeType, value),
       ),
-      integer = /^(byte|int|long)$/.test(beforeType);
+      integer = /^(byte|int|long)$/.test(beforeType),
+      // A float is a float of the value: 1e39 is simply missing, a change
+      // only where the value was not missing already.
+      single = beforeType === "float";
     let changed = 0,
       truncated = 0,
       lost = 0;
     for (const i of rows) {
-      if (raw[i] !== before[i]) changed++;
+      if ((single ? held[i] : raw[i]) !== before[i]) changed++;
+      if (single) continue;
       if (
         string
           ? held[i] !== raw[i]
@@ -831,7 +835,10 @@ function replace(session, text, ctx) {
     // (Counted first: replace writes into the array before holds.)
     const missing = string
       ? 0
-      : rows.filter((i) => before[i] !== raw[i] && isMissing(held[i])).length;
+      : rows.filter(
+          (i) =>
+            before[i] !== (single ? held[i] : raw[i]) && isMissing(held[i]),
+        ).length;
     session.data.replace(name, held, rows);
     ctx.out(
       `(${count(changed)} real change${changed === 1 ? "" : "s"} made${missing ? `, ${count(missing)} to missing` : ""})`,
@@ -1112,9 +1119,10 @@ function setCommand(session, text, ctx) {
             : NaN,
         ),
       );
+    // Stata quotes a quoted seed without its closing quote: '"123'.
     if (!(seed <= 2147483647))
       throw new StataError(
-        `${typed ? `'${typed}'` : "nothing"} found where integer < 2^31 expected`,
+        `${typed ? `'${typed.replace(/^(".*)"$/, "$1")}'` : "nothing"} found where integer < 2^31 expected`,
         198,
       );
     session.settings.seed = seed;
@@ -3230,8 +3238,7 @@ export const COMMANDS = [
       } catch {
         continue;
       }
-      if (truth)
-        session.runLine(words.slice(k).join(" "), ctx.frame, ctx.output);
+      if (truth) runWithin(session, words.slice(k).join(" "), ctx);
       // Recorded after the command, as for a braced block.
       ctx.frame.lastIf = truth;
       return;
@@ -3239,11 +3246,9 @@ export const COMMANDS = [
     throw invalid();
   }),
   command("else", 4, (session, text, ctx) => {
-    // An else with no if before it runs, as in Stata.
-    if (!ctx.frame.lastIf) {
-      session.runLine(text, ctx.frame, ctx.output);
-      if (ctx.frame.lastIf !== null) ctx.frame.lastIf = true;
-    }
+    // An else runs when the last if was false, or when there was none;
+    // it leaves that if's outcome alone, so the next else runs too.
+    if (!ctx.frame.lastIf) runWithin(session, text, ctx);
   }),
   command("program", 2, (session, text) => {
     const m = /^(drop|dir|list)\s*([\s\S]*)$/.exec(text.trim());
@@ -3300,6 +3305,33 @@ COMMANDS.forEach((c, k) => {
         : run(session, text, ctx),
   };
 });
+/**
+ * The command after if exp or else, run as part of that line: Stata shows
+ * what it prints under the if or else that ran it, not as a line of its
+ * own. An error is reported once, by the line.
+ */
+function runWithin(session, text, ctx) {
+  const inner = [],
+    take = (records) => {
+      for (const record of records) {
+        record.lines.forEach((line) => ctx.out(line));
+        if (record.graph) ctx.flags.graph = record.graph;
+      }
+    };
+  try {
+    session.runLine(text, ctx.frame, inner);
+  } catch (error) {
+    if (error instanceof StataError && error.recorded) {
+      const failed = inner.at(-1);
+      if (failed?.rc)
+        failed.lines = failed.lines.slice(0, error.message ? -2 : -1);
+      error.recorded = false;
+    }
+    take(inner);
+    throw error;
+  }
+  take(inner);
+}
 function findCommandName(session, word) {
   const name = /^[A-Za-z_]\w*(?=,?$)/.exec(word)?.[0];
   if (!name) return false;

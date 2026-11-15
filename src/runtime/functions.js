@@ -290,7 +290,13 @@ export const FUNCTIONS = {
   },
 
   lngamma: one(lngamma),
-  ibeta: { args: [N, N, N], returns: N, fn: ibeta },
+  // Below 0 the integral is 0 and above 1 it is 1, as in Stata.
+  ibeta: {
+    args: [N, N, N],
+    returns: N,
+    fn: (a, b, x) =>
+      !(a > 0 && b > 0) ? MISSING : x < 0 ? 0 : x > 1 ? 1 : ibeta(a, b, x),
+  },
   gammap: { args: [N, N], returns: N, fn: gammap },
   ttail: { args: [N, N], returns: N, fn: ttail },
   t: {
@@ -340,9 +346,19 @@ export const FUNCTIONS = {
     min: 0,
     returns: N,
     state: true,
+    // runiform(a,b) needs b at least 2^-51 above a; otherwise, as with a
+    // missing bound, Stata returns missing and uses up no draw.
     fn: (state, a, b) => {
+      if (
+        a !== undefined &&
+        (b === undefined ||
+          isMissing(a) ||
+          isMissing(b) ||
+          !(b - a >= 2 ** -51))
+      )
+        return MISSING;
       const u = (state.rng ??= new Generator(state.seed)).uniform();
-      return a === undefined ? u : b === undefined ? MISSING : a + (b - a) * u;
+      return a === undefined ? u : a + (b - a) * u;
     },
   },
   rnormal: {
@@ -351,7 +367,7 @@ export const FUNCTIONS = {
     returns: N,
     state: true,
     fn: (state, mean = 0, sd = 1) =>
-      sd < 0
+      sd < 0 || isMissing(mean) || isMissing(sd)
         ? MISSING
         : mean + sd * (state.rng ??= new Generator(state.seed)).normal(),
   },
@@ -360,16 +376,20 @@ export const FUNCTIONS = {
     returns: N,
     state: true,
     fn: (state, a, b) => {
-      const low = Math.ceil(a),
-        high = Math.floor(b);
-      if (high < low) return MISSING;
-      return (
-        low +
-        Math.floor(
-          (high - low + 1) *
-            (state.rng ??= new Generator(state.seed)).uniform(),
-        )
-      );
+      if (isMissing(a) || isMissing(b) || b < a) return MISSING;
+      // Stata takes the top k bits of the generator's 64-bit output, the
+      // fewest with 2^k at least b - a + 1, and draws again while they
+      // exceed b - a; a is added as given. a = b uses up no draw.
+      const range = b - a;
+      let bits = 0;
+      while (2 ** bits < range + 1) bits++;
+      if (!bits) return a;
+      const rng = (state.rng ??= new Generator(state.seed)),
+        shift = BigInt(64 - bits);
+      for (;;) {
+        const r = Number(rng.next() >> shift);
+        if (r <= range) return a + r;
+      }
     },
   },
   rbinomial: {
@@ -419,7 +439,7 @@ export const FUNCTIONS = {
     returns: N,
     state: true,
     fn: (state, scale) =>
-      scale > 0
+      scale > 0 && !isMissing(scale)
         ? -scale * Math.log((state.rng ??= new Generator(state.seed)).uniform())
         : MISSING,
   },

@@ -35,6 +35,16 @@ export const STATA_COMMANDS = new Set(
   bayesgraph churdle mlexp irt cmset cmsummary spregress spivregress
   spxtregress spmatrix spset avplots rvpplot cprplot acprplot tsrline
   xtline
+  intreg truncreg xtivreg predictnl linktest ksmirnov pcorr tetrachoric
+  median nptrend loneway mvtest hotelling lroc lsens lfit lstat roctab
+  roccomp rocreg rocfit rocgold tsfill ipolate tsrevar smooth expandcl
+  drawnorm corr2data range splitsample postfile post postclose file frame
+  frames frget frlink webuse uselabel move aorder cf compare datasignature
+  checksum odbc jdbc saveold outfile tabdisp serrbar qqplot quantile vce
+  svmat stci stphplot fvset fvexpand mata python java shell winexec xshell
+  erase rm rmdir copy type filefilter unzipfile zipfile translate ml
+  marksample tsunab fvunab creturn putmata getmata ado update sysdir
+  adopath discard beep
   `
     .split(/\s+/)
     .filter(Boolean),

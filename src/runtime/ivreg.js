@@ -62,6 +62,63 @@ function optionWords(text) {
   return words;
 }
 
+/**
+ * The varlist as Stata 19's ivreg reads it, with its messages: one group
+ * (endogenous = instruments), no factor variables or interactions (time-
+ * series operators are allowed).
+ */
+function checkVarlist(main) {
+  const varlist = main.split(/\s(?:if|in)\s|\[/)[0];
+  let depth = 0;
+  for (const c of varlist) {
+    if (c === "(") depth++;
+    else if (c === ")" && --depth < 0)
+      throw new StataError(
+        "invalid something: unmatched close parenthesis or bracket",
+        198,
+      );
+  }
+  if (depth > 0)
+    throw new StataError(
+      "invalid something: unmatched open parenthesis or bracket",
+      198,
+    );
+  const groups = [...varlist.matchAll(/\(([^()]*)\)/g)],
+    form =
+      'invalid syntax\nsyntax is "(all instrumented variables = instrument variables)"';
+  if (groups.length > 1) throw new StataError(form, 198);
+  const inside = groups[0]?.[1] ?? "",
+    words = varlist.replace(/\([^()]*\)/g, " ").split(/\s+/),
+    [left = "", right = ""] = inside.split("=");
+  for (const word of [...words, ...inside.split(/[\s=]+/)]) {
+    if (!word) continue;
+    const dot = word.lastIndexOf(".");
+    if (dot < 0) {
+      if (word.includes("#"))
+        throw new StataError("interactions not allowed", 101);
+      continue;
+    }
+    const operator = word.slice(0, dot);
+    // L., D.x, L(1/2). and the like are time-series operators.
+    if (/^(?:[LFDS]\d*|[LFDS]\([^)]*\))+$/i.test(operator)) continue;
+    if (operator.includes("#") || /^\d+$/.test(operator))
+      throw new StataError(
+        `${operator.replace(/\./g, "")}:  operator invalid`,
+        198,
+      );
+    throw new StataError("factor-variable operators not allowed", 101);
+  }
+  if (!groups.length || !inside.trim())
+    throw new StataError(
+      "ivreg with no instrumented variables is not available in the browser yet; regress fits that model",
+      198,
+    );
+  if (!inside.includes("=") || inside.includes("=="))
+    throw new StataError(`${form}\nthe equal sign "=" is required`, 198);
+  if (!left.trim() || !right.trim())
+    throw new StataError(":\ntoo few variables specified", 102);
+}
+
 export function ivreg(session, text, ctx) {
   const [main, tail] = splitAtComma(text),
     asked = {
@@ -90,11 +147,15 @@ export function ivreg(session, text, ctx) {
         `option ${missing[1]} of ivreg is not available in the browser yet; leave it out, or fit the model another way`,
         198,
       );
+    // ivreg hands hc2 and hc3 on to the variance code, which refuses them.
+    if (/^hc[23]$/.test(word))
+      throw new StataError(`option ${word} invalid`, 198);
     throw new StataError(
       `option ${word.replace(/\(.*$/, "()")} not allowed`,
       198,
     );
   }
+  checkVarlist(main);
   if (asked.depname !== null && !/^[A-Za-z_]\w*$/.test(asked.depname))
     throw new StataError(`${asked.depname} invalid name`, 198);
   const options = [

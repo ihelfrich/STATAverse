@@ -871,3 +871,274 @@ test("else with no if runs, and a line ending in { is otherwise a command", () =
   }
   assert.equal(new Session().run('display "a" {').rc, 198);
 });
+
+// ----- the second round on the syntax group's fixes -----
+// What the Console shows, compared with Stata 19's log of the same
+// do-file, blank lines aside.
+const transcript = (source) => {
+  const { rc, text } = lines(source);
+  return { rc, text: text.filter((line) => line !== "") };
+};
+
+test("forvalues adds its step as Stata does and stops past the end", () => {
+  const printed = (source) =>
+    new Session()
+      .run(source)
+      .output.flatMap((o) => o.lines)
+      .join(" ");
+  // Stata 19: 1.2 + .1 is a hair over 1.3, so the loop stops at 1.2.
+  for (const [range, shown] of [
+    ["1(0.1)1.3", "1 1.1 1.2"],
+    [
+      "0(.1)1",
+      "0 .1 .2 .3 .4 .5 .6 .7 .7999999999999999 .8999999999999999 .9999999999999999",
+    ],
+    ["1 1.1 to 1.3", "1 1.1 1.2"],
+    ["1 1.1 : 1.3", "1 1.1 1.2"],
+    ["3(-.1)2.7", "3 2.9 2.8"],
+    ["0(.01).1", "0 .01 .02 .03 .04 .05 .06 .07 .08 .09 .1"],
+    ["0(.3)2.1", "0 .3 .6 .8999999999999999 1.2 1.5 1.8 2.1"],
+    [
+      "0(-.1)-1",
+      "0 -.1 -.2 -.3 -.4 -.5 -.6 -.7 -.7999999999999999 -.8999999999999999 -.9999999999999999",
+    ],
+    [
+      "-1(.1)0",
+      "-1 -.9 -.8 -.7000000000000001 -.6000000000000001 -.5000000000000001 -.4000000000000001 -.3000000000000002 -.2000000000000001 -.1000000000000001 -1.38777878078e-16",
+    ],
+    [
+      "0(.07).8",
+      "0 .07 .14 .21 .28 .35 .42 .49 .5600000000000001 .6300000000000001 .7000000000000002 .7700000000000002",
+    ],
+    ["10(.1)11", "10 10.1 10.2 10.3 10.4 10.5 10.6 10.7 10.8 10.9 11"],
+  ])
+    assert.equal(
+      printed(`forvalues i = ${range} {\ndisplay "\`i'"\n}`),
+      shown,
+      range,
+    );
+  assert.equal(
+    printed(
+      "local n 0\nforvalues i = 0(.001)5 {\nlocal n = `n' + 1\nlocal last `i'\n}\ndisplay `n' \" `last'\"",
+    ),
+    "5000 4.999000000000004",
+  );
+});
+
+test("a command ending in { opens no block in a do-file", () => {
+  const brace = transcript('local brace {\ndi "`brace\'"\ndi "after"\n');
+  assert.equal(brace.rc, 0);
+  assert.deepEqual(brace.text, [
+    ". local brace {",
+    '. di "`brace\'"',
+    "{",
+    '. di "after"',
+    "after",
+  ]);
+  const more = transcript(
+    'global g a {\ndi "$g"\nlocal q {\nlocal r }\ndi "`q\'`r\'"\ndi "after"\n',
+  );
+  assert.equal(more.rc, 0);
+  assert.deepEqual(more.text, [
+    ". global g a {",
+    '. di "$g"',
+    "a {",
+    ". local q {",
+    ". local r }",
+    ". di \"`q'`r'\"",
+    "{}",
+    '. di "after"',
+    "after",
+  ]);
+  // Stata 19 names only the first brace of }}.
+  const stray = transcript("di 1\n}}\ndi 2\n");
+  assert.equal(stray.rc, 199);
+  assert.deepEqual(stray.text.slice(-3), [
+    ". }}",
+    "} is not a valid command name",
+    "r(199);",
+  ]);
+});
+
+test("a program defined twice stops with Stata's message", () => {
+  const twice = transcript(
+    'program pp\n  di "pp"\nend\nprogram pp\n  di "again"\nend\ndi 2\n',
+  );
+  assert.equal(twice.rc, 110);
+  assert.deepEqual(twice.text, [
+    ". program pp",
+    '  1.   di "pp"',
+    "  2. end",
+    ". program pp",
+    "program pp already defined",
+    "r(110);",
+  ]);
+});
+
+test("if, else and noisily blocks echo as Stata reads them", () => {
+  const chain = transcript(
+    'if 0 di "e"\nelse di "x"\nelse di "y"\nif 0 {\n di "k"\n}\nelse di "m"\nelse di "n"\nelse {\n di "o"\n}\ndi "end"\n',
+  );
+  assert.equal(chain.rc, 0);
+  assert.deepEqual(chain.text, [
+    '. if 0 di "e"',
+    '. else di "x"',
+    "x",
+    '. else di "y"',
+    "y",
+    ". if 0 {",
+    '.  di "k"',
+    ". }",
+    '. else di "m"',
+    "m",
+    '. else di "n"',
+    "n",
+    ". else {",
+    '.  di "o"',
+    "o",
+    ". }",
+    '. di "end"',
+    "end",
+  ]);
+  // After a true if, no later else runs.
+  assert.deepEqual(
+    new Session()
+      .run("if 1 di 1\nelse di 2\nelse di 3")
+      .output.flatMap((o) => o.lines),
+    ["1"],
+  );
+  const captured = transcript(
+    "capture noisily {\n  di 4\n  error 459\n  di 5\n  if 1 {\n    di 6\n  }\n}\ndi _rc\ncap noi {\n  di 7\n}\ndi _rc\nnoisily {\n  di 8\n}\ncapture noisily {\n  if 1 {\n    error 198\n  }\n  di 9\n}\ndi _rc\n",
+  );
+  assert.equal(captured.rc, 0);
+  assert.deepEqual(captured.text, [
+    ". capture noisily {",
+    ".   di 4",
+    "4",
+    ".   error 459",
+    "something that should be true of your data is not",
+    "r(459);",
+    ".   di 5",
+    ".   if 1 {",
+    ".     di 6",
+    ".   }",
+    ". }",
+    ". di _rc",
+    "459",
+    ". cap noi {",
+    ".   di 7",
+    "7",
+    ". }",
+    ". di _rc",
+    "0",
+    ". noisily {",
+    ".   di 8",
+    "8",
+    ". }",
+    ". capture noisily {",
+    ".   if 1 {",
+    ".     error 198",
+    "invalid syntax",
+    "r(198);",
+    ".   }",
+    "r(198);",
+    ".   di 9",
+    ". }",
+    ". di _rc",
+    "198",
+  ]);
+  const stopped = transcript(
+    "di 0\nif 1 {\n  di 1\n  error 198\n  di 9\n}\ndi 10\n",
+  );
+  assert.equal(stopped.rc, 198);
+  assert.deepEqual(stopped.text, [
+    ". di 0",
+    "0",
+    ". if 1 {",
+    ".   di 1",
+    "1",
+    ".   error 198",
+    "invalid syntax",
+    "r(198);",
+    ".   di 9",
+    ". }",
+    "r(198);",
+  ]);
+});
+
+test("line-ending and prefix near-misses give Stata's messages", () => {
+  // A /// on the last line continues into nothing.
+  const dangling = transcript("di 1\ndi 2 ///\n");
+  assert.equal(dangling.rc, 0);
+  assert.deepEqual(dangling.text, [". di 1", "1"]);
+  const quiet = transcript(
+    'quietly: foreach v in a b {\n  noisily di "`v\'"\n}\ndi "end"\n',
+  );
+  assert.equal(quiet.rc, 198);
+  assert.ok(
+    quiet.text.includes(
+      "foreach command may not result from a macro expansion interactively or in do files",
+    ),
+  );
+  const brace = transcript('clear\nset obs 2\ngen x=_n\nsum x {\ndi "after"\n');
+  assert.equal(brace.rc, 198);
+  assert.ok(brace.text.includes("nothing found where name expected"));
+});
+
+test("a numlist holds at most 2,500 numbers, outside graphs", () => {
+  const session = new Session();
+  let result = session.run("foreach i of numlist 1/100000 {\n}");
+  assert.equal(result.rc, 123);
+  result = session.run("foreach i of numlist 1 (1) 3 {\ndisplay `i'\n}");
+  assert.deepEqual(
+    result.output.flatMap((o) => o.lines),
+    ["1", "2", "3"],
+  );
+  // Stata 19 draws xlabel(0(.01)20), 2,001 labels, without complaint;
+  // the browser's own cap of 200 labels is what stops it.
+  session.run("clear\nset obs 3\ngen x = _n\ngen y = x");
+  const graph = session.run("scatter y x, xlabel(0(0.01)20)");
+  assert.equal(graph.rc, 198);
+  assert.match(graph.output.at(-1).lines.join(" "), /at most 200/);
+});
+
+test("old names of estat's tests and official commands the browser lacks", () => {
+  const session = new Session();
+  session.run(
+    "clear\nset obs 30\nset seed 3\ngen x = runiform()\ngen y = x + runiform()\nquietly regress y x",
+  );
+  for (const [old, current] of [
+    ["hettest", "estat hettest"],
+    ["vif", "estat vif"],
+    ["ovtest", "estat ovtest"],
+  ])
+    assert.deepEqual(
+      session.run(old).output.at(-1).lines,
+      session.run(current).output.at(-1).lines,
+      old,
+    );
+  for (const name of [
+    "intreg",
+    "tsfill",
+    "ipolate",
+    "truncreg",
+    "xtivreg",
+    "postfile",
+    "ksmirnov",
+    "lroc",
+    "pcorr",
+    "frames",
+    "predictnl",
+    "linktest",
+    "webuse",
+    "mata",
+  ]) {
+    const result = session.run(`${name} y x`);
+    assert.equal(result.rc, 199, name);
+    assert.match(
+      result.output.at(-1).lines[0],
+      /is a Stata command that the browser does not run yet/,
+      name,
+    );
+  }
+});
