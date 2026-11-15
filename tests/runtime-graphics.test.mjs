@@ -177,8 +177,10 @@ test("graphs that are not available say so", () => {
 });
 
 test("ac and pac draw the correlations corrgram reports", () => {
+  // pac takes at most int(N/2) - 2 lags, one of these six, as pac.ado
+  // allows (Stata 19 refuses lags(3) with r(498)).
   const { result } = run(
-    "tsset x\nac x, lags(3)\npac x, lags(3)\ncorrgram x, lags(3)",
+    "tsset x\nac x, lags(3)\npac x, lags(1)\ncorrgram x, lags(3)",
   );
   assert.equal(result.rc, 0);
   const graphs = result.output.filter((o) => o.graph).map((o) => o.graph);

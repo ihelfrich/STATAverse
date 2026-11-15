@@ -169,7 +169,8 @@ export function estimability(model, rows) {
 export function inRowSpace(row, nulls) {
   // The tolerance is relative to the sizes of the vector and of the row,
   // not of their products: a null vector's rounding noise, about 1e-16,
-  // can be all that meets a row.
+  // can be all that meets a row. It allows a float's rounding, some 6e-8,
+  // as in D.x of a float x, stored as a float, beside x and L.x.
   const largest = Math.max(1, ...row.map(Math.abs));
   return nulls.every((v) => {
     let dot = 0,
@@ -178,7 +179,7 @@ export function inRowSpace(row, nulls) {
       dot += c * row[j];
       size += Math.abs(c);
     });
-    return Math.abs(dot) <= 1e-8 * size * largest;
+    return Math.abs(dot) <= 1e-6 * size * largest;
   });
 }
 
@@ -225,6 +226,50 @@ export function marginTermsOf(session, text, factors) {
     (term, k) =>
       terms.findIndex((other) => other.join("#") === term.join("#")) === k,
   );
+}
+
+/**
+ * The variable a time-series operated name comes from and the label its
+ * row has, as the coefficient table labels it: L.x is L1. under x, L2.x
+ * L2., LD.x LD.; null for a name with no operator.
+ */
+function operatedParts(name) {
+  const m = /^((?:[LFDS]\d*)+)\.([A-Za-z_]\w*)$/.exec(name);
+  if (!m) return null;
+  const ops = m[1].match(/[LFDS]\d*/g);
+  return {
+    base: m[2],
+    label:
+      ops.length === 1 && /^[LFDS]$/.test(ops[0]) ? `${ops[0]}1.` : `${m[1]}.`,
+  };
+}
+/**
+ * dydx()'s rows of continuous variables grouped as the coefficient table
+ * groups them: a run of rows of one variable, one of them under
+ * time-series operators, is headed by the variable's name, each row then
+ * labelled L1., D1. or --. for the variable itself.
+ */
+function groupOperated(results) {
+  const baseOf = (r) =>
+    r.plain && r.wrt ? (operatedParts(r.wrt)?.base ?? r.wrt) : null;
+  for (let k = 0; k < results.length; k++) {
+    const base = baseOf(results[k]);
+    if (!base) continue;
+    let end = k;
+    while (end + 1 < results.length && baseOf(results[end + 1]) === base) end++;
+    const run = results.slice(k, end + 1);
+    if (!run.some((r) => operatedParts(r.wrt))) {
+      k = end;
+      continue;
+    }
+    for (const r of run) {
+      r.label = operatedParts(r.wrt)?.label ?? "--.";
+      r.plain = false;
+      r.operated = true;
+    }
+    results.splice(k, 0, { group: base });
+    k = end + 1;
+  }
 }
 
 /**
@@ -323,7 +368,7 @@ export function marginsTable(
                 ? r.heading.length
                 : r.group
                   ? needs(r.group, 0)
-                  : needs(r.label, r.plain ? 0 : 1),
+                  : needs(r.label, r.plain || r.operated ? 0 : 1),
           ),
         ),
       ),
@@ -352,7 +397,8 @@ export function marginsTable(
       );
     },
     labelLines = (result) => {
-      if (result.plain) return [`${abbreviate(result.label, w).padStart(w)} `];
+      if (result.plain || result.operated)
+        return [`${abbreviate(result.label, w).padStart(w)} `];
       if (result.label.length <= w - 1 || !result.label.includes("#"))
         return [`${cut(result.label)}  `.padStart(w + 1)];
       const pieces = result.label.split("#");
@@ -1281,6 +1327,7 @@ function margins(session, text, ctx) {
           });
       }
     }
+    if (!several) groupOperated(results);
   } else if (contrastSpec) {
     // contrastTables makes the contrasts below.
   } else if (marginTerms.length || overNames.length) {

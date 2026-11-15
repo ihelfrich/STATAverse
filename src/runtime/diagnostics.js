@@ -320,7 +320,9 @@ function vce(session, model, text, ctx) {
     // A cell of an interaction with a base level in it is a base cell, as
     // 0b.g#co.x or 1o.g#1b.h: Stata leaves those out along with base
     // levels.
-    const base = e.name.split("#").some((part) => /^\d+b\./.test(part)),
+    const base = e.name
+        .split("#")
+        .some((part) => /^\d+b(?:\.|[LFDS])/.test(part)),
       estimated =
         e.index >= 0 ? model.estimable?.[e.index] !== false : !e.omitted;
     if (!estimated && base) return;
@@ -441,13 +443,21 @@ const omittedName = (name) =>
   name
     .split("#")
     .map((part) =>
-      /^(\d+[bo]|co|o)\./.test(part)
+      /^(\d+[bo]|co|o)(\.|(?:[LFDS]\d*)+\.)/.test(part)
         ? part
         : /^\d+\./.test(part)
           ? part.replace(".", "o.")
-          : /^c\./.test(part)
-            ? `co.${part.slice(2)}`
-            : `o.${part}`,
+          : // Under time-series operators: 1L.g is 1oL.g, cL.x coL.x and
+            // L.x oL.x.
+            /^\d+(?:[LFDS]\d*)+\./.test(part)
+            ? part.replace(/^(\d+)/, "$1o")
+            : /^c\./.test(part)
+              ? `co.${part.slice(2)}`
+              : /^c(?:[LFDS]\d*)+\./.test(part)
+                ? `co${part.slice(1)}`
+                : /^(?:[LFDS]\d*)+\./.test(part)
+                  ? `o${part}`
+                  : `o.${part}`,
     )
     .join("#");
 

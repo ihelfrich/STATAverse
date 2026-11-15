@@ -31115,3 +31115,755 @@ quietly glm d x f, family(binomial) link(probit)
 margins, dydx(x)
 generate double iw = mod(_n,3) - .5
 glm d x f [iweight=iw], family(binomial) link(probit) nolog
+=== recheck-panel-settings-chars
+clear
+set obs 6
+generate id = ceil(_n/3)
+generate t = mod(_n-1,3)*2 + 1
+generate w = _n
+generate st = mod(_n,2)
+generate tt = _n*2
+xtset id t, delta(2)
+return list
+char list
+capture noisily tsset t, delta(2)
+char list
+tsset tt, delta(2)
+char list
+tsset, clear
+char list
+xtset id
+return list
+char list
+xtset
+xtset, clear
+capture noisily tsset
+capture noisily xtset
+svyset id [pw=w], strata(st) fpc(w) vce(linearized) singleunit(certainty)
+char list
+svyset, clear
+svyset id [pw=w], strata(st)
+tsset id t, delta(2)
+save recheck_panel_s1, replace
+clear
+capture noisily xtset
+use recheck_panel_s1, clear
+xtset
+svyset
+char list
+rename t time
+rename id panel
+char list
+xtset
+=== recheck-panel-settings-reverify
+clear
+set obs 6
+generate t = _n
+generate id = 1
+generate y = _n^2
+tsset t
+replace t = 1 in 2
+sort t
+capture noisily tsset
+capture noisily xtset id t
+capture noisily xtset
+capture noisily regress y L.y
+generate ly = L.y
+replace t = 3 in 2
+capture noisily tsset t, yearly daily
+capture noisily tsset t, format(%ty) yearly
+capture noisily tsset t, format(%foo)
+capture noisily tsset t, delta
+capture noisily tsset t, delta(1 year)
+capture noisily xtset id, yearly
+capture noisily xtset, noquery
+capture noisily tsset t, yearly(2)
+capture noisily tsset t, bogus
+capture noisily tsset t, clear
+=== recheck-panel-settings-units
+clear
+input id t y
+1 1 2
+1 2 3
+1 4 5
+2 1 1
+2 2 4
+2 3 2
+3 2 6
+3 3 1
+3 . 2
+. 1 3
+end
+xtset id t
+xtset id t, panelname(Firm) displayindent(2) noblank
+xtset id t, tsvarlabel(Year) panellabel(firm)
+drop if t == .
+drop if id == .
+xtset id t
+replace t = 4 in 6
+xtset id t
+xtset id
+tsset id t, delta(1) noquery
+return list
+tsset, clear
+generate d = mdy(1,1,2000) + 7*t
+format d %td
+keep if id == 1
+tsset d, delta(7 days)
+capture noisily tsset d, delta(1 week)
+tsset d, weekly
+generate m = ym(2000,1) + t
+tsset m, monthly
+generate c = t*3600000
+tsset c, clocktime delta(1 hour)
+return list
+generate dd = mdy(1,1,2000) + _n
+format dd %td
+tsset dd, yearly
+=== recheck-panel-xtreg-options
+clear
+set seed 2024
+set obs 30
+generate id = ceil(_n/10)
+generate t = mod(_n-1,10) + 1
+generate x = rnormal()
+generate y = x + rnormal()
+xtset id t
+xtreg y, re
+xtreg y, be
+replace t = . in 4
+xtset id t
+xtreg y x, fe
+xtreg y x, re
+capture noisily xtreg y x, fe re
+capture noisily xtreg y x, be fe
+capture noisily xtreg y x, fe pa
+capture noisily xtreg y x, fe wls
+drop in 1/3
+xtreg y x, be wls
+xtreg y x, be
+=== recheck-panel-corrgram-gaps
+clear
+set seed 12
+set obs 40
+generate t = _n
+generate y = sum(rnormal())
+replace y = . in 7
+replace y = . in 20/22
+drop in 30
+tsset t
+corrgram y, lags(4)
+corrgram D.y, lags(3) noplot
+capture noisily corrgram y, lags(0)
+capture noisily corrgram y, lags(50)
+corrgram L2.y in 5/35, lags(2)
+capture noisily corrgram y z
+corrgram S2.y if t > 3
+ac D.y, lags(3)
+pac y, lags(3)
+tsline D.y y
+generate id = t > 20
+xtset id t
+capture noisily corrgram y
+corrgram y if id == 1, lags(2)
+=== recheck-panel-tin-twithin
+clear
+set obs 8
+generate q = tq(1995q1) + _n - 1
+format q %tq
+generate y = _n
+capture noisily count if tin(1995q3, 1996q1)
+tsset q
+list q if tin(1995q3, 1996q1)
+count if twithin(1995q3, 1996q1)
+count if tin(, 1995q2)
+count if tin(2001q1, )
+count if tin(,)
+capture noisily count if tin(tq(1995q3), tq(1996q1))
+capture noisily count if tin(142, 144)
+count if tin(1995m3, 1996m1)
+capture noisily count if tin(1995q3)
+generate x = tin(1995q3, 1996q1) + 1
+count if x == 2
+count if !tin(1995q3, 1996q1)
+count if tin(1995 q3, 1996q1)
+capture noisily count if TIN(1995q3, 1996q1)
+generate tt = q
+format tt %9.0g
+tsset tt
+count if tin(142,144)
+capture noisily count if tin(1995q3,1996q1)
+count if tin(.5, 143.5)
+generate d = mdy(1,1,2000) + mod(_n-1,3)
+format d %td
+generate id = ceil(_n/3)
+replace d = . in 8
+xtset id d
+count if tin(02jan2000, )
+count if twithin(, 02jan2000)
+=== recheck-panel-factor-series
+clear
+set seed 77
+set obs 160
+generate firm = ceil(_n/8)
+generate year = 2010 + mod(_n-1,8)
+generate x1 = rnormal()
+generate x2 = 5 + rnormal()
+generate union = runiform() > .5
+generate y = 1 + .5*x1 + .3*union + rnormal()
+xtset firm year
+regress y c.x1##cL.x1
+regress y c.x1#c.L.x1
+regress y L.c.x1
+regress y union##cL.x1
+matrix list e(b)
+regress y L.union i.union#cL.x1
+regress y L.i.union
+matrix list e(b)
+regress y iL.union x2
+regress y i.L.union
+regress y L(1/2).c.x1
+regress y cL(1/2).x1
+regress y ibnL.union, nocons
+regress y L.union#c.x2
+regress y LD.c.x1 c.x2#cD.x1
+regress y cL.x1##cL.x1
+regress y Lc.x1
+capture noisily regress y c.x1#L.x1
+xtreg y cL.x1##i.union, fe
+label define un 0 "no" 1 "yes"
+label values union un
+regress y i.union##cL.x1
+test 1.union#cL.x1
+testparm i.union#cL.x1
+lincom 1.union + 1.union#cL.x1
+test 1.union#cL.x1 = L.x1
+display _b[1.union#cL.x1]
+regress y iL.union
+lincom 1L.union
+testparm iL.union
+=== recheck-panel-testparm-levels
+clear
+set seed 9
+set obs 100
+generate g = ceil(4*runiform())
+generate x = rnormal()
+generate y = g/3 + x + rnormal()
+regress y x i.g
+testparm i(2/3).g
+testparm i(2 4).g
+testparm 2.g 3.g
+testparm i(2/3).g x
+=== recheck-panel-estimates-labels
+clear
+set seed 31
+set obs 60
+generate g = ceil(3*runiform())
+generate exper = 10*runiform()
+generate y = exper - .03*exper^2 + g + rnormal()
+quietly regress y c.exper##c.exper
+estimates store a
+quietly regress y c.exper##c.exper i.g
+estimates store b
+estimates table a b
+hausman b a
+=== recheck-panel-concordance
+clear
+set seed 404
+set obs 200
+generate treat = runiform() > .5
+generate age = 40 + 20*runiform()
+generate t = ceil(-ln(runiform())*20/exp(.5*treat - .03*(age-50)))
+generate died = runiform() < .7
+stset t, failure(died)
+quietly stcox treat age
+estat concordance
+return list
+estat concordance, noshow
+estat conc if age > 50
+estat concordance, all noshow
+quietly streg treat age, dist(weibull)
+capture noisily estat concordance
+=== recheck-panel-series-errors
+clear
+set seed 3
+set obs 30
+generate t = _n
+generate y = rnormal()
+generate x = rnormal()
+generate b = y > 0
+generate s = "a"
+tsset t
+capture noisily regress y L.s
+capture noisily regress y L(1/2).s
+capture noisily regress y x, vce(hac nwest 2)
+capture noisily logit b x, vce(hac nwest 2)
+capture noisily poisson b x, vce(hac)
+=== recheck-panel2-xtreg-fe-empty
+clear
+set seed 2
+set obs 30
+generate id = ceil(_n/6)
+generate t = mod(_n-1,6)+1
+generate y = rnormal() + id
+xtset id t
+xtreg y, fe
+display e(r2_w)
+display e(r2_a)
+=== recheck-panel2-generic-format
+clear
+set obs 4
+generate t = tm(2001m1)+_n
+format t %tm
+generate g = _n
+tsset t, generic
+tsset t, format(%tg)
+format t %tg
+list in 1
+generate id = 1
+xtset id t, generic
+display "[" %tg 493.5 "]"
+display "[" %-tg 5 "]"
+display "[" %tg 123456789 "]"
+clear
+set obs 3
+generate t = 493 + _n*1000.25
+format t %-tg
+describe t
+list
+=== recheck-panel2-svyset-noclear
+clear
+set seed 71
+set obs 60
+generate psu = ceil(_n/4)
+generate st = ceil(_n/30)
+generate w = 1 + runiform()*3
+generate w2 = w*2
+generate y = rnormal()
+svyset [pw=w], noclear
+char list
+svy: mean y
+svyset psu [pw=w], strata(st)
+svyset [pw=w2], noclear
+char list
+svy: mean y
+svyset, noclear dof(5) singleunit(certainty)
+svyset, noclear vce(linearized)
+capture noisily svyset, noclear clear
+capture noisily svyset psu, noclear
+capture noisily svyset [pw=w], noclear strata(st)
+capture noisily svyset [pw=w] || psu, noclear
+svyset, noclear
+svyset, clear
+svyset, noclear dof(4)
+char list
+=== recheck-panel2-svyset-designs
+clear
+set seed 71
+set obs 60
+generate psu = ceil(_n/4)
+generate st = ceil(_n/30)
+generate ssu = mod(_n,2)
+generate w = 1 + runiform()*3
+generate fp = 40
+generate fp2 = 100
+generate y = rnormal()
+forvalues k = 1/4 {
+generate double rw`k' = w*(1+(mod(_n,`k'+1)==0))
+}
+generate ps = 1 + mod(_n,3)
+generate pw = 100*ps
+svyset psu [iw=w], strata(st)
+char list
+svyset
+svyset psu [pw=w], strata(st) fpc(fp) || ssu, fpc(fp2)
+char list
+svyset psu, weight(w) strata(st) fpc(fp) || ssu, weight(w) || _n
+char list
+svyset psu [pw=w], strata(st) poststrata(ps) postweight(pw)
+char list
+svyset [pw=w], vce(brr) brrweight(rw1-rw4) fay(.3) mse
+char list
+svyset [pw=w], vce(bootstrap) bsrweight(rw*) bsn(4)
+svyset [pw=w], vce(jackknife) jkrweight(rw1 rw2)
+svyset [pw=w], vce(sdr) sdrweight(rw1-rw4, fpc(.05))
+char list
+svyset psu [pw=w], dofsubpop
+svyset psu [pw=w], nodofsubpop
+svyset psu [pw=w], brrweight(rw1 rw2)
+capture noisily svyset psu, srs
+svyset, srs
+svyset, psu(psu) strata(st)
+svyset _n, vce(jackknife) mse singleunit(scaled)
+svyset psu [pw=w], strata(st) || ssu, strata(st) fpc(fp2) || _n, fpc(fp)
+char list
+=== recheck-panel2-svyset-errors
+clear
+set seed 71
+set obs 60
+generate psu = ceil(_n/4)
+generate st = ceil(_n/30)
+generate ssu = mod(_n,2)
+generate w = 1 + runiform()*3
+generate fp = 40
+generate s = "a"
+forvalues k = 1/4 {
+generate double rw`k' = w*(1+(mod(_n,`k'+1)==0))
+}
+generate ps = 1 + mod(_n,3)
+generate pw = 100*ps
+svyset psu [pw=w], strata(st)
+capture noisily svyset psu [pw=w], vce(foo)
+capture noisily svyset psu [pw=w], vce(linearized) mse
+capture noisily svyset psu [pw=w], mse
+capture noisily svyset psu [pw=w], fay(3)
+capture noisily svyset psu [pw=w], fay(a)
+capture noisily svyset psu [pw=w], bsn(0)
+capture noisily svyset psu [pw=w], bsn(2.5)
+capture noisily svyset psu [pw=w], poststrata(ps)
+capture noisily svyset psu [pw=w], postweight(pw)
+capture noisily svyset psu [pw=w], dofsubpop nodofsubpop
+capture noisily svyset psu [pw=w], brrweight(s)
+capture noisily svyset psu [pw=w], brrweight(nosuch)
+svyset psu [pw=w], jkrweight(rw1 rw2, stratum(1 2))
+capture noisily svyset psu [pw=w], brrweight(w)
+svyset psu [iw=w] || ssu
+capture noisily svyset psu, weight(w) || ssu [pw=w]
+svyset psu [pw=w] || _n || ssu
+svyset psu || ssu, fpc(fp) weight(w) strata(st)
+capture noisily svyset psu, clear noclear
+capture noisily svyset psu [pw=w], fpc(s)
+capture noisily svyset [pw=w], strata(st) srs
+capture noisily svyset, srs psu(psu)
+svyset, psu(ssu) strata(st) fpc(fp)
+capture noisily svyset psu, psu(ssu)
+capture noisily svyset psu, singleunit(foo)
+svyset , fay(.5)
+svyset , bsn(3) bsrweight(rw1 rw2)
+char list
+svyset
+clear
+capture noisily svyset
+=== recheck-panel2-ac-pac-generate
+clear
+set seed 31
+set obs 50
+generate t = _n
+generate y = sum(rnormal())
+drop in 10
+drop in 25/26
+replace y = . in 40
+tsset t
+ac y, lags(5) generate(a1) nograph
+pac y, lags(5) generate(p1) nograph
+pac y, lags(5) generate(p2) yw nograph
+capture noisily ac y, lags(5) generate(a2) fft nograph
+pac y, lags(5) generate(p3) nograph fft
+capture noisily pac y, yw srv nograph generate(p4)
+capture noisily pac y, yw srv
+capture noisily ac y, nograph
+capture noisily ac y, nograph generate(a3 a4)
+capture noisily ac y, nograph generate(a1)
+capture noisily ac y, nograph generate(1a)
+capture noisily ac y, nograph generate(a5) title(x)
+capture noisily ac y, nograph generate(a5) yw
+capture noisily ac y, generate(a5) yw
+capture noisily ac y, nograph generate(a5) level(90)
+capture noisily ac y, nograph generate(a6) lags(100)
+describe a1 p1 p2 p3 a5
+list t a1 p1 p2 p3 a5 in 1/7, sep(0)
+corrgram y in 3/45, lags(4) yw
+corrgram y, lags(6) yw
+corrgram L.y, lags(3) yw noplot
+tsset, clear
+drop if y == .
+generate tt = _n
+tsset tt
+ac y, lags(5) generate(f1) fft nograph
+ac y, lags(5) generate(f2) nograph
+list tt f1 f2 in 1/6, sep(0)
+generate id = ceil(_n/23)
+xtset id tt
+capture noisily ac y, nograph
+capture noisily ac y, nograph generate(g1)
+=== recheck-panel2-predict-ue
+clear
+set obs 16
+generate id = ceil(_n/4)
+generate t = mod(_n-1,4)+1
+set seed 7
+generate x = rnormal()
+generate y = 1 + x + rnormal() + id/3
+replace t = . in 3
+replace t = . in 10
+xtset id t
+xtreg y x, fe
+predict xb1, xb
+predict u1, u
+predict e1, e
+predict ue1, ue
+predict xbu1, xbu
+list id t xb1 u1 e1 ue1 xbu1, sep(0)
+predict ue2 if id < 3, ue
+summarize ue2
+xtreg y x, re
+predict ue3, ue
+list id t ue3 in 1/4, sep(0)
+=== recheck-panel2-repeated-times
+clear
+set seed 111
+set obs 30
+generate t = _n
+generate x = rnormal()
+generate y = x + rnormal()
+tsset t
+replace t = 5 in 6
+sort t
+capture noisily dfuller y
+capture noisily dfuller y, lags(2) trend
+capture noisily pperron y
+capture noisily arima y, ar(1)
+capture noisily var y x, lags(1)
+capture noisily varsoc y
+capture noisily correlate y L.x
+capture noisily corrgram y, lags(2)
+capture noisily ac y, nograph generate(a1)
+capture noisily pac y, nograph generate(p1)
+capture noisily tssmooth ma s1 = y, window(1)
+capture noisily tsappend, add(2)
+capture noisily tsfill
+summarize L.x
+=== recheck-panel2-restricted-operated
+clear
+set seed 42
+set obs 60
+generate id = ceil(_n/10)
+generate year = 2000 + mod(_n-1,10)
+generate x = rnormal()
+generate g = 1 + mod(_n,3)
+generate d = runiform() > .5
+generate y = x + d + id/4 + rnormal()
+xtset id year
+regress y i(1)L.d
+regress y i(2 3)L.g
+regress y L.i(2 3).g
+regress y i(0 1)L.d
+regress y i(1).d
+regress y i(2).g x
+regress y i(1)L.d x
+regress y i(3)L.g
+regress y x i(2 3)L.g i(1)L.d
+regress y L.i(2).g
+regress y iL.d x
+regress y ib1L.d x
+regress y L.ibn.d x, nocons
+=== recheck-panel2-tin-empty
+clear
+set obs 10
+generate y = _n
+generate t = _n
+tsset t
+count if tin()
+count if twithin()
+count if tin( )
+capture noisily count if tin(3)
+count if tin(,)
+=== recheck-panel2-tsline-groups
+clear
+set seed 91
+set obs 40
+generate q = tq(2000q1) + _n
+format q %tq
+generate y = sum(rnormal())
+generate x = sum(rnormal())
+tsset q
+tsline D.(y), nodraw
+tsline L(1/2).y, nodraw
+tsline D.(y x), nodraw
+capture noisily tsline D.(y nosuch), nodraw
+=== recheck-panel2-dropped-time
+clear
+set obs 12
+generate id = ceil(_n/4)
+generate year = 2000 + mod(_n-1,4)
+set seed 1
+generate y = runiform()
+generate x = runiform()
+xtset id year
+drop year
+capture noisily xtset
+capture noisily regress y L.x
+capture noisily generate z = L.x
+generate year = _n
+xtset id year
+drop id
+capture noisily xtset
+capture noisily regress y L.x
+capture noisily generate z = L.x
+capture noisily tsfill
+=== recheck-panel2-bootstrap-panels
+clear
+set seed 101
+set obs 60
+generate id = ceil(_n/6)
+generate t = mod(_n-1,6)+1
+generate x = rnormal()
+generate y = x + rnormal() + id/4
+generate nid = id
+xtset nid t
+set seed 5
+bootstrap _b, reps(20) cluster(id) idcluster(nid) nodots: regress y L.x
+xtset
+set seed 5
+bootstrap, reps(20) cluster(id) idcluster(nid) nodots: xtreg y x, fe
+=== recheck-panel2-svyset-empty
+clear
+capture noisily svyset
+capture noisily svyset, clear
+set obs 3
+capture noisily svyset
+=== recheck-panel2-margins-operated
+clear
+set seed 121
+set obs 80
+generate id = ceil(_n/8)
+generate t = mod(_n-1,8)+1
+generate union = runiform() > .5
+generate x = rnormal()
+generate y = x + union + rnormal()
+xtset id t
+regress y L.x
+margins, dydx(L.x)
+regress y L(0/2).x D.x union
+margins, dydx(*)
+regress y L.x L2.x
+margins, dydx(*)
+=== recheck-panel2-gheller
+clear
+set seed 404
+set obs 200
+generate treat = runiform() > .5
+generate age = 40 + 20*runiform()
+generate t = ceil(-ln(runiform())*20/exp(.5*treat - .03*(age-50)))
+generate died = runiform() < .7
+stset t, failure(died)
+quietly stcox treat age
+estat concordance, gheller
+estat concordance, gheller harrell
+estat concordance, gheller se
+estat concordance, gheller harrell se noshow
+capture noisily estat concordance, se
+estat concordance if age > 50, gheller
+estat concordance, gheller all
+quietly stcox i.treat c.age##c.age
+estat concordance, gheller se
+=== recheck-panel2-tsfill
+clear
+input id t y str3 s
+1 1 10 "a"
+1 2 11 "b"
+1 5 14 "c"
+2 2 20 "d"
+2 4 22 "e"
+2 . 99 "f"
+3 3 30 "g"
+end
+xtset id t
+tsfill
+list, sep(0)
+xtset
+clear
+input id t y
+1 1 10
+1 2 11
+1 5 14
+2 2 20
+2 4 22
+3 3 30
+end
+xtset id t
+tsfill, full
+list, sep(0)
+clear
+input t y
+1990 1
+1992 2
+1996 3
+end
+tsset t, delta(2)
+tsfill
+list
+generate r = t
+replace t = 1990 in 2
+sort t
+capture noisily tsfill
+capture noisily tsfill, full
+clear
+input t y
+1 1
+3 1
+. 2
+end
+tsset t
+capture noisily tsfill, full
+tsfill
+list
+=== recheck-panel2-xtline
+clear
+set seed 5
+set obs 40
+generate id = ceil(_n/10)
+generate t = mod(_n-1,10)+1
+generate y = sum(rnormal())
+generate x = rnormal()
+label define idl 1 "first" 2 "second" 3 "third" 4 "fourth"
+capture noisily xtline y, nodraw
+xtset id t
+xtline y, nodraw
+xtline y x, nodraw
+xtline y, overlay nodraw
+capture noisily xtline y x, overlay nodraw
+capture noisily xtline y, overlay byopts(title(a)) nodraw
+xtline y if t > 3, overlay nodraw
+capture noisily xtline y, i(id) nodraw
+capture noisily xtline y, t(t) nodraw
+xtline y, i(id) t(t) nodraw
+xtline y in 1/20, overlay legend(off) nodraw
+label values id idl
+xtline y, overlay nodraw title(hi)
+capture noisily xtline y if t > 20, nodraw
+xtline D.y, nodraw
+xtline D.y, overlay nodraw
+tsset, clear
+generate tt = _n
+tsset tt
+twoway tsline D.y L.y, nodraw
+twoway (tsline y) (line y tt), nodraw
+twoway tsline y || tsline L2.y, nodraw
+capture noisily twoway tsline nosuch, nodraw
+ac y, lags(5) nodraw
+pac y, lags(5) srv nodraw
+pac y, lags(5) yw level(90) nodraw
+capture noisily pac y, srv yw nodraw
+=== recheck-panel2-xtreg-resampled
+clear
+set seed 101
+set obs 60
+generate id = ceil(_n/6)
+generate t = mod(_n-1,6)+1
+generate x = rnormal()
+generate z = rnormal()
+generate y = x + rnormal() + id/4
+xtset id t
+xtreg y x, fe vce(bootstrap, reps(20) seed(3) nodots)
+display e(N_reps) " " e(N_clust) " " e(cmd) " " e(vce) " " e(clustvar)
+xtset
+xtreg y x, re vce(jackknife, nodots)
+xtreg y x, be vce(bootstrap, reps(10) seed(1) nodots)
+xtreg y x, fe vce(jackknife)
+xtreg y x, fe vce(bootstrap, reps(5) seed(2)) level(90)
+xtreg y x, be vce(jackknife, nodots)
+xtreg y x z, re vce(jackknife, nodots)
+xtreg y x z, be vce(bootstrap, nodots reps(5) seed(1))
+regress y x, vce(bootstrap, reps(5) seed(2) nodots) level(90)
+capture noisily bootstrap, reps(10) cluster(id) idcluster(id) nodots: xtreg y x, be

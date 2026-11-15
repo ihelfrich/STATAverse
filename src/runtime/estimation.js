@@ -30,7 +30,7 @@ import {
 import { operatorGroups, resolveVariable } from "./varlist.js";
 import { factorVariables } from "./factor-varlist.js";
 import { parseNumlist } from "./numlist.js";
-import { requireTimeOrder } from "./panel.js";
+import { requireDistinctTimes, requireTimeOrder } from "./panel.js";
 import {
   operatedName,
   operatorSpecs,
@@ -181,8 +181,80 @@ const RESTRICTED_FACTOR =
 // may hold a step, L(1(1)3).x.
 const SERIES_OPERATOR =
   /^((?:(?:[LFDS](?:\d+|\((?:[^()]|\([^()]*\))*\))?)+\.)+)([A-Za-z_]\w*|\([^()]*\))$/i;
+/**
+ * i(numlist) with time-series operators, as i(1)L.d, i(2 3)b3L.g or
+ * L.i(2 3).g: the word with plain i in its place, and the levels listed;
+ * null when the word has no such operator.
+ */
+function restrictedOperated(word) {
+  const m =
+    /(^|\.)i\(([^()]*)\)(?=(?:b(?:\d+|\(\s*#?\d+\s*\)|\(\s*(?:first|last|freq)\s*\)))?(?:[LFDSlfds]|\.[LFDSlfds]|\.[A-Za-z_]))/.exec(
+      word,
+    );
+  if (!m || RESTRICTED_FACTOR.test(word)) return null;
+  const plain = `${word.slice(0, m.index)}${m[1]}i${word.slice(m.index + m[0].length)}`,
+    split = splitOperators(plain);
+  if (!split?.ts || split.fv === "c") return null;
+  return { word: plain, only: parseNumlist(m[2]) };
+}
 // The indicator of one level of a factor: 2.g.
 const LEVEL_INDICATOR = /^(\d+)\.([A-Za-z_]\w*)$/;
+// A group of operators between dots: a factor-variable operator and
+// time-series operators, in either order (cL, iL, Lc, ib2L) or alone.
+const FV_GROUP =
+    "(c|i|ibn|i?b(?:\\d+|\\(\\s*#?\\d+\\s*\\)|\\(\\s*(?:first|last|freq)\\s*\\)))",
+  TS_GROUP = "((?:[LFDSlfds](?:\\d+|\\((?:[^()]|\\([^()]*\\))*\\))?)+)",
+  GROUP_FV_TS = new RegExp(`^${FV_GROUP}?${TS_GROUP}?$`),
+  GROUP_TS_FV = new RegExp(`^${TS_GROUP}${FV_GROUP}$`);
+/**
+ * A term's operators: the factor-variable operator (c, i, ibn, ib2, ...)
+ * or null, and the time-series operators run together (L, LD, L(1/2)),
+ * from any of Stata's spellings: cL.x, c.L.x, L.c.x, Lc.x, iL.g, L.i.g.
+ * null for a word that is not a variable under operators.
+ */
+export function splitOperators(word) {
+  const parts = [];
+  let depth = 0,
+    start = 0;
+  for (let i = 0; i < word.length; i++) {
+    if (word[i] === "(") depth++;
+    else if (word[i] === ")") depth--;
+    else if (word[i] === "." && !depth) {
+      parts.push(word.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(word.slice(start));
+  const name = parts.pop();
+  if (!parts.length || !/^[A-Za-z_]\w*$/.test(name)) return null;
+  let fv = null,
+    ts = "";
+  for (const group of parts) {
+    let m = GROUP_FV_TS.exec(group),
+      f,
+      t;
+    if (m && (m[1] || m[2])) [, f, t] = m;
+    else if ((m = GROUP_TS_FV.exec(group))) [, t, f] = m;
+    else return null;
+    if (f) {
+      if (fv) return null;
+      fv = f;
+    }
+    if (t) ts += t;
+  }
+  return { fv, ts, name };
+}
+/**
+ * The names Stata gives a component in a column's name: a factor's level
+ * as 1.g, or 1L.g when the factor is time-series operated, and a
+ * continuous variable as c.x, or cL.x.
+ */
+const levelName = (level, mark, variable) =>
+  variable.ts
+    ? `${level}${mark}${variable.name}`
+    : `${level}${mark}.${variable.name}`;
+const continuousName = (mark, variable) =>
+  variable.ts ? `${mark}${variable.name}` : `${mark}.${variable.name}`;
 
 /**
  * The variables a time-series operated term stands for, under tsset or
@@ -198,6 +270,7 @@ function seriesVariables(session, word) {
   // An operated term without tsset: Stata's message here has no "use".
   if (!panel?.time) throw new StataError("time variable not set", 111);
   requireTimeOrder(session);
+  requireDistinctTimes(session);
   // Each operator with the orders it takes, refused as Stata refuses a
   // misplaced numlist or a negative difference.
   const operators = operatorSpecs(m[1]).map(({ letter, orders }) => ({
@@ -211,7 +284,11 @@ function seriesVariables(session, word) {
   if (names.length > 1)
     return names.flatMap((name) => seriesVariables(session, `${m[1]}${name}`));
   const base = session.data.get(names[0]);
-  if (isStringType(base.type)) throw new StataError("no observations", 2000);
+  if (isStringType(base.type))
+    throw new StataError(
+      `${base.name}:  may not use time-series operators on string variables`,
+      109,
+    );
   // A negative lag is a lead, and a negative lead a lag: L(-1).x is F.x.
   const flipped = { L: "F", F: "L" };
   let combinations = [[]];
@@ -385,6 +462,28 @@ export function design(session, text, rows, constant = true, levelRows) {
         ...component(`i${restricted[2] ?? ""}.${restricted[3]}`, inInteraction),
         only: parseNumlist(restricted[1]),
       };
+    // The same under time-series operators: i(1)L.d, L.i(2 3).g.
+    const operated = restrictedOperated(word);
+    if (operated)
+      return {
+        ...component(operated.word, inInteraction),
+        only: operated.only,
+      };
+    // A variable under time-series operators, and maybe a factor-variable
+    // operator: cL.x is continuous, iL.g and L.i.g factors, and a bare L.g
+    // in an interaction a factor, as a bare name is there.
+    const split = splitOperators(word);
+    if (split?.ts) {
+      const factor = split.fv ? split.fv !== "c" : inInteraction,
+        made = seriesVariables(session, `${split.ts}.${split.name}`);
+      if (made.length !== 1)
+        throw new StataError(
+          `${word}: a range of time-series operators in an interaction is not available yet`,
+          198,
+          "Name each lag in the interaction on its own, as in c.x#cL.x c.x#cL2.x.",
+        );
+      return operatedComponent(made[0], factor, split.fv);
+    }
     const m = FACTOR_OPERATOR.exec(word);
     if (!m && /[.()]/.test(word))
       throw new StataError(
@@ -400,6 +499,19 @@ export function design(session, text, rows, constant = true, levelRows) {
       base: m ? baseSpecification(m[1]) : undefined,
     };
   };
+  // A time-series operated variable as a component: a factor keeps the
+  // value labels of the variable it comes from.
+  const operatedComponent = (variable, factor, fv) => ({
+    variable:
+      factor && variable.ts
+        ? {
+            ...variable,
+            valueLabel: session.data.get(variable.ts.base).valueLabel,
+          }
+        : variable,
+    factor,
+    base: factor && fv ? baseSpecification(fv) : undefined,
+  });
   // A term is the same term whatever the order of its components, so
   // i.a#c.x and c.x#i.a are one term.
   const key = (components) =>
@@ -445,7 +557,9 @@ export function design(session, text, rows, constant = true, levelRows) {
         factor:
           components.length === 1 && only.factor ? only.variable : undefined,
         header: components
-          .map((c) => (c.factor ? c.variable.name : `c.${c.variable.name}`))
+          .map((c) =>
+            c.factor ? c.variable.name : continuousName("c", c.variable),
+          )
           .join("#"),
       });
     };
@@ -498,7 +612,22 @@ export function design(session, text, rows, constant = true, levelRows) {
     } else if (SERIES_OPERATOR.test(written))
       for (const variable of seriesVariables(session, written))
         add([{ variable, factor: false }]);
-    else
+    else if (
+      restrictedOperated(written) ||
+      (splitOperators(written)?.fv && splitOperators(written).ts)
+    ) {
+      // cL.x, L.c.x, iL.g, L.i.g: each lag of a continuous variable as L.x
+      // is, or a factor of each lag; i(1 2)L.g those levels of it only.
+      const operated = restrictedOperated(written),
+        { fv, ts, name } = splitOperators(operated?.word ?? written);
+      for (const variable of seriesVariables(session, `${ts}.${name}`))
+        add([
+          {
+            ...operatedComponent(variable, fv !== "c", fv),
+            ...(operated ? { only: operated.only } : {}),
+          },
+        ]);
+    } else
       for (const name of session.varlist(token)) add([component(name, false)]);
   }
   if (stringUsed) throw new StataError("no observations", 2000);
@@ -525,12 +654,12 @@ export function design(session, text, rows, constant = true, levelRows) {
         );
       if (levels.some((level) => !Number.isInteger(level)))
         throw new StataError(
-          `${c.variable.name}:  factor variables may not contain noninteger values`,
+          `${c.variable.ts?.base ?? c.variable.name}:  factor variables may not contain noninteger values`,
           452,
         );
       if (levels.some((level) => level < 0))
         throw new StataError(
-          `${c.variable.name}:  factor variables may not contain negative values`,
+          `${c.variable.ts?.base ?? c.variable.name}:  factor variables may not contain negative values`,
           452,
         );
       // i(2 3).g: only the levels listed, the first of them the base; a
@@ -630,8 +759,8 @@ export function design(session, text, rows, constant = true, levelRows) {
           name: term.components
             .map((c) =>
               c.factor
-                ? `${cell[factors.indexOf(c)]}.${c.variable.name}`
-                : `c.${c.variable.name}`,
+                ? levelName(cell[factors.indexOf(c)], "", c.variable)
+                : continuousName("c", c.variable),
             )
             .join("#"),
           value: (i) => {
@@ -681,7 +810,9 @@ export function design(session, text, rows, constant = true, levelRows) {
         column.base =
           made.length > 1 && column.level === baseOf.get(term.factor);
         if (column.base) {
-          column.name = column.name.replace(".", "b.");
+          column.name = term.factor.ts
+            ? column.name.replace(/^(\d+)/, "$1b")
+            : column.name.replace(".", "b.");
           // A base no observation has (ib9.g) is shown as (empty).
           if (!sample.some((i) => term.factor.data[i] === column.level))
             column.empty = column.emptyCell = true;
@@ -731,10 +862,11 @@ export function design(session, text, rows, constant = true, levelRows) {
         column.name = term.components
           .map((c) => {
             const k = factors.indexOf(c);
-            if (k < 0) return `${column.base ? "co" : "c"}.${c.variable.name}`;
+            if (k < 0)
+              return continuousName(column.base ? "co" : "c", c.variable);
             const level = column.levels[k],
               mark = isBase(c.variable, level) ? "b" : column.base ? "o" : "";
-            return `${level}${mark}.${c.variable.name}`;
+            return levelName(level, mark, c.variable);
           })
           .join("#");
       });
@@ -1266,16 +1398,26 @@ function tableBlocks(session, model) {
       block.term.components.length === 1 &&
       block.term.components[0].factor &&
       block.shown.length === 1;
-    // ratio and its kin head even one group of over() by its name.
+    // ratio and its kin head even one group of over() by its name, and a
+    // factor under time-series operators is headed by its name (L.union)
+    // even with one level shown.
     block.alone =
       one &&
       !model.headedFactors &&
+      !block.term.components[0].variable.ts &&
       !session.data.valueLabels?.has(
         block.term.components[0].variable.valueLabel,
       );
     // A level shown before its base (ib1. with levels 0 and 1) is followed
     // by a blank row all the same.
-    block.single = one && !block.alone && block.shown[0] === block.items.at(-1);
+    // Under time-series operators that holds only for a factor of one
+    // level, as i(1)L.d; iL.d with its base hidden has the blank row.
+    block.single =
+      one &&
+      !block.alone &&
+      (block.term.components[0].variable.ts
+        ? block.items.length === 1
+        : block.shown[0] === block.items.at(-1));
   }
   return blocks;
 }
@@ -2347,7 +2489,22 @@ function panelPredict(session, model, text, ctx) {
     },
     keep = new Set(session.rows(parsed, null)),
     values = new Array(data.n).fill(MISSING);
-  for (const i of model.sample) {
+  // ue is the dependent variable less xb wherever both are there, outside
+  // the estimation sample too, as xtrefe_p.ado and xtrere_p.ado compute it;
+  // the others need the panel's effect, from the sample.
+  if (what === "ue") {
+    for (const i of keep) {
+      const y = dependent.data[i],
+        known =
+          !isMissing(y) &&
+          model.names.every(
+            (name, k) =>
+              name === "_cons" || !isMissing(model.columns[k].value(i)),
+          );
+      if (known) values[i] = y - xb(i);
+    }
+  }
+  for (const i of what === "ue" ? [] : model.sample) {
     if (!keep.has(i)) continue;
     const u = effect(i),
       ue = residual.get(i);
@@ -2657,7 +2814,8 @@ export function tableResults(session, model, body, command) {
       // A base level has no variance; 0b.female#c.age, which Stata names
       // so, is estimated all the same.
       base =
-        (/^\d+b\./.test(entry.name) || /#\d+b\./.test(entry.name)) &&
+        (/^\d+b(?:\.|[LFDS])/.test(entry.name) ||
+          /#\d+b(?:\.|[LFDS])/.test(entry.name)) &&
         !(variance > 0),
       shown = (v) => (eform && entry.aux === undefined ? Math.exp(v) : v);
     let column;
@@ -2730,7 +2888,7 @@ export function coefficientSpace(model) {
         equation,
         name,
         index,
-        omitted: dropped(index) && !/\d+b\./.test(name),
+        omitted: dropped(index) && !/\d+b(?:\.|[LFDS])/.test(name),
       }),
     );
   } else if (model.equations) {
@@ -2775,7 +2933,7 @@ export function coefficientSpace(model) {
         index,
         // A base level keeps its b; any other coefficient held at zero
         // was omitted.
-        omitted: dropped(index) && !/\d+b\./.test(name),
+        omitted: dropped(index) && !/\d+b(?:\.|[LFDS])/.test(name),
       }),
     );
   }
@@ -2841,13 +2999,21 @@ export const omittedName = (name) =>
   name
     .split("#")
     .map((part) =>
-      /^(\d+[bo]|co|o)\./.test(part)
+      /^(\d+[bo]|co|o)(\.|(?:[LFDS]\d*)+\.)/.test(part)
         ? part
         : /^\d+\./.test(part)
           ? part.replace(".", "o.")
-          : /^c\./.test(part)
-            ? `co.${part.slice(2)}`
-            : `o.${part}`,
+          : // Under time-series operators: 1L.g is 1oL.g, cL.x coL.x and
+            // L.x oL.x.
+            /^\d+(?:[LFDS]\d*)+\./.test(part)
+            ? part.replace(/^(\d+)/, "$1o")
+            : /^c\./.test(part)
+              ? `co.${part.slice(2)}`
+              : /^c(?:[LFDS]\d*)+\./.test(part)
+                ? `co${part.slice(1)}`
+                : /^(?:[LFDS]\d*)+\./.test(part)
+                  ? `o${part}`
+                  : `o.${part}`,
     )
     .join("#");
 /**
@@ -2855,14 +3021,20 @@ export const omittedName = (name) =>
  * or a continuous variable, as x, c.x or o.x.
  */
 const termOf = (part) => {
-  const level = /^(\d+)([bon]*)\.(.+)$/i.exec(part);
+  // 1.g, 0b.g, and under time-series operators 1L.g; c.x and cL.x.
+  const level = /^(\d+)([bon]*)(?:\.(.+)|((?:[LFDS]\d*)+\..+))$/.exec(part);
   if (level)
     return {
       level: Number(level[1]),
-      variable: level[3],
+      variable: level[3] ?? level[4],
       base: /b/i.test(level[2]),
     };
-  return { level: null, variable: part.replace(/^(?:c|co|o)\./i, "") };
+  return {
+    level: null,
+    variable: part
+      .replace(/^(?:c|co|o)\./i, "")
+      .replace(/^(?:co?|o)(?=(?:[LFDS]\d*)+\.)/, ""),
+  };
 };
 /** The terms of an interaction in an order that does not depend on how
  * they were written. */
@@ -2908,6 +3080,25 @@ function unabbreviateIn(variables, name) {
 function readTerms(variables, token) {
   let abbreviated = false;
   const terms = token.split("#").map((part) => {
+    // A part under time-series operators: 1L.g, cL.x, L.x, named as the
+    // model names the operated variable.
+    const operated =
+      /^(\d+(?:bn|b|o)?|co|c|o)?((?:[LFDS]\d*)+)\.([A-Za-z_]\w*)$/i.exec(part);
+    if (operated) {
+      const [, pre = "", ops, base] = operated,
+        variable = operatedName(`${ops}.${base}`),
+        level = /^(\d+)(b|o|bn)?$/i.exec(pre),
+        flags = (level?.[2] ?? "").toLowerCase();
+      return level
+        ? {
+            level: Number(level[1]),
+            variable,
+            base: flags === "b",
+            omitted: flags === "o",
+            flags,
+          }
+        : { level: null, variable, op: pre.toLowerCase() || "c" };
+    }
     const [, op = "", name = ""] =
       /^(?:([A-Za-z0-9]+)\.)?(.+)$/.exec(part) ?? [];
     if (!/^[A-Za-z_]\w*$/.test(name)) return { lost: true, missing: part };
@@ -5044,9 +5235,12 @@ export const ESTIMATION_COMMANDS = [
   {
     name: "correlate",
     minimum: 3,
-    run: factorVariables(operatorVariables(perGroup(correlate)), {
-      refuse: "factor-variable operators not allowed",
-    }),
+    run: factorVariables(
+      operatorVariables(perGroup(correlate), { distinctTimes: true }),
+      {
+        refuse: "factor-variable operators not allowed",
+      },
+    ),
     byable: true,
   },
   { name: "tabstat", minimum: 7, run: tabstat },

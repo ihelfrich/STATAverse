@@ -1878,6 +1878,14 @@ function bootstrap(session, text, ctx) {
     );
   if (idcluster && !isName(idcluster))
     throw new StataError(`${idcluster} invalid name`, 198);
+  // idcluster() naming the cluster variable itself loses that variable in
+  // bootstrap.ado; xtreg's vce(bootstrap) renumbers its panels so.
+  if (
+    idcluster &&
+    clusterNames.includes(idcluster) &&
+    session.renumberedPanels !== idcluster
+  )
+    throw new StataError(`variable ${idcluster} not found`, 111);
   // Stata resamples observations, which a weight would stand in for.
   if (clauses(splitAtComma(parts.command)[0]).some((c) => c.kind === "weight"))
     throw new StataError("weights not allowed with bootstrap estimation", 101);
@@ -1946,12 +1954,22 @@ function bootstrap(session, text, ctx) {
       );
     }
     saving?.note(ctx);
-    // An estimation command is resampled within its estimation sample.
-    if (model?.sample && !nodrop)
-      takeRows(
-        data,
-        [...new Set(model.sample)].sort((a, b) => a - b),
-      );
+    // An estimation command is resampled within its estimation sample;
+    // with the panels of xtset data, as bootstrap.ado does, every
+    // observation of a cluster with one in the sample is kept, so that
+    // the lags of the first times are there in each sample.
+    if (model?.sample && !nodrop) {
+      let rows = [...new Set(model.sample)].sort((a, b) => a - b);
+      if (panels) {
+        const columns = clusterNames.map((cname) => data.get(cname).data),
+          key = (i) => columns.map((column) => column[i]).join("\u0001"),
+          withSample = new Set(rows.map(key));
+        rows = Array.from({ length: data.n }, (_, i) => i).filter((i) =>
+          withSample.has(key(i)),
+        );
+      }
+      takeRows(data, rows);
+    }
     n = data.n;
     let layout = { strata: null, clusters: null };
     if (strataNames.length || clusterNames.length) {
@@ -2030,6 +2048,9 @@ function bootstrap(session, text, ctx) {
         ].join("\n");
         throw new StataError(quiet ? text : `${title}${text}`, 451);
       }
+      // ... and that tsset sorts the sample by panel and time, so that
+      // the command's operators find their lags.
+      if (panels) data.sort([session.panel.id, session.panel.time]);
       // A time-series command refuses the repeated times of a sample, and
       // an operator its data out of order. Without the dots each failure
       // shows its message.
@@ -3063,10 +3084,11 @@ export function resamplingVce(session, command, text, vce, ctx) {
   let [head, rest] = splitAtComma(
     text.replace(/\bvce\s*\((?:[^()]|\([^()]*\))*\)/, ""),
   );
-  // nodots and dots() among the command's options are the prefix's.
+  // nodots, dots() and level() among the command's options are the
+  // prefix's.
   if (rest !== null)
     rest = rest.replace(
-      /(^|\s)(nodots|dots\s*\([^()]*\))(?=\s|$)/g,
+      /(^|\s)(nodots|dots\s*\([^()]*\)|l(?:e(?:v(?:el?)?)?)?\s*\([^()]*\))(?=\s|$)/g,
       (_, b, o) => {
         prefixOptions.push(o);
         return b;

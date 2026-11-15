@@ -203,6 +203,27 @@ function tokenize(source) {
       if (end < 0) throw new StataError("too few quotes", 132);
       push("string", source.slice(i + 1, end), i);
       i = labelled(end + 1);
+    } else if (
+      (m = /^(tin|twithin)\(/i.exec(rest)) &&
+      !/[\p{L}\p{Nd}_]/u.test(source[i - 1] ?? "")
+    ) {
+      // tin(d1, d2) and twithin(d1, d2): their arguments are literals in
+      // the units of the time variable, read when the expression is.
+      if (m[1] !== m[1].toLowerCase())
+        throw new StataError(`unknown function ${m[1]}()`, 133);
+      let depth = 0,
+        j = i + m[1].length;
+      for (; j < source.length; j++) {
+        if (source[j] === "(") depth++;
+        else if (source[j] === ")" && --depth === 0) break;
+      }
+      if (j >= source.length) throw new StataError("too few ')' or ']'", 132);
+      push(
+        "timewindow",
+        { name: m[1], args: source.slice(i + m[0].length, j) },
+        i,
+      );
+      i = j + 1;
     } else if ((m = /^(t[dmqwhcC])\(([^()]*)\)/.exec(rest))) {
       // td(), tc(), tC(), tw(), tm(), tq() and th(), read with their
       // blanks removed, as Stata's message shows them.
@@ -631,6 +652,56 @@ export function compileExpression(source, scope = {}) {
     return isMissing(n) || n < 1 ? "" : text.repeat(Math.trunc(n));
   };
 
+  /**
+   * tin(d1, d2), true when the time variable tsset declared is between d1
+   * and d2, and twithin(d1, d2), strictly between. Either may be left
+   * out. Each is a literal in the time variable's units, blanks removed:
+   * 1995q3 for a %tq variable (Stata reads the year and the period and
+   * not the letter between), 02jan2000 for %td, a number for a %ty or
+   * an unformatted one; nothing else, not even an expression.
+   */
+  const timeWindow = ({ name, args }) => {
+    const panel = scope.timeVariable?.();
+    if (!panel?.time)
+      throw new StataError("time-series operators not allowed", 101);
+    // tin() with nothing in it has neither bound, as tin(,) has none.
+    const parts = args.trim() ? args.split(",") : ["", ""];
+    if (parts.length !== 2) throw invalid();
+    const format = dataset.get(panel.time).format ?? "",
+      units = format[1] === "t" ? format[2] : format[1] === "d" ? "d" : "g",
+      per = { w: 52, m: 12, q: 4, h: 2 }[units];
+    const bound = (text) => {
+      const t = text.replace(/\s+/g, "");
+      if (!t) return null;
+      let value, m;
+      if (units === "g" || units === "y")
+        value = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(t)
+          ? Number(t)
+          : undefined;
+      else if (per)
+        value =
+          (m = /^(\d+)[a-z]+(\d+)$/i.exec(t)) &&
+          Number(m[2]) >= 1 &&
+          Number(m[2]) <= per
+            ? (Number(m[1]) - 1960) * per + Number(m[2]) - 1
+            : undefined;
+      else if (units === "d" || units === "c" || units === "C")
+        value = dateLiteral(units === "d" ? "td" : `t${units}`, t);
+      if (value === undefined || isMissing(value)) throw invalid();
+      return value;
+    };
+    const [low, high] = parts.map(bound),
+      strict = name === "twithin",
+      time = panel.time;
+    // A missing time is above every bound, as Stata compares it.
+    return node(N, (i) => {
+      const t = dataset.get(time).data[i];
+      return Number(
+        (low === null || (strict ? t > low : t >= low)) &&
+          (high === null || (strict ? t < high : t <= high)),
+      );
+    });
+  };
   const primary = () => {
     const token = tokens[at++];
     if (!token) throw invalid();
@@ -644,6 +715,7 @@ export function compileExpression(source, scope = {}) {
       return node(S, () => value);
     }
     if (token.type === "label") return dereference(token.value);
+    if (token.type === "timewindow") return timeWindow(token.value);
     if (token.type === "coefficient") {
       const { kind, name, shorthand, bracketed } = token.value,
         form = { equation: !!(shorthand || bracketed), shorthand: !!shorthand };

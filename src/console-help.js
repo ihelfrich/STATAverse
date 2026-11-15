@@ -608,6 +608,10 @@ export const HELP = {
     "Adds periods at the end of time-series data.",
     "tsappend, add(4)",
   ],
+  tsfill: [
+    "Adds observations for the missing times of each panel.",
+    "tsfill, full",
+  ],
   tsline: ["Line graph of a time series.", "tsline x"],
   tsset: ["Declares the data a time series.", "tsset year"],
   tssmooth: ["Smooths a time series.", "tssmooth ma s = x, window(2 1 2)"],
@@ -679,6 +683,10 @@ export const HELP = {
   xtreg: [
     "Fixed-, between- and random-effects panel regression.",
     "xtreg y x, fe",
+  ],
+  xtline: [
+    "Line graphs of each panel's series over time.",
+    "xtline y, overlay",
   ],
   xtset: ["Declares the data a panel.", "xtset id year"],
   xtsum: [

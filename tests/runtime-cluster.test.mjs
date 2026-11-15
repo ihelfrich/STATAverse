@@ -99,7 +99,6 @@ test("a variance the runtime does not compute is refused", () => {
     "ivregress liml y x2 (x1 = z), vce(cluster cl)",
     "xtreg y x1 x2, fe vce(cluster reg)",
     "xtreg y x1 x2, re vce(cluster cl)",
-    "xtreg y x1 x2, fe vce(bootstrap)",
   ]) {
     const run = session().run(command);
     assert.equal(run.rc, 198, command);

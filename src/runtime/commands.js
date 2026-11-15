@@ -36,7 +36,7 @@ import { MODEL_COMMANDS } from "./models.js";
 import { IVREG_COMMANDS } from "./ivreg.js";
 import { numlistCommand } from "./numlist.js";
 import { MIXED_COMMANDS } from "./mixed.js";
-import { PANEL_COMMANDS } from "./panel.js";
+import { PANEL_COMMANDS, renamePanelVariables } from "./panel.js";
 import { XT_MODEL_COMMANDS } from "./xt-models.js";
 import { UTILITY_COMMANDS } from "./utilities.js";
 import { EVERYDAY_COMMANDS, labelSubcommand } from "./everyday.js";
@@ -922,8 +922,9 @@ export function displayText(session, text, asMacro = false, errors = null) {
     }
     if (!opensString(expression, 0)) checkQuotes(expression);
     checkBrackets(expression);
+    // display right-aligns under %-tg, which list left-aligns.
     const value = session.scalar(expression),
-      spec = format && parseFormat(format);
+      spec = format && parseFormat(format === "%-tg" ? "%tg" : format);
     return [
       typeof value === "string"
         ? spec?.kind === "string"
@@ -1411,19 +1412,14 @@ function typedVariable(session, word) {
 }
 function rename(session, text, ctx) {
   // The panel and time variables of tsset and xtset keep their roles under
-  // their new names, as Stata's characteristics follow a renamed variable.
+  // their new names: Stata's rename writes the new name into the
+  // characteristics _TStvar and _TSpanel.
   const before = new Map(session.data.variables.map((v) => [v, v.name])),
-    follow = () => {
-      const panel = session.panel;
-      if (!panel) return;
-      const now = (name) =>
-        [...before].find(([, old]) => old === name)?.[0].name ?? name;
-      session.panel = {
-        ...panel,
-        id: panel.id && now(panel.id),
-        time: panel.time && now(panel.time),
-      };
-    };
+    follow = () =>
+      renamePanelVariables(
+        session.data,
+        (name) => [...before].find(([, old]) => old === name)?.[0].name ?? name,
+      );
   // Two plain names: Stata's built-in rename, which allows the old name to
   // be abbreviated. Anything else is rename's group syntax.
   const words = text.trim().split(/\s+/);

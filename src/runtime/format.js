@@ -70,6 +70,17 @@ function parse(format) {
       : { kind: "binary", width, order: m[4] };
   }
   if ((m = BUSINESS.exec(format))) return { kind: "business", name: m[1] };
+  // %tg, the generic time format, shows the number as %9.0g does.
+  if ((m = /^%(-)?tg$/.exec(format)))
+    return {
+      kind: "number",
+      left: !!m[1],
+      zero: false,
+      width: 9,
+      digits: 0,
+      style: "g",
+      commas: false,
+    };
   if ((m = DATE.exec(format))) {
     const unit = m[2] ?? "d",
       codes = dateCodes(m[3] || DEFAULT_DATE[unit]);

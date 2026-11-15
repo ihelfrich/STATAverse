@@ -306,29 +306,49 @@ function nameTerm(session, name, terms, labelled, seriesBases = null) {
         ops === "--" ? "--." : /^[LFDS]$/.test(ops) ? `${ops}1.` : `${ops}.`,
     };
   }
-  const parts = name.split("#").map((part) => {
-      const level = /^(\d+)([bno]*)\.(.+)$/.exec(part);
+  // A factor's level is 1.g, or 1L.g under time-series operators; a
+  // continuous part of an interaction c.x, or cL.x.
+  const operatedName = (part) => /^(?:[LFDS]\d*)+\./.test(part),
+    continuous = (part) => (operatedName(part) ? `c${part}` : `c.${part}`),
+    parts = name.split("#").map((part) => {
+      const level = /^(\d+)([bno]*)(?:\.(.+)|((?:[LFDS]\d*)+\..+))$/.exec(part);
       return level
         ? {
-            name: level[3],
+            name: level[3] ?? level[4],
             factor: true,
             level: Number(level[1]),
             base: level[2].includes("b"),
           }
-        : { name: part.replace(/^(c|co|o)\./, ""), factor: false };
+        : {
+            name: part
+              .replace(/^(c|co|o)\./, "")
+              .replace(/^co?(?=(?:[LFDS]\d*)+\.)/, ""),
+            factor: false,
+          };
     }),
     factors = parts.filter((p) => p.factor),
-    header = parts.map((p) => (p.factor ? p.name : `c.${p.name}`)).join("#");
+    header = parts
+      .map((p) => (p.factor ? p.name : continuous(p.name)))
+      .join("#");
   if (name !== "_cons" && !terms.has(header)) {
     // A factor's levels take their value labels only when the active
     // results have the variable as a factor too, as Stata shows them.
     const components = parts.map((p) => {
         const ts = !p.factor && parts.length === 1 && seriesOf(p.name),
+          // A factor under time-series operators (L.union) takes the
+          // value labels of its variable.
+          base = p.factor && /^(?:[LFDS]\d*)+\.(.+)$/.exec(p.name)?.[1],
           variable = session.data.has(p.name)
             ? session.data.get(p.name)
-            : ts
-              ? { name: p.name, format: "%9.0g", ts }
-              : { name: p.name, format: "%9.0g" };
+            : base && session.data.has(base)
+              ? {
+                  ...session.data.get(base),
+                  name: p.name,
+                  ts: { base },
+                }
+              : ts
+                ? { name: p.name, format: "%9.0g", ts }
+                : { name: p.name, format: "%9.0g" };
         return {
           variable:
             p.factor && !labelled.has(p.name)
@@ -350,7 +370,15 @@ function nameTerm(session, name, terms, labelled, seriesBases = null) {
   }
   return {
     key: parts
-      .map((p) => (p.factor ? `${p.level}.${p.name}` : p.name))
+      .map((p) =>
+        p.factor
+          ? operatedName(p.name)
+            ? `${p.level}${p.name}`
+            : `${p.level}.${p.name}`
+          : parts.length > 1
+            ? continuous(p.name)
+            : p.name,
+      )
       .join("#"),
     term: name === "_cons" ? undefined : terms.get(header),
     levels: factors.map((p) => p.level),

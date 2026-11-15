@@ -33,6 +33,7 @@ import {
   registerGraph,
   ticks,
   titleOf,
+  twowayCommand,
 } from "./graphics.js";
 import { labelled, moments, percentile, weightedRows } from "./reports.js";
 import {
@@ -45,6 +46,8 @@ import {
 } from "./smoothers.js";
 import { lngamma } from "./distributions.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
+import { seriesTerm } from "./panel.js";
+import { tsTerms } from "./timeseries.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 /**
@@ -1354,12 +1357,21 @@ function normalPlot(kind) {
 function tsline(session, text, ctx) {
   if (!session.panel?.time)
     throw new StataError("time variable not set, use tsset varname ...", 111);
-  const parsed = parseGraph(session, `varlist [if] [in] [, ${LOOKS}]`, text),
+  // A varlist(ts): its variables may carry time-series operators, as
+  // D.y; each is drawn and labelled as Stata labels it.
+  const parsed = parseGraph(session, `anything [if] [in] [, ${LOOKS}]`, text),
     options = parsed.options,
     time = session.data.get(session.panel.time),
     rows = session.rows(parsed, null),
-    layers = parsed.varlist.map((name) => {
-      const variable = numeric(session, name);
+    listed = (parsed.anything ?? "").trim();
+  if (!listed) throw new StataError("varlist required", 100);
+  // D.(y x) and L(1/2).y are each of their terms.
+  const series = tsTerms(session, listed).map((term) =>
+      term.ops.length
+        ? seriesTerm(session, term.name)
+        : numeric(session, term.variable),
+    ),
+    layers = series.map((variable) => {
       return {
         kind: "line",
         points: rows
@@ -1381,6 +1393,141 @@ function tsline(session, text, ctx) {
     }),
     description: `Time-series line plot of ${layers.map((l) => l.label).join(", ")} against ${titleOf(time)}, ${layers[0].points.length} points.`,
   });
+}
+
+/**
+ * xtline, as xtline.ado draws it through twoway: each panel's series
+ * against time, in a graph of its own under by(), or with overlay one line
+ * for each panel in a single graph, labelled as "id = 1" or by the panel's
+ * value label. i() and t() name the panel and time variables in place of
+ * those xtset declared.
+ */
+function xtline(session, text, ctx) {
+  const [head, optionText] = splitAtComma(text),
+    at = /(^|\s)(if|in)(?=\s)/.exec(head),
+    listed = (at ? head.slice(0, at.index) : head).trim(),
+    qualifier = at ? head.slice(at.index).trim() : "";
+  if (!listed) throw new StataError("varlist required", 100);
+  // xtline's own options; the rest go to twoway.
+  const own = {},
+    rest = [];
+  for (const item of optionItems(optionText ?? "")) {
+    const name = item.name.toLowerCase(),
+      found = [
+        ["overlayed", 2],
+        ["i", 1],
+        ["t", 1],
+        ["byopts", 5],
+        ["recast", 6],
+      ].find(([full, min]) => name.length >= min && full.startsWith(name));
+    if (found && (found[0] === "overlayed") === (item.argument === undefined))
+      own[found[0]] = item.argument ?? true;
+    else rest.push(item.word);
+  }
+  if (own.recast !== undefined)
+    throw new StataError(
+      "option recast() is not available here; xtline draws lines, and twoway draws the other plot types",
+      198,
+    );
+  let panelVar, timeVar;
+  if (own.i !== undefined || own.t !== undefined) {
+    if (own.t === undefined)
+      throw new StataError("option i() requires option t()", 198);
+    if (own.i === undefined)
+      throw new StataError("option t() requires option i()", 198);
+    panelVar = session.varlist(own.i.trim())[0];
+    timeVar = session.varlist(own.t.trim())[0];
+  } else {
+    const panel = session.panel;
+    if (!panel?.id)
+      throw new StataError("must specify panelvar; use xtset", 459);
+    if (!panel.time)
+      throw new StataError("must specify timevar; use xtset", 459);
+    panelVar = panel.id;
+    timeVar = panel.time;
+  }
+  const data = session.data,
+    names = listed.split(/\s+/),
+    single = names.length === 1 && !/[()]/.test(listed);
+  if (own.overlayed && own.byopts !== undefined)
+    throw new StataError(
+      "options byopts() and overlay may not be combined",
+      198,
+    );
+  if (own.overlayed && !single)
+    throw new StataError(
+      "option overlay may not be specified with multiple variables",
+      198,
+    );
+  const rows = session.rows(session.parse("[if] [in]", qualifier), null),
+    ids = data.get(panelVar),
+    times = data.get(timeVar).data,
+    used = rows.filter(
+      (i) =>
+        !isMissing(times[i]) &&
+        (isStringType(ids.type) ? ids.data[i] !== "" : !isMissing(ids.data[i])),
+    );
+  if (!rows.length) throw new StataError("no observations", 2000);
+  // Plain quotes, which twoway's options read; a quote in a label is
+  // dropped.
+  const quote = (value) => `"${String(value).replace(/"/g, "")}"`,
+    yTitle = single
+      ? (() => {
+          const word = names[0],
+            variable = /\./.test(word)
+              ? null
+              : data.get(session.varlist(word)[0]);
+          return `ytitle(${quote(variable ? variable.label || variable.name : word)})`;
+        })()
+      : `ytitle("")`,
+    options = rest.join(" "),
+    // Variables under time-series operators are drawn as twoway's tsline
+    // draws them, against the time variable xtset declared.
+    plotOf =
+      /\./.test(listed) && own.i === undefined
+        ? `tsline ${listed}`
+        : `line ${listed} ${timeVar}`,
+    // tsline sorts by time of itself.
+    sort = plotOf.startsWith("line") ? "sort" : "";
+  if (!own.overlayed) {
+    const by = `by(${panelVar}${own.byopts ? `, ${own.byopts}` : ""})`;
+    return twowayCommand(
+      session,
+      `${plotOf} ${qualifier}, ${sort} ${by} ${yTitle} ${options}`,
+      ctx,
+    );
+  }
+  // One line for each panel, in the order of the panels.
+  const levels = [...new Set(used.map((i) => ids.data[i]))].sort((a, b) =>
+      typeof a === "string" ? (a < b ? -1 : a > b ? 1 : 0) : a - b,
+    ),
+    labels = data.valueLabels?.get(ids.valueLabel),
+    short = panelVar.length > 8 ? `${panelVar.slice(0, 7)}~` : panelVar,
+    condition = (level) =>
+      typeof level === "string"
+        ? `${panelVar} == ${quote(level)}`
+        : `${panelVar} == ${level}`,
+    [ifPart, inPart] = (() => {
+      const m = /^(?:if\s+([\s\S]*?))?\s*(in\s+[\s\S]*)?$/.exec(qualifier);
+      return [m?.[1]?.trim() ?? "", m?.[2]?.trim() ?? ""];
+    })(),
+    plots = levels.map(
+      (level) =>
+        `(${plotOf} if ${condition(level)}${ifPart ? ` & (${ifPart})` : ""} ${inPart}, ${sort})`,
+    ),
+    legend = /(^|\s)leg(e(n(d)?)?)?\s*\(/.test(options)
+      ? ""
+      : `legend(order(${levels
+          .map(
+            (level, k) =>
+              `${k + 1} ${quote(labels?.get(level) ?? `${short} = ${typeof level === "string" ? level : applyFormat(level, "%9.0g").trim()}`)}`,
+          )
+          .join(" ")}))`;
+  return twowayCommand(
+    session,
+    `${plots.join(" ")}, ${yTitle} ${legend} ${options}`,
+    ctx,
+  );
 }
 
 // ----- graph pie -----
@@ -2132,4 +2279,5 @@ export const MORE_GRAPH_COMMANDS = withStyleNotes([
   { name: "qnorm", minimum: 5, run: normalPlot("qnorm") },
   { name: "pnorm", minimum: 5, run: normalPlot("pnorm") },
   { name: "tsline", minimum: 6, run: tsline },
+  { name: "xtline", minimum: 6, run: xtline },
 ]);

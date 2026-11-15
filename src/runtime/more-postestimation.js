@@ -7,6 +7,7 @@ import { invnormal, normal } from "./functions-normal.js";
 import {
   RULE,
   abbreviate,
+  brokenName,
   coefficientHeader,
   coefficientRows,
   estimates,
@@ -656,11 +657,16 @@ function hausman(session, text, ctx) {
     `             |  ${centred(title(0), 12)} ${centred(title(1), 12)}    Difference       Std. err.`,
   );
   ctx.out(SPLIT);
-  common.forEach(({ name }, k) =>
+  common.forEach(({ name }, k) => {
+    // An interaction too long for the column is broken after a #, onto
+    // lines of its own, as Stata's coefficient tables break it.
+    const broken =
+      name.length > 12 && name.includes("#") ? brokenName(name, 12) : null;
+    broken?.lines.forEach((line) => ctx.out(line));
     ctx.out(
-      `${abbreviate(name, 12).padStart(12)} |${g(consistent.b[a[k]]).padStart(12)}${g(efficient.b[b[k]]).padStart(13)}${g(difference[k]).padStart(16)}${(V[k][k] >= 0 ? g(Math.sqrt(V[k][k])) : ".").padStart(16)}`,
-    ),
-  );
+      `${(broken ? broken.last : abbreviate(name, 12)).padStart(12)} |${g(consistent.b[a[k]]).padStart(12)}${g(efficient.b[b[k]]).padStart(13)}${g(difference[k]).padStart(16)}${(V[k][k] >= 0 ? g(Math.sqrt(V[k][k])) : ".").padStart(16)}`,
+    );
+  });
   ctx.out(RULE);
   const command = (k) =>
     entries[k].e?.cmd2 || entries[k].e?.cmd || entries[k].model.command;
