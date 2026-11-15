@@ -26806,3 +26806,1027 @@ reshape wide x w v, i(grp) j(t)
 reshape long x, i(grp) j(t)
 capture noisily reshape wide x, i(t) j(w)
 capture noisily reshape wide x, i(t) j(t)
+=== recheck-files-merge-notes-chars
+clear
+input id x
+1 10
+2 20
+3 30
+end
+char x[unit] kg
+char _dta[foo] master
+notes x: master note
+notes x: shared note
+notes: master dta note
+save rfnm, replace
+clear
+input id x y
+1 11 5
+2 21 6
+4 41 7
+end
+char x[unit] lb
+char x[other] u
+char y[unit] cm
+char _dta[foo] using
+char _dta[bar] using
+notes x: using note
+notes x: shared note
+notes y: y note
+notes: using dta note
+notes id: id using note
+save rfnu, replace
+use rfnm, clear
+char list
+merge 1:1 id using rfnu, nogenerate
+notes
+char list
+describe id x y
+use rfnm, clear
+merge 1:1 id using rfnu, nogenerate nonotes
+notes
+char list
+use rfnm, clear
+merge 1:1 id using rfnu, nogenerate keepusing(x)
+char list
+=== recheck-files-append-cross-joinby-notes
+clear
+input id x z
+1 10 0
+2 20 0
+end
+char x[unit] kg
+char z[a] 1
+notes x: master note
+notes: master dta note
+save rfam, replace
+clear
+input id x y
+1 11 5
+3 31 7
+end
+char x[unit] lb
+char x[other] u
+char y[unit] cm
+notes x: using note
+notes x: master note
+notes y: y note
+notes: using dta note
+save rfau, replace
+use rfam, clear
+append using rfau
+notes
+char list
+use rfam, clear
+append using rfau rfau, generate(src)
+notes
+use rfam, clear
+append using rfau, nonotes
+notes
+char list
+use rfam, clear
+drop x
+cross using rfau
+notes
+char list
+use rfam, clear
+joinby id using rfau, unmatched(both)
+notes
+char list
+=== recheck-files-char-order-save-use
+clear
+set obs 1
+generate z = 1
+char z[a] 1
+char z[b] 2
+notes z: first
+notes z: second
+char _dta[q] 3
+char list
+save rfco, replace
+use rfco, clear
+char list
+save rfco, replace
+use rfco, clear
+char list
+=== recheck-files-merge-messages
+set linesize 79
+clear
+input id str3 s x
+1 "a" 5
+2 "b" 6
+end
+save rfmm, replace
+clear
+input str2 id xa xb
+"1" 3 4
+end
+save rfms, replace
+clear
+input id xa xb
+1 3 4
+end
+save rfmn, replace
+use rfmm, clear
+capture noisily merge 1:1 id using rfms
+display _rc
+capture noisily merge 1:1 id using rfmn, keepusing(nothere)
+display _rc
+capture noisily merge 1:1 id using rfmn, keepusing(x)
+display _rc
+capture noisily merge 1:1 id using rfmn, keepusing(xa q*)
+display _rc
+capture noisily merge 1:1 id using rfmn, keepusing(x*)
+display _rc
+capture noisily append using rfnosuch
+display _rc
+capture noisily append using "rf no such.dta"
+display _rc
+capture noisily append using rfmn rfnosuch2
+display _rc
+display _N
+use rfms, clear
+capture noisily merge 1:1 id using rfmm
+display _rc
+capture noisily joinby id using rfmm
+display _rc
+display _N
+set linesize 200
+
+=== recheck-files-not-stata-format
+clear
+set obs 2
+generate id = _n
+generate v = 10 * _n
+export delimited using rfnsf.csv, replace
+save rfnsf, replace
+capture noisily merge 1:1 id using rfnsf.csv
+display _rc " " _N
+capture noisily append using rfnsf.csv
+display _rc " " _N
+capture noisily describe using rfnsf.csv
+display _rc
+capture noisily use rfnsf.csv
+display _rc " " _N
+capture noisily use rfnsf.csv, clear
+display _rc " " _N
+capture noisily use rfnosuch, clear
+display _rc " " _N
+=== recheck-files-dot-slash
+clear
+set obs 3
+generate id = _n
+save "./rfdot", replace
+export delimited using ./rfdot.csv, replace
+use ./rfdot, clear
+describe using ./rfdot, simple
+import delimited using ./rfdot.csv, clear
+use "./rfdot.dta", clear
+merge 1:1 id using ./rfdot, nogenerate
+append using ./rfdot
+count
+=== recheck-files-save-other-extension
+set linesize 79
+clear
+set obs 2
+generate x = _n
+save rfother.dat
+use rfother.dat, clear
+capture noisily save rfother.dat
+save rfother.dat, replace
+save rfdtaname.dta
+set linesize 200
+
+=== recheck-files-nobind
+clear
+input id str20 note
+1 `"say "hi""'
+2 `"""'
+3 `"a,b"'
+end
+export delimited using rfnob.csv, replace quote
+import delimited using rfnob.csv, bindquotes(nobind) clear
+list
+import delimited using rfnob.csv, bindquotes(nobind) stripquotes(no) clear
+list
+=== recheck-files-ds-utf8
+clear
+set obs 1
+generate a = 1
+generate b = 1
+generate école = 1
+generate c = 1
+ds
+generate ééééé = 1
+ds
+ds, skip(1)
+=== recheck-files-numericcols-text
+clear
+input str6 p str6 q str6 r str6 s str6 t str6 u str6 v
+"1" "1" "1" "1" "1" "1.5" "300"
+"x" "ab" "abc" "abcdef" "NA" "x" "abcdef"
+"" "1.5" "100000" "" "300" "ab" "1.5"
+end
+export delimited using rfnum.csv, novarnames replace
+import delimited using rfnum.csv, numericcols(_all) clear
+describe
+list
+import delimited using rfnum.csv, numericcols(_all) varnames(nonames) clear
+describe
+import delimited using rfnum.csv, numericcols(2 3) clear
+describe
+=== recheck-files-charset-29-bytes
+clear
+input Alpha Beta str1 Gamma
+1 2 "x"
+3 4 "y"
+end
+export delimited using rfsemi.csv, delimiter(";") replace
+import delimited using rfsemi.csv, clear
+=== recheck-files-list-tab
+clear
+set obs 2
+generate s = "id" + char(9) + "name"
+replace s = "a" + char(9) + "b" + char(9) + "c" in 2
+list
+list, clean noobs
+list, table divider
+=== recheck-files-cd
+capture noisily cd "/Users/student/Dropbox/ECON400"
+display _rc
+capture noisily cd C:\Users\me\Documents
+capture noisily cd a b
+display _rc
+=== recheck-files2-merge-repeated-notes
+* using: shared var x with chars, var z, notes incl. duplicates
+clear
+input id x z
+1 10 5
+2 20 6
+3 30 7
+end
+char x[unit] grams
+char x[src] using
+char z[unit] m
+char id[keyc] usingkey
+notes x: shared note
+notes x: using x note
+notes x: using x note
+notes z: z note
+notes: using dta
+notes: common dta
+char _dta[who] usingdta
+save r2fmu, replace
+* master
+clear
+input id x w
+1 1 0
+2 2 0
+4 4 1
+end
+char x[unit] kg
+char w[unit] cm
+char id[keyc] masterkey
+notes x: shared note
+notes x: second master
+notes x: third master
+notes drop x in 2
+notes: common dta
+char _dta[who] masterdta
+save r2fmm, replace
+merge 1:1 id using r2fmu
+char list
+notes
+count
+* update replace
+use r2fmm, clear
+merge 1:1 id using r2fmu, update replace nogen
+char list x[]
+notes x
+* keepusing excludes z
+use r2fmm, clear
+merge 1:1 id using r2fmu, keepusing(x) nogen
+char list
+* nonotes
+use r2fmm, clear
+merge 1:1 id using r2fmu, nonotes nogen
+notes
+char list _dta[]
+* m:1
+use r2fmm, clear
+merge m:1 id using r2fmu, nogen
+notes
+=== recheck-files2-append-repeated-notes
+clear
+input id x
+1 10
+2 20
+end
+char x[unit] grams
+notes x: dup
+notes x: dup
+notes: d1
+save r2fau1, replace
+clear
+input id x
+3 30
+end
+char x[unit] lb
+char x[extra] e2
+notes x: dup
+notes x: other
+notes: d1
+notes: d2
+save r2fau2, replace
+clear
+input id x
+5 50
+end
+notes x: mine
+save r2fam, replace
+append using r2fau1 r2fau2
+char list
+notes
+use r2fam, clear
+append using r2fau1
+append using r2fau2
+notes
+use r2fam, clear
+append using r2fau1 r2fau2, nonotes
+char list
+use r2fam, clear
+append using r2fau1, keep(id)
+char list
+use r2fam, clear
+cross using r2fau1
+notes
+use r2fam, clear
+replace id = 1
+joinby id using r2fau1
+notes
+char list
+=== recheck-files2-append-loop-notes
+clear
+input id x
+1 10
+2 20
+end
+char x[unit] grams
+notes x: dup
+notes x: dup
+notes: d1
+save r2fbu1, replace
+clear
+input id x
+3 30
+end
+char x[unit] lb
+char x[extra] e2
+notes x: dup
+notes x: other
+notes: d1
+notes: d2
+save r2fbu2, replace
+clear
+input id x
+5 50
+end
+notes x: mine
+save r2fbm, replace
+clear
+append using r2fbu1
+notes
+char list
+clear
+foreach f in r2fbu1 r2fbu2 r2fbm {
+append using `f'
+}
+notes
+char list
+label data "x"
+save r2fball, replace
+use r2fball, clear
+char list
+=== recheck-files2-char-order-preserve
+clear
+set obs 2
+gen x = _n
+gen y = 2
+char x[a] one
+char x[b] two
+char x[c] three
+char _dta[p] P
+char _dta[q] Q
+notes x: first
+notes: dta note
+char list
+save r2fc1, replace
+use r2fc1, clear
+char list
+save r2fc2, replace
+use r2fc2, clear
+char list
+preserve
+char x[d] four
+restore
+char list
+char x[b] changed
+char list x[]
+save r2fc3, replace
+use r2fc3, clear
+char list x[]
+=== recheck-files2-char-order-merge
+clear
+set obs 2
+gen id = _n
+save r2fplain, replace
+gen x = 1
+char x[a] one
+char x[b] two
+char _dta[p] P
+char _dta[q] Q
+merge 1:1 id using r2fplain, nogen
+char list
+notes x: n1
+notes: d1
+merge 1:1 id using r2fplain, nogen
+char list
+char x[a] one
+char x[b] two
+notes x: n1
+save r2fwith, replace
+use r2fplain, clear
+gen x = 2
+merge 1:1 id using r2fwith, nogen
+char list
+merge 1:1 id using r2fwith, nogen
+char list
+=== recheck-files2-char-order-combine
+clear
+set obs 2
+gen id = _n
+gen x = _n
+char _dta[u1] C
+char _dta[s] Utext
+char _dta[u2] D
+char x[ux] UX
+char x[sx] USX
+notes: shared
+notes: unew
+notes: unew
+notes x: xs
+notes x: xu
+save r2fxu, replace
+use r2fxu, clear
+char list
+clear
+set obs 2
+gen id = _n
+char _dta[m1] A
+char _dta[s] Mtext
+char _dta[m2] B
+notes: mnote
+notes: shared
+gen x = 5
+char x[mx] MX
+char x[sx] MSX
+notes x: xs
+char list
+save r2fxm, replace
+merge 1:1 id using r2fxu, nogen
+char list
+use r2fxm, clear
+append using r2fxu
+char list
+use r2fxm, clear
+joinby id using r2fxu
+char list
+use r2fxm, clear
+drop id x
+cross using r2fxu
+char list
+=== recheck-files2-merge-sorted
+clear
+input id y
+3 30
+1 10
+2 20
+4 40
+end
+save r2fsuu, replace
+sort id
+char _dta[u1] C
+char _dta[u2] D
+save r2fsus, replace
+clear
+input id x
+1 1
+2 2
+3 3
+5 5
+end
+char _dta[m1] A
+char _dta[m2] B
+capture noisily merge 1:1 id using r2fsus, sorted
+di _rc
+sort id
+capture noisily merge 1:1 id using r2fsuu, sorted
+di _rc
+merge 1:1 id using r2fsus, sorted
+describe, short
+list
+char list
+clear
+input id x
+1 1
+1 2
+3 3
+5 5
+end
+sort id
+merge m:1 id using r2fsus, sorted keep(match) nogen
+list
+sort id
+capture noisily merge 1:1 id using r2fsus, sorted
+di _rc
+clear
+input id x
+1 1
+2 2
+3 3
+end
+sort id x
+merge 1:1 id using r2fsus, sorted nogen
+list
+clear
+input id x
+1 1
+2 2
+3 3
+end
+sort x id
+capture noisily merge 1:1 id using r2fsus, sorted nogen
+di _rc
+clear
+input str3 s x
+"a" 1
+end
+sort s
+capture noisily merge 1:1 s using r2fsus, sorted nogen
+di _rc
+merge 1:1 _n using r2fsus, sorted nogen
+list
+=== recheck-files2-use-varlist-not-dataset
+clear
+set seed 2026
+set obs 10
+generate id = _n
+generate wage = round(10 + 20 * runiform(), .01)
+save r2fpeople, replace
+export delimited using r2fextra.csv, replace
+use r2fpeople, clear
+capture noisily use r2fextra.csv
+di _N
+use r2fpeople, clear
+replace wage = 1 in 1
+capture noisily use r2fextra.csv
+di _N
+capture noisily use r2fextra.csv, clear
+di _N
+use r2fpeople, clear
+capture noisily use id using r2fextra.csv, clear
+di _N
+use r2fpeople, clear
+capture noisily use in 1/3 using r2fextra.csv
+di _N
+use r2fpeople, clear
+capture noisily merge 1:1 id using r2fextra.csv
+di _N
+capture noisily describe using r2fextra.csv
+use r2fpeople, clear
+capture noisily append using r2fpeople r2fextra.csv
+di _N
+capture noisily append using "r2fextra.csv"
+capture noisily cross using r2fextra.csv
+capture noisily joinby id using r2fextra.csv
+use r2fpeople, clear
+capture noisily use if id > 2 using r2fextra.csv, clear
+di _N
+use r2fpeople, clear
+capture noisily use id wage using r2fextra.csv
+di _N
+use r2fpeople, clear
+capture noisily use id if id>2 using r2fextra.csv, clear
+di _N
+use r2fpeople, clear
+capture noisily use using r2fextra.csv, clear
+di _N
+use r2fpeople, clear
+replace wage = 1 in 1
+capture noisily use id using r2fextra.csv
+di _rc
+di _N
+capture noisily use id using nosuch.dta
+di _rc
+di _N
+capture noisily use id using r2fpeople, clear
+di _N
+use r2fpeople, clear
+replace wage = 1 in 1
+capture noisily use nosuch.dta
+di _rc
+capture noisily use in 1/2 using nosuch.dta
+di _rc
+capture noisily use if id>2 using nosuch.dta
+di _rc
+capture noisily use id using nosuch.dta, clear
+di _rc
+di _N
+capture noisily use id using r2fpeople, clear
+di _N
+=== recheck-files2-append-empty-name
+clear
+set seed 2026
+set obs 10
+generate id = _n
+generate wage = round(10 + 20 * runiform(), .01)
+save r2fpe2, replace
+export delimited using r2fex2.csv, replace
+use r2fpe2, clear
+capture noisily append using
+display _rc
+capture noisily append using ""
+display _rc
+capture noisily append using `""'
+display _rc
+display _N
+=== recheck-files2-save-message-wrap
+set linesize 50
+clear
+set obs 1
+gen x = 1
+save r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace
+save r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace
+capture noisily save r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat
+save "r2fa b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i.dta", replace
+save r2fUPPER.DTA, replace
+save r2flow.dta, replace
+save r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes_and_even_longer_than_two_lines_of_text.dat, replace
+export delimited using r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace
+export delimited using r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace
+capture noisily export delimited using r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv
+set linesize 79
+clear
+set obs 1
+gen x = 1
+save r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace
+save r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace
+capture noisily save r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat
+save "r2fbb b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i.dta", replace
+save r2fUP2.DTA, replace
+save r2flw2.dta, replace
+save r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes_and_even_longer_than_two_lines_of_text.dat, replace
+export delimited using r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace
+export delimited using r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace
+capture noisily export delimited using r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv
+set linesize 200
+
+=== recheck-files2-numericcols-nonames
+clear
+input str8 v
+"b"
+"1.5"
+"x"
+"2.25"
+end
+export delimited using r2fnc1.csv, novarnames replace
+import delimited using r2fnc1.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"1.5"
+end
+export delimited using r2fnc2.csv, novarnames replace
+import delimited using r2fnc2.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"1.5"
+"x"
+end
+export delimited using r2fnc3.csv, novarnames replace
+import delimited using r2fnc3.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"x"
+"1.5"
+"x"
+end
+export delimited using r2fnc4.csv, novarnames replace
+import delimited using r2fnc4.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"1.5"
+"2.25"
+end
+export delimited using r2fnc5.csv, novarnames replace
+import delimited using r2fnc5.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"x"
+"1.5"
+end
+export delimited using r2fnc6.csv, novarnames replace
+import delimited using r2fnc6.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"ab"
+"1.5"
+"x"
+end
+export delimited using r2fnc7.csv, novarnames replace
+import delimited using r2fnc7.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"1.5"
+"x"
+"2.25"
+end
+export delimited using r2fnc8.csv, novarnames replace
+import delimited using r2fnc8.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+".5"
+"333"
+end
+export delimited using r2fnc9.csv, novarnames replace
+import delimited using r2fnc9.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"1"
+".5"
+"1.5"
+end
+export delimited using r2fnc10.csv, novarnames replace
+import delimited using r2fnc10.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"1.5"
+"2.25"
+"70000"
+end
+export delimited using r2fnc11.csv, novarnames replace
+import delimited using r2fnc11.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"1.5"
+"22.5"
+"1.25"
+end
+export delimited using r2fnc12.csv, novarnames replace
+import delimited using r2fnc12.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"333"
+"1.5"
+"2.25"
+end
+export delimited using r2fnc13.csv, novarnames replace
+import delimited using r2fnc13.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"100000"
+"2.25"
+end
+export delimited using r2fnc14.csv, novarnames replace
+import delimited using r2fnc14.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"1.5"
+"1234"
+"2.25"
+end
+export delimited using r2fnc15.csv, novarnames replace
+import delimited using r2fnc15.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"5"
+"b"
+"1.5"
+"2.25"
+end
+export delimited using r2fnc16.csv, novarnames replace
+import delimited using r2fnc16.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"1.5"
+"12.25"
+"1"
+end
+export delimited using r2fnc17.csv, novarnames replace
+import delimited using r2fnc17.csv, numericcols(1) varnames(nonames) clear
+describe v1
+=== recheck-files2-confirm-file
+clear
+set obs 2
+generate id = _n
+save r2fcp, replace
+export delimited using r2fcx.csv, replace
+capture noisily confirm file r2fcp.dta
+di _rc
+capture noisily confirm file people
+di _rc
+capture noisily confirm file "r2fcp.dta"
+di _rc
+capture noisily confirm file `"r2fcp.dta"'
+di _rc
+capture noisily confirm file ./r2fcp.dta
+di _rc
+capture noisily confirm file nosuch.dta
+di _rc
+capture noisily confirm file R2FCP.DTA
+di _rc
+capture noisily confirm file "no such.dta"
+di _rc
+capture noisily confirm file r2fcp.dta r2fcx.csv
+di _rc
+capture noisily confirm file
+di _rc
+capture noisily confirm new file x.dta
+di _rc
+capture noisily confirm new file r2fcp.dta
+di _rc
+capture noisily confirm new file "r2fcp.dta"
+di _rc
+capture noisily confirm new file
+di _rc
+capture noisily confirm new file nofolder/x.dta
+di _rc
+capture noisily confirm new file x.dta y.dta
+di _rc
+capture noisily confirm fi r2fcp.dta
+di _rc
+capture noisily confirm new fi x.dta
+di _rc
+capture noisily confirm file r2fcx.csv, x
+di _rc
+capture mkdir r2fdd
+capture noisily confirm file r2fdd
+di _rc
+capture noisily confirm new file r2fdd
+di _rc
+use r2fcp, clear
+save r2fnw, replace
+capture noisily confirm file r2fnw.dta
+di _rc
+capture noisily confirm new file r2fnw.dta
+di _rc
+capture noisily confirm f r2fcp.dta
+di _rc
+capture noisily confirm new f x
+di _rc
+capture noisily confirm file "r2fcp.dta"x
+di _rc
+=== recheck-files2-mkdir-cd
+capture noisily mkdir r2fs1
+display _rc
+capture noisily mkdir r2fs1
+display _rc
+capture noisily mkdir "r2fs2", public
+display _rc
+capture noisily mkdir r2fs1/r2fin
+display _rc
+capture noisily mkdir r2fnope/r2fin
+display _rc
+capture cd r2fs1/
+display _rc
+capture cd r2fin
+display _rc
+capture cd ../..
+display _rc
+capture cd "./r2fs1/r2fin"
+display _rc
+capture cd ..
+capture noisily cd r2fs1
+display _rc
+capture cd ..
+capture cd r2fs2/../r2fs1
+display _rc
+capture cd ..
+capture noisily cd r2fnosuch
+display _rc
+capture noisily mkdir
+display _rc
+capture noisily mkdir r2fs3, nosuch
+display _rc
+clear
+set obs 1
+generate x = 1
+capture mkdir r2fout
+capture cd r2fout
+save r2fincd, replace
+capture cd ..
+=== recheck-files2-tabs
+clear
+set obs 3
+gen str30 s = "a" + char(9) + "b"
+replace s = "abcdefghi" + char(9) + "x" + char(9) + "y" in 2
+replace s = char(9) + "lead" in 3
+gen x = _n
+gen str3 t = "q" + char(9)
+list
+list, clean
+list, noobs sep(0)
+list s, string(5)
+list in 2, display
+list, table divider
+label variable s "lab"
+list s x, abbreviate(2)
+tab s
+display s[1]
+clear
+set obs 2
+gen str30 s = "a" + char(9) + "b"
+replace s = "zz" in 2
+gen x = _n
+levelsof s
+table s
+label define l 1 "one	two" 2 "z"
+label values x l
+list x
+tab x
+label variable x "v	l"
+describe x
+clear
+set obs 1
+gen str20 s = "a	b"
+di length(s[1])
+di strpos(s[1], char(9))
+local m "x	y"
+di length("`m'")
+	di "ok"
+label define l 1 "one	two"
+di length("`: label l 1'")
+label variable s "v	l"
+di length("`: variable label s'")
+notes s: n	t
+notes
+char s[c] u	v
+local z : char s[c]
+di length("`z'")
+=== recheck-files2-split-unicode-stub
+clear
+set obs 1
+gen str20 s = "x y z"
+split s, gen(ét)
+ds
+split s, gen(ab)
+gen ét9 = 1
+=== recheck-files2-dot-slash-excel
+clear
+set seed 2026
+set obs 10
+generate id = _n
+generate wage = round(10 + 20 * runiform(), .01)
+save r2fxp, replace
+export delimited using r2fxe.csv, replace
+use r2fxp, clear
+export excel using ./r2ft.xlsx, firstrow(variables) replace
+import excel using r2ft.xlsx, firstrow clear
+describe, short
+export excel using r2ft2.xlsx, firstrow(variables) replace
+import excel using ./r2ft2.xlsx, firstrow clear
+describe, short
+putexcel set ./r2fpe.xlsx, replace
+putexcel A1 = "hi"
+import excel r2fpe.xlsx, clear
+list
+label define yn 1 "yes"
+label save yn using ./r2fls, replace
+do r2fls.do
+label list yn

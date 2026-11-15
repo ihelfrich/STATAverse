@@ -7,10 +7,11 @@
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { parseNumlist } from "./numlist.js";
-import { count } from "./reports.js";
+import { count, wrapLine } from "./reports.js";
 import { Dataset } from "./store.js";
 import { bytesOf, decodeAs, decodeAuto, decodeText } from "./encodings.js";
-import { findFile } from "./files.js";
+import { fileMessage, findFile, folderName } from "./files.js";
+import { writeDta } from "../console-dta.js";
 import {
   FLOAT_MAX,
   MISSING,
@@ -80,7 +81,27 @@ function splitRecords(text, cfg) {
     parts = [];
     if (strip === "no") return raw;
     if (strip === "yes") return raw.replace(/"/g, "");
-    if (!binds || raw.charCodeAt(0) !== QUOTE) return raw;
+    // Under nobind a run of quotes stands for one, wherever it is.
+    if (!binds) return raw.replace(/"{2,}/g, '"');
+    if (raw.charCodeAt(0) !== QUOTE) {
+      // A field that does not start with a quote keeps its quotes, but a
+      // pair of them inside a quoted stretch stands for one: a"""b is a""b,
+      // and ab"" stays ab"", as Stata 19 reads them.
+      if (!raw.includes('""')) return raw;
+      let out = "",
+        inside = false;
+      for (let k = 0; k < raw.length; k++) {
+        if (raw[k] !== '"') out += raw[k];
+        else if (inside && raw[k + 1] === '"') {
+          out += '"';
+          k++;
+        } else {
+          inside = !inside;
+          out += '"';
+        }
+      }
+      return out;
+    }
     raw = raw.slice(1);
     if (raw.endsWith('"')) raw = raw.slice(0, -1);
     return raw.replace(/""/g, '"');
@@ -345,11 +366,9 @@ export function storedFile(session, typed, extension) {
       `${name} is a ${stored.picture.format.toUpperCase()} picture graph export is still drawing; it can be read once this run has ended`,
       610,
     );
-  if (!read)
-    throw new StataError(
-      `${name} is a Stata dataset; use the use command`,
-      610,
-    );
+  // A Stata dataset is read as the bytes of its .dta file, binary zeros
+  // and all, as Stata reads it.
+  if (!read) return { name, stored: { bytes: writeDta(stored) } };
   return { name, stored };
 }
 
@@ -700,7 +719,11 @@ function importDelimited(session, text, ctx) {
   let header = null,
     data,
     typed = null,
-    namesRow = false;
+    namesRow = false,
+    // The first row when it holds text but Stata found no names there: it
+    // is data, but numericcols() leaves it out when it types a column of
+    // text (recorded from Stata 19; a first row of numbers counts).
+    unnamed = false;
   if (varnames === "nonames") data = after(-1);
   else if (varnames) {
     // varnames(#) names the variables from the first record that ends on
@@ -734,7 +757,15 @@ function importDelimited(session, text, ctx) {
     if (names && fields.length) {
       header = first;
       data = below;
-    } else data = after(-1);
+    } else {
+      data = after(-1);
+      unnamed =
+        data.length > 0 &&
+        data[0] === fields[0] &&
+        first.some(
+          (text) => blank(text) !== "" && numberOf(text, cell) === undefined,
+        );
+    }
   }
   // Under varnames(#), the rows from the names row to the end of
   // rowrange() count for the number of variables, as they do for types.
@@ -796,6 +827,7 @@ function importDelimited(session, text, ctx) {
       data.map((row) => row[k] ?? ""),
       {
         typed: typed && [...numbered, ...typed].map((row) => row[k] ?? ""),
+        unnamed,
         cell,
         string: chosen(strings, k + 1),
         numeric: chosen(numbers, k + 1),
@@ -811,6 +843,79 @@ function importDelimited(session, text, ctx) {
   );
 }
 
+const TYPE_RANK = ["byte", "int", "long", "float", "double"];
+const higher = (a, b) =>
+  TYPE_RANK[Math.max(TYPE_RANK.indexOf(a), TYPE_RANK.indexOf(b))];
+/**
+ * The storage type and format numericcols() gives a column some of whose
+ * cells are text, as recorded from Stata 19 on 400 such columns. Stata's
+ * scan, once it meets text, takes the width of the widest cell since then
+ * (in bytes) for a type: 1 byte, 2 int, 3 long, 4 float, 5 double, and 6 or
+ * more no type at all, which sets the type back to that of the numbers seen
+ * and the format to %8.0g. The numbers after the first text are added on
+ * as the scan goes: to a float nothing is added, and a long and a float make
+ * a double. Returns null when every cell is a number or empty.
+ */
+function forcedType(typed, values) {
+  let text = false,
+    numbers = null,
+    everything = null,
+    type = null,
+    format = null,
+    width = 0;
+  // The kinds of the numbers since the first text, in turn.
+  const since = [];
+  const atWidth = (bytes) => TYPE_RANK[bytes - 1],
+    after = (a, b) =>
+      a === "float"
+        ? a
+        : a === "long" && b === "float"
+          ? "double"
+          : higher(a, b);
+  typed.forEach((cell, i) => {
+    if (cell === "") return;
+    const value = values[i],
+      kind = value === undefined ? null : numericType([value], false),
+      bytes = byteLength(cell);
+    if (kind) everything = everything ? after(everything, kind) : kind;
+    if (!text) {
+      if (kind) {
+        numbers = numbers ? higher(numbers, kind) : kind;
+        return;
+      }
+      text = true;
+      width = bytes;
+      if (width <= 5) {
+        type = higher(numbers ?? "byte", atWidth(width));
+        format = defaultFormat(type);
+      } else {
+        type = everything ?? "byte";
+        format = "%8.0g";
+      }
+      return;
+    }
+    if (kind) since.push(kind);
+    if (bytes > width) {
+      width = bytes;
+      if (width <= 5) {
+        // The type starts again from the width and the numbers before the
+        // text, and the numbers since the text are added on again in turn:
+        // b, 1.5, 2.25 is a float and b, .5, 333 a double, as Stata 19
+        // types them.
+        type = higher(numbers ?? "byte", atWidth(width));
+        format = defaultFormat(type);
+        for (const seen of since) type = after(type, seen);
+        return;
+      } else {
+        type = everything ?? "byte";
+        format = "%8.0g";
+      }
+    }
+    if (kind) type = after(type, kind);
+  });
+  return text ? { type, format } : null;
+}
+
 /** Stores one column, numeric when every cell is a number or empty. */
 function addColumn(dataset, name, label, cells, how) {
   // numericcols() wins over stringcols() for a column named in both.
@@ -819,12 +924,21 @@ function addColumn(dataset, name, label, cells, how) {
       how.string && !how.numeric
         ? null
         : typed.map((text) => numberOf(text, how.cell));
-  let type, data;
+  let type, data, format;
   if (values && (how.numeric || values.every((v) => v !== undefined))) {
-    type = numericType(
-      values.map((v) => v ?? MISSING),
-      how.double,
-    );
+    const forced = how.numeric
+      ? forcedType(
+          how.unnamed ? typed.slice(1) : typed,
+          how.unnamed ? values.slice(1) : values,
+        )
+      : null;
+    type =
+      forced?.type ??
+      numericType(
+        values.map((v) => v ?? MISSING),
+        how.double,
+      );
+    format = forced?.format;
     data = Float64Array.from(cells, (text) =>
       coerce(type, numberOf(text, how.cell) ?? MISSING),
     );
@@ -843,7 +957,7 @@ function addColumn(dataset, name, label, cells, how) {
   dataset.variables.push({
     name,
     type,
-    format: defaultFormat(type),
+    format: format ?? defaultFormat(type),
     label,
     valueLabel: "",
     data,
@@ -1068,11 +1182,18 @@ function exportTarget(session, parsed, extension) {
     rows: session.rows(parsed, null),
   };
 }
-function writeFile(session, ctx, target, replace, lines) {
+function writeFile(session, ctx, typed, replace, lines) {
+  // ./data.csv is data.csv in the session's folder.
+  const target = folderName(typed);
   const files = (session.files ??= new Map());
+  const linesize = session.settings?.linesize ?? 79;
   if (files.has(target) && !replace)
-    throw new StataError(`file ${target} already exists`, 602);
-  if (replace && !files.has(target)) ctx.out(`(file ${target} not found)`);
+    throw new StataError(
+      fileMessage(`file ${typed} already exists`, linesize),
+      602,
+    );
+  if (replace && !files.has(target))
+    ctx.out(fileMessage(`(file ${typed} not found)`, linesize - 2, 4));
   files.set(target, { text: lines.map((line) => line + "\n").join("") });
 }
 function delimiterChar(text) {
@@ -1135,7 +1256,11 @@ function exportDelimited(session, text, ctx) {
   for (const i of rows)
     lines.push(writers.map((write) => write(i)).join(delimiter));
   writeFile(session, ctx, target, o.replace, lines);
-  ctx.out(`file ${target} saved`);
+  // A plain line, which goes on after "> " when it is wider than the
+  // linesize.
+  wrapLine(`file ${target} saved`, session.settings?.linesize ?? 79).forEach(
+    (line) => ctx.out(line),
+  );
 }
 
 const OUTSHEET =

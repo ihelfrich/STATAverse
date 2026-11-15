@@ -29,13 +29,14 @@ import {
   truncateBytes,
 } from "./values.js";
 import { greatest } from "./extremes.js";
+import { Folder, temporaryFileName } from "./files.js";
 import { COMMANDS, extendedFunction, restoreSaved } from "./commands.js";
 import { changed, fold, markChanged } from "./data-commands.js";
 import { abbreviateName } from "./data-utilities.js";
 import { timeSeriesOperator } from "./panel.js";
 import { matrixAccess } from "./matrix.js";
 import { coefficientValue, tableResults } from "./estimation.js";
-import { echoOf, fileEcho } from "./echo.js";
+import { echoOf, expandTabs, fileEcho, tabsOut } from "./echo.js";
 import { STATA_COMMANDS } from "./stata-commands.js";
 import { perGroup } from "./reports.js";
 import { dropTemporaries } from "./programming.js";
@@ -729,6 +730,9 @@ export class Session {
     this.steps = 0;
     this.temporary = 0;
     this.state = {};
+    // The files in the session's folder, which is Stata's working
+    // directory: those added, saved and written.
+    this.files = new Folder();
   }
 
   // ----- expressions -----
@@ -795,7 +799,7 @@ export class Session {
           version: 17,
           os: "Browser",
           machine_type: "STATAverse",
-          pwd: "/stataverse",
+          pwd: this.cwd ? `/stataverse/${this.cwd}` : "/stataverse",
           dirsep: "/",
           rng: "default",
           rng_current: "mt64",
@@ -1016,7 +1020,7 @@ export class Session {
     let rc = 0;
     if (doFile) this.enterScope();
     try {
-      this.runNodes(parseBlocks(splitCommands(source)), frame, output);
+      this.runNodes(parseBlocks(splitCommands(tabsOut(source))), frame, output);
     } catch (error) {
       if (error instanceof Signal && error.kind === "exit") rc = error.code;
       else if (error instanceof Signal) rc = 0;
@@ -1030,11 +1034,21 @@ export class Session {
   /** A do-file or program begins: what it preserves is its own. */
   enterScope() {
     this.scopeDepth = (this.scopeDepth ?? 0) + 1;
+    // Its tempfile names are numbered on from the caller's, and the numbers
+    // are used again once it ends, as Stata's are.
+    (this.fileCounts ??= []).push(this.temporaryFiles ?? 0);
   }
   /** A do-file or program ends, however it ends: its preserved data return. */
   leaveScope() {
     const depth = this.scopeDepth ?? 0;
     this.scopeDepth = Math.max(0, depth - 1);
+    // Its tempfiles are erased, and their numbers are free again.
+    if (this.fileCounts?.length) {
+      const back = this.fileCounts.pop();
+      for (let k = back + 1; k <= (this.temporaryFiles ?? 0); k++)
+        this.files?.delete(temporaryFileName(k));
+      this.temporaryFiles = back;
+    }
     let saved;
     while (this.preserved.length && (this.preserved.at(-1).depth ?? 0) >= depth)
       saved = this.preserved.pop();
@@ -1611,7 +1625,14 @@ export class Session {
       ctx = {
         frame,
         by: flags.by,
-        out: (line) => lines.push(line),
+        // A tab in a line of output is shown, as Stata's Results show it,
+        // as the spaces to the next tab stop of the line.
+        out: (line) =>
+          lines.push(
+            typeof line === "string" && line.includes("\t")
+              ? line.split("\n").map(expandTabs).join("\n")
+              : line,
+          ),
         // Every graph is kept by its name(), or as Graph, for graph combine,
         // display, dir, rename and drop. nodraw keeps it without showing it.
         graph: (picture) => {

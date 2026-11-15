@@ -430,17 +430,21 @@ function utf8(raw) {
   return 0;
 }
 
+/**
+ * ICU's UTF-16 recognizers read the first 30 bytes. In Stata a sample
+ * shorter than that is read as if zeros followed it, as recorded from
+ * Stata 19: a 29-byte text file is named UTF-16LE (its last byte and a zero
+ * make one more character), while one of 27 or 31 bytes is not, and a
+ * 12-byte UTF-16 file without a byte-order mark is not named UTF-16 (the
+ * zeros count against it) while one of 20 bytes is.
+ */
 function utf16(raw, little) {
   let confidence = 10;
-  const length = raw.length,
-    check = Math.min(length, 30);
-  for (let i = 0; i < check - 1; i += 2) {
-    const unit = little
-      ? raw[i] | (raw[i + 1] << 8)
-      : (raw[i] << 8) | raw[i + 1];
+  const at = (i) => (i < raw.length ? raw[i] : 0);
+  for (let i = 0; i < 29; i += 2) {
+    const unit = little ? at(i) | (at(i + 1) << 8) : (at(i) << 8) | at(i + 1);
     if (i === 0 && unit === 0xfeff) {
-      confidence =
-        little && length >= 4 && raw[2] === 0 && raw[3] === 0 ? 0 : 100;
+      confidence = little && at(2) === 0 && at(3) === 0 ? 0 : 100;
       break;
     }
     if (unit === 0) confidence -= 10;
@@ -448,7 +452,7 @@ function utf16(raw, little) {
     confidence = Math.max(0, Math.min(100, confidence));
     if (confidence === 0 || confidence === 100) break;
   }
-  return check < 4 && confidence < 100 ? 0 : confidence;
+  return confidence;
 }
 
 function utf32(raw, little) {

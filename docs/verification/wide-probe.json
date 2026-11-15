@@ -1,8 +1,8 @@
 {
   "basis": "Each case in tools/wide-probe-cases.txt run in a fresh Console session. Pass means the command finished and every assertion on it held; it does not mean agreement with Stata, which the recorded fixtures establish. The cases are a judgement about what students type, not a sample of student work.",
   "cases": 519,
-  "pass": 450,
-  "refused": 69,
+  "pass": 449,
+  "refused": 70,
   "wrong": 0,
   "crash": 0,
   "groups": {
@@ -43,8 +43,8 @@
       "crash": 0
     },
     "prog": {
-      "pass": 97,
-      "refused": 13,
+      "pass": 96,
+      "refused": 14,
       "wrong": 0,
       "crash": 0
     },
@@ -2104,7 +2104,7 @@
     },
     {
       "group": "prog",
-      "outcome": "pass",
+      "outcome": "refused",
       "key": "labor||cd \"C:/data\""
     },
     {

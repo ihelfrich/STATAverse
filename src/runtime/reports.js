@@ -13,6 +13,7 @@ import {
 import { evaluateAll } from "./expression.js";
 import { chi2tail } from "./distributions.js";
 import { operatorGroups } from "./varlist.js";
+import { expandTabs } from "./echo.js";
 import {
   assumedWeights,
   clauses,
@@ -1703,7 +1704,14 @@ export function tabulate(session, text, ctx) {
  * than the line allows, or than string(), is cut and ends in "..", and its
  * column turns to the left. The rules were read off Stata 19's output.
  */
-export function list(session, text, ctx) {
+export function list(session, text, outer) {
+  // A tab in a string is measured as one character but shown, as Stata's
+  // Results show it, as the spaces to the next tab stop of the line.
+  let ctx = { ...outer };
+  ctx.out = (line) =>
+    outer.out(
+      typeof line === "string" && line.includes("\t") ? expandTabs(line) : line,
+    );
   if (/(?:^|[\s,])head(?:e(?:r)?)?\s*\(/i.test(splitAtComma(text)[1] ?? ""))
     throw new StataError(
       "option header() is not available in the browser yet",

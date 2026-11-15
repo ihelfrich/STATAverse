@@ -33,8 +33,10 @@ function numeric(session, name) {
     );
   return variable;
 }
+// A name may hold letters beyond ASCII (split s, gen(ét) makes ét1), as
+// generate's may.
 const newName = (session, name) => {
-  if (!/^[A-Za-z_]\w{0,31}$/.test(name))
+  if (!isName(name) || isReserved(name))
     throw new StataError(`${name} invalid name`, 198);
   if (session.data.has(name))
     throw new StataError(`variable ${name} already defined`, 110);

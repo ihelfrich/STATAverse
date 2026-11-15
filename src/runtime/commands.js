@@ -56,6 +56,7 @@ import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
 import { CONTRAST_COMMANDS } from "./contrast.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
+import { confirmFile, temporaryFileName } from "./files.js";
 import { FOREIGN_COMMANDS } from "./foreign.js";
 import { INFILE_COMMANDS } from "./infix.js";
 import { MATRIX_COMMANDS } from "./matrix.js";
@@ -2000,6 +2001,17 @@ function temporary(prefix) {
     }
   };
 }
+/**
+ * tempfile: names in Stata's temporary folder, numbered apart from those of
+ * tempvar and tempname. Each has an extension of its own (St00001.000001),
+ * so save keeps the name as given and says it saved the file as .dta format.
+ */
+function temporaryFile(session, text, ctx) {
+  for (const name of text.trim().split(/\s+/).filter(Boolean)) {
+    session.temporaryFiles = (session.temporaryFiles ?? 0) + 1;
+    setMacro(ctx.frame.locals, name, temporaryFileName(session.temporaryFiles));
+  }
+}
 function args(session, text, ctx) {
   text
     .trim()
@@ -2283,7 +2295,9 @@ function confirm(session, text) {
       fail(`'${m[1].trim()}' found where name expected`, 7);
   } else if ((m = /^sca(?:l(?:ar?)?)?\s+(\S+)$/.exec(text))) {
     if (!session.scalars.has(m[1])) fail(`scalar ${m[1]} not defined`, 111);
-  } else throw invalid();
+  } else if ((m = /^(new\s+)?f(?:i(?:le?)?)?(?=\s|$)([\s\S]*)$/.exec(text)))
+    confirmFile(session, !!m[1], m[2]);
+  else throw invalid();
 }
 function assertCommand(session, text, ctx) {
   let parsed;
@@ -3583,7 +3597,7 @@ export const COMMANDS = [
   command("gettoken", 8, gettoken),
   command("tempvar", 7, temporary("")),
   command("tempname", 8, temporary("")),
-  command("tempfile", 8, temporary("")),
+  command("tempfile", 8, temporaryFile),
   command("args", 4, args),
   command("syntax", 6, syntaxCommand),
   command("return", 3, returns("r")),
@@ -3602,7 +3616,11 @@ export const COMMANDS = [
     if (session.preserved.some((saved) => (saved.depth ?? 0) === depth))
       throw new StataError("already preserved", 621);
     // The file's name and whether the data had changed come back too.
+    // Stata keeps them in a tempfile, which uses up a tempfile number, and
+    // reads each owner's characteristics back in the opposite order, as
+    // use reads a saved file's.
     const data = session.data;
+    session.temporaryFiles = (session.temporaryFiles ?? 0) + 1;
     session.preserved.push({
       ...data.snapshot({ marks: true }),
       filename: data.filename,
@@ -3610,7 +3628,14 @@ export const COMMANDS = [
       clean: data.clean,
       dirty: Boolean(data.dirty),
       notes: data.notes && structuredClone(data.notes),
-      chars: data.chars && structuredClone(data.chars),
+      chars:
+        data.chars &&
+        new Map(
+          [...data.chars].map(([owner, chars]) => [
+            owner,
+            new Map([...chars].reverse()),
+          ]),
+        ),
       depth,
     });
   }),
