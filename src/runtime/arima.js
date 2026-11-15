@@ -363,9 +363,18 @@ function specification(session, text) {
     ar = Array.from({ length: values[0] }, (_, j) => j + 1);
     ma = Array.from({ length: values[2] }, (_, j) => j + 1);
   }
-  const frame = timeFrame(session, "arima");
   // A string variable, as in Stata, leaves no observations.
   let terms = tsTerms(session, parsed.anything, { strings: true });
+  // marksample drops the observations with a missing value before _ts
+  // counts the panels, so one panel left that way is enough.
+  const frame = timeFrame(
+    session,
+    "arima",
+    parsed,
+    undefined,
+    terms.map((t) => t.variable),
+    true,
+  );
   if (d) terms = terms.map((t) => tsTerm(t.variable, [["D", d], ...t.ops]));
   const vceText = (options.vce ?? "").trim(),
     vce = vceText.toLowerCase(),
@@ -1209,7 +1218,8 @@ function arimaPredict(session, text, ctx) {
       "cannot predict standard error of prediction without regressors or a constant term in mean equation",
       498,
     );
-  const frame = timeFrame(session, "predict"),
+  // arima_p.ado leaves the data sorted by time, as arima does.
+  const frame = timeFrame(session, "predict", null, undefined, [], true),
     data = session.data,
     depColumn = operate(
       frame,

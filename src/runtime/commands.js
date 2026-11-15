@@ -39,7 +39,7 @@ import { MORE_DATA_COMMANDS } from "./more-data.js";
 import { STATS_MORE_COMMANDS } from "./stats-more.js";
 import { TABLE_COMMANDS } from "./tables.js";
 import { GLM_COMMANDS } from "./glm.js";
-import { TIMESERIES_COMMANDS } from "./timeseries.js";
+import { TIMESERIES_COMMANDS, operatorVariables } from "./timeseries.js";
 import { ARIMA_COMMANDS } from "./arima.js";
 import { GRAPH_COMMANDS } from "./graphics.js";
 import { MARGINS_COMMANDS } from "./margins.js";
@@ -885,6 +885,20 @@ function gsort(session, text) {
   session.data.sort(keys);
 }
 function rename(session, text, ctx) {
+  // The panel and time variables of tsset and xtset keep their roles under
+  // their new names, as Stata's characteristics follow a renamed variable.
+  const before = new Map(session.data.variables.map((v) => [v, v.name])),
+    follow = () => {
+      const panel = session.panel;
+      if (!panel) return;
+      const now = (name) =>
+        [...before].find(([, old]) => old === name)?.[0].name ?? name;
+      session.panel = {
+        ...panel,
+        id: panel.id && now(panel.id),
+        time: panel.time && now(panel.time),
+      };
+    };
   // Two plain names: Stata's built-in rename, which allows the old name to
   // be abbreviated. Anything else is rename's group syntax.
   const words = text.trim().split(/\s+/);
@@ -893,9 +907,12 @@ function rename(session, text, ctx) {
     isName(words[0]) &&
     isName(words[1]) &&
     words[0] !== words[1]
-  )
-    return session.data.rename(session.varlist(words[0])[0], words[1]);
+  ) {
+    session.data.rename(session.varlist(words[0])[0], words[1]);
+    return follow();
+  }
   renameGroup(session, text, ctx);
+  follow();
 }
 function order(session, text) {
   const parsed = session.parse(
@@ -2993,11 +3010,11 @@ export const COMMANDS = [
   command("xtile", 5, xtile),
   command("centile", 7, perGroup(centile), true),
   command("count", 3, noEqualsInIf(perGroup(countCommand)), true),
-  command("summarize", 2, perGroup(summarize), true),
+  command("summarize", 2, operatorVariables(perGroup(summarize)), true),
   command("tabulate", 2, perGroup(tabulate), true),
   command("tab1", 4, tab1),
   command("tab2", 4, tab2),
-  command("list", 1, noEqualsInIf(perGroup(list)), true),
+  command("list", 1, operatorVariables(noEqualsInIf(perGroup(list))), true),
   command("describe", 1, describe),
   command("label", 2, label),
   command("format", 4, format),
@@ -3106,9 +3123,7 @@ export const COMMANDS = [
       value = session.scalar(text);
     } catch (error) {
       if (!(error instanceof StataError)) throw error;
-      const extra = /^(.*) found where an operator was expected$/.exec(
-        error.message,
-      );
+      const extra = /^invalid '(.*)' $/.exec(error.message);
       throw malformed(
         extra
           ? `invalid '${extra[1]}'`

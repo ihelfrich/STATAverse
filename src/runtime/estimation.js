@@ -27,8 +27,15 @@ import {
   optionItems,
   splitAtComma,
 } from "./syntax.js";
-import { resolveVariable } from "./varlist.js";
+import { operatorGroups, resolveVariable } from "./varlist.js";
 import { parseNumlist } from "./numlist.js";
+import { requireTimeOrder } from "./panel.js";
+import {
+  operatedName,
+  operatorSpecs,
+  operatorVariables,
+  tsTerm,
+} from "./timeseries.js";
 import {
   MISSING,
   byteLength,
@@ -109,8 +116,12 @@ export const quadratic = (v, m) =>
 const FACTOR_OPERATOR =
   /^(c|i|ibn|i?b(?:\d+|\(\s*#?\d+\s*\)|\(\s*(?:first|last|freq)\s*\)))\.([A-Za-z_]\w*)$/;
 // A time-series operated variable: L., F., D. and S., each with an order
-// or a numlist in parentheses, combined as in LD.y or L(0/2).x.
-const SERIES_OPERATOR = /^((?:[LFDS](?:\d+|\([^()]*\))?)+)\.([A-Za-z_]\w*)$/i;
+// or a numlist in parentheses, combined as in LD.y, L.D.y or L(0/2).x, in
+// either case.
+// The variable may be a list in parentheses, L(1/2).(x y), and a numlist
+// may hold a step, L(1(1)3).x.
+const SERIES_OPERATOR =
+  /^((?:(?:[LFDS](?:\d+|\((?:[^()]|\([^()]*\))*\))?)+\.)+)([A-Za-z_]\w*|\([^()]*\))$/i;
 // The indicator of one level of a factor: 2.g.
 const LEVEL_INDICATOR = /^(\d+)\.([A-Za-z_]\w*)$/;
 
@@ -127,22 +138,30 @@ function seriesVariables(session, word) {
   const panel = session.panel;
   if (!panel?.time)
     throw new StataError("time variable not set, use tsset varname ...", 111);
-  const base = session.data.get(session.varlist(m[2])[0]);
-  if (isStringType(base.type)) throw new StataError("no observations", 2000);
-  // Each operator with the orders it takes.
-  const operators = [...m[1].matchAll(/([LFDS])(\d+|\(([^()]*)\))?/gi)].map(
-    (piece) => ({
-      op: piece[1].toUpperCase(),
-      orders:
-        piece[3] !== undefined
-          ? parseNumlist(piece[3])
-          : [piece[2] ? Number(piece[2]) : 1],
-    }),
+  requireTimeOrder(session);
+  // Each operator with the orders it takes, refused as Stata refuses a
+  // misplaced numlist or a negative difference.
+  const operators = operatorSpecs(m[1]).map(({ letter, orders }) => ({
+    op: letter,
+    orders,
+  }));
+  // L(1/2).(x y) is L(1/2).x L(1/2).y.
+  const names = session.varlist(
+    m[2].startsWith("(") ? m[2].slice(1, -1) : m[2],
   );
+  if (names.length > 1)
+    return names.flatMap((name) => seriesVariables(session, `${m[1]}${name}`));
+  const base = session.data.get(names[0]);
+  if (isStringType(base.type)) throw new StataError("no observations", 2000);
+  // A negative lag is a lead, and a negative lead a lag: L(-1).x is F.x.
+  const flipped = { L: "F", F: "L" };
   let combinations = [[]];
   for (const { op, orders } of operators)
     combinations = combinations.flatMap((done) =>
-      orders.map((k) => [...done, { op, k }]),
+      orders.map((k) => [
+        ...done,
+        k < 0 && flipped[op] ? { op: flipped[op], k: -k } : { op, k },
+      ]),
     );
   const data = session.data,
     id = panel.id ? data.get(panel.id).data : null,
@@ -160,7 +179,12 @@ function seriesVariables(session, word) {
   const minus = (a, b) =>
     a.map((v, i) => (isMissing(v) || isMissing(b[i]) ? MISSING : v - b[i]));
   return combinations.map((ops) => {
-    const used = ops.filter(({ k }) => k !== 0);
+    // Lags and leads net out and the operators are written L, F, D, S, as
+    // Stata names them: L.F.x is x, and DL.x is LD.x.
+    const used = tsTerm(
+      base.name,
+      ops.map(({ op, k }) => [op, k]),
+    ).ops.map(([op, k]) => ({ op, k }));
     if (!used.length) return base;
     let values = Float64Array.from(base.data);
     for (const { op, k } of [...used].reverse()) {
@@ -263,7 +287,8 @@ export function numericVarlist(session, text) {
  */
 export function design(session, text, rows, constant = true, levelRows) {
   // Words split at blanks outside parentheses, so that L(1 2).x is one.
-  const tokens = text.trim().match(/(?:[^\s(]|\([^()]*\))+/g) ?? [];
+  const tokens =
+    text.trim().match(/(?:[^\s(]|\((?:[^()]|\([^()]*\))*\))+/g) ?? [];
   if (!tokens.length) throw new StataError("varlist required", 100);
   // A string variable as a factor is an error as Stata's fvexpand makes
   // it; used as a number it is missing in every observation, so the
@@ -2251,6 +2276,11 @@ export function findCoefficient(
       within(e) &&
       (e.name === text || (e.omitted && omittedName(e.name) === text)),
   );
+  // l.x and L1.x name the coefficient Stata calls L.x.
+  if (at < 0 && operatedName(text) !== text)
+    at = space.entries.findIndex(
+      (e) => within(e) && e.name === operatedName(text),
+    );
   const call = /^(\w+)\(\s*e\.(\w+)\s*\)$/.exec(text);
   if (at < 0 && call)
     at = space.entries.findIndex((e) => {
@@ -2501,8 +2531,19 @@ export function linear(model, text, session) {
       }
       // A time-series operator, which these models do not take.
       if (token.split("#").some((p) => /^[LFDS][A-Za-z0-9]*\./i.test(p))) {
-        const at = exact(token);
-        if (at < 0) throw new StataError(`regressor ${token} not found`, 111);
+        const named = token.split("#").map(operatedName).join("#"),
+          at = exact(named);
+        // Stata names what it cannot find as it names coefficients, or the
+        // variable when the model has nothing of it.
+        if (at < 0) {
+          const base = named.replace(/^.*\./, "");
+          if (
+            !named.includes("#") &&
+            !space.entries.some((e) => e.name.replace(/^.*\./, "") === base)
+          )
+            throw new StataError(`variable ${base} not found`, 111);
+          throw new StataError(`regressor ${named} not found`, 111);
+        }
         return placed(at, token);
       }
       const { terms: wanted } = readTerms(variables, token),
@@ -3617,6 +3658,23 @@ function correlate(session, text, ctx) {
     column = (name) => columnName(name, names, byteLength);
   if (sumW) ctx.out(`(sum of wgt is ${applyFormat(sumW, "%18.0gc").trim()})`);
   ctx.out(`(obs=${count(n)})`);
+  // Under time-series operators a column shows its operators above the
+  // variable's name, and the rows of one variable are grouped under it as
+  // L1., D1. and --., in the table of means too.
+  const groups = operatorGroups(variables),
+    heads = new Map(
+      groups.flatMap((group) =>
+        group.members.map((k, j) => [
+          k,
+          group.headed && !j ? group.base : null,
+        ]),
+      ),
+    ),
+    headed = new Set(groups.filter((g) => g.headed).flatMap((g) => g.members)),
+    stub = (a) =>
+      headed.has(a)
+        ? (variables[a].ts?.label ?? "--.").padStart(12)
+        : row(variables[a].name);
   if (options.means) {
     ctx.out("");
     ctx.out(
@@ -3626,8 +3684,9 @@ function correlate(session, text, ctx) {
     variables.forEach((v, a) => {
       const format = meansFormat(v, options.format === false),
         cell = (value) => applyFormat(value, format).padStart(13);
+      if (heads.get(a)) ctx.out(`${row(heads.get(a))} |`);
       ctx.out(
-        `${row(v.name)} |${[
+        `${stub(a)} |${[
           means[a],
           Math.sqrt(C[a][a]),
           least(columns[a]),
@@ -3649,15 +3708,23 @@ function correlate(session, text, ctx) {
   for (let start = 0; start < variables.length; start += across) {
     const block = variables.slice(start, start + across);
     ctx.out("");
-    out(`             |${block.map((v) => column(v.name)).join("")}`);
-    out(`-------------+${"-".repeat(9 * block.length)}`);
-    for (let a = start; a < variables.length; a++)
+    if (block.some((v) => v.ts))
       out(
-        `${row(variables[a].name)} |${block
+        `             | ${block.map((v) => (v.ts?.prefix ?? "").padStart(9)).join("")}`,
+      );
+    out(
+      `             |${block.map((v) => column(v.ts?.variable ?? v.name)).join("")}`,
+    );
+    out(`-------------+${"-".repeat(9 * block.length)}`);
+    for (let a = start; a < variables.length; a++) {
+      if (heads.get(a)) out(`${row(heads.get(a))} |`);
+      out(
+        `${stub(a)} |${block
           .slice(0, a - start + 1)
           .map((_, k) => shown(a, start + k))
           .join("")}`,
       );
+    }
   }
   ctx.out("");
   // Under by, Stata's by adds a blank line before the next group's rule.
@@ -3677,8 +3744,8 @@ function correlate(session, text, ctx) {
         }
       : {}),
     "matrix:C": {
-      rowNames: variables.map((v) => v.name),
-      colNames: variables.map((v) => v.name),
+      rowNames: variables.map((v) => v.ts?.name ?? v.name),
+      colNames: variables.map((v) => v.ts?.name ?? v.name),
       values: C.map((row, a) =>
         row.map((value, b) =>
           options.covariance ? value : correlationOf(C, a, b),
@@ -4113,6 +4180,11 @@ export const ESTIMATION_COMMANDS = [
   { name: "predict", minimum: 7, run: predict },
   { name: "test", minimum: 4, run: test },
   { name: "lincom", minimum: 6, run: lincom },
-  { name: "correlate", minimum: 3, run: perGroup(correlate), byable: true },
+  {
+    name: "correlate",
+    minimum: 3,
+    run: operatorVariables(perGroup(correlate)),
+    byable: true,
+  },
   { name: "tabstat", minimum: 7, run: tabstat },
 ];

@@ -33,6 +33,7 @@ function tokenize(source) {
       type,
       value,
       spaced: start > 0 && /\s/.test(source[start - 1]),
+      start,
     });
   while (i < source.length) {
     const c = source[i],
@@ -96,16 +97,34 @@ function tokenize(source) {
       push("coefficient", { kind: m[1], name: m[2] }, i);
       i += m[0].length;
     } else if (
-      (m = /^([LFD])(\d*)\.([\p{L}_][\w\u0080-\u{10FFFF}]*)/u.exec(rest))
+      (m = /^((?:(?:[LFDS]\d*)+\.+)+)([\p{L}_][\w\u0080-\u{10FFFF}]*)/iu.exec(
+        rest,
+      ))
     ) {
-      // L.x, F2.x and D.x: lag, lead and difference under xtset or tsset.
+      // L.x, F2.x, D.x, S12.x and chains such as LD.x, l2d.x or L.F.x: lags,
+      // leads, differences and seasonal differences under xtset or tsset,
+      // in either case, as Stata reads them; l..x is L.x.
+      if (source[i + m[0].length] === "[")
+        throw invalid(`${m[0]} invalid name`);
       push(
         "series",
-        { operator: m[1], order: Number(m[2] || 1), name: m[3] },
+        {
+          ops: [...m[1].matchAll(/([LFDS])(\d*)/gi)].map(([, letter, k]) => [
+            letter.toUpperCase(),
+            k === "" ? 1 : Number(k),
+          ]),
+          name: m[2],
+        },
         i,
       );
       i += m[0].length;
-    } else if ((m = /^[\p{L}_][\w\u0080-\u{10FFFF}]*/u.exec(rest))) {
+    } else if ((m = /^((?:[LFDS]\d*)+)\.\(/iu.exec(rest)))
+      throw new StataError(`unknown function ${m[1]}.()`, 133);
+    else if ((m = /^[\p{L}_][\w\u0080-\u{10FFFF}]*/u.exec(rest))) {
+      // A name joined to a further name by a period is an operator Stata
+      // does not know: q.x.
+      if (/^\.[\p{L}_]/u.test(source.slice(i + m[0].length)))
+        throw invalid(`${m[0]}:  operator invalid`);
       push("name", m[0], i);
       i += m[0].length;
     } else if (
@@ -245,9 +264,10 @@ export function compileExpression(source, scope = {}) {
     }
     if (token.type === "series") {
       if (!scope.series) throw new StataError("time variable not set", 111);
-      const { operator, order, name } = token.value,
-        value = scope.series(operator, order, name);
-      return node(N, (i) => value(i));
+      const { ops, name } = token.value,
+        value = scope.series(ops, name);
+      // Under by, a lag reaches only into the observation's own group.
+      return node(N, (i, env) => value(i, env));
     }
     if (token.type === "op" && token.value === "(") {
       const inner = or();
@@ -530,7 +550,15 @@ export function compileExpression(source, scope = {}) {
       throw new StataError("unknown function ()", 133);
     if (extra.type === "op" && extra.value === ")")
       throw new StataError("too many ')' or ']'", 132);
-    throw invalid(`${extra.value} found where an operator was expected`);
+    // Stata names the word as it was typed, a missing code such as .a
+    // included, and drops a string's closing quote: invalid '"a'.
+    const typed =
+      extra.type === "string"
+        ? `"${extra.value}`
+        : source
+            .slice(extra.start, tokens[at + 1]?.start ?? source.length)
+            .trim();
+    throw invalid(`invalid '${typed}' `);
   }
   return { type: root.type, evaluate: root.evaluate, usesSum: sums > 0 };
 }

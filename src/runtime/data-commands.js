@@ -1824,7 +1824,8 @@ function expandCommand(session, text, ctx) {
   ignored(negative, "negative");
   ignored(zero, "zero");
   data.reorder(order);
-  data.sortedBy = [];
+  // Copies go at the end, and only then are the data no longer sorted.
+  if (order.length > before) data.sortedBy = [];
   // generate() marks the original observations 0 and the copies 1, with
   // the value label _merge unless a label of that name is already defined.
   if (marker) {

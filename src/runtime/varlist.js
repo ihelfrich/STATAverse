@@ -59,3 +59,23 @@ export function expandVarlist(text, names) {
   }
   return out;
 }
+
+/**
+ * Groups of a varlist under time-series operators, as Stata shows them:
+ * consecutive variables with one underlying variable form a group, headed
+ * by its name when any of them is operated, each then labelled L1., D1.
+ * or --. for the variable itself. An operated variable is a temporary one
+ * carrying ts, as operatorVariables in timeseries.js makes it.
+ */
+export function operatorGroups(variables) {
+  const groups = [];
+  for (const [k, v] of variables.entries()) {
+    const base = v.ts?.variable ?? v.name,
+      last = groups.at(-1);
+    if (last && last.base === base) last.members.push(k);
+    else groups.push({ base, members: [k] });
+  }
+  for (const group of groups)
+    group.headed = group.members.some((k) => variables[k].ts);
+  return groups;
+}

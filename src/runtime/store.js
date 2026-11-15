@@ -300,7 +300,10 @@ export class Dataset {
     variable.type = type;
   }
 
-  /** Stable sort. Each key is a name, or { name, descending }. */
+  /**
+   * Stable sort. Each key is a name, or { name, descending }. Returns where
+   * each observation came from: index[new position] = old position.
+   */
   sort(keys) {
     const columns = keys.map((key) => {
       const k = typeof key === "string" ? { name: key } : key;
@@ -326,6 +329,7 @@ export class Dataset {
       if (!ascending.includes(name)) ascending.push(name);
     }
     this.sortedBy = ascending;
+    return index;
   }
 
   /** Keeps the listed zero-based observations, in the order given. */

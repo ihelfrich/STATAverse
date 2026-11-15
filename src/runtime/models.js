@@ -34,6 +34,7 @@ import {
   unitConstraint,
 } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
+import { isOperated, tsTerms } from "./timeseries.js";
 import { MISSING, isMissing } from "./values.js";
 import { evaluateAll } from "./expression.js";
 import { poissonStart } from "./likelihood.js";
@@ -1479,6 +1480,13 @@ function testparmTerms(session, head) {
     },
     terms = [];
   for (const token of head.match(/(?:[^\s(]|\([^)]*\))+/g) ?? []) {
+    // Time-series operators name the coefficients Stata names: L(1/3).x
+    // is L.x, L2.x and L3.x, and l(0/1).x is x and L.x.
+    if (isOperated(token) && !token.includes("#")) {
+      for (const term of tsTerms(session, token))
+        terms.push([{ variable: term.name, factor: false, level: null }]);
+      continue;
+    }
     if (token.includes("##")) {
       let expanded = [];
       for (const part of token.split("##")) {

@@ -22115,3 +22115,759 @@ display missing(rt(.5))
 display missing(rt(0))
 summarize t1-t4
 set linesize 200
+=== pass8-ts-dfuller-gaps-and-operators
+clear
+set seed 7
+set obs 200
+generate t = _n
+tsset t
+generate double e = invnormal(runiform())
+generate double y = e in 1
+replace y = .4*y[_n-1] + e in 2/l
+generate double x = sum(invnormal(runiform()))
+dfuller y
+replace y = . in 77
+dfuller y
+dfuller y, lags(2) trend
+dfuller y in 100/200
+dfuller y if t != 77
+dfuller y, regress
+dfuller y, lags(1) regress
+dfuller y, drift
+dfuller y, drift regress lags(1)
+dfuller y, noconstant
+dfuller y, noconstant lags(3)
+dfuller D.x
+dfuller L.y
+dfuller d.x
+dfuller D.x, lags(2) regress
+dfuller LD.x, trend
+return list
+capture noisily dfuller y, trend noconstant
+capture noisily dfuller y, drift trend
+capture noisily dfuller y x
+drop in 50
+dfuller y
+dfuller y in 100/199
+dfuller x, lags(4) trend regress
+capture noisily dfuller y, lags(300)
+capture noisily dfuller z
+capture noisily dfuller y, lags(-1)
+capture noisily dfuller y, foo
+generate str3 s = "a"
+capture noisily dfuller s
+dfuller y, lags(0) regress
+dfuller x if t > 150, regress trend
+display r(N) " " r(Zt) " " r(p) " " r(cv_1)
+dfuller l.y, regress
+dfuller s12.x
+dfuller x, lags(2) regress level(90)
+tsset, clear
+capture noisily dfuller y
+=== pass8-ts-var-postestimation
+clear
+ereturn clear
+set seed 7
+set obs 200
+generate t = _n
+tsset t
+generate double e1 = invnormal(runiform())
+generate double e2 = invnormal(runiform())
+generate double y = e1
+generate double w = e2
+replace y = .5*y[_n-1] + .1*w[_n-1] + e1 in 2/l
+replace w = .2*y[_n-1] + .3*w[_n-1] + e2 in 2/l
+generate double x = runiform()
+capture noisily varstable
+quietly var y w
+varstable
+matrix list r(Re)
+matrix list r(Im)
+matrix list r(Modulus)
+varlmar
+matrix list r(lm)
+varlmar, mlag(4)
+varnorm
+matrix list r(jb)
+matrix list r(skewness)
+matrix list r(kurtosis)
+varnorm, jbera
+varnorm, skewness kurtosis
+varwle
+matrix list r(chi2)
+matrix list r(p)
+quietly var y w, lags(1/3)
+varstable
+varlmar, mlag(3)
+varnorm
+varwle
+quietly var y w, lags(1 3) exog(x)
+varstable
+varwle
+varnorm
+varlmar
+quietly var y w, small dfk
+varwle
+matrix list r(F)
+varnorm
+varlmar
+quietly var y w x
+varstable
+varwle, separator(1)
+quietly var y, lags(1/4)
+varstable
+varwle
+varnorm
+varlmar, mlag(2)
+capture noisily varlmar, mlag(0)
+capture noisily varwle, foo
+quietly regress y w
+capture noisily varstable
+capture noisily varwle
+capture noisily varnorm
+capture noisily varlmar
+=== pass8-ts-var-postestimation-errors
+clear
+ereturn clear
+set seed 7
+set obs 50
+generate t = _n
+tsset t
+generate double y = runiform()
+generate double w = runiform()
+capture noisily varstable
+display _rc
+capture noisily varwle
+display _rc
+capture noisily varnorm
+display _rc
+capture noisily varlmar
+display _rc
+quietly var y w
+capture noisily varlmar, mlag(0)
+display _rc
+capture noisily varlmar, mlag(-2)
+display _rc
+capture noisily varlmar, mlag(1.5)
+display _rc
+capture noisily varlmar, mlag(46)
+display _rc
+capture noisily varlmar, mlag(47)
+display _rc
+capture noisily varwle, separator(-1)
+display _rc
+capture noisily varnorm, separator(-1)
+display _rc
+capture noisily varstable, estimates(foo)
+display _rc
+capture noisily varstable, amat(foo)
+display _rc
+quietly var y w
+estimates store v1
+quietly regress y w
+varstable, estimates(v1)
+matrix list r(Modulus)
+capture noisily varnorm, cholesky
+quietly regress y w
+capture noisily varstable
+display _rc
+capture noisily varwle
+display _rc
+capture noisily varnorm
+display _rc
+capture noisily varlmar
+display _rc
+=== pass8-ts-var-postestimation-estimates
+clear
+set seed 7
+set obs 60
+generate t = _n
+tsset t
+generate double y = runiform()
+generate double w = runiform()
+generate double x = runiform()
+quietly var y w, lags(1/2)
+estimates store v1
+quietly var y w x
+estimates store v2
+quietly regress y w
+estimates store r1
+capture noisily varstable, estimates(foo)
+capture noisily varstable, estimates(r1)
+varstable, estimates(v1)
+capture noisily varwle, estimates(foo)
+capture noisily varwle, estimates(r1)
+varwle, estimates(v1)
+capture noisily varnorm, estimates(foo)
+capture noisily varnorm, estimates(r1)
+varnorm, estimates(v1)
+capture noisily varlmar, estimates(foo)
+capture noisily varlmar, estimates(r1)
+varlmar, estimates(v1)
+capture noisily varnorm, estimates(v2) cholesky
+varnorm, estimates(v2)
+varlmar, estimates(v2) mlag(1)
+varwle, estimates(v1)
+regress
+capture noisily varstable, estimates(.)
+quietly var y w
+capture noisily varstable, estimates(.)
+capture noisily varnorm, separator(1.5)
+capture noisily varnorm, separator(0)
+varnorm, separator(1)
+capture noisily varlmar, mlag(a)
+capture noisily varwle, separator(1.5)
+capture noisily varstable, modlabel
+capture noisily varstable, dlabel
+quietly var y w
+capture noisily varlmar, mlag(a)
+display _rc
+capture noisily varstable, modlabel
+display _rc
+capture noisily varstable, dlabel
+display _rc
+capture noisily varstable, dlabel modlabel
+display _rc
+capture noisily varlmar, mlag(1 2)
+display _rc
+capture noisily varlmar, mlag(1/2)
+display _rc
+capture noisily varnorm, separator(a)
+display _rc
+quietly var y w, lags(1/2)
+varstable, amat(A)
+matrix list A
+quietly var y w
+varstable, amat(B)
+matrix list B
+quietly var y, lags(1 3)
+varstable, amat(C)
+matrix list C
+capture noisily varstable, amat(1x)
+=== pass8-ts-arima-operator-layout
+clear
+set seed 4242
+set obs 300
+generate t = _n
+tsset t
+generate double w = invnormal(runiform())
+generate double v = runiform()
+generate double u = invnormal(runiform())
+generate double y = 1 + .5*w + .3*w[_n-1] + .2*w[_n-2] + u + .4*u[_n-1]
+arima y L(0/2).w, ma(1 2) nolog
+arima y w L.w, ar(1) nolog
+arima y L.w w, ar(1) nolog
+arima y L.w w v, ar(1) nolog
+arima y v L(0/1).w, ar(1) nolog
+arima y L(1/2).w v, ar(1) nolog
+arima y w v L.w, ar(1) nolog
+arima y D.w w, ar(1) nolog
+arima y L.v L.w w, ar(1) nolog
+regress y L.w w v
+regress y v L(0/1).w
+=== pass8-ts-by-stcox-arima
+clear
+set seed 99
+set obs 400
+generate g = 1 + (_n > 200)
+bysort g: generate t = _n
+generate double x = invnormal(runiform())
+generate double tm = -ln(runiform())/exp(.5*x)
+generate dead = runiform() < .8
+generate double e = invnormal(runiform())
+generate double y = e
+replace y = .3 + .55*y[_n-1] + e if t > 1
+stset tm, failure(dead)
+bysort g: stcox x, nolog
+by g: stcox x
+display e(ll)
+stcox x if g == 1, nolog
+tsset g t
+bysort g: arima y, ar(1) nolog
+by g: arima y x, ar(1) nolog
+display e(N)
+by g, sort: arima y, ma(1) nolog
+arima y if g == 2, ar(1) nolog
+capture noisily arima y, ar(1) nolog
+=== pass8-ts-lowercase-operators
+clear
+set obs 20
+generate id = _n
+generate x = mod(_n*7,13)
+tsset id
+generate lx = l.x
+count if l.x > 2
+egen m = mean(f.x)
+generate z = L1.x + l1.x
+generate s1 = s.x
+generate l2x = l2.x
+replace z = d.x
+generate ld = ld.x
+generate dl = dL.x
+generate s2 = s2.x
+generate f2 = f2.x
+generate lf = l.f.x
+generate d2 = d2.x
+generate dd = dd.x
+generate dead = 1
+replace z = d.x
+replace z = d.dead
+generate q = L.x*2 + l.x/2 if l.x < 9
+list id x lx l2x in 1/4
+summarize lx if l.x > 3
+capture noisily generate zz = 1 .a
+capture noisily generate w = 1 .b
+capture noisily generate w = x .a
+capture noisily generate w = 1 2
+capture noisily generate w = x y
+capture noisily generate w = 3 x
+capture noisily generate w = l.nosuch
+capture noisily generate w = q.x
+capture noisily generate w = L.(x)
+capture noisily generate w = x[2] .z
+capture noisily display 1 .a
+capture noisily generate w = l.x[2]
+capture noisily generate w = "a" "b"
+set seed 101
+generate double r = runiform()
+regress x l.x d.r
+regress x L(1/2).x
+summarize L.x D.x
+summarize l.x d.x lx
+list L.x in 1/3
+list id L.x D.x LD.x in 1/4
+list id L.x x in 1/4, noobs
+list id L.x x in 1/4, clean
+correlate x L.x
+correlate x D.x L2.x
+correlate x l.x, covariance
+summarize L(1/2).x
+summarize F.x S.x
+summarize L.x, detail
+pwcorr x L.x
+pwcorr x L.x d.x, sig
+summarize x L.x x
+summarize L.x x L2.x
+summarize L.lx l.x
+summarize l(0/2).x
+correlate L(0/1).x
+tabstat L.x
+=== pass8-ts-lowercase-operators-in-models
+clear
+set seed 31
+set obs 60
+generate id = ceil(_n/30)
+bysort id: generate t = _n
+generate double x = invnormal(runiform())
+generate double y = x + invnormal(runiform())
+generate g = mod(_n, 3)
+keep if id == 1
+tsset t
+regress y l.x d.x
+regress y l(0/2).x
+regress y l.x i.g
+newey y l.x, lag(1)
+prais y l.x, nolog
+arima y l.x, ar(1) nolog
+var y x, lags(1/2) exog(l.g)
+vargranger
+varsoc y x, maxlag(2)
+pperron d.y
+predict double r, residuals
+logit g l.x if g < 2, nolog
+=== pass8-ts-operator-varlists
+clear
+set seed 12345
+set obs 40
+generate id = ceil(_n/20)
+bysort id: generate t = _n
+generate double x = invnormal(runiform())
+generate double longname_variable = runiform()
+generate w = 1 + floor(3*runiform())
+generate str2 s = "ab"
+xtset id t
+summarize L.x D.x
+list id t x L.x in 1/3
+correlate x L.x
+correlate x D.x L2.x
+summarize L(1/2).x
+summarize F.x S.x
+bysort id: summarize L.x
+by id: correlate x L.x
+summarize L.longname_variable
+list L.longname_variable in 1/2
+summarize L.longn
+summarize L.x [aweight=w]
+summarize L.x [fweight=w], detail
+correlate x L.x [aweight=w]
+summarize L.x if id == 2
+summarize L.x in 5/30
+list id L.x if t < 3
+summarize x*
+summarize L.x*
+capture noisily summarize L.s
+capture noisily summarize L.nosuch
+capture noisily list L.s in 1/2
+summarize LD.x L2D.x
+summarize L.x, separator(1)
+summarize L.x, format
+pwcorr x L.x F.x, obs
+list L.x F.x, sepby(id) noobs
+generate double y = x + .5*L.x
+summarize y L.y L.x
+correlate L.x L.y
+tsset, clear
+capture noisily summarize L.x
+clear
+set seed 12
+set obs 30
+generate t = _n
+tsset t
+generate double x = runiform()
+generate double y = runiform()
+correlate x L.x D.y
+matrix list r(C)
+display r(N) " " r(rho)
+pwcorr x L.x
+matrix list r(C)
+summarize L.x
+display r(N) " " r(mean)
+summarize LD.x, detail
+display r(p50)
+list x L.x in 1/3, abbreviate(4)
+list L.x in 1/2, display
+=== pass8-ts-operator-chains-and-limits
+clear
+set seed 5
+set obs 30
+generate t = _n
+tsset t
+generate double x = runiform()
+generate double y = runiform()
+summarize L.D.x
+summarize l.d.x LD.x
+regress y L.D.x
+list t L.D.x in 1/4
+correlate x L.F.x
+capture noisily summarize L(1/101).x
+capture noisily summarize L(0/100).x
+capture noisily regress y L(1/101).x
+capture noisily dfuller x, lags(101)
+capture noisily dfuller x, lags(100)
+capture noisily summarize L(-1).x
+summarize L(-1/1).x
+capture noisily summarize D(-1).x
+capture noisily summarize L.x.y
+display _rc
+clear
+set obs 500
+generate t = _n
+tsset t
+generate double x = runiform()
+capture noisily dfuller x, lags(99)
+display _rc
+capture noisily dfuller x, lags(98)
+display _rc
+capture noisily summarize L(1/50).x F(1/51).x
+display _rc
+capture noisily summarize L(1/50).x F(1/50).x
+display _rc
+=== pass8-ts-one-panel-samples
+clear
+set seed 77
+set obs 120
+generate id = ceil(_n/60)
+bysort id: generate t = _n
+generate double x = sum(invnormal(runiform()))
+generate double y = invnormal(runiform())
+xtset id t
+capture noisily dfuller x
+display _rc
+dfuller x if id == 2
+dfuller D.x if id == 1, lags(2) regress
+capture noisily by id: dfuller x
+capture noisily pperron x
+display _rc
+pperron x if id == 1
+pperron D.x if id == 2, trend
+capture noisily arima x, ar(1) nolog
+display _rc
+arima x if id == 1, ar(1) nolog
+capture noisily var x y
+display _rc
+var x y if id == 1
+varstable
+varnorm
+varlmar
+varwle
+capture noisily corrgram x, lags(3)
+display _rc
+corrgram x if id == 1, lags(3)
+capture noisily varsoc x y
+display _rc
+varsoc x y if id == 2, maxlag(2)
+=== pass8-ts2-one-panel-after-missing
+clear
+set seed 21
+set obs 150
+generate id = ceil(_n/50)
+bysort id: generate t = _n
+generate double y = invnormal(runiform())
+by id: replace y = .6*y[_n-1] + y if _n > 1
+generate double w = invnormal(runiform())
+xtset id t
+replace y = . if id != 3
+capture noisily arima y, ar(1) nolog
+display _rc " " e(N)
+capture noisily var y w
+display _rc
+capture noisily varsoc y w, maxlag(2)
+display _rc
+capture noisily dfuller y
+display _rc
+dfuller y if id == 3
+capture noisily pperron y
+display _rc
+capture noisily corrgram y, lags(3)
+display _rc
+newey y w, lag(1)
+prais y w, nolog
+replace w = . if id != 3
+var y w
+capture noisily arima y w, ar(1) nolog
+display _rc " " e(N)
+=== pass8-ts2-newey-prais-panels
+clear
+set seed 21
+set obs 160
+generate id = ceil(_n/40)
+bysort id: generate t = _n
+generate double y = invnormal(runiform())
+by id: replace y = .6*y[_n-1] + y if _n > 1
+generate double w = invnormal(runiform())
+xtset id t
+capture noisily newey y w, lag(1)
+display _rc
+newey y w, lag(0)
+newey y w, lag(2) force
+newey y w if id == 3, lag(2)
+newey y w if id < 3 & t != 5, lag(1) force
+capture noisily newey y w if id == 3 & t != 5, lag(1)
+display _rc
+by id: newey y w, lag(1)
+prais y w if id == 2, nolog
+prais y w if id == 4, nolog corc
+by id: prais y w, nolog twostep
+generate t2 = 2*t
+capture noisily tsset t2
+display _rc
+=== pass8-ts2-operator-refusals
+clear
+set seed 41
+set obs 40
+generate t = _n
+tsset t
+generate double x = round(runiform()*10, .1)
+generate double y = x + round(runiform()*3, .1)
+capture noisily summarize D(-1).x
+capture noisily regress y D(-1).x
+capture noisily regress y S(-1).x
+capture noisily regress y D(-1/1).x
+capture noisily newey y D(-1).x, lag(1)
+capture noisily summarize L(1/2)D(0/1).x
+capture noisily regress y L(1/2)D(0/1).x
+capture noisily regress y L(0/1)F(1/2).x
+capture noisily summarize L(1)D(0/1).x
+capture noisily summarize L(1/2).D(1/2).x
+capture noisily summarize l(1/2)d(0/1).x
+capture noisily summarize D(-1)L(1/2).x
+capture noisily regress y L(1/2)D(1).x
+regress y L(1/2)D.x
+summarize L(1/2)D.x
+summarize LD(1/2).x
+regress y LD(1/2).x
+regress y S(0).x
+regress y L(1(1)3).x
+summarize L(3(-1)1).x
+regress y L(1(1)2).x D.x
+list t L(1(1)2).x in 1/3
+regress y L(1/2).(x y)
+regress y l.(x y)
+regress y d.(x y)
+=== pass8-ts2-by-var-varsoc
+clear
+set seed 61
+set obs 120
+generate t = _n
+generate g = ceil(_n/60)
+generate double y = invnormal(runiform())
+generate double w = invnormal(runiform())
+replace y = .5*y[_n-1] + y in 2/l
+tsset t
+bysort g: var y w
+bysort g: varsoc y w, maxlag(2)
+xtset g t
+by g: var y w, lags(1)
+by g: varsoc y, maxlag(2)
+capture noisily by g: dfuller y
+capture noisily by g: corrgram y
+=== pass8-ts2-means-and-labels
+clear
+set seed 13
+set obs 10
+generate t = _n
+tsset t
+generate double x = invnormal(runiform())*1000
+format x %9.2f
+generate double z = round(invnormal(runiform()), .001)
+generate double longer_name_variable = round(invnormal(runiform()), .001)
+generate byte lab = mod(_n, 3)
+label define lb 0 "zero" 1 "one" 2 "two"
+label values lab lb
+correlate x L.x, means
+correlate L.z L.longer_name_variable, means
+correlate L(0/2).z x, means
+list t lab L.lab F.lab in 1/4
+list t lab L.lab in 1/3, nolabel
+=== pass8-ts2-not-sorted
+clear
+set seed 5
+set obs 12
+generate t = _n
+generate g = ceil(t/4)
+generate double x = round(runiform()*100)
+generate double y = x + round(runiform()*10)
+tsset t
+sort x
+capture noisily list t x L.x in 1/3
+capture noisily summarize L.x
+capture noisily correlate x L.x
+capture noisily regress y L.x in 1/8
+capture noisily generate z = L.x in 1/5
+capture noisily count if L.x < .
+capture noisily newey y x, lag(1)
+newey y x, lag(0)
+capture noisily prais y x, nolog
+regress y x
+sort t g
+summarize L.x
+capture noisily bysort g: summarize L.x
+capture noisily bysort g: regress y L.x
+capture noisily bysort g (t): summarize L.x
+capture noisily bysort g: generate lx = L.x
+sort t
+by t: summarize L.x
+by t: generate l2 = L.x
+summarize l2
+xtset g t
+bysort g: summarize L.x
+sort t g
+capture noisily summarize L.x
+tsset
+summarize L.x
+=== pass8-ts2-sorts-by-time
+clear
+set seed 21
+set obs 30
+generate t = _n
+generate g = mod(_n, 2)
+generate double y = round(invnormal(runiform()), .01)
+replace y = .6*y[_n-1] + y in 2/l
+generate double w = invnormal(runiform())
+tsset t
+sort y
+dfuller y
+list t y in 1/3
+sort y
+pperron y
+list t y in 1/3
+gsort -y
+corrgram y, lags(2)
+list t y in 1/3
+sort g
+quietly var y w
+local s : sortedby
+display "`s'"
+quietly varsoc y w
+local s : sortedby
+display "`s'"
+quietly ac y, lags(3) nodraw
+local s : sortedby
+display "`s'"
+sort y
+dfuller y in 1/10
+sort y
+quietly arima y, ar(1) nolog
+local s : sortedby
+display "`s'"
+sort y
+predict double p, y
+local s : sortedby
+display "`s'"
+sort g
+bysort g: arima y, ar(1) nolog
+local s : sortedby
+display "`s'"
+=== pass8-ts2-lowercase-postestimation
+clear
+set seed 77
+set obs 120
+generate t = _n
+generate double x = invnormal(runiform())
+generate double y = invnormal(runiform())
+tsset t
+replace y = y + .5*x + .3*x[_n-1] in 2/l
+regress y L(1/3).x L.y
+test l.x
+test l2.x = l3.x
+test L1.x = 0
+capture noisily test L.x = l2.y
+testparm L(1/3).x
+testparm L.x L2.x
+lincom l.x + l2.x
+capture noisily lincom L4.x
+regress y L(0/2).x, vce(robust)
+testparm l(0/2).x
+=== pass8-ts2-unit-root-small-samples
+clear
+set seed 11
+set obs 150
+generate t = _n
+generate double y = sum(invnormal(runiform()))
+tsset t
+dfuller y in 1/3
+return list
+capture noisily dfuller y in 1/2
+display _rc
+dfuller y in 1/3, noconstant
+dfuller y in 1/3, drift
+return list
+dfuller y in 1/6, lags(2) trend
+dfuller y in 1/3, regress
+pperron y in 1/3
+return list
+pperron y in 1/4, trend
+capture noisily pperron y in 1/2
+display _rc
+pperron y in 1/3, regress
+dfuller y, l(2) nocon
+pperron y in 1/5, noc
+capture noisily dfuller y, noc
+=== pass8-ts2-tsset-gaps-and-strings
+clear
+set seed 31
+set obs 12
+generate t = _n
+generate double x = _n*10
+generate str3 sv = "ab"
+replace t = . in 6
+tsset t
+replace t = 6 in 12
+tsset t
+generate z1 = l.sv
+generate z2 = L.x + L.sv
+generate z3 = l..x
+list t z1 z2 z3 in 1/3
+rename t time
+tsset
+summarize L.x

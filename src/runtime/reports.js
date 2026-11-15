@@ -12,6 +12,7 @@ import {
 } from "./format.js";
 import { evaluateAll } from "./expression.js";
 import { chi2tail } from "./distributions.js";
+import { operatorGroups } from "./varlist.js";
 import {
   assumedWeights,
   clauses,
@@ -347,6 +348,13 @@ export function summarize(session, text, ctx) {
     );
     ctx.out(analytic ? SUMMARY_RULE + "--------" : SUMMARY_RULE);
   }
+  // Under time-series operators the rows of one variable are grouped under
+  // its name, as L1., D1. and --., with a blank row around each such group.
+  const listed = parsed.varlist.map((name) => session.data.get(name)),
+    groups = operatorGroups(listed),
+    groupOf = new Map(
+      groups.flatMap((group, at) => group.members.map((k) => [k, at])),
+    );
   parsed.varlist.forEach((name, k) => {
     const variable = session.data.get(name),
       values = isStringType(variable.type) ? [] : present(variable.data, rows),
@@ -388,7 +396,18 @@ export function summarize(session, text, ctx) {
       spread = (value, width) => statistic(value, formats.spread, width);
     if (k && parsed.options.separator && k % parsed.options.separator === 0)
       ctx.out(analytic ? SUMMARY_RULE + "--------" : SUMMARY_RULE);
-    const label = padDisplay(abbreviateAmong(name, 12, session.data.names), 12);
+    const at = groupOf.get(k),
+      group = groups[at],
+      shortened = (text) =>
+        padDisplay(abbreviateAmong(text, 12, session.data.names), 12);
+    if (group.members[0] === k) {
+      if (at && (group.headed || groups[at - 1].headed))
+        ctx.out(`${" ".repeat(12)} |`);
+      if (group.headed) ctx.out(`${shortened(group.base)} |`);
+    }
+    const label = group.headed
+      ? (variable.ts?.label ?? "--.").padStart(12)
+      : shortened(name);
     ctx.out(
       analytic
         ? m.n
@@ -498,7 +517,7 @@ function distribution(rows, data, weights, mean, weightedAtAll) {
 }
 function detail(ctx, variable, m, shape, formats, observed, frequency) {
   const ends = [...observed].sort((a, b) => a - b),
-    title = variable.label || variable.name,
+    title = variable.ts?.name ?? (variable.label || variable.name),
     p = (q) => statistic(shape.percentile(q), formats.level, 13),
     // The four smallest and four largest; fewer than four leaves gaps.
     end = (k) =>
@@ -1830,11 +1849,35 @@ export function list(session, text, ctx) {
       space = Math.max(limit, widest);
     if (v.header !== undefined) column.header = v.header.slice(0, space);
     else {
-      const w = Math.max(space, 5);
-      column.header = v.name.length > w ? abbreviateName(v.name, w) : v.name;
+      // Under a time-series operator the heading is the variable's name,
+      // its operators on the line above.
+      const w = Math.max(space, 5),
+        name = v.ts?.variable ?? v.name;
+      column.header = name.length > w ? abbreviateName(name, w) : name;
     }
-    column.width = Math.max(displayWidth(column.header), widest);
+    column.width = Math.max(
+      displayWidth(column.header),
+      widest,
+      v.ts?.prefix.length ?? 0,
+    );
   }
+  // The operators of an operated column, L. or LD., head it on a line of
+  // their own, ending one column past its name, or with it in the display
+  // layout (past 0). build makes a line of the given columns from a
+  // function giving each its cell.
+  const operated = columns.some((c) => c.v.ts),
+    operators = (build, list, past = 1) => {
+      const chars = [...build((c) => " ".repeat(c.width - 1) + "\u0001")];
+      let k = 0;
+      chars.forEach((ch, at) => {
+        if (ch !== "\u0001") return;
+        chars[at] = " ";
+        const prefix = list[k++].v.ts?.prefix ?? "";
+        for (let j = 0; j < prefix.length; j++)
+          chars[at + 1 + past - prefix.length + j] = prefix[j];
+      });
+      return chars.join("");
+    };
   const fit = (text, width, left) => {
       const blanks = " ".repeat(Math.max(0, width - displayWidth(text)));
       return left ? text + blanks : blanks + text;
@@ -1859,6 +1902,10 @@ export function list(session, text, ctx) {
     // count when the line is wrapped.
     const line = (items) => items.join("   ") + "  ";
     if (options.header !== false) ctx.out("");
+    if (options.header !== false && operated)
+      out(
+        `${noobs ? " " : "    "}   ${operators((cell) => line(columns.map(cell)), columns)}`,
+      );
     if (options.header !== false)
       out(`${noobs ? " " : "    "}   ${line(columns.map(heading))}`);
     rows.forEach((i, k) =>
@@ -1885,6 +1932,10 @@ export function list(session, text, ctx) {
     if (options.header !== false) ctx.out("");
     ctx.out(`${margin}+${"-".repeat(inner)}+`);
     if (options.header !== false) {
+      if (operated)
+        ctx.out(
+          `${margin}|${operators((cell) => ` ${line(columns.map(cell))} `, columns)}|`,
+        );
       ctx.out(`${margin}| ${line(columns.map(heading))} |`);
       ctx.out(`${margin}${rule}`);
     }
@@ -1965,6 +2016,17 @@ export function list(session, text, ctx) {
     layouts.forEach((layout, b) => {
       if (b) ctx.out(margin + rules[b]);
       if (options.header !== false) {
+        if (operated) {
+          ctx.out(
+            lead +
+              operators(
+                (cell) => row(layout, cell),
+                layout.map(({ c }) => c),
+                0,
+              ),
+          );
+          lead = margin;
+        }
         ctx.out(lead + row(layout, heading));
         lead = margin;
       }
