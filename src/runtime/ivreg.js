@@ -9,6 +9,7 @@ import { Ftail, invttail } from "./distributions.js";
 import {
   ESTIMATION_COMMANDS,
   abbreviate,
+  hooks,
   coefficientHeader,
   coefficientRows,
   coefficientTest,
@@ -156,6 +157,15 @@ export function ivreg(session, text, ctx) {
     );
   }
   checkVarlist(main);
+  fitLegacy(session, main, asked, ctx, "ivreg");
+}
+
+/**
+ * The fit and table that ivreg and regress's older instrumental-variables
+ * syntax share. `flavor` is the command shown: regress posts its own e()
+ * and lists no endogenous and exogenous variables under the table.
+ */
+function fitLegacy(session, main, asked, ctx, flavor) {
   if (asked.depname !== null && !/^[A-Za-z_]\w*$/.test(asked.depname))
     throw new StataError(`${asked.depname} invalid name`, 198);
   const options = [
@@ -171,6 +181,9 @@ export function ivreg(session, text, ctx) {
     ...ctx,
     out: () => {},
   });
+  // [w=exp] is an analytic weight, and Stata says so first.
+  if (/\[\s*w(e(i(g(ht?)?)?)?)?\s*=/.test(main) && !ctx.replaying)
+    ctx.out("(analytic weights assumed)");
   // first: each endogenous variable regressed on all the exogenous ones,
   // over the estimation sample, as regress shows it (never robust).
   if (asked.first && !ctx.replaying)
@@ -231,8 +244,9 @@ export function ivreg(session, text, ctx) {
         ) / df_m
       : MISSING,
     mss = tss - rss,
-    r2 = 1 - rss / tss,
-    r2_a = 1 - (1 - r2) * ((N - 1) / dfResidual),
+    // A model sum of squares below zero leaves R-squared missing.
+    r2 = mss < 0 ? MISSING : mss / tss,
+    r2_a = isMissing(r2) ? MISSING : 1 - (1 - r2) * ((N - 1) / dfResidual),
     rmse = Math.sqrt(rss / dfResidual),
     robust = model.vce !== "unadjusted";
   Object.assign(model, {
@@ -251,34 +265,37 @@ export function ivreg(session, text, ctx) {
     vce: robust ? model.vce : "ols",
     vcetype: robust ? "Robust" : undefined,
     clusterName: model.clusterName,
-    legacy: "ivreg",
+    legacy: flavor,
   });
   const instd = model.iv.endogenous.join(" "),
     insts = [...model.iv.exogenous, ...model.iv.instruments].join(" ");
-  session.results.e = {
-    N,
-    ...(clusters ? { N_clust: clusters } : {}),
-    df_m,
-    df_r,
-    F,
-    r2,
-    rmse,
-    mss,
-    rss,
-    r2_a,
-    ...(clusters ? { clustvar: model.clusterName } : {}),
-    ...(robust ? { vcetype: "Robust" } : {}),
-    ...(wtype ? { wtype, wexp: model.wexp } : {}),
-    cmd: "ivreg",
-    insts,
-    footnote: "ivreg_footnote",
-    title: "Instrumental-variables (2SLS) regression",
-    instd,
-    depvar: asked.depname ?? model.depvar,
-    properties: "b V",
-    model: "iv",
-    predict: "regriv_p",
-  };
+  session.results.e =
+    flavor === "regress"
+      ? regressResults(model, asked, { robust, clusters, wtype })
+      : {
+          N,
+          ...(clusters ? { N_clust: clusters } : {}),
+          df_m,
+          df_r,
+          F,
+          r2,
+          rmse,
+          mss,
+          rss,
+          r2_a,
+          ...(clusters ? { clustvar: model.clusterName } : {}),
+          ...(robust ? { vcetype: "Robust" } : {}),
+          ...(wtype ? { wtype, wexp: model.wexp } : {}),
+          cmd: "ivreg",
+          insts,
+          footnote: "ivreg_footnote",
+          title: "Instrumental-variables (2SLS) regression",
+          instd,
+          depvar: asked.depname ?? model.depvar,
+          properties: "b V",
+          model: "iv",
+          predict: "regriv_p",
+        };
 
   const p = isMissing(F) ? MISSING : Ftail(df_m, df_r, F);
   if (wtype === "aweight" || wtype === "pweight")
@@ -347,6 +364,7 @@ export function ivreg(session, text, ctx) {
     coefficientRows(session, model, level, width).forEach(ctx.out);
   }
   ctx.out("-".repeat(66 + width));
+  if (flavor === "regress") return;
   // The lists, as ivregress shows them.
   const limit = Math.min(66 + width, session.settings?.linesize ?? 80) - 2,
     paragraph = (lead, words) => {
@@ -464,6 +482,185 @@ function eformTable(session, model, level, label, width, name) {
   ];
 }
 
+/** regress's e() after its instrumental-variables fit, as Stata 19 posts it. */
+function regressResults(model, asked, { robust, clusters, wtype }) {
+  return {
+    ...(clusters ? { N_clust: clusters } : {}),
+    N: model.N,
+    df_m: model.df_m,
+    df_r: model.df_r,
+    F: model.F,
+    r2: model.r2,
+    rmse: model.rmse,
+    mss: model.mss,
+    rss: model.rss,
+    r2_a: model.r2_a,
+    rank: model.estimable.filter(Boolean).length,
+    cmdline: asked.cmdline,
+    title: "Linear regression",
+    marginsok: "XB default",
+    vce: clusters ? "cluster" : robust ? "robust" : "ols",
+    depvar: asked.depname ?? model.depvar,
+    cmd: "regress",
+    properties: "b V",
+    model: "iv",
+    predict: "regriv_p",
+    ...(wtype ? { wexp: model.wexp, wtype } : {}),
+    ...(robust ? { vcetype: "Robust" } : {}),
+    ...(clusters ? { clustvar: model.clusterName } : {}),
+  };
+}
+
+/**
+ * Where regress's varlist holds a group in parentheses, as in regress y x
+ * (z), the older syntax for two-stage least squares: { open, close } in
+ * the text before the comma (close -1 when it is not closed), or null. The
+ * group starts a word, so that L(1/2).x is not one.
+ */
+export function instrumentGroup(text) {
+  const main = splitAtComma(text)[0];
+  let depth = 0;
+  for (let k = 0; k < main.length; k++) {
+    const c = main[k];
+    if (c === "[" && !depth) return null;
+    if (c === "(") {
+      if (!depth && (k === 0 || /\s/.test(main[k - 1]))) {
+        // Not inside the if or in clause.
+        if (/(^|\s)(if|in)(\s|$)/.test(main.slice(0, k))) return null;
+        let level = 0;
+        for (let j = k; j < main.length; j++) {
+          if (main[j] === "(") level++;
+          else if (main[j] === ")" && !--level) return { open: k, close: j };
+        }
+        return { open: k, close: -1 };
+      }
+      depth++;
+    } else if (c === ")") depth--;
+  }
+  return null;
+}
+
+// Options of regress that its instrumental-variables fit does not take in
+// the browser yet.
+const REGRESS_UNAVAILABLE =
+  /^(noomit(t(ed?)?)?|vsquish|noempty(c(e(l(ls?)?)?)?)?|cformat|pformat|sformat|nolstretch|coefl(e(g(e(nd?)?)?)?)?|nofvl(a(b(el?)?)?)?|fvwrap|fvwrapon|noci|nopv(a(l(u(es?)?)?)?)?|nocnsr(e(p(o(rt?)?)?)?)?|mse1|tsscons|nocons(t(a(nt?)?)?)?|hascons)$/;
+
+/**
+ * regress y x1 x2 (z1 z2 x2): two-stage least squares, the regressors not
+ * among the instruments in parentheses instrumented by those not among the
+ * regressors, as Stata 19's regress still fits it. The varlist may hold no
+ * factor variables; words after the group and before if, in or a weight
+ * are passed over, as Stata passes over them.
+ */
+export function regressInstruments(session, text, ctx, group) {
+  const [main, tail] = splitAtComma(text);
+  if (group.close < 0)
+    throw new StataError(
+      "invalid something: unmatched open parenthesis or bracket",
+      198,
+    );
+  const before = main.slice(0, group.open),
+    inside = main.slice(group.open + 1, group.close),
+    after = main.slice(group.close + 1),
+    // What follows the group up to if, in or a weight.
+    rest = /^([\s\S]*?)(?=(?:^|\s)(?:if|in)(?:\s|$)|\[|$)/.exec(after)[1],
+    qualifiers = after.slice(rest.length);
+  if (/[()]/.test(rest)) throw new StataError("invalid syntax", 198);
+  if (inside.includes(","))
+    throw new StataError(
+      "options not allowed in bound factor variable lists",
+      198,
+    );
+  const words = before.trim().split(/\s+/).filter(Boolean),
+    listed = inside.trim().split(/\s+/).filter(Boolean);
+  if (words.length < 2) throw new StataError("invalid syntax", 198);
+  for (const word of [...words, ...listed]) {
+    const dot = word.lastIndexOf(".");
+    if (word.includes("#"))
+      throw new StataError("factor-variable operators not allowed", 101);
+    if (dot < 0) continue;
+    const operator = word.slice(0, dot);
+    if (/^c$/i.test(operator)) continue;
+    if (/^(?:[LFDS]\d*|[LFDS]\([^)]*\))+$/i.test(operator)) {
+      if (!session.panel?.time)
+        throw new StataError("time variable not set", 111);
+      continue;
+    }
+    throw new StataError("factor-variable operators not allowed", 101);
+  }
+  const expand = (word) => {
+      const plain = word.replace(/^c\./i, "");
+      return plain.includes(".") ? [plain] : session.varlist(plain);
+    },
+    depvar = expand(words[0]),
+    regressors = words.slice(1).flatMap(expand),
+    instruments = listed.flatMap(expand);
+  if (depvar.length > 1) throw new StataError("invalid syntax", 198);
+  if (instruments.length < regressors.length)
+    throw new StataError("equation/system not identified", 481);
+  const asked = {
+    robust: false,
+    cluster: null,
+    level: null,
+    first: false,
+    beta: false,
+    noheader: false,
+    eform: null,
+    depname: null,
+    cmdline: `regress ${text.trim()}`,
+  };
+  for (const word of optionWords(tail ?? "")) {
+    const name = /^\w*/.exec(word)[0],
+      inner = /\(([\s\S]*)\)$/.exec(word)?.[1]?.trim();
+    if (/^r(o(b(u(st?)?)?)?)?$/.test(word)) asked.robust = true;
+    else if (/^cl(u(s(t(er?)?)?)?)?\(/.test(word)) asked.cluster = inner;
+    else if (/^l(e(v(el?)?)?)?\(/.test(word)) asked.level = inner;
+    else if (word === "beta") asked.beta = true;
+    else if (/^nohe(a(d(er?)?)?)?$/.test(word)) asked.noheader = true;
+    else if (/^ef(o(rm?)?)?\(/.test(word)) asked.eform = inner;
+    else if (/^dep(n(a(me?)?)?)?\(/.test(word)) asked.depname = inner;
+    // baselevels has no factor variable to show here.
+    else if (/^(all)?base(l(e(v(e(ls?)?)?)?)?)?$/.test(word)) continue;
+    else if (/^hc[23]$/.test(word))
+      throw new StataError(`option ${word} not allowed`, 198);
+    else if (/^vce\(/.test(word)) {
+      const [kind = "", ...more] = (inner ?? "").split(/\s+/);
+      if (/^r(o(b(u(st?)?)?)?)?$/.test(kind)) asked.robust = true;
+      else if (/^cl(u(s(t(er?)?)?)?)?$/.test(kind))
+        asked.cluster = more.join(" ");
+      else if (/^hc[23]$/.test(kind))
+        throw new StataError(`option ${kind} not allowed`, 198);
+      else if (kind !== "ols")
+        throw new StataError(`vcetype ${kind} not allowed`, 198);
+    } else if (REGRESS_UNAVAILABLE.test(name))
+      throw new StataError(
+        `option ${name} of regress with instruments in parentheses is not available in the browser yet; leave it out, or fit the model with ivregress 2sls`,
+        198,
+      );
+    else
+      throw new StataError(
+        `option ${word.replace(/\(.*$/, "()")} not allowed`,
+        198,
+      );
+  }
+  if (asked.cluster !== null && asked.beta)
+    throw new StataError(
+      "options vce(cluster clustvar) and beta may not be combined",
+      184,
+    );
+  // The regressors among the instruments are exogenous; the others are
+  // instrumented by the instruments not among the regressors. With none
+  // instrumented, each regressor is its own instrument, which is least
+  // squares.
+  const endogenous = regressors.filter((name) => !instruments.includes(name)),
+    exogenous = regressors.filter((name) => instruments.includes(name)),
+    excluded = instruments.filter((name) => !regressors.includes(name)),
+    spec = endogenous.length
+      ? `${depvar[0]} ${exogenous.join(" ")} (${endogenous.join(" ")} = ${excluded.join(" ")})`
+      : `${depvar[0]} (${exogenous.join(" ")} = ${instruments.join(" ")})`;
+  fitLegacy(session, `${spec} ${qualifiers}`, asked, ctx, "regress");
+}
+
 /** The sum of the weights as typed, over the estimation sample. */
 function sumOf(session, model) {
   const values = evaluateAll(
@@ -472,5 +669,17 @@ function sumOf(session, model) {
   );
   return model.sample.reduce((t, i) => t + values[i], 0);
 }
+
+hooks.regressInstruments = (session, text, ctx) => {
+  const group = instrumentGroup(text);
+  // Without ctx, the text with the group's parentheses taken out.
+  if (!ctx)
+    return group && group.close > 0
+      ? `${text.slice(0, group.open)} ${text.slice(group.open + 1, group.close)} ${text.slice(group.close + 1)}`
+      : null;
+  if (!group) return false;
+  regressInstruments(session, text, ctx, group);
+  return true;
+};
 
 export const IVREG_COMMANDS = [{ name: "ivreg", minimum: 5, run: ivreg }];

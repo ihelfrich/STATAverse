@@ -8,6 +8,7 @@
 import { StataError } from "./errors.js";
 import { isStringType, isMissing, MISSING } from "./values.js";
 import { resolveVariable } from "./varlist.js";
+import { parseNumlist } from "./numlist.js";
 
 // One factor-variable term: an operator and a variable name.
 const TERM =
@@ -179,11 +180,12 @@ function columnsOf(session, word, rows) {
   // ib#. leaves out level #; i. and ibn. show every level.
   const omitted = /^ib(\d+)$/.exec(free.operator)?.[1];
   if (/^ib(?!n$|\d)|^b/.test(free.operator)) throw unsupported(word);
-  const levels = levelsOf(free.variable, rows).filter(
-    (level) => omitted === undefined || level !== Number(omitted),
-  );
+  const all = levelsOf(free.variable, rows),
+    levels = all.filter(
+      (level) => omitted === undefined || level !== Number(omitted),
+    );
   // One level left is shown under its own name, as 1.g.
-  return levels.map((level) => ({
+  const columns = levels.map((level) => ({
     single: levels.length === 1 && terms.length === 1,
     name: terms
       .map((term) => (term === free ? spelled(term, level) : spelled(term)))
@@ -195,6 +197,14 @@ function columnsOf(session, word, rows) {
     level,
     values: product((term) => (term === free ? level : null)),
   }));
+  // The base ib#. leaves out, where its level falls: mean and total post
+  // it in e(b) as 2b.g, zero.
+  if (omitted !== undefined && terms.length === 1 && all.length > levels.length)
+    columns.splice(all.indexOf(Number(omitted)), 0, {
+      omittedBase: true,
+      name: `${omitted}b.${free.variable.name}`,
+    });
+  return columns;
 }
 
 /**
@@ -210,6 +220,11 @@ export function factorVariables(run, options = {}) {
     const end = varlistEnd(text),
       // i.(g h) is i.g i.h.
       listed = words(text.slice(0, end)).flatMap((word) => {
+        // i(1 3).g is the levels 1.g and 3.g.
+        const levels =
+          /^i\(([^()]*)\)\.([\p{L}_][\w\u0080-\u{10FFFF}]*)$/u.exec(word);
+        if (levels)
+          return parseNumlist(levels[1]).map((n) => `${n}.${levels[2]}`);
         const m = /^(i\w*|c)\.\(([^()#]+)\)$/.exec(word);
         return m
           ? m[2]
@@ -257,6 +272,13 @@ export function factorVariables(run, options = {}) {
           continue;
         }
         for (const column of columnsOf(session, word, rows())) {
+          if (column.omittedBase) {
+            (ctx.factorBases ??= []).push({
+              index: names.length,
+              name: column.name,
+            });
+            continue;
+          }
           if (column.variable) {
             names.push(column.variable);
             continue;
@@ -312,6 +334,7 @@ export function factorVariables(run, options = {}) {
       return run(session, `${names.join(" ")} ${text.slice(end)}`, ctx);
     } finally {
       if (ctx.commandText === text) delete ctx.commandText;
+      delete ctx.factorBases;
       if (made.length)
         data.variables = data.variables.filter((v) => !made.includes(v));
     }

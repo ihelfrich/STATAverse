@@ -339,6 +339,12 @@ function surveySample(
       );
   } else kept = kept.filter(usable);
   let omitted = 0;
+  // The sample before strata without members of the subpopulation are
+  // set aside, which mean's e(V_srs) is taken over.
+  const whole = {
+    n: kept.length,
+    weight: kept.reduce((t, i) => t + (weight ? weight.data[i] : 1), 0),
+  };
   if (inside && strata) {
     const all = new Set(kept.map((i) => strata.data[i])),
       used = new Set([...inside].map((i) => strata.data[i]));
@@ -392,6 +398,7 @@ function surveySample(
     // The weight each observation carries in the estimate: none outside
     // the subpopulation.
     ew: w.map((v, j) => (sub[j] ? v : 0)),
+    whole,
     units,
     subpop: !!inside,
     omitted,
@@ -1051,6 +1058,7 @@ function summary(session, text, ctx, prefix, kind) {
           variable,
           tuple,
           value,
+          weight,
           sd: Math.sqrt(((squares / weight) * n) / (n - 1)),
           score: (i, j) =>
             inGroup(tuple, i)
@@ -1108,6 +1116,42 @@ function summary(session, text, ctx, prefix, kind) {
     ),
     variance = linearizedVariance(survey, scores, k),
     se = items.map((item, a) => shownError(item.value, variance.V[a][a]));
+  // mean's variance under simple random sampling, e(V_srs), as Stata 19
+  // posts it without an fpc: M/(m - 1) times the sum over the sample of
+  // w u u', u an observation's deviation from its group's mean over the
+  // group's sum of weights (zero outside the group), m the observations
+  // and M their weights, strata without the subpopulation included. estat sd's standard deviation of a group is
+  // sqrt(e(_N) e(V_srs)), its count times its variance.
+  const srs =
+    kind === "mean"
+      ? (() => {
+          const m = survey.whole.n,
+            M = survey.whole.weight,
+            inside = (item, i, j) =>
+              survey.sub[j] && ew[j] > 0 && inGroup(item.tuple, i),
+            u = items.map((item) =>
+              rows.map((i, j) =>
+                inside(item, i, j)
+                  ? (item.variable.data[i] - item.value) / item.weight
+                  : 0,
+              ),
+            ),
+            V = items.map(() => items.map(() => 0));
+          items.forEach((_, a) => {
+            for (let b = 0; b <= a; b++)
+              V[a][b] = V[b][a] =
+                (M / (m - 1)) *
+                rows.reduce(
+                  (t, i, j) => t + survey.w[j] * u[a][j] * u[b][j],
+                  0,
+                );
+          });
+          const N = items.map((item) =>
+            rows.reduce((t, i, j) => t + (inside(item, i, j) ? 1 : 0), 0),
+          );
+          return { V, N, sd: N.map((n, a) => Math.sqrt(n * V[a][a])) };
+        })()
+      : null;
   // The table's rows as termRows lays them out.
   const terms = new Map(),
     termOf = (key, make) => {
@@ -1174,9 +1218,12 @@ function summary(session, text, ctx, prefix, kind) {
     shape = { floor: 79, breakPad: 2 },
     w = tableWidth(session, table, [], 50, shape),
     width = w + 50,
-    headerWidth =
-      tableWidth(session, table, [], 50, { ...shape, needed: true }) + 50,
     linesize = session.settings?.linesize ?? 80,
+    // No wider than the line, or 79 when the line is narrower.
+    headerWidth = Math.min(
+      tableWidth(session, table, [], 50, { ...shape, needed: true }) + 50,
+      Math.max(79, linesize),
+    ),
     percent = kind === "proportion" && !!options.percent,
     [title, statistic] = percent
       ? ["Percent estimation", "Percent"]
@@ -1310,29 +1357,31 @@ function summary(session, text, ctx, prefix, kind) {
       ? {
           svySd: (out, variance, srssubpop) => {
             // For a subpopulation (over() or subpop()) Stata's default
-            // estimates the subpopulation's spread from the whole design,
-            // which is not computed here; srssubpop's, as though the
-            // subpopulation were a simple random sample, is.
-            if ((over.length || survey.subpop) && !srssubpop)
-              throw new StataError(
-                "estat sd for a subpopulation is not available in the browser yet without srssubpop",
-                198,
-                "Type estat sd, srssubpop for the standard deviations of each subpopulation taken as a simple random sample.",
-              );
-            const rule = "-".repeat(w + 25),
-              shown = items.map((item) => (variance ? item.sd ** 2 : item.sd));
+            // estimates the spread from the whole sample, e(_N) times
+            // e(V_srs); srssubpop's takes each subpopulation as a simple
+            // random sample.
+            const sds = items.map((item, a) =>
+                (over.length || survey.subpop) && !srssubpop
+                  ? srs.sd[a]
+                  : item.sd,
+              ),
+              // Its first column is a coefficient table's, 12 wide at 79
+              // columns.
+              ws = tableWidth(session, table),
+              rule = "-".repeat(ws + 25),
+              shown = sds.map((sd) => (variance ? sd ** 2 : sd));
             out.out("");
             out.out(rule);
             out.out(
-              `${over.length ? "Over".padStart(w) : " ".repeat(w)} |       Mean   ${variance ? " Variance" : "Std. dev."}`,
+              `${over.length ? "Over".padStart(ws) : " ".repeat(ws)} |       Mean   ${variance ? " Variance" : "Std. dev."}`,
             );
-            out.out(`${"-".repeat(w + 1)}+${"-".repeat(23)}`);
+            out.out(`${"-".repeat(ws + 1)}+${"-".repeat(23)}`);
             termRows(
               session,
               table,
               (a) =>
                 `${g(items[a].value).padStart(11)}${g(shown[a]).padStart(12)}`,
-              w,
+              ws,
             ).forEach(out.out);
             out.out(rule);
             out.out("");
@@ -1342,8 +1391,8 @@ function summary(session, text, ctx, prefix, kind) {
               values: [values],
             });
             session.results.r = {
-              "matrix:sd": stripe(items.map((item) => item.sd)),
-              "matrix:variance": stripe(items.map((item) => item.sd ** 2)),
+              "matrix:sd": stripe(sds),
+              "matrix:variance": stripe(sds.map((sd) => sd ** 2)),
               "matrix:mean": stripe(items.map((item) => item.value)),
             };
           },
@@ -1373,6 +1422,26 @@ function summary(session, text, ctx, prefix, kind) {
         }
       : {}),
     level,
+    // With an fpc Stata's e(V_srs) is scaled by it, which is not computed
+    // here, so it is left out.
+    ...(srs && !survey.set.fpc
+      ? {
+          "matrix:V_srs": {
+            rowNames: table.names,
+            colNames: table.names,
+            values: srs.V,
+          },
+        }
+      : {}),
+    ...(srs
+      ? {
+          "matrix:_N": {
+            rowNames: ["r1"],
+            colNames: table.names,
+            values: [srs.N],
+          },
+        }
+      : {}),
   });
 }
 

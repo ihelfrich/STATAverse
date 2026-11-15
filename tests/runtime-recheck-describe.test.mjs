@@ -364,6 +364,10 @@ test("estat sd after svy: mean, and for a subpopulation with srssubpop", () => {
     "      South  |   4.321786    2.693975",
     "       West  |   3.001667    2.936174",
   ]);
-  // Stata's default for a subpopulation is not computed: refused, r(198).
-  assert.equal(output.at(-1).rc, 198);
+  // Stata's default for a subpopulation, sqrt(e(_N) e(V_srs)).
+  assert.deepEqual(lines(output.at(-1)).slice(-4, -1), [
+    "      North  |   6.301304    2.767021",
+    "      South  |   4.321786     2.55258",
+    "       West  |   3.001667    2.833118",
+  ]);
 });

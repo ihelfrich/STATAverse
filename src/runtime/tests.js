@@ -45,10 +45,21 @@ const four = (value) => applyFormat(value, "%6.4f");
 const RULE = "-".repeat(78);
 /** Three alternative hypotheses, each centred on its column as Stata sets them. */
 function alternatives(...items) {
+  // _ttest center2: each centred about columns 11, 40 and 70 (the last
+  // about 79 less half its length when longer than 20), at least a space
+  // after the one before.
   let line = "";
   items.forEach((item, k) => {
-    const start = Math.ceil([10, 39, 69][k] - item.length / 2);
-    line = line.padEnd(start) + item;
+    const center =
+        k === 2 && item.length > 20
+          ? 79 - Math.trunc(item.length / 2)
+          : [11, 40, 70][k],
+      last = line.length,
+      skip = Math.max(
+        last ? 1 : 0,
+        center - Math.trunc(item.length / 2) - 1 - last,
+      );
+    line += " ".repeat(skip) + item;
   });
   return line;
 }
@@ -918,7 +929,12 @@ function oneSampleVariance(session, ctx, test) {
     upper = isMissing(chi2) ? MISSING : chi2tail(df, chi2),
     lower = isMissing(upper) ? MISSING : 1 - upper,
     p = isMissing(upper) ? MISSING : 2 * Math.min(lower, upper),
-    shown = g(sd0);
+    // The hypothesis as typed, or in %7.0g when longer than six
+    // characters, as sdtesti.ado shows it.
+    shown =
+      test.typed !== undefined && test.typed.length <= 6
+        ? test.typed
+        : applyFormat(sd0, "%7.0g").trim();
   ctx.out("");
   ctx.out("One-sample test of variance");
   ctx.out(RULE);
@@ -927,7 +943,7 @@ function oneSampleVariance(session, ctx, test) {
   ctx.out(row(label, m));
   ctx.out(RULE);
   ctx.out(
-    `${`    sd = sd(${name})`.padEnd(59)}c = chi2 =${applyFormat(chi2, "%9.4f")}`,
+    `${`    sd = sd(${name})`.padEnd(59)}c = chi2 = ${applyFormat(chi2, "%8.4f")}`,
   );
   ctx.out(
     `${`H0: sd = ${shown}`.padEnd(49)}Degrees of freedom = ${applyFormat(df, "%8.0f")}`,
@@ -948,27 +964,64 @@ function oneSampleVariance(session, ctx, test) {
 }
 
 function sdtest(session, text, ctx) {
-  const t = target(text),
-    parsed = session.parse("[if] [in] [, BY(varlist) Level(cilevel)]", t.rest),
+  const t = target(text);
+  // varname alone before if, in and the options: another name is one too
+  // many, once it is found.
+  const extra = /^\s*((?:(?!(?:if|in)\b)[^\s,[]+\s*)*)/.exec(t.rest)[1].trim();
+  if (extra) {
+    session.varlist(extra);
+    throw new StataError("too many variables specified", 103);
+  }
+  const parsed = session.parse(
+      "[if] [in] [, BY(string) Level(cilevel)]",
+      t.rest,
+    ),
     level = parsed.options.level,
-    variable = numericVariable(session, t.name);
+    variable = session.data.get(session.varlist(t.name)[0]),
+    // A string variable has no values to summarize.
+    valuesOf = (v, rows) => (isStringType(v.type) ? [] : values(v, rows));
+  if (parsed.options.by !== undefined) {
+    let names;
+    try {
+      names = session.varlist(parsed.options.by);
+    } catch (error) {
+      if (!(error instanceof StataError)) throw error;
+      throw new StataError(
+        `${error.message}\n(error in option by())`,
+        error.code,
+      );
+    }
+    if (names.length > 1)
+      throw new StataError("by():  too many variables specified", 103);
+    parsed.options.by = names;
+  }
+  const number = t.value !== undefined ? literal(t.value) : undefined;
   // sdtest x == y compares the variances of two variables, each over its
   // own nonmissing values; a number after == is a one-sample test.
   const second =
-    t.value !== undefined && literal(t.value) === undefined
-      ? numericVariable(session, session.varlist(t.value)[0])
+    t.value !== undefined && number === undefined
+      ? session.data.get(session.varlist(t.value)[0])
       : null;
-  if (second && parsed.options.by)
+  if (second && isStringType(second.type))
+    throw new StataError("type mismatch", 109);
+  if (t.value !== undefined && parsed.options.by)
     throw new StataError("may not combine = and by()", 198);
   if (parsed.options.by || second) {
+    // markout leaves no observations of a string variable.
+    if (!second && isStringType(variable.type))
+      throw new StataError("no observations", 2000);
     const two = second
         ? { labels: [variable.name, second.name] }
         : twoGroups(session, parsed, variable),
       [a, b] = second
         ? [variable, second].map((v) =>
-            moments(values(v, session.rows(parsed, null))),
+            moments(valuesOf(v, session.rows(parsed, null))),
           )
         : two.groups.map((rows) => moments(values(variable, rows)));
+    ["first", "second"].forEach((which, k) => {
+      if (![a, b][k].n)
+        throw new StataError(`${which} sample has no observations`, 2000);
+    });
     varianceRatio(session, ctx, {
       a,
       b,
@@ -980,9 +1033,14 @@ function sdtest(session, text, ctx) {
     return;
   }
   if (t.value === undefined) throw new StataError("by() option required", 100);
+  const m = moments(valuesOf(variable, session.rows(parsed, null)));
+  if (!m.n) throw new StataError("no observations", 2000);
+  if (number < 0)
+    throw new StataError("hypothesized standard deviation is negative", 411);
   oneSampleVariance(session, ctx, {
-    m: moments(values(variable, session.rows(parsed, null))),
-    sd0: literal(t.value),
+    m,
+    sd0: number,
+    typed: t.value,
     label: variable.name,
     name: variable.name,
     first: "Variable",
@@ -1013,21 +1071,64 @@ function sdtesti(session, text, ctx) {
       "[, Xname(string) Yname(string) Level(cilevel)]",
       optionText === null ? "" : `,${optionText}`,
     ),
-    sample = (at) => {
-      const n = confirmNumber(tokens[at], true),
-        mean = tokens[at + 1] === "." ? MISSING : confirmNumber(tokens[at + 1]),
-        sd = tokens[at + 2] === "." ? MISSING : confirmNumber(tokens[at + 2]);
-      if (n < 0)
-        throw new StataError("number of observations is negative", 411);
-      if (n === 0) throw new StataError("no observations", 2000);
-      if (isMissing(sd))
-        throw new StataError("standard deviation is missing", 416);
-      if (sd < 0) throw new StataError("standard deviation is negative", 411);
-      if (n === 1 && sd > 0)
+    // _ttest check: the count, the mean and the standard deviation of a
+    // sample, `which` naming it in a two-sample test.
+    sample = (at, which) => {
+      const say = (one, two) => (which ? two : one);
+      if (tokens[at] === ".")
         throw new StataError(
-          "only one observation, but positive standard deviation",
-          499,
+          say(
+            "number of observations is missing",
+            `number of observations of ${which} sample is missing`,
+          ),
+          416,
         );
+      const n = confirmNumber(tokens[at], true);
+      if (n < 0)
+        throw new StataError(
+          say(
+            "number of observations is negative",
+            `number of observations of ${which} sample is negative`,
+          ),
+          411,
+        );
+      if (n === 0)
+        throw new StataError(
+          say("no observations", `${which} sample has no observations`),
+          2000,
+        );
+      const mean =
+        tokens[at + 1] === "." ? MISSING : confirmNumber(tokens[at + 1]);
+      let sd = MISSING;
+      if (tokens[at + 2] === ".") {
+        // One observation may leave its standard deviation missing.
+        if (n !== 1)
+          throw new StataError(
+            say(
+              "standard deviation is missing",
+              `standard deviation of ${which} sample is missing`,
+            ),
+            416,
+          );
+      } else {
+        sd = confirmNumber(tokens[at + 2]);
+        if (sd < 0)
+          throw new StataError(
+            say(
+              "standard deviation is negative",
+              `${which} sample has a negative standard deviation`,
+            ),
+            411,
+          );
+        if (n === 1 && sd !== 0)
+          throw new StataError(
+            say(
+              "only one observation, but positive standard deviation",
+              `${which} sample has only one observation, but positive standard deviation`,
+            ),
+            499,
+          );
+      }
       // One observation has no standard deviation.
       const shownSd = n === 1 ? MISSING : sd;
       return {
@@ -1037,7 +1138,7 @@ function sdtesti(session, text, ctx) {
         variance: isMissing(shownSd) ? MISSING : shownSd ** 2,
       };
     },
-    a = sample(0),
+    a = sample(0, tokens.length === 6 ? "first" : null),
     xname = options.xname?.trim() || "",
     first = xname ? "Group" : "",
     shownCount = (n) => applyFormat(n, "%7.0f").trim(),
@@ -1051,6 +1152,7 @@ function sdtesti(session, text, ctx) {
     oneSampleVariance(session, ctx, {
       m: a,
       sd0,
+      typed: tokens[3],
       label: xname || "x",
       name: xname || "x",
       first,
@@ -1059,7 +1161,7 @@ function sdtesti(session, text, ctx) {
     });
     return;
   }
-  const b = sample(3),
+  const b = sample(3, "second"),
     // The samples together, known only when both means are.
     all =
       isMissing(a.mean) || isMissing(b.mean)

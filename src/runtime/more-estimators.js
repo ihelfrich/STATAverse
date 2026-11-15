@@ -559,9 +559,9 @@ export function ivDiagnostic(session, model, what, ctx) {
         ? overid
         : null;
   if (!run) return false;
-  // ivreg, the older command, has none of these tests.
-  if (model.legacy === "ivreg")
-    throw new StataError(`estat ${what} not valid`, 321);
+  // ivreg and regress y x (z), the older commands, have none of these
+  // tests.
+  if (model.legacy) throw new StataError(`estat ${what} not valid`, 321);
   if (model.command !== "ivregress")
     throw new StataError(`estat ${what} not valid`, 321);
   if (model.wtype)

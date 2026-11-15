@@ -339,6 +339,13 @@ export function ereturnDisplay(session, text, ctx) {
     );
     let start = header;
     while (start > 0 && !/^-+$/.test(lines[start])) start--;
+    // mean, total and proportion show their estimates as coefficients.
+    if (
+      (header < 0 || start < 0) &&
+      model.coefficientDisplay &&
+      !/^(bootstrap|jackknife)$/.test(model.vce)
+    )
+      return model.coefficientDisplay(ctx, level);
     if (header < 0 || start < 0)
       throw new StataError(
         `ereturn display after ${model.shownFit.command} is not available in the browser yet`,
