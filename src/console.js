@@ -851,7 +851,11 @@ function graphOf(graph) {
   figure.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   return figure;
 }
-/** A record as Stata's log has it: the command, then what it printed. */
+/**
+ * A record as Stata's log has it: the command, then what it printed, and
+ * a blank line, which a comment or a blank line of the do-file has not, nor
+ * output that ends with one already, as a table does.
+ */
 const recordText = (record) =>
   [...commandLines(record, record.width), ...record.lines].join("\n") + "\n";
 /** A short name for a command, for the labels of its buttons. */
@@ -989,6 +993,22 @@ function topicCard(topic) {
 }
 /** One command and what it printed, as it appears in the Results window. */
 function recordNode(record) {
+  // A comment, a blank line or #delimit in a do-file is echoed as Stata
+  // echoes it, with no tools and no blank line after it.
+  if (record.comment) {
+    const block = document.createElement("span"),
+      command = document.createElement("span");
+    block.className = "console-record is-comment";
+    block.text = recordText(record);
+    command.className = "console-command";
+    command.textContent = [`. ${record.command}`, ...(record.echo ?? [])].join(
+      "\n",
+    );
+    block.append(command, "\n");
+    if (record.lines.length)
+      block.append(linesOf(record.lines.join("\n") + "\n"));
+    return block;
+  }
   const block = document.createElement("span"),
     command = document.createElement("span"),
     tools = document.createElement("span"),
@@ -1034,7 +1054,20 @@ function recordNode(record) {
       wrong = record.lines.slice(record.lines.length - fault);
     const lines = document.createElement("span");
     lines.className = "console-lines";
-    if (printed.length) lines.append(linesOf(printed.join("\n") + "\n"));
+    // Lines the command printed in Stata's error style, as display as
+    // error and capture noisily print them, are red too.
+    const red = new Set(record.errorLines ?? []);
+    for (let k = 0; k < printed.length;) {
+      let end = k + 1;
+      while (end < printed.length && red.has(end) === red.has(k)) end++;
+      const piece = linesOf(
+        printed.slice(k, end).join("\n") + "\n",
+        red.has(k),
+      );
+      if (red.has(k)) piece.classList.add("console-error");
+      lines.append(piece);
+      k = end;
+    }
     if (wrong.length) {
       const error = linesOf(wrong.join("\n") + "\n", true);
       error.classList.add("console-error");
@@ -1253,6 +1286,7 @@ const whenIdle = () =>
 const NOTES =
   /^\((browse|edit) opens Stata's Data Editor|^\(Stata's help files are not included/;
 function quietNotes(record) {
+  if (record.comment) return record;
   const { word, rest } = commandParts(record.command),
     name = resolveCommand(word, COMMANDS);
   if (record.rc || !["browse", "edit", "help"].includes(name)) return record;
@@ -1391,8 +1425,12 @@ async function perform(text, origin) {
     browser.open(opened.where, opened.opens === "edit", opened.labels);
   else browser.refresh();
   if (result.made?.length) await keepMade(result.made);
+  if (result.written?.length) await keepWritten(result.written);
   return result;
 }
+/** The commands a run ran: its records, less the comments it echoed. */
+const ran = (result) =>
+  result.output.filter((record) => !record.comment).length;
 function finish(rc, commands, started, output = []) {
   const seconds = ((performance.now() - started) / 1000).toFixed(2),
     missing = rc === 601 ? missingFile(output) : "";
@@ -1466,14 +1504,7 @@ async function execute(text = source.value, what = "do-file") {
   // Every do-file of the project is there for do, run and include.
   await shareFiles();
   const result = await perform(text, origin);
-  if (result)
-    finish(
-      result.rc,
-      // A comment or a blank line echoed from the do-file is not a command.
-      result.output.filter((record) => !record.comment).length,
-      started,
-      result.output,
-    );
+  if (result) finish(result.rc, ran(result), started, result.output);
   return result;
 }
 
@@ -1493,7 +1524,7 @@ async function runSteps(entries, mark) {
     mark(entry.id, "running");
     const result = await perform(entry.lines.join("\n"), { step: entry.id });
     if (!result) return mark(entry.id, "error");
-    commands += result.output.length;
+    commands += ran(result);
     mark(entry.id, result.rc ? "error" : "done", result);
     if (result.rc) return finish(result.rc, commands, started, result.output);
     const terms = entry.guard ? [] : map.termsOf(entry.id);
@@ -1631,6 +1662,7 @@ for (const entry of Object.values(LIBRARY)) {
   load.textContent = "Load";
   load.setAttribute("aria-label", `Load ${entry.id}`);
   load.addEventListener("click", async () => {
+    if (!mayReplaceData(`Load ${entry.id} in their place`)) return;
     await execute(`sysuse ${entry.id}, clear\ndescribe`, "command");
     $("results-title").scrollIntoView({ block: "start" });
   });
@@ -1886,6 +1918,7 @@ $("console-download").addEventListener("click", async () => {
     added.push({
       name,
       made: file.made,
+      written: !!file.written,
       data: new Uint8Array(await file.blob.arrayBuffer()),
     });
   const bytes = projectZip(files, added, new Date(), ranTyped.join("\n"));
@@ -2046,6 +2079,7 @@ document.addEventListener("keydown", (event) => {
   }
 });
 reset.addEventListener("click", async () => {
+  if (isRunning || !mayReplaceData("Clear the session")) return;
   output.textContent = "";
   offerKeeping();
   for (const file of project.files) {
@@ -2057,18 +2091,76 @@ reset.addEventListener("click", async () => {
   place();
   fox.idle();
   fox.say("");
-  await newSession("The session was cleared. The do-file text is unchanged.");
+  await newSession(
+    `The session was cleared. The do-file text is unchanged${uploads.size ? ", and your files, those the session wrote among them, are still here" : ""}.`,
+  );
 });
 examples.addEventListener("change", () => {
   const example = EXAMPLES.find((e) => e.id === examples.value);
   examples.value = "";
   if (!example) return;
+  // The do-file holds the student's work: the example opens beside it.
+  const own = source.value.trim();
+  if (own && !EXAMPLES.some((each) => each.text.trim() === own)) {
+    const { names } = addDoFiles([
+      { name: `${example.id}.do`, text: example.text },
+    ]);
+    source.setSelectionRange(0, 0);
+    source.scrollTop = 0;
+    follow();
+    status.textContent = `Opened "${example.title}" as ${names[0]}, in a tab of its own; your do-file is unchanged.`;
+    return;
+  }
   typeInto(example.text, true);
   source.setSelectionRange(0, 0);
   source.scrollTop = 0;
   follow();
-  status.textContent = `Loaded "${example.title}". Undo in the do-file brings your own text back.`;
+  status.textContent = `Loaded "${example.title}". Undo in the do-file brings the text before it back.`;
 });
+// Tab indents, as in Stata's Do-file Editor, and Shift+Tab takes the indent
+// away; after Escape, Tab moves on from the editor, so that the keyboard can
+// always leave it.
+let tabLeaves = false;
+source.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") tabLeaves = true;
+  else if (event.key !== "Tab") tabLeaves = false;
+  if (
+    event.key !== "Tab" ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    tabLeaves
+  )
+    return;
+  event.preventDefault();
+  indent(event.shiftKey);
+});
+source.addEventListener("blur", () => {
+  tabLeaves = false;
+});
+/** Indents the lines of the selection by four spaces, or takes four away. */
+function indent(back) {
+  const { selectionStart: from, selectionEnd: to, value } = source;
+  if (!back && from === to) {
+    typeInto("    ", false);
+    return;
+  }
+  const start = value.lastIndexOf("\n", from - 1) + 1,
+    end = to > from && value[to - 1] === "\n" ? to - 1 : to,
+    lines = value.slice(start, end).split("\n"),
+    changed = lines.map((line) =>
+      back ? line.replace(/^( {1,4}|\t)/, "") : `    ${line}`,
+    ),
+    text = changed.join("\n");
+  if (text === lines.join("\n")) return;
+  source.setSelectionRange(start, end);
+  typeInto(text, false);
+  // A caret stays where it was in its line; a selection holds the lines.
+  if (from === to) {
+    const at = Math.max(start, from + changed[0].length - lines[0].length);
+    source.setSelectionRange(at, at);
+  } else source.setSelectionRange(start, start + text.length);
+}
 source.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
     event.preventDefault();
@@ -2249,9 +2341,9 @@ commandLine.addEventListener("keydown", (event) => {
 // is { blob, made }: made is true for a graph that graph export wrote.
 const uploads = new Map();
 let shelf = null;
-async function shelve(name, blob, made = false) {
+async function shelve(name, blob, made = false, written = false) {
   try {
-    await shelf?.put(name, blob, made);
+    await shelf?.put(name, blob, made, written);
     return true;
   } catch {
     return false;
@@ -2269,7 +2361,9 @@ function showUploads() {
     size.className = "console-own-size";
     size.textContent = file.made
       ? `${megabytes(file.blob.size)}, made by graph export`
-      : megabytes(file.blob.size);
+      : file.written
+        ? `${megabytes(file.blob.size)}, written by this session`
+        : megabytes(file.blob.size);
     if (file.made) {
       const download = document.createElement("button");
       download.textContent = `Download ${name}`;
@@ -2289,6 +2383,7 @@ function showUploads() {
         command = loadCommand(name);
       load.textContent = `Load ${name}`;
       load.addEventListener("click", () => {
+        if (!mayReplaceData(`Load ${name} in their place`)) return;
         ranTyped.push(command);
         execute(`${command}\ndescribe`, "command");
       });
@@ -2299,6 +2394,20 @@ function showUploads() {
         $("main").scrollIntoView({ block: "start" });
       });
       buttons.push(load, build);
+    }
+    if (file.written) {
+      const download = document.createElement("button");
+      download.textContent = `Download ${name}`;
+      download.addEventListener("click", async () =>
+        hand(
+          new Uint8Array(await file.blob.arrayBuffer()),
+          name,
+          /\.(log|txt|csv|do|smcl)$/i.test(name)
+            ? "text/plain"
+            : "application/octet-stream",
+        ),
+      );
+      buttons.push(download);
     }
     const remove = document.createElement("button");
     remove.textContent = "Remove";
@@ -2373,6 +2482,54 @@ async function keepMade(made) {
   }
   if (kept.length) showUploads();
 }
+/**
+ * Files that save, export, putexcel or log using wrote: kept as the
+ * student's own files are, in this browser and in a new session, since in
+ * Stata they are on disk and neither clear all nor quitting removes them.
+ */
+async function keepWritten(names) {
+  let lost = "";
+  for (const name of names) {
+    let file = null;
+    try {
+      file = (await ask({ kind: "read", name })).file;
+    } catch {
+      file = null;
+    }
+    if (!file) continue;
+    const blob = new Blob([file.bytes ?? file.text]);
+    uploads.set(name, { blob, made: false, written: true });
+    if (!(await shelve(name, blob, false, true)) && shelf) lost = name;
+  }
+  showUploads();
+  if (lost)
+    status.textContent += ` ${lost} could not be kept in this browser (its storage is full), so it is here for this visit only: save a copy from Data.`;
+}
+/**
+ * Whether the data in memory may be replaced: when they have changed since
+ * they were last saved, the student is asked first, as Stata's File > Open
+ * asks, and as use without clear refuses with r(4).
+ */
+function mayReplaceData(what) {
+  if (!memoryNow.changed) return true;
+  if (
+    window.confirm(
+      `The data in memory have changed since they were last saved. ${what}, and lose the changes?`,
+    )
+  )
+    return true;
+  status.textContent =
+    "Nothing was replaced: the data in memory are as they were. Save them with save, or download them from Data, first.";
+  return false;
+}
+// Leaving the page loses the data in memory, as quitting Stata does: the
+// browser asks first when they have changed since they were last saved,
+// as Stata warns on exit, or while a run is going on.
+window.addEventListener("beforeunload", (event) => {
+  if (!memoryNow.changed && !isRunning) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 /** Takes files from the picker or a drop. Returns what to tell the student. */
 async function takeFiles(list) {
   const notes = [],
@@ -2391,6 +2548,19 @@ async function takeFiles(list) {
     if (refused) {
       notes.push(refused);
       continue;
+    }
+    // A file of the same name is not replaced without asking, as the
+    // operating system asks before a file in Stata's folder is overwritten.
+    if (kind !== "do" && uploads.has(name)) {
+      const was = uploads.get(name);
+      if (
+        !window.confirm(
+          `${name} is already among your files${was.written ? " (the session wrote it)" : was.made ? " (graph export made it)" : ""}. Replace it with the file you chose?`,
+        )
+      ) {
+        notes.push(`${name} was not added: the ${name} already here is kept.`);
+        continue;
+      }
     }
     if (kind === "do") {
       // The editor keeps do-files of up to 200,000 characters.
@@ -2476,7 +2646,11 @@ async function restoreFiles() {
       const result = await sendUpload(file.name, file, ({ loaded, total }) => {
         status.textContent = `Reading ${file.name} from this browser: ${Math.floor((100 * loaded) / total)}%…`;
       });
-      uploads.set(file.name, { blob: file.blob, made: file.made });
+      uploads.set(file.name, {
+        blob: file.blob,
+        made: file.made,
+        written: !!file.written,
+      });
       showVariables(result.memory);
     } catch {
       // A file that cannot be read back is taken off the shelf, so that it

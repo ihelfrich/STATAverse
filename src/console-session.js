@@ -3,7 +3,7 @@
 import { Session } from "./runtime/session.js";
 import { Dataset } from "./runtime/store.js";
 import { addTextFile } from "./runtime/delimited.js";
-import { StataError } from "./runtime/errors.js";
+import { ERROR_MARK, StataError } from "./runtime/errors.js";
 import { toCSV } from "./datasets.js";
 import { LIBRARY } from "./console-datasets.js";
 import { readDta, writeDta } from "./console-dta.js";
@@ -13,6 +13,7 @@ import { isMissing, parseNumber } from "./runtime/values.js";
 import { echoOf, fileEcho } from "./runtime/echo.js";
 import { parseBlocks, splitCommands } from "./runtime/dofile.js";
 import { createLogs, isLogMark } from "./console-log.js";
+import { changed } from "./runtime/data-commands.js";
 
 /**
  * What ends a run that is put back after Stop at the point where Stop
@@ -69,6 +70,9 @@ export function createConsoleSession() {
   };
   const memory = () => ({
     observations: session.data.n,
+    // Whether the data differ from what was last saved or loaded, as
+    // c(changed) says, so that the page can ask before replacing them.
+    changed: changed(session),
     sortedBy: [...session.data.sortedBy],
     files: [...(session.files ?? new Map()).keys()].sort(),
     variables: session.data.variables.map(
@@ -106,6 +110,8 @@ export function createConsoleSession() {
     // Results as Stata's log shows them: a loop echoed once with its lines
     // numbered, do-files run by do shown with their commands.
     session.foldLoops = true;
+    // Lines in Stata's error style are marked, to be shown in red.
+    session.markErrors = true;
     // Each site dataset is also there as a CSV file, as lessons expect.
     for (const [id, data] of Object.entries(library))
       addTextFile(session, LIBRARY[id].file, toCSV(data));
@@ -328,6 +334,8 @@ export function createConsoleSession() {
       let commands = 0,
         last = 0;
       session.opened = null;
+      // The files in the folder before the run, to tell which it wrote.
+      const before = new Map(session.files ?? []);
       // The commands of the run, one at a time. Before each, what the ones
       // before it printed goes to `stream`, so that a run ended by Stop
       // keeps what it printed; and while one runs, what its inner commands
@@ -453,7 +461,15 @@ export function createConsoleSession() {
         if (endless) this.steps = 0;
         if (stream) {
           // What the command running now has printed, its last lines.
-          pending.push(...entry.lines.filter((line) => !isLogMark(line)));
+          pending.push(
+            ...entry.lines
+              .filter((line) => !isLogMark(line))
+              .map((line) =>
+                line.startsWith(ERROR_MARK)
+                  ? line.slice(ERROR_MARK.length)
+                  : line,
+              ),
+          );
           if (pending.length > 2000) pending = pending.slice(-1000);
         }
         if (stopAfter >= 0 && current) current.lines.push(...entry.lines);
@@ -564,10 +580,32 @@ export function createConsoleSession() {
         );
       logs.take(output, logged, output.length);
       logs.settle();
+      // The lines in the error style: which they are, and their text.
+      for (const block of output)
+        if (block.lines.some((line) => line.startsWith(ERROR_MARK))) {
+          block.errorLines = [];
+          block.lines = block.lines.map((line, k) => {
+            if (!line.startsWith(ERROR_MARK)) return line;
+            block.errorLines.push(k);
+            return line.slice(ERROR_MARK.length);
+          });
+        }
       // Graphs written by graph export, for the page to turn into files.
       const made = session.exported ?? [];
       session.exported = [];
-      return { output, rc, made, memory: memory() };
+      // Files that save, export, putexcel or a log wrote: on disk in Stata,
+      // they stay when the session is cleared, as the student's own do,
+      // and the page keeps them as it keeps those.
+      const written = [];
+      for (const [name, file] of session.files ?? [])
+        if (
+          before.get(name) !== file &&
+          !made.some((graph) => graph.name === name)
+        ) {
+          written.push(name);
+          added.set(name, file);
+        }
+      return { output, rc, made, written, memory: memory() };
     },
   };
 }

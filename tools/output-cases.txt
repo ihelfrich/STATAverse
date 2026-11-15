@@ -26559,3 +26559,51 @@ import excel seams_px3.xlsx, clear allstring
 list A B C D E
 import excel seams_px4.xlsx, sheet("T") clear allstring
 list
+=== seams-console-capture-exit
+capture exit 198
+display "a " _rc
+program seamsp1
+  capture exit 459
+  display "in p1 " _rc
+end
+seamsp1
+display "b " _rc
+forvalues i = 1/2 {
+  capture exit 7
+  display "loop " _rc
+}
+capture noisily exit 2000
+display "c " _rc
+capture quietly exit 3
+display "d " _rc
+program drop seamsp1
+=== seams-console-noisily-capture
+clear
+set obs 3
+generate educ = _n
+noisily capture regress nosuch educ
+display _rc
+noisily capture noisily regress nosuch educ
+noisily capture display "shown"
+capture noisily display "shown"
+=== seams-console-comment-continued
+clear
+set obs 2
+* a ///
+* b ///
+display 9
+*x///
+display 1
+display 3 // note ///
+display 10 /* open
+  still */ + 1
+=== seams-console-regress-many-levels
+clear
+set obs 3000
+set seed 12345
+generate g = mod(_n, 40)
+generate x = runiform()
+generate w = 1 + runiform()
+generate y = 2 + 3*x + g/10 + rnormal()
+regress y x i.g
+regress y x i.g [aw=w], vce(robust)

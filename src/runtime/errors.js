@@ -17,3 +17,11 @@ export class Signal extends Error {
     this.code = code;
   }
 }
+
+// A line Stata prints in its error style (display as error, the message of
+// a command run under capture noisily), when the session is asked to say
+// so (the Console sets markErrors): the line begins with this mark, which
+// the Console takes out and shows the line in red.
+export const ERROR_MARK = "\u0000err\u0000";
+export const errorLine = (session, line) =>
+  session.markErrors ? ERROR_MARK + line : line;

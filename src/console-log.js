@@ -10,7 +10,7 @@
 // is shown, says where the command's own lines begin and where they end.
 // The log is then written line by line in the order Results shows them, and
 // each log begins and ends where its command stood, even inside a loop.
-import { StataError } from "./runtime/errors.js";
+import { ERROR_MARK, StataError } from "./runtime/errors.js";
 import { commandLines, wrapCharacters } from "./runtime/echo.js";
 
 const MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" "),
@@ -414,9 +414,12 @@ export function createLogs(files) {
           }
           continue;
         }
-        const kind = shown++ >= plain - fault ? "error" : "out";
+        // A line in the error style (display as error) is {err} in SMCL.
+        const marked = line.startsWith(ERROR_MARK),
+          text = marked ? line.slice(ERROR_MARK.length) : line,
+          kind = shown++ >= plain - fault || marked ? "error" : "out";
         put(
-          line,
+          text,
           skip,
           (log, each) => render(log, each, kind),
           record.width ?? 79,

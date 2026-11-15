@@ -39,7 +39,9 @@ export function commandLines(record, linesize = 79) {
   return lines;
 }
 
-const expandTabs = (line) =>
+import { commentGoesOn } from "./dofile.js";
+
+export const expandTabs = (line) =>
   line.replace(/[^\t]*\t/g, (piece) => {
     const before = piece.length - 1;
     return piece.slice(0, -1) + " ".repeat(8 - (before % 8));
@@ -50,6 +52,11 @@ const expandTabs = (line) =>
  * command goes on to the next line (/// or an open block comment).
  */
 function scan(line, state) {
+  // A * comment that ended in /// goes on through this line.
+  if (state.star) {
+    state.star = commentGoesOn(line, false);
+    return { code: "", continues: state.star };
+  }
   let code = "",
     quote = false;
   // The line after a * comment that ended in /// is comment as well.
@@ -79,9 +86,7 @@ function scan(line, state) {
     } else if (c === "/" && next === "/" && (i === 0 || /\s/.test(line[i - 1])))
       return { code, continues: line[i + 2] === "/" };
     else if (c === "*" && !state.started && !code.trim()) {
-      // A * comment that ends in a blank and /// goes on to the next line,
-      // which is comment too.
-      state.star = /\s\/\/\/\s*$/.test(line);
+      state.star = commentGoesOn(line);
       return { code: "", continues: state.star };
     } else code += c;
   }
