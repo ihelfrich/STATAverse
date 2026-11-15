@@ -384,8 +384,8 @@ test("only Stata's immediate commands are called immediate forms (F45)", () => {
   for (const line of ["testi educ", "listi in 1"])
     assert.doesNotMatch(hint(line).text, /immediate/, line);
   assert.match(
-    hint("sdtesti 30 5 2.5 40 6 3.1").text,
-    /^sdtesti is the immediate form of sdtest/,
+    hint("ztesti 30 5 1 4").text,
+    /^ztesti is the immediate form of ztest/,
   );
 });
 

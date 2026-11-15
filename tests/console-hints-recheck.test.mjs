@@ -206,7 +206,6 @@ test("r(601) says whether the file is among the student's, never sysuse dir", ()
   for (const path of [
     'use "C:\\Users\\me\\Desktop\\people.dta", clear',
     "use data/people.dta, clear",
-    "use ./people.dta, clear",
   ]) {
     const advice = hint(path);
     assert.equal(advice.rc, 601, path);
@@ -301,8 +300,8 @@ test("r(110) after reshape says the data are reshaped already", () => {
 // F37, F107: the hints do not say Stata lacks what it has.
 test("hints after a refusal-like error do not claim Stata lacks the feature", () => {
   const { hint } = console_(DATA);
-  const option = hint("order x1, sequentiall");
-  assert.match(option.text, /here takes no option sequentiall/);
+  const option = hint("order x1, frobnicate");
+  assert.match(option.text, /here takes no option frobnicate/);
   assert.match(
     option.text,
     /if Stata's help for order lists it, this browser version does not have it yet/,

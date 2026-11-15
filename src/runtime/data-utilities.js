@@ -279,6 +279,14 @@ function pctileScalar(session, text, ctx) {
       text,
     ),
     options = parsed.options;
+  // _pctile, unlike a program's syntax, does not take an empty
+  // percentiles() as the option left out.
+  const emptyPoints = /,.*?\b(p[a-z]*)\(\s*\)/i.exec(text);
+  if (emptyPoints && "percentiles".startsWith(emptyPoints[1].toLowerCase()))
+    throw new StataError(
+      `option ${emptyPoints[1]}() incorrectly specified`,
+      198,
+    );
   if (parsed.weight && genericWeight(text))
     ctx.out(assumedWeights(parsed.weight.type));
   if (options.nquantiles !== undefined && options.percentiles)
