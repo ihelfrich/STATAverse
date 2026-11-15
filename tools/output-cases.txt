@@ -26607,3 +26607,202 @@ generate w = 1 + runiform()
 generate y = 2 + 3*x + g/10 + rnormal()
 regress y x i.g
 regress y x i.g [aw=w], vce(robust)
+=== recheck-hints-fixes
+clear
+input id t x1 x2 x3 str1 g w y female
+1 1 1 2 3 "a" 1 5 0
+1 2 2 3 4 "b" 1 8 1
+2 1 3 4 5 "a" 3 6 1
+2 2 4 5 6 "b" 4 9 0
+end
+label define fem 0 "Male" 1 "Female"
+label values female fem
+generate str6 city = cond(id == 1, "Boston", "Austin")
+capture noisily summarize y if female==Female
+summarize y if female==1
+capture noisily tabulate t if city=Boston
+tabulate t if city == "Boston"
+capture noisily count if g == "a" | "b"
+count if g == "a" | g == "b"
+count if inlist(g, "a", "b")
+capture noisily count if g == .
+count if missing(g)
+capture noisily replace g = 5 in 1
+replace g = "5" in 1
+capture noisily generate m = mean(x1)
+egen m = mean(x1)
+capture noisily summarize x1-x5
+summarize x1-x3
+capture noisily count if x1 > 1 and x2 < 5
+count if x1 > 1 & x2 < 5
+label define yn 0 "No" 1 "Yes"
+capture noisily label define yn 0 "No"
+label define yn 0 "No", replace
+label list yn
+capture noisily rename x1 x2
+capture noisily generate y2 = log(x1))
+capture noisily generate y2 = log((x1)
+quietly regress y x1 x2
+capture noisily test x3
+capture noisily test x11
+test x1
+capture noisily estat bogus
+capture noisily regress y x1, vce(robsut)
+regress y x1, vce(robust)
+capture noisily list x1 in 1/10
+capture noisily generate _n = 1
+capture noisily encode x1, generate(e1)
+drop g
+capture noisily reshape wide y x1 x2, i(id) j(t)
+reshape wide y x1 x2 x3 w female, i(id) j(t)
+list
+=== recheck-hints-messages
+clear
+input id t v income
+1 1 1 50
+1 1 2 .
+2 1 3 70
+2 2 -1 .
+end
+capture noisily xtset id t
+capture noisily regress income i.v
+capture noisily isid id
+count if income > 60
+count if income > 60 & !missing(income)
+generate z = income/2
+save hintsfile, replace
+capture noisily save hintsfile
+save hintsfile, replace
+capture noisily use data/hintsfile.dta, clear
+use hintsfile.dta, clear
+capture noisily merge 1:1 id using hintsfile
+capture noisily merge m:1 id t using hintsfile
+capture noisily xtreg income v
+capture noisily program drop nosuchprog
+capture noisily matrix list nosuchmat
+capture noisily display _b[v]
+clear
+input str3 id y
+"1" 5
+end
+save hintsusing, replace
+clear
+input id k
+1 2
+end
+capture noisily merge 1:1 k using hintsusing
+=== recheck-hints-r2
+clear
+input id grp wage educ exper female str6 city str5 region
+1 1 15.3 12 5 0 "Boston" "North"
+2 1 . 16 3 1 "Austin" "South"
+3 2 21.4 16 9 1 "Boston" "North"
+4 2 13.1 10 2 0 "Austin" "South"
+5 3 18.2 14 7 1 "Boston" "North"
+6 3 . 12 4 0 "Austin" "North"
+7 1 16.9 13 6 1 "Boston" "South"
+8 2 19.5 15 8 0 "Austin" "North"
+9 3 22.1 17 10 1 "Boston" "South"
+10 1 14.2 11 3 0 "Austin" "North"
+end
+label define fem 0 "Male" 1 "Female"
+label values female fem
+capture noisily summarize wage if fem==Female
+summarize wage if fem==1
+capture noisily count if femal == Male
+count if femal == 0
+count if female!=0
+capture noisily count if regio == North
+count if regio == "North"
+regress wage i.female educ
+capture noisily test female
+test 1.female
+capture noisily lincom female
+lincom 1.female
+regress wage i.grp
+capture noisily test grp
+test 2.grp 3.grp
+regress wage c.educ#c.exper
+capture noisily test exper
+test c.educ#c.exper
+count if wage > 15
+count if wage > 15 & !missing(wage)
+count if wage > 15 & wage < 20
+count if wage > 15 & wage < 20 & !missing(wage)
+count if inrange(wage, 15, .) & wage > 15
+count if inrange(wage, 15, .) & wage > 15 & !missing(wage)
+count if educ > 12 & wage > 15
+count if educ > 12 & wage > 15 & !missing(wage)
+count if 15 < wage
+count if 15 < wage & !missing(wage)
+count if wage > 15 | wage < 14
+count if (wage > 15 | wage < 14) & !missing(wage)
+summarize wage if wage > 15
+summarize wage if wage > 15 & !missing(wage)
+regress wage educ if wage > 15
+regress wage educ if wage > 15 & !missing(wage)
+tabulate region if wage > 15
+tabulate region if wage > 15 & !missing(wage)
+list id if wage >= 20 & wage <= 21
+display "keep if wage > 5"
+capture noisily generate dev = wage - mean(wage)
+capture noisily gen z = (wage - mean(wage))/sd(wage)
+egen mean_wage = mean(wage)
+generate dev = wage - mean_wage
+capture noisily bysort grp: gen gm = mean(wage)
+bysort grp: egen gm = mean(wage)
+sort id
+capture noisily count if city=5
+capture noisily count if city == 5
+capture noisily count if female=Female
+capture noisily count if female == Female
+count if female == 1
+capture noisily count if educ=twelve
+capture noisily count if educ == twelve
+capture noisily count if city=Boston & wage>5
+count if city == "Boston" & wage>5
+save people, replace
+capture noisily merge m:1 grp using people
+capture noisily merge 1:m grp using people
+capture noisily merge 1:1 grp using people
+sort id
+preserve
+joinby grp using people
+restore
+capture noisily counti if wage > 5
+count if wage > 5
+capture noisily testi educ
+capture noisily listi in 1
+capture noisily replace city = educ in 1
+replace city = string(educ) in 1
+capture noisily replace region = 1e3 in 3
+replace region = "1000" in 3
+capture noisily display wge[1]
+display wage[1]
+capture noisily display wagee
+display wage
+global g Boston
+capture noisily count if city == $g
+count if city == "$g"
+forvalues i = 1/2 {
+  capture noisily summarize wage, bogus
+}
+clear
+input id inc2000 inc2001 year
+1 5 6 1
+2 7 8 2
+end
+capture noisily reshape long inc, i(id) j(year)
+reshape long inc, i(id) j(yr)
+capture noisily reshape long inc, i(id) j(yr)
+clear
+input grp t x w v
+1 1 5 1 3
+1 2 6 2 3
+2 1 7 1 4
+2 2 8 1 5
+end
+reshape wide x w v, i(grp) j(t)
+reshape long x, i(grp) j(t)
+capture noisily reshape wide x, i(t) j(w)
+capture noisily reshape wide x, i(t) j(t)

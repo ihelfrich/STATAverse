@@ -190,7 +190,7 @@ test("each return code's hint fits the message it is under", async ({
   );
   await expect(hintOf(page)).not.toContainText("factor");
   await type(page, "list income [fw=id]");
-  await expect(hintOf(page)).toContainText("list does not take weights");
+  await expect(hintOf(page)).toContainText("list here does not take weights");
   await type(page, "describe in 1/2");
   await expect(lastRecord(page).locator(".console-lines")).toHaveText(
     "in range not allowed\nr(101);\n",
