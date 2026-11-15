@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { Session } from "../src/runtime/session.js";
+import { createConsoleSession } from "../src/console-session.js";
+import { ERROR_MARK } from "../src/runtime/errors.js";
 
 const fixture = JSON.parse(
   fs.readFileSync(
@@ -55,23 +56,35 @@ const SKIP = [];
 
 for (const c of fixture.cases)
   test(`Results text matches native Stata: ${c.id}`, () => {
-    const session = new Session();
+    // Each case is run as the Console runs a do-file, which shows it as
+    // Stata's log does: comments and each command as typed, a loop or a
+    // program definition once, with its lines echoed and numbered.
+    const session = createConsoleSession();
     // The record was made with set linesize 200.
-    session.settings.linesize = 200;
-    const ours = session.run(c.source).output.filter((o) => o.command.trim()),
+    session.run("set linesize 200");
+    const ours = session
+        .run(c.source, { doFile: true })
+        .output.filter((o) => o.command.trim())
+        .map((o) => {
+          // The recorder reads a command's lines after "> " as part of it,
+          // and the rest of its echo (a loop's lines) as its output.
+          const echo = [...(o.echo ?? [])];
+          let command = o.command;
+          while (echo[0]?.startsWith("> ")) command += echo.shift().slice(2);
+          return {
+            command,
+            lines: [...echo, ...o.lines].map((line) =>
+              line.startsWith(ERROR_MARK)
+                ? line.slice(ERROR_MARK.length)
+                : line,
+            ),
+          };
+        }),
       failures = [];
     // Stata's log shows the rows of an input block as output of input.
     const theirs = c.commands;
     let k = 0;
     for (const expected of theirs) {
-      // A program definition prints nothing in the runtime; Stata's log
-      // echoes its lines under the program command.
-      if (
-        /^(pr|pro|prog|progr|progra|program)(\s+de\w*)?\s+(?!drop\b|dir\b|list\b)\S/.test(
-          expected.command,
-        )
-      )
-        continue;
       if (SKIP.some((pattern) => pattern.test(expected.command))) {
         k++;
         continue;

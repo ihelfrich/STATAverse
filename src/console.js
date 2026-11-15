@@ -857,7 +857,8 @@ function graphOf(graph) {
  * output that ends with one already, as a table does.
  */
 const recordText = (record) =>
-  [...commandLines(record, record.width), ...record.lines].join("\n") + "\n";
+  [...commandLines(record, record.width), ...record.lines].join("\n") +
+  (record.comment || record.lines.at(-1) === "" ? "" : "\n");
 /** A short name for a command, for the labels of its buttons. */
 const brief = (command) =>
   command.length > 40 ? `${command.slice(0, 38)}…` : command;
@@ -1001,9 +1002,8 @@ function recordNode(record) {
     block.className = "console-record is-comment";
     block.text = recordText(record);
     command.className = "console-command";
-    command.textContent = [`. ${record.command}`, ...(record.echo ?? [])].join(
-      "\n",
-    );
+    // Cut at the linesize as a command is; a blank line is a prompt alone.
+    command.textContent = commandLines(record, record.width).join("\n");
     block.append(command, "\n");
     if (record.lines.length)
       block.append(linesOf(record.lines.join("\n") + "\n"));

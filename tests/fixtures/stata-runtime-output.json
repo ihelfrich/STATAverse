@@ -139555,9 +139555,9 @@
           "lines": [
             "scalars:",
             "                  r(N) =  240",
-            "                  r(F) =  .4869175146781807",
+            "                  r(F) =  .4869175179411634",
             "               r(df_r) =  9",
-            "                  r(p) =  .5029330315284833",
+            "                  r(p) =  .5029330301342201",
             "                 r(df) =  1"
           ]
         },
@@ -139576,9 +139576,9 @@
           "lines": [
             "scalars:",
             "                  r(N) =  240",
-            "                  r(F) =  1.242693600454222",
+            "                  r(F) =  1.242693600454227",
             "               r(df_r) =  9",
-            "                  r(p) =  .3504346530634594",
+            "                  r(p) =  .3504346530634579",
             "                 r(df) =  3"
           ]
         },
@@ -172222,9 +172222,9 @@
           "lines": [
             "scalars:",
             "                  r(N) =  8000",
-            "                  r(F) =  249712.7631950007",
+            "                  r(F) =  249712.7631750434",
             "               r(df_r) =  1",
-            "                  r(p) =  .0012739699175699",
+            "                  r(p) =  .0012739699176208",
             "                 r(df) =  1"
           ]
         },
@@ -181880,7 +181880,7 @@
         { "command": "display _rc", "lines": ["111"] },
         {
           "command": "capture noisily if _b[x] display \"yes\"",
-          "lines": ["[x] not found"]
+          "lines": ["_b not allowed when e(b) is not present"]
         },
         { "command": "display _rc", "lines": ["111"] },
         {
@@ -182068,11 +182068,11 @@
         { "command": "clear", "lines": [] },
         {
           "command": "capture noisily display _b[x]",
-          "lines": ["[x] not found"]
+          "lines": ["_b not allowed when e(b) is not present"]
         },
         {
           "command": "capture noisily display _se[x]",
-          "lines": ["[x] not found"]
+          "lines": ["_se not allowed when e(V) is not present"]
         },
         {
           "command": "capture noisily display [y]x",
@@ -182210,7 +182210,7 @@
           "lines": ["+1.494c0072796d1X-033"]
         },
         { "command": "set seed 5", "lines": [] },
-        { "command": "display runiformint(0, 2^54)", "lines": [] },
+        { "command": "display runiformint(0, 2^54)", "lines": ["."] },
         {
           "command": "display %21x runiform()",
           "lines": ["+1.589bf68d490b3X-001"]

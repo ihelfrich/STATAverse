@@ -366,6 +366,13 @@ xtset id year`);
       "F test that all u_i=0: F(7, .) = 6.99                        Prob > F =      .",
     ),
   );
+  // One blank line between the dots and xtreg's header, as in Stata.
+  assert.ok(
+    boot.includes(
+      "Bootstrap replications (10): .........10 done\n\nFixed-effects (within) regression",
+    ),
+    boot,
+  );
   fails(s, "estat bootstrap", 321, "estat bootstrap not valid");
   const jack = printed(s, "jackknife: xtreg score gpa, fe").text;
   assert.ok(
@@ -377,7 +384,8 @@ xtset id year`);
     s,
     "bootstrap, reps(10) seed(1) cluster(id) idcluster(nid): xtreg score gpa, fe",
     451,
-    "repeated time values within panel",
+    // _loop_bs.ado's paragraph, filled to the linesize of 79.
+    "repeated time values within panel\nthe most likely cause for this error is misspecifying the cluster(),\nidcluster(), or group() option",
   );
   const t = run(`drop if missing(score, gpa)
 generate t = _n

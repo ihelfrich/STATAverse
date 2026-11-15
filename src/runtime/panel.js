@@ -1087,7 +1087,9 @@ function xtreg(session, text, ctx) {
    * a fit made under a prefix.
    */
   const show = (ctx, r = null, fit = null) => {
-    ctx.out("");
+    // Under bootstrap or jackknife the prefix has put the blank line
+    // above the header.
+    if (!r) ctx.out("");
     ctx.out(`${header.padEnd(48)}${side("Number of obs", count(nObs))}`);
     ctx.out(
       `${`Group variable: ${panel.id}`.padEnd(48)}${side("Number of groups", count(G))}`,

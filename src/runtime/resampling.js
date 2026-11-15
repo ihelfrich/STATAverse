@@ -20,6 +20,7 @@ import {
 import { count, percentile } from "./reports.js";
 import { clauses, splitAtComma } from "./syntax.js";
 import { fileName, settle } from "./data-commands.js";
+import { smclParagraph } from "./data-utilities.js";
 import { findFile } from "./files.js";
 import { Dataset } from "./store.js";
 import { MISSING, isMissing, isName, isStringType } from "./values.js";
@@ -1988,8 +1989,20 @@ function bootstrap(session, text, ctx) {
       // a cluster drawn twice under its own panel variable repeats that
       // panel's times, and bootstrap stops.
       if (panels && repeatedPanelTimes(session)) {
-        const text =
-          "repeated time values within panel\nthe most likely cause for this error is misspecifying the cluster(),\nidcluster(), or group() option";
+        // _loop_bs.ado gives its reason as a paragraph, {p 0 0 2}, filled
+        // to the linesize.
+        const text = [
+          "repeated time values within panel",
+          ...smclParagraph(
+            [
+              "the most likely cause for this error is misspecifying the cluster(), idcluster(), or group() option",
+            ],
+            session.settings.linesize ?? 79,
+            0,
+            0,
+            2,
+          ),
+        ].join("\n");
         throw new StataError(quiet ? text : `${title}${text}`, 451);
       }
       // A time-series command refuses the repeated times of a sample, and
