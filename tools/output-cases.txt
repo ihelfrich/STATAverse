@@ -26607,3 +26607,288 @@ generate w = 1 + runiform()
 generate y = 2 + 3*x + g/10 + rnormal()
 regress y x i.g
 regress y x i.g [aw=w], vce(robust)
+=== recheck-panel-settings-chars
+clear
+set obs 6
+generate id = ceil(_n/3)
+generate t = mod(_n-1,3)*2 + 1
+generate w = _n
+generate st = mod(_n,2)
+generate tt = _n*2
+xtset id t, delta(2)
+return list
+char list
+capture noisily tsset t, delta(2)
+char list
+tsset tt, delta(2)
+char list
+tsset, clear
+char list
+xtset id
+return list
+char list
+xtset
+xtset, clear
+capture noisily tsset
+capture noisily xtset
+svyset id [pw=w], strata(st) fpc(w) vce(linearized) singleunit(certainty)
+char list
+svyset, clear
+svyset id [pw=w], strata(st)
+tsset id t, delta(2)
+save recheck_panel_s1, replace
+clear
+capture noisily xtset
+use recheck_panel_s1, clear
+xtset
+svyset
+char list
+rename t time
+rename id panel
+char list
+xtset
+=== recheck-panel-settings-reverify
+clear
+set obs 6
+generate t = _n
+generate id = 1
+generate y = _n^2
+tsset t
+replace t = 1 in 2
+sort t
+capture noisily tsset
+capture noisily xtset id t
+capture noisily xtset
+capture noisily regress y L.y
+generate ly = L.y
+replace t = 3 in 2
+capture noisily tsset t, yearly daily
+capture noisily tsset t, format(%ty) yearly
+capture noisily tsset t, format(%foo)
+capture noisily tsset t, delta
+capture noisily tsset t, delta(1 year)
+capture noisily xtset id, yearly
+capture noisily xtset, noquery
+capture noisily tsset t, yearly(2)
+capture noisily tsset t, bogus
+capture noisily tsset t, clear
+=== recheck-panel-settings-units
+clear
+input id t y
+1 1 2
+1 2 3
+1 4 5
+2 1 1
+2 2 4
+2 3 2
+3 2 6
+3 3 1
+3 . 2
+. 1 3
+end
+xtset id t
+xtset id t, panelname(Firm) displayindent(2) noblank
+xtset id t, tsvarlabel(Year) panellabel(firm)
+drop if t == .
+drop if id == .
+xtset id t
+replace t = 4 in 6
+xtset id t
+xtset id
+tsset id t, delta(1) noquery
+return list
+tsset, clear
+generate d = mdy(1,1,2000) + 7*t
+format d %td
+keep if id == 1
+tsset d, delta(7 days)
+capture noisily tsset d, delta(1 week)
+tsset d, weekly
+generate m = ym(2000,1) + t
+tsset m, monthly
+generate c = t*3600000
+tsset c, clocktime delta(1 hour)
+return list
+generate dd = mdy(1,1,2000) + _n
+format dd %td
+tsset dd, yearly
+=== recheck-panel-xtreg-options
+clear
+set seed 2024
+set obs 30
+generate id = ceil(_n/10)
+generate t = mod(_n-1,10) + 1
+generate x = rnormal()
+generate y = x + rnormal()
+xtset id t
+xtreg y, fe
+xtreg y, re
+xtreg y, be
+replace t = . in 4
+xtset id t
+xtreg y x, fe
+xtreg y x, re
+capture noisily xtreg y x, fe re
+capture noisily xtreg y x, be fe
+capture noisily xtreg y x, fe pa
+capture noisily xtreg y x, fe wls
+drop in 1/3
+xtreg y x, be wls
+xtreg y x, be
+=== recheck-panel-corrgram-gaps
+clear
+set seed 12
+set obs 40
+generate t = _n
+generate y = sum(rnormal())
+replace y = . in 7
+replace y = . in 20/22
+drop in 30
+tsset t
+corrgram y, lags(4)
+corrgram D.y, lags(3) noplot
+capture noisily corrgram y, lags(0)
+capture noisily corrgram y, lags(50)
+corrgram L2.y in 5/35, lags(2)
+capture noisily corrgram y z
+corrgram S2.y if t > 3
+ac D.y, lags(3)
+pac y, lags(3)
+tsline D.y y
+generate id = t > 20
+xtset id t
+capture noisily corrgram y
+corrgram y if id == 1, lags(2)
+=== recheck-panel-tin-twithin
+clear
+set obs 8
+generate q = tq(1995q1) + _n - 1
+format q %tq
+generate y = _n
+capture noisily count if tin(1995q3, 1996q1)
+tsset q
+list q if tin(1995q3, 1996q1)
+count if twithin(1995q3, 1996q1)
+count if tin(, 1995q2)
+count if tin(2001q1, )
+count if tin(,)
+capture noisily count if tin(tq(1995q3), tq(1996q1))
+capture noisily count if tin(142, 144)
+count if tin(1995m3, 1996m1)
+capture noisily count if tin(1995q3)
+generate x = tin(1995q3, 1996q1) + 1
+count if x == 2
+count if !tin(1995q3, 1996q1)
+count if tin(1995 q3, 1996q1)
+capture noisily count if TIN(1995q3, 1996q1)
+generate tt = q
+format tt %9.0g
+tsset tt
+count if tin(142,144)
+capture noisily count if tin(1995q3,1996q1)
+count if tin(.5, 143.5)
+generate d = mdy(1,1,2000) + mod(_n-1,3)
+format d %td
+generate id = ceil(_n/3)
+replace d = . in 8
+xtset id d
+count if tin(02jan2000, )
+count if twithin(, 02jan2000)
+=== recheck-panel-factor-series
+clear
+set seed 77
+set obs 160
+generate firm = ceil(_n/8)
+generate year = 2010 + mod(_n-1,8)
+generate x1 = rnormal()
+generate x2 = 5 + rnormal()
+generate union = runiform() > .5
+generate y = 1 + .5*x1 + .3*union + rnormal()
+xtset firm year
+regress y c.x1##cL.x1
+regress y c.x1#c.L.x1
+regress y L.c.x1
+regress y union##cL.x1
+matrix list e(b)
+regress y L.union i.union#cL.x1
+regress y L.i.union
+matrix list e(b)
+regress y iL.union x2
+regress y i.L.union
+regress y L(1/2).c.x1
+regress y cL(1/2).x1
+regress y ibnL.union, nocons
+regress y L.union#c.x2
+regress y LD.c.x1 c.x2#cD.x1
+regress y cL.x1##cL.x1
+regress y Lc.x1
+capture noisily regress y c.x1#L.x1
+xtreg y cL.x1##i.union, fe
+label define un 0 "no" 1 "yes"
+label values union un
+regress y i.union##cL.x1
+test 1.union#cL.x1
+testparm i.union#cL.x1
+lincom 1.union + 1.union#cL.x1
+test 1.union#cL.x1 = L.x1
+display _b[1.union#cL.x1]
+regress y iL.union
+lincom 1L.union
+testparm iL.union
+=== recheck-panel-testparm-levels
+clear
+set seed 9
+set obs 100
+generate g = ceil(4*runiform())
+generate x = rnormal()
+generate y = g/3 + x + rnormal()
+regress y x i.g
+testparm i(2/3).g
+testparm i(2 4).g
+testparm 2.g 3.g
+testparm i(2/3).g x
+=== recheck-panel-estimates-labels
+clear
+set seed 31
+set obs 60
+generate g = ceil(3*runiform())
+generate exper = 10*runiform()
+generate y = exper - .03*exper^2 + g + rnormal()
+quietly regress y c.exper##c.exper
+estimates store a
+quietly regress y c.exper##c.exper i.g
+estimates store b
+estimates table a b
+hausman b a
+=== recheck-panel-concordance
+clear
+set seed 404
+set obs 200
+generate treat = runiform() > .5
+generate age = 40 + 20*runiform()
+generate t = ceil(-ln(runiform())*20/exp(.5*treat - .03*(age-50)))
+generate died = runiform() < .7
+stset t, failure(died)
+quietly stcox treat age
+estat concordance
+return list
+estat concordance, noshow
+estat conc if age > 50
+estat concordance, all noshow
+quietly streg treat age, dist(weibull)
+capture noisily estat concordance
+=== recheck-panel-series-errors
+clear
+set seed 3
+set obs 30
+generate t = _n
+generate y = rnormal()
+generate x = rnormal()
+generate b = y > 0
+generate s = "a"
+tsset t
+capture noisily regress y L.s
+capture noisily regress y L(1/2).s
+capture noisily regress y x, vce(hac nwest 2)
+capture noisily logit b x, vce(hac nwest 2)
+capture noisily poisson b x, vce(hac)

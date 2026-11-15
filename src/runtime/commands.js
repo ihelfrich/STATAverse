@@ -24,7 +24,7 @@ import { MODEL_COMMANDS } from "./models.js";
 import { IVREG_COMMANDS } from "./ivreg.js";
 import { numlistCommand } from "./numlist.js";
 import { MIXED_COMMANDS } from "./mixed.js";
-import { PANEL_COMMANDS } from "./panel.js";
+import { PANEL_COMMANDS, renamePanelVariables } from "./panel.js";
 import { XT_MODEL_COMMANDS } from "./xt-models.js";
 import { UTILITY_COMMANDS } from "./utilities.js";
 import { EVERYDAY_COMMANDS, labelSubcommand } from "./everyday.js";
@@ -1021,19 +1021,14 @@ function gsort(session, text) {
 }
 function rename(session, text, ctx) {
   // The panel and time variables of tsset and xtset keep their roles under
-  // their new names, as Stata's characteristics follow a renamed variable.
+  // their new names: Stata's rename writes the new name into the
+  // characteristics _TStvar and _TSpanel.
   const before = new Map(session.data.variables.map((v) => [v, v.name])),
-    follow = () => {
-      const panel = session.panel;
-      if (!panel) return;
-      const now = (name) =>
-        [...before].find(([, old]) => old === name)?.[0].name ?? name;
-      session.panel = {
-        ...panel,
-        id: panel.id && now(panel.id),
-        time: panel.time && now(panel.time),
-      };
-    };
+    follow = () =>
+      renamePanelVariables(
+        session.data,
+        (name) => [...before].find(([, old]) => old === name)?.[0].name ?? name,
+      );
   // Two plain names: Stata's built-in rename, which allows the old name to
   // be abbreviated. Anything else is rename's group syntax.
   const words = text.trim().split(/\s+/);
@@ -3610,7 +3605,16 @@ export const COMMANDS = [
       clean: data.clean,
       dirty: Boolean(data.dirty),
       notes: data.notes && structuredClone(data.notes),
-      chars: data.chars && structuredClone(data.chars),
+      // Stata preserves to a file, from which restore reads the
+      // characteristics back in the opposite order.
+      chars:
+        data.chars &&
+        new Map(
+          [...data.chars].map(([owner, own]) => [
+            owner,
+            new Map([...own].reverse()),
+          ]),
+        ),
       depth,
     });
   }),

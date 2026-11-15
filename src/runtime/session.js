@@ -32,7 +32,7 @@ import { greatest } from "./extremes.js";
 import { COMMANDS, extendedFunction, restoreSaved } from "./commands.js";
 import { changed, fold, markChanged } from "./data-commands.js";
 import { abbreviateName } from "./data-utilities.js";
-import { timeSeriesOperator } from "./panel.js";
+import { readPanel, timeSeriesOperator, writePanel } from "./panel.js";
 import { matrixAccess } from "./matrix.js";
 import { coefficientValue, tableResults } from "./estimation.js";
 import { echoOf, fileEcho } from "./echo.js";
@@ -731,6 +731,19 @@ export class Session {
     this.state = {};
   }
 
+  /**
+   * The panel and time variables xtset and tsset declared, { id, time,
+   * delta }, or null. They live in the data's characteristics, as in
+   * Stata, so they are saved and used with the data and go when other
+   * data are loaded.
+   */
+  get panel() {
+    return readPanel(this.data);
+  }
+  set panel(value) {
+    writePanel(this.data, value);
+  }
+
   // ----- expressions -----
   scope() {
     return {
@@ -778,6 +791,8 @@ export class Session {
         return coefficientValue(model, kind, name, form);
       },
       series: (ops, name) => timeSeriesOperator(this, ops, name),
+      // tin() and twithin() read the time variable tsset declared.
+      timeVariable: () => this.panel,
       system: (name) =>
         ({
           N: this.data.n,

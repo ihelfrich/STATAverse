@@ -150,12 +150,34 @@ export function markChanged(session) {
 export function rebuilt(session, result) {
   result.filename = "";
   result.filedate = "";
+  keepSettings(session.data, result);
   session.data = result;
 }
 export function remade(session, result) {
   result.filename = session.data.filename;
   result.filedate = session.data.filedate;
+  keepSettings(session.data, result);
   session.data = result;
+}
+// The characteristics in which tsset, xtset and svyset keep their settings.
+const SETTING_CHAR = /^(?:_TS|_svy_|[it]is$)/;
+/**
+ * The settings of tsset, xtset and svyset stay with data a command
+ * remakes, as Stata keeps the _dta characteristics that hold them, unless
+ * the command gave the new data settings of their own.
+ */
+function keepSettings(from, to) {
+  const own = from.chars?.get("_dta"),
+    kept = [...(own ?? [])].filter(([name]) => SETTING_CHAR.test(name)),
+    target = to.chars?.get("_dta");
+  if (
+    !kept.length ||
+    from === to ||
+    [...(target?.keys() ?? [])].some((name) => SETTING_CHAR.test(name))
+  )
+    return;
+  to.chars ??= new Map();
+  to.chars.set("_dta", new Map([...(target ?? []), ...kept]));
 }
 /** A dataset's file, its time stamp and its contents as they were read. */
 export function settle(data, name, stamp) {
@@ -243,7 +265,15 @@ function save(session, text, ctx) {
   store.set(name, {
     ...snapshot,
     notes: copy(data.notes),
-    chars: copy(data.chars),
+    // Characteristics too come back from a file in the opposite order:
+    // Stata lists them newest first, writes them so and puts each one it
+    // reads in front of those before it.
+    chars: new Map(
+      [...(data.chars ?? [])].map(([owner, own]) => [
+        owner,
+        new Map([...own].reverse()),
+      ]),
+    ),
     timestamp: stamp,
   });
   settle(data, name, stamp);

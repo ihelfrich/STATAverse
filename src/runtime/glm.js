@@ -622,6 +622,8 @@ function glmRequest(session, parsed) {
     throw new StataError("pweights not allowed with option vce(oim)", 198);
   const { robust, cluster } = readVce(session, options, /^oim$/, {
     multiway: false,
+    // glm has vce(hac kernel #) in Stata.
+    hac: true,
   });
   let weight = null;
   if (wtype) {

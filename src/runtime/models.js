@@ -37,6 +37,7 @@ import {
   abbreviate,
   baseLevelsAsked,
   numericVarlist,
+  splitOperators,
   test as testT,
   unitConstraint,
 } from "./estimation.js";
@@ -45,6 +46,7 @@ import { isOperated, tsTerms } from "./timeseries.js";
 import { unchangedBy } from "./data-commands.js";
 import { MISSING, isMissing } from "./values.js";
 import { evaluateAll } from "./expression.js";
+import { parseNumlist } from "./numlist.js";
 import {
   iterationLine,
   maximizeNR,
@@ -1162,7 +1164,8 @@ export function ivregress(session, text, ctx) {
       instruments: m[5].trim(),
     },
     weighting = (parsed.options.wmatrix ?? "robust").trim(),
-    asked = readVce(session, parsed.options, /^un(adjusted)?$/),
+    // ivregress has vce(hac kernel #) in Stata, not yet here.
+    asked = readVce(session, parsed.options, /^un(adjusted)?$/, { hac: true }),
     cluster = asked.cluster,
     robust =
       asked.robust ||
@@ -1650,7 +1653,26 @@ const combinations = (lists) =>
  */
 function testparmTerms(session, head) {
   const component = (word, inInteraction) => {
-      const m = /^(i|c|(\d+)b?n?)\.(.+)$/i.exec(word),
+      // i(2 3).g and i(2/3)b2.g: the factor at the levels listed.
+      const restricted = /^i\(([^()]*)\)(?:b(?:\d+|\([^()]*\)))?\.(.+)$/i.exec(
+        word,
+      );
+      if (restricted) {
+        const levels = parseNumlist(restricted[1]);
+        return session
+          .varlist(restricted[2].replace(/^\((.*)\)$/, "$1"))
+          .map((variable) => ({ variable, factor: true, level: null, levels }));
+      }
+      // A variable under time-series operators, maybe with a factor
+      // operator: cL.x, iL.g, L.i.g, and a bare L.g in an interaction.
+      const split = splitOperators(word);
+      if (split?.ts)
+        return tsTerms(session, `${split.ts}.${split.name}`).map((term) => ({
+          variable: term.name,
+          factor: split.fv ? split.fv !== "c" : inInteraction,
+          level: null,
+        }));
+      const m = /^(i|c|ibn|i?b(?:\d+|\([^()]*\))|(\d+)b?n?)\.(.+)$/i.exec(word),
         operator = m?.[1].toLowerCase(),
         target = (m ? m[3] : word).replace(/^\((.*)\)$/, "$1");
       return session.varlist(target).map((variable) => ({
@@ -1687,10 +1709,20 @@ function testparmTerms(session, head) {
 /** Whether the coefficient called name is the term: its parts in any order. */
 function isTerm(name, term) {
   const parts = name.split("#").map((part) => {
-    const level = /^(\d+)[bon]*\.(.+)$/.exec(part);
+    // 1.g, 0b.g, and under time-series operators 1L.g; c.x and cL.x.
+    const level = /^(\d+)[bon]*(?:\.(.+)|((?:[LFDS]\d*)+\..+))$/.exec(part);
     return level
-      ? { variable: level[2], factor: true, level: Number(level[1]) }
-      : { variable: part.replace(/^c?o?\./, ""), factor: false };
+      ? {
+          variable: level[2] ?? level[3],
+          factor: true,
+          level: Number(level[1]),
+        }
+      : {
+          variable: part
+            .replace(/^c?o?\./, "")
+            .replace(/^co?(?=(?:[LFDS]\d*)+\.)/, ""),
+          factor: false,
+        };
   });
   if (parts.length !== term.length) return false;
   const used = new Set();
@@ -1700,7 +1732,9 @@ function isTerm(name, term) {
         !used.has(j) &&
         part.variable === want.variable &&
         part.factor === want.factor &&
-        (want.level === null || want.level === part.level),
+        (want.levels
+          ? want.levels.includes(part.level)
+          : want.level === null || want.level === part.level),
     );
     used.add(k);
     return k >= 0;
@@ -1777,7 +1811,7 @@ function testparm(session, text, ctx) {
     e.equation === within &&
     !e.omitted &&
     !(e.index >= 0 && model.estimable?.[e.index] === false) &&
-    !/^\d+b\.[^#]*$/.test(e.name) &&
+    !/^\d+b(?:\.|[LFDS])[^#]*$/.test(e.name) &&
     terms.some((term) => isTerm(e.name, term))
       ? [k]
       : [],

@@ -45,6 +45,7 @@ import {
 } from "./smoothers.js";
 import { lngamma } from "./distributions.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
+import { seriesTerm } from "./panel.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 /**
@@ -1354,12 +1355,20 @@ function normalPlot(kind) {
 function tsline(session, text, ctx) {
   if (!session.panel?.time)
     throw new StataError("time variable not set, use tsset varname ...", 111);
-  const parsed = parseGraph(session, `varlist [if] [in] [, ${LOOKS}]`, text),
+  // A varlist(ts): its variables may carry time-series operators, as
+  // D.y; each is drawn and labelled as Stata labels it.
+  const parsed = parseGraph(session, `anything [if] [in] [, ${LOOKS}]`, text),
     options = parsed.options,
     time = session.data.get(session.panel.time),
     rows = session.rows(parsed, null),
-    layers = parsed.varlist.map((name) => {
-      const variable = numeric(session, name);
+    words = (parsed.anything ?? "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) throw new StataError("varlist required", 100);
+  const series = words.flatMap((word) =>
+      /^(?:[LFDS]\d*)+\./i.test(word)
+        ? [seriesTerm(session, word)]
+        : session.varlist(word).map((name) => numeric(session, name)),
+    ),
+    layers = series.map((variable) => {
       return {
         kind: "line",
         points: rows

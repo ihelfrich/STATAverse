@@ -19,6 +19,7 @@
 import { StataError } from "./errors.js";
 import { evaluateAll } from "./expression.js";
 import { applyFormat } from "./format.js";
+import { renderSmcl } from "./smcl.js";
 import { chi2tail, invttail } from "./distributions.js";
 import { invnormal } from "./functions-normal.js";
 import { defineCharacteristic } from "./store.js";
@@ -3273,6 +3274,102 @@ function phtest(session, text, ctx) {
 }
 
 /**
+ * estat concordance after stcox, as stcstat.ado computes Harrell's C:
+ * the subjects in order of their predicted hazard ratio, every pair whose
+ * order of failure is known (both failed at different times, or one failed
+ * no later than the other's time) is usable; it is as expected when the
+ * one that failed first has the higher hazard, and a tie in the hazards
+ * counts a half. Somers' D is 2C - 1. Gönen and Heller's K is refused.
+ */
+function concordance(session, text, ctx) {
+  const settings = stSettings(session),
+    parsed = session.parse(
+      "[if] [in] [, ALL noSHow Harrell USEADO | GHeller SE]",
+      text,
+    ),
+    o = parsed.options,
+    model = estimates(session);
+  if (model.kind !== "stcox")
+    throw new StataError("last estimates not found", 301);
+  const data = session.data,
+    esample = data.esample,
+    rows = session.rows(parsed, null).filter((i) => {
+      if (!o.all && esample?.[i] !== 1) return false;
+      return !isMissing(linearAt(model, i, false));
+    });
+  if (data.chars?.get("_dta")?.get("st_w"))
+    throw new StataError(
+      "estat concordance may not be used with weighted data",
+      498,
+    );
+  const t0 = data.get("_t0").data;
+  if (rows.some((i) => t0[i] !== 0))
+    throw new StataError(
+      "estat concordance may not be used with late entry or time-varying data",
+      498,
+    );
+  const h = new Map(rows.map((i) => [i, Math.exp(linearAt(model, i, false))])),
+    ordered = [...rows].sort((a, b) => h.get(a) - h.get(b) || a - b),
+    t = data.get("_t").data,
+    d = data.get("_d").data,
+    linesize = session.settings.linesize ?? 79;
+  // Observations of the fit left out, or others taken in.
+  const marked = esample
+    ? Array.from(esample).reduce((n, v) => n + (v === 1 ? 1 : 0), 0)
+    : 0;
+  if (rows.length !== marked || rows.some((i) => esample?.[i] !== 1))
+    renderSmcl(
+      "{p 0 6 2}note: different samples used to fit model and to calculate C statistic.{p_end}",
+      linesize,
+    )
+      .split("\n")
+      .forEach((line) => ctx.out(line));
+  stHeader(ctx, settings, o.show === false);
+  ctx.out("");
+  ctx.out("Harrell's C concordance statistic");
+  let D = 0,
+    T = 0,
+    E = 0;
+  const n = ordered.length;
+  for (let a = 0; a < n; a++) {
+    const i = ordered[a],
+      ti = t[i],
+      di = d[i] !== 0 && !isMissing(d[i]),
+      hi = h.get(i);
+    for (let b = a + 1; b < n; b++) {
+      const j = ordered[b],
+        tj = t[j],
+        dj = d[j] !== 0 && !isMissing(d[j]);
+      let kind = di && dj ? 1 : di && ti <= tj ? 2 : dj && ti >= tj ? 3 : 0;
+      // Two failures at the same time are not compared.
+      if (kind === 1 && Math.abs(tj - ti) < 1e-12) kind = 0;
+      if (!kind) continue;
+      const tied = hi === h.get(j);
+      D++;
+      if (tied) T++;
+      else if ((kind === 1 && ti > tj) || (kind === 3 && ti >= tj)) E++;
+    }
+  }
+  const C = (E + T / 2) / D,
+    somers = 2 * (C - 0.5),
+    wide = applyFormat(D, "%21.0f").trim(),
+    digits = applyFormat(D, "%8.0f").trim() === wide ? 8 : wide.length,
+    count = (v) => applyFormat(v, `%${digits}.0f`),
+    fixed = (v) => applyFormat(v, `%${digits}.4f`),
+    row = (label, value) => ctx.out(`${label.padEnd(37)} = ${value}`);
+  ctx.out("");
+  row("  Number of subjects (N)", count(n));
+  row("  Number of comparison pairs (P)", count(D));
+  row("  Number of orderings as expected (E)", count(E));
+  row("  Number of tied predictions (T)", count(T));
+  ctx.out("");
+  row("          Harrell's C = (E + T/2) / P", fixed(C));
+  row("                            Somers' D", fixed(somers));
+  // As stcstat.ado returns them; return list shows the last first.
+  session.results.r = { N: n, D: somers, C, n_P: D, n_E: E, n_T: T };
+}
+
+/**
  * predict and estat after stcox and streg: the forms survival computes.
  * Returns true when it handled the command.
  */
@@ -3294,6 +3391,17 @@ export function survivalPostestimation(session, name, text, ctx) {
     if (model.kind !== "stcox")
       throw new StataError("last estimates not found", 301);
     phtest(session, text.trim().slice(what.length), ctx);
+    return true;
+  }
+  if (
+    name === "estat" &&
+    what &&
+    what.length >= 3 &&
+    "concordance".startsWith(what) &&
+    // After streg it is not valid, as estat says of what it lacks.
+    model.kind === "stcox"
+  ) {
+    concordance(session, text.trim().slice(what.length), ctx);
     return true;
   }
   return false;

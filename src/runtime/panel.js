@@ -2,7 +2,10 @@
 // and the lag, lead and difference operators that xtset makes available.
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
-import { applyFormat } from "./format.js";
+import { abbreviateName, applyFormat, parseFormat } from "./format.js";
+import { renderSmcl } from "./smcl.js";
+import { defineCharacteristic } from "./store.js";
+import { unchangedBy } from "./data-commands.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { invnormal, normal } from "./functions.js";
 import {
@@ -38,19 +41,111 @@ function exactMean(values) {
   return first + rest / n;
 }
 
-// The unit options of xtset and tsset, with the format each gives the time
-// variable.
-const UNIT_FORMATS = {
-  daily: "%td",
-  weekly: "%tw",
-  monthly: "%tm",
-  quarterly: "%tq",
-  halfyearly: "%th",
-  yearly: "%ty",
+// ----- the settings, kept as Stata keeps them -----
+
+// The characteristics tsset writes, in the order it writes them; Stata
+// lists the newest first.
+const TS_CHARS = ["_TStvar", "_TSpanel", "_TSdelta", "_TSitrvl", "tis", "iis"];
+
+/** The number a _TSdelta characteristic holds: %21x, or a plain number. */
+function deltaOf(text) {
+  const m = /^([+-])([01])\.([0-9a-f]{13})X([+-])([0-9a-f]{3})$/i.exec(
+    text ?? "",
+  );
+  if (m) {
+    const mantissa = Number(m[2]) + parseInt(m[3], 16) / 2 ** 52,
+      exponent = (m[4] === "-" ? -1 : 1) * parseInt(m[5], 16);
+    return (m[1] === "-" ? -1 : 1) * mantissa * 2 ** exponent;
+  }
+  const value = Number(text);
+  return text && Number.isFinite(value) && value > 0 ? value : 1;
+}
+
+/**
+ * The panel and time variables xtset or tsset declared, read from the
+ * dataset's characteristics, where Stata keeps them: they are saved with
+ * the data, come back when the file is used, and go when other data are
+ * loaded. null when neither is set.
+ */
+export function readPanel(data) {
+  const own = data?.chars?.get("_dta");
+  if (!own) return null;
+  const time = own.get("_TStvar") || null,
+    // A panel variable alone may be in iis only, as older files have it.
+    id = own.get("_TSpanel") || own.get("iis") || null;
+  if (!time && !id) return null;
+  return { id, time, delta: time ? deltaOf(own.get("_TSdelta")) : 1 };
+}
+
+/**
+ * Writes the settings into the characteristics as tsset and xtset write
+ * them, after clearing those there were; null only clears them.
+ */
+export function writePanel(data, panel) {
+  const define = (name, text) =>
+    defineCharacteristic(data, "_dta", name, text ?? "");
+  for (const name of TS_CHARS) define(name, "");
+  if (panel?.time) {
+    define("_TStvar", panel.time);
+    define("_TSpanel", panel.id);
+    define("_TSdelta", applyFormat(panel.delta ?? 1, "%21x").trim());
+    define("_TSitrvl", "1");
+    define("tis", panel.time);
+    define("iis", panel.id);
+  } else if (panel?.id) {
+    define("iis", panel.id);
+    define("_TSpanel", panel.id);
+  }
+}
+
+/**
+ * Variables renamed, now(old) giving each one's new name: rename puts the
+ * new name into _TStvar and _TSpanel, as Stata's does, and leaves iis and
+ * tis as they were.
+ */
+export function renamePanelVariables(data, now) {
+  const own = data.chars?.get("_dta");
+  if (!own) return;
+  const moved = ["_TStvar", "_TSpanel"]
+    .map((name) => [name, own.get(name)])
+    .filter(([, old]) => old && now(old) !== old);
+  for (const [name, old] of moved)
+    defineCharacteristic(data, "_dta", name, now(old));
+}
+
+/** Settings written without counting as a change to the data, as in Stata. */
+function setPanel(session, panel) {
+  unchangedBy(session, () => writePanel(session.data, panel));
+}
+
+// The unit options of xtset and tsset, with the letter of the %t format
+// each gives the time variable.
+const UNIT_LETTERS = {
+  daily: "d",
+  weekly: "w",
+  monthly: "m",
+  quarterly: "q",
+  halfyearly: "h",
+  yearly: "y",
+  generic: "g",
+  clocktime: "c",
 };
-// The name xtset gives one period of a time format.
+// The period a format letter names, as tsset's warning and r(unit) name it.
+const PERIODS = {
+  c: "clocktime",
+  g: "generic",
+  d: "daily",
+  w: "weekly",
+  m: "monthly",
+  q: "quarterly",
+  h: "halfyearly",
+  y: "yearly",
+};
+// The unit of a format letter, as the Delta line names it.
 const UNIT_NAMES = {
+  g: "unit",
   d: "day",
+  b: "day",
   w: "week",
   m: "month",
   q: "quarter",
@@ -58,57 +153,203 @@ const UNIT_NAMES = {
   y: "year",
 };
 
-/** "1 unit", "2 months": the delta in the units of the time format. */
-export function deltaText(session) {
-  const panel = session.panel,
-    delta = panel.delta ?? 1,
-    format = session.data.get(panel.time).format,
-    unit = UNIT_NAMES[/^%-?t([dwmqhy])/.exec(format)?.[1]] ?? "unit";
-  return `${delta} ${unit}${delta === 1 ? "" : "s"}`;
+/** The letter of a time variable's units: the letter after %t, d or g. */
+function unitsOf(format) {
+  if (format?.[1] === "t") return format[2] ?? "g";
+  if (format?.[1] === "d") return "d";
+  return "g";
 }
 
-/** The options of xtset and tsset: delta() and the unit options. */
+/**
+ * "1 unit", "2 months", "1 hour 30 minutes": the delta in the units of the
+ * time format, as tsset shows it.
+ */
+export function deltaText({ data, panel }) {
+  const delta = panel.delta ?? 1,
+    units = unitsOf(data.get(panel.time).format),
+    plural = (t, word) => `${t} ${word}${t > 1 ? "s" : ""}`;
+  if (UNIT_NAMES[units]) return plural(delta, UNIT_NAMES[units]);
+  // %tc and %tC: weeks, days, hours, minutes and seconds.
+  const parts = [];
+  let rest = delta;
+  for (const [word, size] of [
+    ["week", 604800000],
+    ["day", 86400000],
+    ["hour", 3600000],
+    ["minute", 60000],
+  ]) {
+    const t = Math.trunc(rest / size);
+    if (t > 0) {
+      parts.push(plural(t, word));
+      rest -= size * t;
+    }
+  }
+  const seconds = rest / 1000;
+  if (seconds > 0) parts.push(`${seconds} second${seconds !== 1 ? "s" : ""}`);
+  return parts.join(" ");
+}
+
+// The options of tsset, with the shortest abbreviation of each and whether
+// it takes an argument.
+const TS_OPTIONS = [
+  ["clear", 5],
+  ["daily", 1],
+  ["format", 1, true],
+  ["generic", 1],
+  ["halfyearly", 1],
+  ["monthly", 1],
+  ["quarterly", 1],
+  ["weekly", 1],
+  ["yearly", 1],
+  ["delta", 3, true],
+  ["clocktime", 1],
+  ["force", 5],
+  ["mi", 2],
+  ["noquery", 7],
+  ["panelname", 9, true],
+  ["displayindent", 13, true],
+  ["panellabel", 10, true],
+  ["tsvarlabel", 10, true],
+  ["noblank", 7],
+];
+
+/** The options of xtset and tsset, as option name to argument (or true). */
 function timeOptions(text) {
-  const options = { delta: 1, format: null, noquery: false, clear: false },
-    pattern = /([A-Za-z]+)\s*(\(\s*([^)]*?)\s*\))?/gy;
-  let rest = text.trim(),
-    m;
-  pattern.lastIndex = 0;
-  while (rest) {
-    pattern.lastIndex = 0;
-    if (!(m = pattern.exec(rest))) throw new StataError("invalid syntax", 198);
-    rest = rest.slice(m[0].length).trim();
-    const word = m[1].toLowerCase(),
-      argument = m[3];
-    if (word.length >= 3 && "delta".startsWith(word) && m[2]) {
-      const value = Number(argument);
-      if (argument === "" || !Number.isFinite(value))
-        throw new StataError(`invalid argument in delta(): ${argument}`, 198);
-      if (value === 0)
-        throw new StataError(`delta(${argument}) evaluates to zero`, 198);
-      if (value < 0)
-        throw new StataError(
-          `delta(${argument}) evaluates to a negative number`,
-          198,
-        );
-      if (!Number.isInteger(value))
-        throw new StataError(
-          `delta(${argument}) evaluates to a noninteger value`,
-          198,
-        );
-      options.delta = value;
-    } else if (!m[2] && UNIT_FORMATS[word]) options.format = UNIT_FORMATS[word];
-    else if (!m[2] && word === "noquery") options.noquery = true;
-    else if (!m[2] && word === "clear") options.clear = true;
-    else
+  const options = {},
+    periods = [];
+  let i = 0;
+  const s = text;
+  while (i < s.length) {
+    while (i < s.length && /\s/.test(s[i])) i++;
+    if (i >= s.length) break;
+    const word = /^[A-Za-z_]\w*/.exec(s.slice(i))?.[0];
+    if (!word) throw new StataError("invalid syntax", 198);
+    i += word.length;
+    let argument = null;
+    if (s[i] === "(") {
+      let depth = 0,
+        j = i;
+      for (; j < s.length; j++) {
+        if (s[j] === "(") depth++;
+        else if (s[j] === ")" && --depth === 0) break;
+      }
+      if (j >= s.length) throw new StataError("invalid syntax", 198);
+      argument = s.slice(i + 1, j);
+      i = j + 1;
+    }
+    const lower = word.toLowerCase(),
+      found = TS_OPTIONS.find(
+        ([name, shortest]) =>
+          lower.length >= shortest && name.startsWith(lower),
+      );
+    if (!found) throw new StataError(`option ${lower} not allowed`, 198);
+    const [name, , takes] = found;
+    if (!!takes !== (argument !== null))
       throw new StataError(
-        `option ${word}${m[2] ? "()" : ""} not allowed\n    In the browser xtset and tsset take delta(#), noquery and the unit options daily, weekly, monthly, quarterly, halfyearly and yearly.`,
+        `option ${lower}${argument !== null ? "()" : ""} incorrectly specified`,
         198,
       );
+    if (name === "mi")
+      throw new StataError(
+        "option mi is not available in the browser",
+        198,
+        "mi xtset and mi tsset are for multiply imputed data, which the browser does not have; xtset the data without mi.",
+      );
+    options[name] = takes ? argument.trim() : true;
+    if (UNIT_LETTERS[name] && !periods.includes(name)) periods.push(name);
   }
+  options.periods = periods;
   return options;
 }
 
+/**
+ * The amount delta() asks for, in the units of the time variable's
+ * format: a number or a parenthesized expression, optionally followed by
+ * a unit such as days or months, several of them joined by +.
+ */
+function parseDelta(session, text, units) {
+  if (text === undefined) return 1;
+  const tokens = text.match(/[()+]|[^\s()+]+/g) ?? [];
+  if (!tokens.length) return 1;
+  const shown = `delta(${text})`,
+    generic = () => new StataError(`invalid argument in delta(): ${text}`, 198),
+    unitError = () =>
+      new StataError(
+        `option ${shown} invalid for %t${units} time variable`,
+        198,
+      );
+  let d = 0;
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i] === "+") continue;
+    let add;
+    if (tokens[i] !== "(") {
+      add = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(tokens[i])
+        ? Number(tokens[i])
+        : MISSING;
+      if (isMissing(add)) throw generic();
+    } else {
+      let depth = 1,
+        expr = "";
+      for (i++; depth && i < tokens.length; i++) {
+        if (tokens[i] === "(") depth++;
+        else if (tokens[i] === ")") depth--;
+        if (depth) expr += tokens[i];
+      }
+      i--;
+      add = session.scalar(expr);
+      if (typeof add !== "number" || isMissing(add)) throw generic();
+    }
+    const unit = tokens[i + 1] ?? "",
+      cas =
+        [
+          ["seconds", "secs", "second", "sec"],
+          ["minutes", "mins", "minute", "min"],
+          ["hours", "hour"],
+          ["days", "day"],
+          ["weeks", "week"],
+          ["months", "month"],
+          ["quarters", "quarter"],
+          ["halfyears", "halfyear"],
+          ["years", "year"],
+        ].findIndex((words) => words.includes(unit)) + 1;
+    if (!cas && unit !== "" && unit !== "+") throw generic();
+    if (cas) {
+      if (units === "c" || units === "C") {
+        const mult = [0, 1000, 60000, 3600000, 86400000, 604800000][cas];
+        if (!mult) throw unitError();
+        add *= mult;
+      } else if (units === "d") {
+        // tsset.ado turns weeks into days and then refuses any unit but
+        // days, so delta(1 week) is an error for a %td variable too.
+        if (cas !== 4) throw unitError();
+      } else if (
+        { w: 5, m: 6, q: 7, h: 8, y: 9 }[units] !== cas ||
+        units === "g"
+      )
+        throw unitError();
+      i++;
+    }
+    d += add;
+  }
+  if (isMissing(d))
+    throw new StataError(`${shown} evaluates to a missing value`, 198);
+  if (Math.abs(d) < 2.220446049250313e-16)
+    throw new StataError(`${shown} evaluates to zero`, 198);
+  if (d < 0)
+    throw new StataError(`${shown} evaluates to a negative number`, 198);
+  if (d !== Math.floor(d))
+    throw new StataError(`${shown} evaluates to a noninteger value`, 198);
+  return d;
+}
+
+/**
+ * xtset and tsset, as xtset.ado and tsset.ado run them. With a time
+ * variable the data are checked, sorted by panel and time, and the
+ * settings written to the dataset's characteristics; xtset or tsset alone
+ * does all of that again with the settings there are, so a time variable
+ * changed since is checked again, and one that fails leaves the settings
+ * as they were.
+ */
 function xtset(session, text, ctx) {
   const comma = text.indexOf(","),
     words = (comma < 0 ? text : text.slice(0, comma))
@@ -116,120 +357,307 @@ function xtset(session, text, ctx) {
       .split(/\s+/)
       .filter(Boolean),
     options = timeOptions(comma < 0 ? "" : text.slice(comma + 1)),
-    data = session.data;
+    data = session.data,
+    xt = !ctx.timeOnly;
   if (words.length > 2)
     throw new StataError("too many variables specified", 103);
   if (options.clear) {
-    session.panel = null;
+    if (words.length)
+      throw new StataError(
+        xt && words.length === 1
+          ? "options not allowed unless a time variable is specified"
+          : "varlist not allowed",
+        101,
+      );
+    if (Object.keys(options).some((o) => !["clear", "periods"].includes(o)))
+      throw new StataError(
+        `option ${Object.keys(options).find((o) => !["clear", "periods"].includes(o))} not allowed`,
+        198,
+      );
+    setPanel(session, null);
     return;
   }
-  if (!words.length && (options.delta !== 1 || options.format))
-    throw new StataError("varlist required", 100);
-  if (words.length) {
-    if (/^clear$/.test(words[0])) {
-      session.panel = null;
-      return;
+  const names = words.map((word) => session.varlist(word)[0]);
+  for (const name of names)
+    if (isStringType(data.get(name).type))
+      throw new StataError(
+        `string variables not allowed in varlist;\n${name} is a string variable`,
+        109,
+      );
+  const set = readPanel(data);
+  if (xt && names.length === 1)
+    return panelSet(session, names[0], options, ctx);
+  if (!names.length) {
+    const typed = Object.keys(options).filter((o) => o !== "periods"),
+      // The options that leave the settings as they are.
+      simple = ["noquery", "panelname", "displayindent", "noblank"];
+    // xtset alone takes only these; tsset alone runs tsset again.
+    if (xt) {
+      const other = typed.find((o) => o === "noquery" || !simple.includes(o));
+      if (other) throw new StataError(`option ${other} not allowed`, 198);
+      // The panel variable alone when no time variable is set.
+      if (!set?.time) return panelSet(session, null, options, ctx);
     }
-    const names = words.map((word) => session.varlist(word)[0]);
-    for (const name of names)
-      if (isStringType(data.get(name).type))
-        throw new StataError(
-          `string variables not allowed in varlist;\n${name} is a string variable`,
-          109,
-        );
-    const previous = session.panel;
-    if (ctx.timeOnly) {
-      if (names.length === 2) session.panel = { id: names[0], time: names[1] };
-      else session.panel = { id: null, time: names[0] };
-    } else session.panel = { id: names[0], time: names[1] ?? null };
-    session.panel.delta = options.delta;
-    // With a time variable the data are sorted on the panel and time; a
-    // panel variable alone leaves the order and the sort flag as they are.
-    if (session.panel.time)
-      data.sort([session.panel.id, session.panel.time].filter(Boolean));
-    if (session.panel.time) {
-      const id = session.panel.id ? data.get(session.panel.id).data : null,
-        time = data.get(session.panel.time).data;
-      for (let i = 1; i < data.n; i++) {
-        if (
-          (!id || id[i] === id[i - 1]) &&
-          time[i] === time[i - 1] &&
-          !isMissing(time[i])
-        ) {
-          session.panel = null;
-          // A time series without panels has its repeats in the sample.
-          throw new StataError(
-            `repeated time values ${id ? "within panel" : "in sample"}`,
-            451,
-          );
-        }
-        if (
-          (!id || id[i] === id[i - 1]) &&
-          !isMissing(time[i]) &&
-          time[i] - time[i - 1] < options.delta
-        ) {
-          session.panel = previous;
-          throw new StataError(
-            "time values with period less than delta() found",
-            451,
-          );
-        }
-      }
-      if (options.format) data.get(session.panel.time).format = options.format;
-    } else if (options.delta !== 1 || options.format)
-      throw new StataError("time variable not specified", 198);
-    if (options.noquery) return;
-  } else if (session.panel?.time)
-    // tsset typed alone sets the data again, which sorts them.
-    data.sort([session.panel.id, session.panel.time].filter(Boolean));
-  const panel = session.panel;
+    if (!set?.time)
+      throw new StataError("time variable not set, use tsset varname ...", 111);
+    for (const name of [set.id, set.time].filter(Boolean))
+      session.varlist(name);
+    // tsset alone sets the data again with the format and delta they have;
+    // with other options, those typed.
+    return timeSet(
+      session,
+      set.id,
+      set.time,
+      typed.every((o) => simple.includes(o))
+        ? {
+            ...options,
+            format: data.get(set.time).format,
+            delta: `(${set.delta})`,
+          }
+        : options,
+      ctx,
+    );
+  }
+  const [id, time] = names.length === 2 ? names : [null, names[0]];
+  return timeSet(session, id, time, options, ctx);
+}
+
+/** xtset with a panel variable alone, as xtset.ado's PanelSet. */
+function panelSet(session, name, options, ctx) {
+  const data = session.data,
+    other = Object.keys(options).find(
+      (o) => !["periods", "panelname", "displayindent", "noblank"].includes(o),
+    );
+  if (other)
+    throw new StataError(
+      "options not allowed unless a time variable is specified",
+      101,
+    );
+  if (name) setPanel(session, { id: name, time: null });
+  const panel = name ?? readPanel(data)?.id;
   if (!panel)
     throw new StataError("panel variable not set; use xtset varname ...", 459);
-  if (panel.id) {
-    const sizes = new Map(),
-      patterns = new Map(),
-      id = data.get(panel.id).data,
-      time = panel.time ? data.get(panel.time).data : null;
-    for (let i = 0; i < data.n; i++) {
-      sizes.set(id[i], (sizes.get(id[i]) ?? 0) + 1);
-      if (time)
-        patterns.set(id[i], (patterns.get(id[i]) ?? "") + "|" + time[i]);
-    }
-    const counts = new Set(sizes.values()),
-      balance = !time
-        ? counts.size === 1
-          ? "balanced"
-          : "unbalanced"
-        : new Set(patterns.values()).size === 1
-          ? "strongly balanced"
-          : counts.size === 1
-            ? "weakly balanced"
-            : "unbalanced";
-    ctx.out("");
-    ctx.out(`Panel variable: ${panel.id} (${balance})`);
-  } else ctx.out("");
-  if (panel.time) {
-    const variable = data.get(panel.time),
-      values = Array.from(variable.data).filter((v) => !isMissing(v)),
-      show = (v) => applyFormat(v, variable.format).trim(),
-      low = least(values),
-      high = greatest(values);
-    // A gap is a missing period inside some panel; an observation whose
-    // time is missing, sorted last, is not one.
-    let gaps = 0;
-    const id = panel.id ? data.get(panel.id).data : null;
-    for (let i = 1; i < data.n; i++)
-      if (
-        (!id || id[i] === id[i - 1]) &&
-        !isMissing(variable.data[i]) &&
-        variable.data[i] - variable.data[i - 1] > (panel.delta ?? 1)
-      )
-        gaps++;
-    ctx.out(
-      `${panel.id ? " " : ""}Time variable: ${panel.time}, ${show(low)} to ${show(high)}${gaps === 1 ? ", but with a gap" : gaps ? ", but with gaps" : ""}`,
+  const id = data.get(session.varlist(panel)[0]).data,
+    sizes = new Map();
+  for (let i = 0; i < data.n; i++)
+    sizes.set(id[i], (sizes.get(id[i]) ?? 0) + 1);
+  const balance = new Set(sizes.values()).size <= 1 ? "balanced" : "unbalanced",
+    indent = displayIndent(options);
+  if (!options.noblank) ctx.out("");
+  ctx.out(
+    `${" ".repeat(indent)}${options.panelname || "Panel"} variable: ${panel} (${balance})`,
+  );
+  const values = Array.from(id).filter((v) => !isMissing(v));
+  session.results.r = {
+    imax: values.length ? greatest(values) : MISSING,
+    imin: values.length ? least(values) : MISSING,
+    panelvar: panel,
+    balanced: balance,
+  };
+}
+
+function displayIndent(options) {
+  if (options.displayindent === undefined) return 0;
+  const value = Number(options.displayindent);
+  if (options.displayindent === "" || !Number.isInteger(value))
+    throw new StataError("option displayindent() incorrectly specified", 198);
+  return value;
+}
+
+/** tsset with a time variable, and xtset with a panel and time variable. */
+function timeSet(session, id, time, options, ctx) {
+  const data = session.data,
+    variable = data.get(time),
+    linesize = session.settings.linesize ?? 79;
+  // The format: format(), a unit option, or the variable's own.
+  let format;
+  const periods = options.periods;
+  if (options.format !== undefined) {
+    if (periods.length)
+      throw new StataError(
+        `may not specify both format() and ${periods[0]}`,
+        198,
+      );
+    format = options.format;
+    if (!parseFormat(format)) throw new StataError("invalid %format", 120);
+  } else if (periods.length) {
+    if (periods.length > 1)
+      throw new StataError(
+        renderSmcl(
+          "{p}may only specify one time-scale from {bf:daily}, {bf:weekly}, {bf:monthly}, {bf:quarterly}, {bf:halfyearly}, {bf:yearly}, and {bf:generic}{p_end}",
+          linesize,
+        ),
+        198,
+      );
+    format = `%t${UNIT_LETTERS[periods[0]]}`;
+  } else format = variable.format;
+  const userFormat = options.format !== undefined,
+    current = variable.format,
+    was = unitsOf(current),
+    now = unitsOf(format);
+  if (was !== now && was !== "g") {
+    const shorty = abbreviateName(time, 13);
+    renderSmcl(
+      `{p 0 9 2}warning: Variable {bf:${shorty}} had been formatted {bf:${current}} (a {bf:${PERIODS[was] ?? ""}} period), and you asked for a {bf:${PERIODS[now] ?? ""}} period. Are you sure that is what you want? Format has been changed. {bf:${shorty}} is now formatted {bf:${format}}.{p_end}`,
+      linesize,
+    )
+      .split("\n")
+      .forEach((line) => ctx.out(line));
+  } else if (was === now && !userFormat) format = current;
+  // The time variable holds whole numbers only.
+  const t0 = variable.data;
+  for (let i = 0; i < data.n; i++)
+    if (!isMissing(t0[i]) && t0[i] !== Math.trunc(t0[i]))
+      throw new StataError(
+        "time variable must contain only integer values",
+        451,
+      );
+  data.sort([id, time].filter(Boolean));
+  variable.format = format;
+  const delta = parseDelta(session, options.delta, unitsOf(format));
+  // The smallest step between successive times within a panel.
+  const ids = id ? data.get(id).data : null,
+    times = variable.data;
+  let least_ = Infinity;
+  for (let i = 0; i + 1 < data.n; i++)
+    if (
+      (!ids || ids[i] === ids[i + 1]) &&
+      !isMissing(times[i]) &&
+      !isMissing(times[i + 1])
+    )
+      least_ = Math.min(least_, times[i + 1] - times[i]);
+  if (least_ === 0)
+    throw new StataError(
+      `repeated time values ${id ? "within panel" : "in sample"}`,
+      451,
     );
-    ctx.out(`${panel.id ? " " : ""}        Delta: ${deltaText(session)}`);
+  if (!options.force && least_ < delta)
+    throw new StataError(
+      "time values with period less than delta() found",
+      451,
+    );
+  setPanel(session, { id, time, delta });
+  // clocktime without format() shows the times to the millisecond, and
+  // leaves the variable %tc.
+  const clock = periods[0] === "clocktime" && !userFormat && format[2] === "c";
+  if (clock) variable.format = "%tcDDmonCCYY_HH:MM:SS.sss";
+  const r = options.noquery
+    ? { tdelta: delta }
+    : query(session, options, ctx, linesize);
+  if (clock) variable.format = format = "%tc";
+  const unit1 = format[2] ?? "",
+    unit = periods[0] ?? (unit1 ? (PERIODS[unit1] ?? "") : "generic");
+  // Stata's return list shows the last result first.
+  const macros = {
+    ...(id ? { panelvar: id } : {}),
+    timevar: time,
+    ...(unit ? { unit } : {}),
+    unit1,
+    tsfmt: format,
+  };
+  session.results.r = {
+    ...Object.fromEntries(
+      Object.entries(r).filter(([, v]) => typeof v === "number"),
+    ),
+    ...macros,
+    ...Object.fromEntries(
+      Object.entries(r).filter(([, v]) => typeof v === "string"),
+    ),
+  };
+}
+
+/** What tsset shows of the settings, as tsset.ado's Query; its r(). */
+function query(session, options, ctx, linesize) {
+  const data = session.data,
+    panel = readPanel(data),
+    variable = data.get(panel.time),
+    time = variable.data,
+    id = panel.id ? data.get(panel.id).data : null,
+    delta = panel.delta,
+    n = data.n,
+    indent = displayIndent(options);
+  let gaps = 0;
+  for (let i = 1; i < n; i++)
+    if (
+      time[i] - time[i - 1] !== delta &&
+      !isMissing(time[i]) &&
+      (!id || id[i] === id[i - 1])
+    )
+      gaps++;
+  if (!options.noblank) ctx.out("");
+  let t0, t1, colon, balance, imin, imax;
+  if (!id) {
+    t0 = n ? time[0] : MISSING;
+    let last = -1;
+    for (let i = 0; i < n; i++) if (!isMissing(time[i])) last = i;
+    t1 = last >= 0 ? time[last] : MISSING;
+    colon = indent + 14;
+  } else {
+    const firsts = [],
+      lasts = [];
+    for (let i = 0; i < n; i++) {
+      if (!isMissing(id[i]) && (i === 0 || id[i] !== id[i - 1]))
+        if (!isMissing(time[i])) firsts.push(time[i]);
+      if (
+        !isMissing(id[i]) &&
+        !isMissing(time[i]) &&
+        (i === n - 1 || id[i] !== id[i + 1] || isMissing(time[i + 1]))
+      )
+        lasts.push(time[i]);
+    }
+    t0 = firsts.length ? least(firsts) : MISSING;
+    t1 = lasts.length ? greatest(lasts) : MISSING;
+    const npanel = lasts.length,
+      ids = Array.from(id).filter((v) => !isMissing(v));
+    imin = ids.length ? least(ids) : MISSING;
+    imax = ids.length ? greatest(ids) : MISSING;
+    // Balanced when every panel has the same number of observations and
+    // none has a missing time; strongly so when every time has them all.
+    const sizes = new Map();
+    for (let i = 0; i < n; i++) sizes.set(id[i], (sizes.get(id[i]) ?? 0) + 1);
+    const tcount = (i) => (isMissing(time[i]) ? MISSING : sizes.get(id[i]));
+    let balanced = true;
+    for (let i = 1; i < n && balanced; i++) balanced = tcount(i) === tcount(0);
+    if (!balanced) balance = "unbalanced";
+    else {
+      const perTime = new Map();
+      for (let i = 0; i < n; i++)
+        perTime.set(time[i], (perTime.get(time[i]) ?? 0) + 1);
+      balance = [...perTime.values()].every((c) => c === npanel)
+        ? "strongly balanced"
+        : "weakly balanced";
+    }
+    const name = options.panelname || "Panel",
+      length = [...name].length,
+      extra = Math.max(4 - length, 0);
+    ctx.out(
+      `${" ".repeat(indent + extra)}${name} variable: ${options.panellabel || panel.id} (${balance})`,
+    );
+    colon = indent + extra + length + 10;
   }
+  const show = (v) => applyFormat(v, variable.format).trim(),
+    t0s = show(t0),
+    t1s = show(t1),
+    note = gaps === 1 ? ", but with a gap" : gaps ? ", but with gaps" : "";
+  renderSmcl(
+    `{p ${colon - 14} ${colon + 1} 2}Time variable: ${options.tsvarlabel || panel.time}, {bind:${t0s}} to {bind:${t1s}}${note}{p_end}`,
+    linesize,
+  )
+    .split("\n")
+    .forEach((line) => ctx.out(line));
+  const fancy = deltaText({ data, panel });
+  ctx.out(`${" ".repeat(Math.max(colon - 6, 0))}Delta: ${fancy}`);
+  return {
+    tdelta: delta,
+    tmax: t1,
+    tmin: t0,
+    gaps: gaps ? 1 : 0,
+    ...(id ? { imax, imin } : {}),
+    tdeltas: fancy,
+    tmaxs: t1s,
+    tmins: t0s,
+    ...(id ? { balanced: balance } : {}),
+  };
 }
 
 /**
@@ -311,6 +739,63 @@ export function requireTimeOrder(session) {
     keys = panel.id ? [panel.id, panel.time] : [panel.time];
   if (!keys.every((key, j) => session.data.sortedBy[j] === key))
     throw new StataError("not sorted", 5);
+}
+
+/**
+ * What a varname(ts) names: a variable, or a variable under time-series
+ * operators (D.y, L2.y, S4.y), as a column { name, label, type, format,
+ * data } named as Stata names it (D.y for D1.y). The data must be in time
+ * order, as the commands that take one put them first.
+ */
+export function seriesTerm(session, word) {
+  const operated = /^((?:[LFDS]\d*)+)\.([A-Za-z_]\w*)$/i.exec(word);
+  if (!operated) {
+    const names = session.varlist(word);
+    if (names.length !== 1)
+      throw new StataError("too many variables specified", 103);
+    return session.data.get(names[0]);
+  }
+  const base = session.data.get(session.varlist(operated[2])[0]);
+  if (!session.panel?.time) throw new StataError("time variable not set", 111);
+  if (isStringType(base.type))
+    throw new StataError(
+      `${base.name}:  may not use time-series operators on string variables`,
+      109,
+    );
+  const ops = operated[1].toUpperCase().replace(/([LFDS])1(?!\d)/g, "$1"),
+    values = evaluateAll(
+      session.compile(`${operated[1]}.${base.name}`),
+      session.data.n,
+    );
+  return {
+    name: `${ops}.${base.name}`,
+    label: "",
+    type: "double",
+    format: base.format,
+    data: Float64Array.from(values),
+  };
+}
+
+/**
+ * An estimation command's time-series operators need each time once in
+ * each panel, as when tsset checked them: a time changed since to repeat
+ * one is an error there (generate's L.x only finds no lag).
+ */
+export function requireDistinctTimes(session) {
+  const panel = session.panel,
+    data = session.data,
+    id = panel.id ? data.get(panel.id).data : null,
+    time = data.get(panel.time).data;
+  for (let i = 1; i < data.n; i++)
+    if (
+      time[i] === time[i - 1] &&
+      !isMissing(time[i]) &&
+      (!id || id[i] === id[i - 1])
+    )
+      throw new StataError(
+        `repeated time values ${id ? "within panel" : "in sample"}`,
+        451,
+      );
 }
 
 function correlation(a, b, w = null) {
@@ -422,9 +907,34 @@ function ols(columns, y, w = null) {
 function xtreg(session, text, ctx) {
   const parsed = parseWithPanel(
     session,
-    "anything [if] [in] [aweight fweight pweight iweight] [, FE RE BE Robust VCE(string) Level(cilevel) THeta I(varname) | MLE PA SA]",
+    "anything [if] [in] [aweight fweight pweight iweight] [, FE RE BE MLE PA GEE CRE WLS Robust VCE(string) Level(cilevel) THeta I(varname) | SA]",
     text,
   );
+  // xtreg.ado allows one model, and mle only with re.
+  {
+    const o = parsed.options;
+    if (["be", "fe", "re", "pa", "cre"].filter((k) => o[k]).length > 1)
+      throw new StataError(
+        "only one of re, fe, be, pa, or cre is allowed",
+        198,
+      );
+    if (
+      ((o.be || o.fe) && (o.mle || o.pa || o.gee)) ||
+      (o.mle && (o.pa || o.gee))
+    )
+      throw new StataError("invalid syntax", 198);
+    const later = ["mle", "pa", "gee", "cre"].find((k) => o[k]);
+    if (later)
+      throw new StataError(
+        `option ${later} is not available in the browser yet`,
+        198,
+        later === "cre"
+          ? "Correlated random effects is random effects with the panel means of the regressors added: generate them with egen mean() by the panel and use xtreg, re."
+          : "xtreg here fits fe, re and be.",
+      );
+    // wls belongs to the between estimator.
+    if (o.wls && !o.be) throw new StataError("option wls not allowed", 198);
+  }
   // xtreg.ado checks its varlist before _xt xtsets the data on i().
   if (parsed.options.i) design(session, parsed.anything, [], true);
   panelOption(session, parsed.options.i, ctx);
@@ -435,6 +945,11 @@ function xtreg(session, text, ctx) {
   const options = parsed.options,
     data = session.data,
     id = data.get(panel.id).data,
+    // xtreg_fe.ado marks out the time variable too, when one is set.
+    feTime =
+      options.fe && !options.be && panel.time
+        ? data.get(panel.time).data
+        : null,
     wtype = parsed.weight?.type ?? null;
   // xtreg takes analytic, frequency and sampling weights with fe only.
   if (wtype && (options.be || !options.fe))
@@ -462,6 +977,7 @@ function xtreg(session, text, ctx) {
         .filter(
           (i) =>
             !isMissing(id[i]) &&
+            (!feTime || !isMissing(feTime[i])) &&
             (!weightOf || (!isMissing(weightOf[i]) && weightOf[i] !== 0)),
         ),
       true,
@@ -609,6 +1125,8 @@ function xtreg(session, text, ctx) {
         ) ** 2,
       overall: correlation(fit, y) ** 2,
       fit,
+      fitMeans: firsts.map((i) => fitBar[i]),
+      yMeans: firsts.map((i) => yBar[i]),
     };
   };
   let b,
@@ -624,6 +1142,8 @@ function xtreg(session, text, ctx) {
     corrLine,
     footer = null,
     betweenR2 = null,
+    // The weights of be, wls on the panel means, or null.
+    beWeights = null,
     thetaLines = null,
     // What e() holds beyond the common results, as Stata stores it.
     extra = {};
@@ -673,21 +1193,39 @@ function xtreg(session, text, ctx) {
           ? panelMeans(x[j], times)
           : firsts.map((i) => column[i]);
       }),
-      xMeans = xm.map(mean),
+      // wls weights each panel mean by the panel's number of observations
+      // (analytic weights, scaled to sum to the number of panels), when
+      // that number varies.
+      wGroup = (beWeights =
+        options.wls && new Set(sizes).size > 1
+          ? sizes.map((T) => (T * G) / sum(sizes))
+          : null),
+      wMean = (values) =>
+        wGroup
+          ? values.reduce((t, v, k) => t + wGroup[k] * v, 0) / G
+          : mean(values),
+      xMeans = xm.map(wMean),
+      ymMean = wMean(ym),
       between = ols(
         xm.map((column, k) => column.map((v) => v - xMeans[k])),
-        ym.map((v) => v - mean(ym)),
+        ym.map((v) => v - ymMean),
+        wGroup,
       );
     df = G - K - 1;
     if (df < 1) throw new StataError("insufficient observations", 2001);
     // The between R-squared is that of this regression.
-    const ymMean = mean(ym);
-    betweenR2 = 1 - between.rss / ym.reduce((t, v) => t + (v - ymMean) ** 2, 0);
+    betweenR2 =
+      1 -
+      between.rss /
+        ym.reduce(
+          (t, v, k) => t + (wGroup ? wGroup[k] : 1) * (v - ymMean) ** 2,
+          0,
+        );
     const s2 = between.rss / df,
       slopeV = between.inverse.map((row) => row.map((v) => v * s2)),
       vx = slopeV.map((row) => row.reduce((t, v, j) => t + v * xMeans[j], 0));
     b = between.b;
-    constant = mean(ym) - b.reduce((t, bj, j) => t + bj * xMeans[j], 0);
+    constant = ymMean - b.reduce((t, bj, j) => t + bj * xMeans[j], 0);
     V = [
       ...slopeV.map((row, j) => [...row, -vx[j]]),
       [
@@ -934,7 +1472,8 @@ function xtreg(session, text, ctx) {
     const inverse = invertSymmetric(
       V.slice(0, K).map((row) => row.slice(0, K)),
     );
-    statistic = inverse ? quadratic(b, inverse) : MISSING;
+    // With no regressors there is nothing to test: Wald chi2(0) is missing.
+    statistic = K && inverse ? quadratic(b, inverse) : MISSING;
     statLabel = `Wald chi2(${K})`;
     p = chi2tail(K, statistic);
     dist = "z";
@@ -951,6 +1490,23 @@ function xtreg(session, text, ctx) {
   V = V.map((row) => row.map(finite));
   for (const key of Object.keys(extra)) extra[key] = finite(extra[key]);
   const r2 = rsq(b);
+  // fe's within R-squared is that of the within regression: 0 with no
+  // regressors named (with every one named omitted it is missing).
+  // xtreg_re.ado sets all three to 0 when the fitted values
+  // do not vary (sd below 1e-8), and the between and within ones when
+  // the panel means of the fitted or of the dependent values do not.
+  const sd = (values) => {
+    const m = mean(values);
+    return Math.sqrt(
+      values.reduce((t, v) => t + (v - m) ** 2, 0) / (values.length - 1),
+    );
+  };
+  if (useFe && !candidates.length) r2.within = 0;
+  if (!useFe && !useBe) {
+    if (!(sd(r2.fit) >= 1e-8)) r2.within = r2.between = r2.overall = 0;
+    else if (!(sd(r2.fitMeans) >= 1e-8) || !(sd(r2.yMeans) >= 1e-8))
+      r2.within = r2.between = 0;
+  }
   if (betweenR2 !== null) r2.between = finite(betweenR2);
   const coefficients = [...b, constant],
     rho = finite(sigmaU ** 2 / (sigmaU ** 2 + sigmaE2)),
@@ -1012,20 +1568,26 @@ function xtreg(session, text, ctx) {
       model.ll = gaussian(within.rss, nObs) + shift;
       model.ll_0 = gaussian(total, nObs) + shift;
     } else {
+      // Under wls, the weighted sums of squares, with half the sum of
+      // the logarithms of the analytic weights, as regress has them.
       const firsts = groups.map((key) => members.get(key)[0]),
         ym = firsts.map((i) => yBar[i]),
-        centre = mean(ym),
+        w = (g) => (beWeights ? beWeights[g] : 1),
+        centre = ym.reduce((t, v, g) => t + w(g) * v, 0) / G,
         fitted = firsts.map(
           (i) => constant + b.reduce((t, bk, k) => t + xBar[k][i] * bk, 0),
-        );
-      model.ll = gaussian(
-        ym.reduce((t, v, g) => t + (v - fitted[g]) ** 2, 0),
-        G,
-      );
-      model.ll_0 = gaussian(
-        ym.reduce((t, v) => t + (v - centre) ** 2, 0),
-        G,
-      );
+        ),
+        shift = beWeights ? sum(beWeights.map((v) => Math.log(v))) / 2 : 0;
+      model.ll =
+        gaussian(
+          ym.reduce((t, v, g) => t + w(g) * (v - fitted[g]) ** 2, 0),
+          G,
+        ) + shift;
+      model.ll_0 =
+        gaussian(
+          ym.reduce((t, v, g) => t + w(g) * (v - centre) ** 2, 0),
+          G,
+        ) + shift;
     }
   }
   session.results.e = {
@@ -1042,6 +1604,7 @@ function xtreg(session, text, ctx) {
     rho,
     rank: K + 1,
     ...extra,
+    ...(beWeights ? { typ: "WLS " } : {}),
     g_min: least(sizes),
     g_avg: N / G,
     g_max: greatest(sizes),
@@ -1099,7 +1662,7 @@ function xtreg(session, text, ctx) {
     // Stata leaves out a between or overall R-squared it cannot compute, and
     // shows a missing within one as a dot.
     const rLine = (label, value, always) =>
-      isMissing(value) && !always
+      isMissing(value) && !always && useFe
         ? ""
         : `     ${label} = ${applyFormat(value, "%6.4f")}`;
     ctx.out(

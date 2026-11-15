@@ -9,6 +9,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Session } from "../src/runtime/session.js";
+import { readDesign } from "../src/runtime/svy.js";
 
 const SETUP = [
   "clear",
@@ -123,12 +124,12 @@ test("a perfect predictor is refused rather than fitted to infinity", () => {
 
 test("the design stays with the data: save and use, preserve and clear", () => {
   const s = session("save svydata\nclear\nuse svydata");
-  assert.equal(s.data.svyset?.psu, "psu");
-  assert.equal(s.data.svyset?.strata, "strat");
+  assert.equal(readDesign(s.data)?.psu, "psu");
+  assert.equal(readDesign(s.data)?.strata, "strat");
   s.run("preserve\nsvyset, clear\nrestore");
-  assert.equal(s.data.svyset?.weight, "w");
+  assert.equal(readDesign(s.data)?.weight, "w");
   s.run("clear");
-  assert.equal(s.data.svyset, undefined);
+  assert.equal(readDesign(s.data), null);
   const shown = s.run("svyset").output.at(-1).lines;
   assert.deepEqual(shown, ["no survey characteristics are set"]);
 });

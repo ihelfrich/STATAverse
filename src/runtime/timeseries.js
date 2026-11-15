@@ -19,7 +19,7 @@ import {
 import { parseNumlist } from "./numlist.js";
 import { abbreviate, invertSymmetric } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
-import { requireTimeOrder, timeSeriesOperator } from "./panel.js";
+import { requireTimeOrder, seriesTerm, timeSeriesOperator } from "./panel.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 
@@ -54,94 +54,246 @@ function series(session, parsed, name, onePanel = false, sorts = false) {
   return { variable, rows, time, values };
 }
 
-/** Autocorrelations, regression-based partial autocorrelations, and Q. */
-export function correlogram(x, lags) {
-  const n = x.length,
-    mean = x.reduce((a, b) => a + b, 0) / n,
-    c0 = x.reduce((t, v) => t + (v - mean) ** 2, 0),
+/**
+ * Autocorrelations, partial autocorrelations and Q, as ac.ado, pac.ado
+ * and corrgram.ado compute them with time-series operators: values are
+ * the series and times their periods, so a lag reaches back in time and a
+ * gap leaves out the products and regression rows it touches. The
+ * autocorrelation at lag k is the sum of x(t)x(t-k), about the mean, over
+ * the sum of squares; the partial one the coefficient on lag k in a
+ * regression on lags 1 to k and a constant (missing where its standard
+ * error is zero, as when the lag is collinear); plags limits those.
+ */
+export function correlogram(
+  values,
+  lags,
+  times = null,
+  delta = 1,
+  plags = lags,
+) {
+  const n = values.length,
+    mean = values.reduce((a, b) => a + b, 0) / n,
+    xm = values.map((v) => v - mean),
+    period = times ?? values.map((_, i) => i),
+    at = new Map(period.map((t, i) => [t, xm[i]])),
+    lagged = (i, k) => at.get(period[i] - k * delta),
+    c0 = xm.reduce((t, v) => t + v * v, 0),
     out = [];
   let q = 0;
   for (let k = 1; k <= lags; k++) {
     let ck = 0;
-    for (let t = k; t < n; t++) ck += (x[t] - mean) * (x[t - k] - mean);
+    for (let i = 0; i < n; i++) {
+      const before = lagged(i, k);
+      if (before !== undefined) ck += xm[i] * before;
+    }
     const ac = ck / c0;
     q += (ac * ac) / (n - k);
-    // The coefficient on lag k in a regression on lags 1 to k.
-    const y = x.slice(k),
-      regressors = Array.from({ length: k }, (_, j) =>
-        x.slice(k - j - 1, n - j - 1),
-      ),
-      full = project(regressors, y),
-      short = project(regressors.slice(0, -1), y),
-      last = project(regressors.slice(0, -1), regressors.at(-1)).residuals,
-      resid = short.residuals,
-      denominator = last.reduce((t, v) => t + v * v, 0),
-      pac = denominator
-        ? last.reduce((t, v, i) => t + v * resid[i], 0) / denominator
-        : MISSING;
-    void full;
+    let pac = MISSING;
+    if (k <= plags) {
+      // The rows with every lag up to k.
+      const used = [];
+      for (let i = 0; i < n; i++) {
+        let all = true;
+        for (let j = 1; j <= k && all; j++) all = lagged(i, j) !== undefined;
+        if (all) used.push(i);
+      }
+      if (used.length > k + 1) {
+        const y = used.map((i) => xm[i]),
+          regressors = Array.from({ length: k }, (_, j) =>
+            used.map((i) => lagged(i, j + 1)),
+          ),
+          short = project(regressors.slice(0, -1), y),
+          last = project(regressors.slice(0, -1), regressors.at(-1)).residuals,
+          resid = short.residuals,
+          denominator = last.reduce((t, v) => t + v * v, 0);
+        if (denominator) {
+          const coefficient =
+              last.reduce((t, v, i) => t + v * resid[i], 0) / denominator,
+            // What the regression on all k lags leaves; with nothing left
+            // the standard error is zero and pac.ado leaves the lag out.
+            left =
+              resid.reduce((t, v) => t + v * v, 0) -
+              coefficient * coefficient * denominator,
+            centre = y.reduce((t, v) => t + v, 0) / y.length,
+            total = y.reduce((t, v) => t + (v - centre) ** 2, 0);
+          if (left > 1e-13 * total) pac = coefficient;
+        }
+      }
+    }
     out.push({ lag: k, ac, pac, q: n * (n + 2) * q });
   }
   return out;
 }
 
+/**
+ * The series corrgram, ac and pac take: a variable or a time-series
+ * operated one, in the observations if and in choose that have it and a
+ * time, from one panel, in time order. As _ts sorts, the data are left
+ * sorted by time. Also the number of gaps, as tsreport counts them.
+ */
+function correlationSeries(session, parsed) {
+  const words = (parsed.anything ?? "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) throw new StataError("varname required", 100);
+  // syntax finds each variable named, then counts them; _ts then checks
+  // the settings.
+  for (const word of words)
+    session.varlist(word.replace(/^((?:[LFDS]\d*)+)\./i, ""));
+  if (words.length > 1)
+    throw new StataError("too many variables specified", 103);
+  if (!/^((?:[LFDS]\d*)+)\./i.test(words[0])) seriesTerm(session, words[0]);
+  const panel = session.panel;
+  if (!panel?.time)
+    throw new StataError("time variable not set, use tsset varname ...", 111);
+  sortByTime(session, parsed);
+  const data = session.data,
+    variable = seriesTerm(session, words[0]);
+  if (isStringType(variable.type)) throw new StataError("type mismatch", 109);
+  const time = data.get(panel.time).data,
+    chosen = session
+      .rows(parsed, null)
+      .filter((i) => !parsed.only || parsed.only.has(i));
+  if (panel.id) {
+    const id = data.get(panel.id).data;
+    if (new Set(chosen.map((i) => id[i])).size > 1)
+      throw new StataError("sample may not include multiple panels", 459);
+  }
+  const rows = chosen
+      .filter((i) => !isMissing(time[i]) && !isMissing(variable.data[i]))
+      .sort((a, b) => time[a] - time[b]),
+    values = rows.map((i) => variable.data[i]),
+    times = rows.map((i) => time[i]),
+    delta = panel.delta ?? 1;
+  let gaps = 0;
+  for (let k = 1; k < times.length; k++)
+    if (times[k] - times[k - 1] > delta) gaps++;
+  return { variable, values, times, delta, gaps, n: values.length };
+}
+const gapNote = (ctx, gaps) => {
+  if (gaps)
+    ctx.out(`(note: time series has ${gaps} gap${gaps > 1 ? "s" : ""})`);
+};
+
 function corrgram(session, text, ctx) {
   const parsed = session.parse(
-      "varname [if] [in] [, LAGs(integer 0) | noPLot YW]",
+      "anything [if] [in] [, LAGs(integer -999) noPLot | YW]",
       text,
     ),
-    { values } = series(session, parsed, parsed.varlist[0], true, true);
-  if (values.some((v) => isMissing(v)))
-    throw new StataError("sample may not contain gaps", 498);
-  const n = values.length,
-    lags = parsed.options.lags || Math.min(Math.floor(n / 2) - 2, 40);
-  if (lags < 1 || lags >= n)
-    throw new StataError("insufficient observations", 2001);
-  const rows = correlogram(values, lags),
+    { values, times, delta, gaps, n } = correlationSeries(session, parsed);
+  let lags = parsed.options.lags;
+  if (lags === -999) lags = Math.max(1, Math.min(Math.floor(n / 2) - 2, 40));
+  else if (lags >= n)
+    throw new StataError(`lags() too large; must be less than ${n}`, 498);
+  else if (lags <= 0)
+    throw new StataError("lags() must be greater than zero", 498);
+  gapNote(ctx, gaps);
+  // ac needs two observations; corrgram's pac, of int(n/2) - 2 lags at
+  // most, six.
+  if (n === 0) throw new StataError("no observations", 2000);
+  if (n === 1) throw new StataError("insufficient observations", 2001);
+  const plags = Math.min(lags, Math.floor(n / 2) - 2),
+    rows = correlogram(values, lags, times, delta, Math.max(plags, 0)),
+    plot = parsed.options.plot !== false,
     bar = (r) => {
-      const size = isMissing(r) ? 0 : Math.min(8, Math.trunc(Math.abs(r) * 8));
+      if (isMissing(r)) return "";
+      const size = Math.min(8, Math.trunc(Math.abs(r) * 8));
       return r < 0
         ? `${"-".repeat(size).padStart(8)}|${" ".repeat(8)}`
         : `${" ".repeat(8)}|${"-".repeat(size).padEnd(8)}`;
     };
   ctx.out("");
-  ctx.out(`${" ".repeat(42)}-1       0       1 -1       0       1`);
-  ctx.out(
-    " LAG       AC       PAC      Q     Prob>Q  [Autocorrelation]  [Partial autocor]",
-  );
-  ctx.out("-".repeat(79));
+  if (plot) {
+    ctx.out(`${" ".repeat(42)}-1       0       1 -1       0       1`);
+    ctx.out(
+      " LAG       AC       PAC      Q     Prob>Q  [Autocorrelation]  [Partial autocor]",
+    );
+    ctx.out("-".repeat(79));
+  } else {
+    ctx.out(" LAG       AC       PAC      Q     Prob>Q");
+    ctx.out("-".repeat(41));
+  }
   for (const row of rows)
     ctx.out(
-      `${String(row.lag).padEnd(7)}${applyFormat(row.ac, "%8.4f")}${applyFormat(row.pac, "%9.4f")}${applyFormat(row.q, "%7.0g").trim().padStart(9)}${applyFormat(chi2tail(row.lag, row.q), "%8.4f")}  ${bar(row.ac)}  ${bar(row.pac)}`,
+      `${String(row.lag).padEnd(7)}${applyFormat(row.ac, "%8.4f")}${applyFormat(row.pac, "%9.4f")}${applyFormat(row.q, "%7.0g").trim().padStart(9)}${applyFormat(chi2tail(row.lag, row.q), "%8.4f")}${plot ? `  ${bar(row.ac)}  ${bar(row.pac)}` : ""}`,
     );
-  ctx.out("");
+  // r(): the first ten lags' statistics, newest first as return list
+  // shows those of an ado-file, and the rows as matrices.
+  const scalars = {};
+  for (const row of rows.slice(0, 10)) {
+    scalars[`ac${row.lag}`] = row.ac;
+    scalars[`pac${row.lag}`] = row.pac;
+    scalars[`q${row.lag}`] = row.q;
+    scalars[`p${row.lag}`] = chi2tail(row.lag, row.q);
+  }
+  const matrix = (key, value) => {
+    const kept = [];
+    for (const row of rows) {
+      if (isMissing(value(row))) break;
+      kept.push(row);
+    }
+    return kept.length
+      ? {
+          [`matrix:${key}`]: {
+            rowNames: ["r1"],
+            colNames: kept.map((row) => `lag${row.lag}`),
+            values: [kept.map(value)],
+          },
+        }
+      : {};
+  };
   session.results.r = {
     lags,
-    ...Object.fromEntries(rows.map((row) => [`ac${row.lag}`, row.ac])),
-    ...Object.fromEntries(rows.map((row) => [`pac${row.lag}`, row.pac])),
-    ...Object.fromEntries(rows.map((row) => [`q${row.lag}`, row.q])),
+    ...Object.fromEntries(Object.entries(scalars).reverse()),
+    ...matrix("P", (row) => chi2tail(row.lag, row.q)),
+    ...matrix("Q", (row) => row.q),
+    ...matrix("PAC", (row) => row.pac),
+    ...matrix("AC", (row) => row.ac),
   };
 }
 
 function correlationPlot(kind) {
   return (session, text, ctx) => {
     const parsed = session.parse(
-        "varname [if] [in] [, LAGs(integer 0) Level(cilevel) TItle(string) XTItle(string) YTItle(string) *]",
+        "anything [if] [in] [, LAGs(integer -999) Level(cilevel) TItle(string) XTItle(string) YTItle(string) *]",
         text,
       ),
-      { variable, values } = series(
+      { variable, values, times, delta, gaps, n } = correlationSeries(
         session,
         parsed,
-        parsed.varlist[0],
-        true,
-        true,
       );
-    if (values.some((v) => isMissing(v)))
-      throw new StataError("sample may not contain gaps", 498);
-    const n = values.length,
-      lags = parsed.options.lags || Math.min(Math.floor(n / 2) - 2, 40),
-      rows = correlogram(values, lags),
-      points = rows.map((row) => [row.lag, kind === "ac" ? row.ac : row.pac]),
+    let lags = parsed.options.lags;
+    if (n === 0) throw new StataError("no observations", 2000);
+    if (kind === "ac") {
+      if (n === 1) throw new StataError("insufficient observations", 2001);
+      if (lags === -999)
+        lags = Math.max(1, Math.min(Math.floor(n / 2) - 2, 40));
+      else if (lags >= n)
+        throw new StataError(`lags() too large; must be less than ${n}`, 498);
+    } else {
+      if (n < 6)
+        throw new StataError(
+          "number of observations must be greater than 5",
+          2001,
+        );
+      if (lags === -999) lags = Math.min(Math.floor(n / 2) - 2, 40);
+      else if (lags > Math.floor(n / 2) - 2)
+        throw new StataError(
+          `lags() too large; must be less than ${Math.floor(n / 2) - 2}`,
+          498,
+        );
+    }
+    if (lags <= 0)
+      throw new StataError("lags() must be greater than zero", 498);
+    gapNote(ctx, gaps);
+    const rows = correlogram(
+        values,
+        lags,
+        times,
+        delta,
+        kind === "ac" ? 0 : lags,
+      ),
+      points = rows
+        .map((row) => [row.lag, kind === "ac" ? row.ac : row.pac])
+        .filter(([, r]) => !isMissing(r)),
       label =
         kind === "ac"
           ? `Autocorrelations of ${variable.name}`
@@ -164,6 +316,9 @@ function correlationPlot(kind) {
         yTitle: unquote(parsed.options.ytitle) || label,
         title: unquote(parsed.options.title),
         yRange: [Math.min(-0.5, ...points.map((p) => p[1])), 1],
+        // Every correlation missing (a series pac fits exactly): the graph
+        // is drawn empty, as Stata draws it.
+        allowEmpty: true,
       }),
       description: `${label} at lags 1 to ${lags}: ${points.map(([, r]) => applyFormat(r, "%6.3f").trim()).join(", ")}. ${titleOf(variable)}, ${n} observations.`,
     });
