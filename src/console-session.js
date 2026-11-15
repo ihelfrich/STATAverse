@@ -409,6 +409,9 @@ export function createConsoleSession() {
             // The command's record shows the line as typed.
             const record = typed && top[current.from];
             if (record && record.command === node.text && !record.echo) {
+              // What it was read as is kept for the hints.
+              if (typed.command !== node.text || typed.echo.length)
+                record.text = node.text;
               record.command = typed.command;
               record.echo = typed.echo;
             }
