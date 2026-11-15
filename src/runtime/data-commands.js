@@ -2349,6 +2349,32 @@ function destring(session, text, ctx) {
       swapVariable(data, name, values, { type });
     }
     data.get(target).format = base === "float" ? "%9.0g" : "%10.0g";
+    // destring.ado gives the new variable the old one's label and records
+    // in characteristics what it removed and the command; those lead the
+    // old variable's own characteristics, which a generated variable gets
+    // a copy of, and an earlier destring's record goes.
+    const record = ["destring", "destring_cmd"],
+      kept = [...(data.chars?.get(name) ?? [])].filter(
+        ([key]) => !record.includes(key),
+      ),
+      chars = (data.chars ??= new Map()),
+      one = removed.length === 1;
+    if (names) {
+      data.get(target).label = variable.label;
+      if (kept.length) chars.set(name, new Map(kept));
+      else chars.delete(name);
+    }
+    chars.set(
+      target,
+      new Map([
+        [
+          "destring",
+          `Character${one ? "" : "s"} removed ${one ? "was" : "were"}:${removed.map((c) => ` ${c}`).join("")}`,
+        ],
+        ["destring_cmd", `destring ${text.trim()}`],
+        ...kept,
+      ]),
+    );
     if (flag)
       ctx.out(
         `${name}: contains nonnumeric characters${ignore ? " not specified in ignore()" : ""}${removed.length ? "" : `; ${finalPrint}${genrep}d as ${type}`}`,

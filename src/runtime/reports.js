@@ -585,7 +585,7 @@ function cutBytes(text, width) {
 // tabulate do (Stata 19 measures them in bytes, so an accented or East
 // Asian heading wraps sooner than its screen width); a word longer than a
 // line is cut into pieces of the line's width, and its last piece
-// continues the next line.
+// continues the next line. Blanks are kept as they are within a line.
 function wrapWords(text, width) {
   if (width < 1) return [text];
   const lines = [];
@@ -595,7 +595,10 @@ function wrapWords(text, width) {
       line += " " + word;
       continue;
     }
-    if (line !== null) lines.push(line);
+    // A line ended by the wrap loses its trailing blanks; the last keeps
+    // them, so a label of "x  categorized by c" heads "x", and one ending
+    // in a blank shows it.
+    if (line !== null) lines.push(line.trimEnd());
     let rest = word;
     while (byteLength(rest) > width) {
       const piece = cutBytes(rest, width) || [...rest][0];

@@ -1052,6 +1052,9 @@ function contract(session, text, ctx) {
   let columns = kept.map((v) => cells.map((c) => v.data[c.row])),
     freqs = cells.map((c) => c.freq);
   if (options.zero) {
+    // contract.ado runs fillin on the varlist, which takes two or more.
+    if (varlist.length < 2)
+      throw new StataError("too few variables specified", 102);
     // fillin: every combination of the values that occur.
     const levels = kept.map((v, k) =>
         [...new Set(columns[k])].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),

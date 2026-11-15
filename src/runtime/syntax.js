@@ -15,6 +15,7 @@ import {
   isName,
   isNumericType,
   isReserved,
+  reservedNameMessage,
   isStringType,
   isType,
 } from "./values.js";
@@ -474,8 +475,10 @@ function newVariables(text, context) {
       );
     if (stray?.[1] === "-") throw new StataError("invalid syntax", 198);
     if (stray) throw new StataError(`${stray[1]} invalid name`, 198);
-    if (!isName(name) || isReserved(name))
-      throw new StataError(`${name} invalid name`, 198);
+    if (!isName(name)) throw new StataError(`${name} invalid name`, 198);
+    // syntax keeps _skip for itself.
+    if (name === "_skip") throw notAllowed("_skip");
+    if (isReserved(name)) throw new StataError(reservedNameMessage(name), 198);
     if (context.names.includes(name))
       throw new StataError(`variable ${name} already defined`, 110);
     names.push(name);
@@ -566,9 +569,9 @@ function matchOption(name, declared) {
   return null;
 }
 
-function optionValue(option, argument, context) {
+function optionValue(option, argument, context, typed = option.name) {
   const invalid = () =>
-    new StataError(`option ${option.name}() incorrectly specified`, 198);
+    new StataError(`option ${typed}() incorrectly specified`, 198);
   const text = argument.trim();
   switch (option.kind) {
     case "integer":
@@ -662,8 +665,15 @@ export function applySyntax(declaration, text, context) {
               ? "in range"
               : kind,
       );
-    if (!matches.length && allowed && kind !== "weight" && !decl[kind].optional)
-      throw new StataError(`${kind === "exp" ? "=exp" : kind} required`, 100);
+    // A missing =exp is reported after the varlist, as syntax checks it.
+    if (
+      !matches.length &&
+      allowed &&
+      kind !== "weight" &&
+      kind !== "exp" &&
+      !decl[kind].optional
+    )
+      throw new StataError(`${kind} required`, 100);
   }
 
   // The varlist or other leading argument.
@@ -716,6 +726,9 @@ export function applySyntax(declaration, text, context) {
     locals.varlist = names.join(" ");
     result.varlist = names;
   }
+
+  if (decl.exp && !decl.exp.optional && !found.some((c) => c.kind === "exp"))
+    throw new StataError("=exp required", 100);
 
   // An if or =exp that ends in an operator just before the options is read
   // with the comma, which Stata names: if x == 1 & , is 1& invalid name.
@@ -821,7 +834,12 @@ export function applySyntax(declaration, text, context) {
     } else {
       if (item.argument === undefined)
         throw new StataError(`option ${item.name} incorrectly specified`, 198);
-      const { local, value } = optionValue(option, item.argument, context);
+      const { local, value } = optionValue(
+        option,
+        item.argument,
+        context,
+        item.name,
+      );
       locals[option.name] = local;
       result.options[option.name] = value;
     }

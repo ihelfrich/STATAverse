@@ -262,3 +262,12 @@ const RESERVED = new Set(
 export const isName = (name) =>
   /^[\p{L}_][\w\u0080-\u{10FFFF}]{0,31}$/u.test(name);
 export const isReserved = (name) => RESERVED.has(name) || /^str\d+$/.test(name);
+/**
+ * Stata's message when a new variable would take a reserved word as its
+ * name (rename x _b, egen _N = ..., xtile _n = ...): "_b invalid varname",
+ * or "str5 invalid variable name" for a string type.
+ */
+export const reservedNameMessage = (name) =>
+  /^str\d+$/.test(name)
+    ? `${name} invalid variable name`
+    : `${name} invalid varname`;

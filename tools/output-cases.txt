@@ -28172,3 +28172,411 @@ gen y = x1 + 2*x2 - x3
 regress y x1 - x2
 collapse (mean) x1 - x3
 list
+=== recheck-manage-gsort-options
+clear
+input id x y str2 s
+1 3 2 "b"
+2 . 1 "a"
+3 5 2 ""
+4 .a 1 "c"
+5 1 2 "a"
+6 4 . "b"
+7 .b 1 "a"
+end
+gsort -x
+list, noobs sep(0)
+gsort -x, mfirst
+list, noobs sep(0)
+gsort -y +x, m
+list, noobs sep(0)
+gsort y -x, gen(g)
+list, noobs sep(0)
+describe g
+describe, short
+gsort -x y, g(g2) mfirst
+list id x y g2, noobs sep(0)
+capture noisily gsort x, gen(g)
+capture noisily gsort x, gen(1a)
+capture noisily gsort x, bogus
+capture noisily gsort , mfirst
+capture noisily gsort -
+capture noisily gsort x -
+capture noisily gsort zz
+gsort id-y
+list id y, noobs sep(0)
+=== recheck-manage-xtile-weights-cutpoints-altdef
+clear
+set obs 12
+generate x = mod(_n*7, 11) + (_n > 6)*0.5
+replace x = . in 12
+generate w = 1 + mod(_n,3)
+generate a = 0.5 + mod(_n,4)/3
+generate c = 4 in 1
+replace c = 7 in 2
+replace c = 4 in 3
+replace c = -1 in 4
+generate c2 = 100 in 1
+xtile q1 = x [fw=w], nq(3)
+xtile q2 = x [aw=a], nq(4)
+xtile q3 = x [pw=a], nq(5)
+xtile q4 = x, cutpoints(c)
+return list
+xtile q5 = x, nq(4) altdef
+return list
+xtile q6 = x, nq(5) altdef
+xtile q7 = x if x > 2, cutpoints(c)
+xtile q8 = x, cut(c2)
+xtile double q9 = x*2, nq(3)
+xtile q10 = x [w=a], nq(3)
+list x w a c q1-q10, sep(0)
+describe q1-q10
+capture noisily xtile z1 = x [fw=w], nq(3) altdef
+capture noisily xtile z2 = x, nq(3) cutpoints(c)
+capture noisily xtile z3 = x, nq(1)
+capture noisily xtile z3 = x, nq(14)
+capture noisily xtile z4 = x, cutpoints(s)
+generate str1 s = "a"
+capture noisily xtile z4 = x, cutpoints(s)
+capture noisily xtile z4 = s, nq(2)
+capture noisily xtile z5 = x [iw=w], nq(3)
+generate e = .
+capture noisily xtile z6 = x, cutpoints(e)
+capture noisily xtile z7 = x if x > 100
+return list
+capture noisily xtile z8 = x [fw=a], nq(2)
+capture noisily xtile z9 = x [aw=-w], nq(2)
+=== recheck-manage-pctile-weights-altdef
+clear
+set obs 12
+generate x = mod(_n*7, 11) + (_n > 6)*0.5
+replace x = . in 12
+generate w = 1 + mod(_n,3)
+generate a = 0.5 + mod(_n,4)/3
+pctile p1 = x [aw=a], nq(4)
+return list
+pctile p2 = x [fw=w], nq(5) genp(pp)
+pctile p3 = x, nq(4) altdef
+pctile p4 = x, nq(6) altdef
+pctile p5 = x [pw=a], nq(3)
+pctile p6 = x [w=a], nq(3)
+list p1-p6 pp in 1/6, sep(0)
+describe p1-p6 pp
+capture noisily pctile z1 = x [fw=w], nq(3) altdef
+capture noisily pctile z2 = x, nq(14)
+capture noisily pctile z3 = x if x > 100, nq(2)
+return list
+capture noisily pctile z4 = x, nq(1)
+capture noisily pctile z5 = x, nq(3) genp(g1 g2)
+capture noisily pctile z5 = x, nq(3) genp(x)
+capture noisily pctile x = x, nq(3)
+capture noisily pctile z6 = x, nq(2.5)
+generate str1 s = "a"
+capture noisily pctile z7 = s
+_pctile x [pw=a], p(25 50 90)
+return list
+_pctile x [fw=w], nq(4)
+return list
+_pctile x [aw=a], nq(4)
+return list
+_pctile x [iw=w], p(50 75)
+return list
+_pctile x [w=w], p(50 50)
+return list
+_pctile x, p(10 33.3 50 99) altdef
+return list
+_pctile x, nq(5) altdef
+return list
+_pctile x, nq(14)
+return list
+capture noisily _pctile x [fw=w], nq(3) altdef
+capture noisily _pctile x, nq(3) p(50)
+capture noisily _pctile x, n(3) percentiles(50)
+capture noisily _pctile x, p(0 50)
+return list
+capture noisily _pctile x, p(50 20)
+capture noisily _pctile x, nq(1)
+capture noisily _pctile s
+return list
+capture noisily _pctile x if x > 100
+capture noisily _pctile x [fw=-w]
+=== recheck-manage-altdef-digits
+clear
+set seed 12345
+set obs 37
+generate x = round(runiform()*100, .01)
+generate w = runiform()*3
+generate f = 1 + floor(runiform()*4)
+_pctile x, nq(3) altdef
+return list
+_pctile x, nq(7) altdef
+return list
+_pctile x, p(1 2.5 33.3 66.7 97.5 99) altdef
+return list
+_pctile x [aw=w], nq(7)
+return list
+_pctile x [pw=w], p(1 2.5 33.3 66.7 97.5 99)
+return list
+_pctile x [fw=f], nq(9)
+return list
+xtile qa = x [aw=w], nq(6)
+xtile qb = x, nq(7) altdef
+xtile qc = x [fw=f], nq(5)
+list x qa qb qc in 1/15, sep(0)
+=== recheck-manage-order-sequential
+clear
+set obs 1
+generate v10 = 1
+generate v2 = 2
+generate v1 = 3
+generate a = 4
+generate b11 = 5
+generate b9 = 6
+generate ab = 7
+order v*, seq
+describe, simple
+order _all, sequential
+describe, simple
+order b*, seq last
+describe, simple
+order v*, alpha
+describe, simple
+order v* a, sequential after(b9)
+describe, simple
+capture noisily order v* b*, alphabetic sequential
+capture noisily order v1, before(a) after(b9)
+capture noisily order v1, first last
+capture noisily order v1, before(v1)
+capture noisily order v1, after(v1)
+capture noisily order v1, before(a) first
+capture noisily order v1, after(a) last
+capture noisily order v1, before(zz)
+clear
+set obs 1
+foreach v in v01 v1 v1a v1b x10 x9 xa x x_2 x2_ b2c10 b2c9 b10c1 v001 a1E5 a1E3 {
+  generate `v' = 1
+}
+order _all, sequential
+describe, simple
+order x*, alphabetic last
+describe, simple
+order v* a*, sequential first
+describe, simple
+=== recheck-manage-collapse-statistic-names
+clear
+set obs 6
+generate g = ceil(_n/3)
+generate y = _n^2
+generate z = _n
+foreach s in sem seme semea seb sebin sepois sep med mea co su se total p0 p100 p01 pxyz perc mean2 {
+  preserve
+  capture noisily collapse (`s') a=y, by(g)
+  if !_rc display "(`s') " a[1] " " a[2]
+  restore
+}
+preserve
+collapse (sem) y (seb) z, by(g)
+describe
+restore
+capture noisily collapse (median) y (mean) y, by(g)
+capture noisily collapse (mean) a=y (sd) a=z, by(g)
+capture noisily collapse (p25) y (sum) y
+capture noisily collapse (mean) y z (max) z, by(g)
+capture noisily collapse (mean) a=y a=z, by(g)
+capture noisily collapse (count) z (sum) za=z z, by(g)
+capture noisily collapse (count) g, by(g)
+=== recheck-manage-destring-label-chars
+clear
+input str5 s str6 m
+"1" "$1"
+"2" "$2,0"
+end
+label variable s "Score (text)"
+char s[note1] "hello"
+destring s, gen(n)
+char list
+describe
+destring m, gen(m2) ignore("$,")
+char list
+destring m, replace ignore("$,")
+char list
+generate str2 k = "3"
+destring k s, gen(k2 s2)
+char list
+describe
+=== recheck-manage-contract-split-errors
+clear
+set obs 3
+generate id = _n
+generate k = 1
+capture noisily contract id, zero
+contract id k, zero
+list
+clear
+set obs 2
+generate x = _n
+generate str3 s = "a b"
+capture noisily split x
+capture noisily split s x
+=== recheck-manage-order-sequential-long-numbers
+clear
+set obs 1
+foreach v in v10 v3000000000 v2 v2147483647 v1 v99999999999999999999 v9999999999999999999a v20240115 {
+  generate `v' = 1
+}
+order *, sequential
+describe, simple
+capture noisily order v1, after(v1*)
+display _rc
+capture noisily order v1, before(v2 v10)
+display _rc
+capture noisily order v1, after(_all)
+display _rc
+capture noisily order v1, before()
+display _rc
+capture noisily order v1, before(zz)
+display _rc
+order v1, after() last
+describe, simple
+generate c = 1
+capture noisily xtile q = v1, cutpoints(v1 c)
+display _rc
+=== recheck-manage-xtile-labels-and-nquantiles
+clear
+set seed 2024
+set obs 30
+generate x = round(runiform()*10)
+generate w = 1 + mod(_n, 3)
+generate g = mod(_n, 2)
+generate c = 3*_n in 1/3
+xtile q1 = x [aw=w], nq(4)
+xtile q2 = x+( 1 ) [aw=w], nq(3)
+xtile q3 = x if g==1, nq(3)
+xtile q4 = x   , nq(3)
+xtile q5 = x if g, cutpoints(c)
+xtile q6 = x[aw=w], nq(3)
+xtile q7 = (x) *2 [fw=w] if g , nq(3)
+xtile q8 = x, nq(4.0)
+xtile q9 = x, cutpoints()
+pctile p1 = x [aw=w] , nq(3)
+pctile p2 = x   in 1/10
+foreach v of varlist q* p* {
+  display "`v' [`:variable label `v'']"
+}
+tabulate q1
+tabulate q5
+capture noisily xtile z1 = x, nq(1+3)
+display _rc
+capture noisily xtile z2 = x, nq(x)
+display _rc
+capture noisily xtile z3 = x, nq(nosuch)
+display _rc
+capture noisily xtile z4 = x, nq(0+1)
+display _rc
+capture noisily xtile z5 = x, nq(2.5)
+display _rc
+capture noisily xtile q9 = x, nq()
+display _rc
+capture noisily pctile z6 = x, nq(1+3)
+display _rc
+capture noisily _pctile x, nq(4.0)
+display _rc
+capture noisily _pctile x, p()
+display _rc
+capture noisily _pctile x, nq()
+display _rc
+describe, short
+=== recheck-manage-pctile-importance-weights
+clear
+input x iw
+1 -1
+2 2
+3 1
+4 0.5
+5 2
+6 1
+end
+_pctile x [iw=iw], p(25 50 75)
+return list
+_pctile x [iw=iw], nq(3)
+return list
+=== recheck-manage-gsort-generate-names
+clear
+input id v1 v2 str2 s w
+1 1 2 "a" 3
+2 1 . "b" 1
+3 2 1 "c" 2
+4 . 3 "d" 3
+5 2 .a "e" 1
+6 .b 1 "f" 2
+end
+foreach n in "a b" "_n" "_b" "in" "byte g" "a-b" "_N" "id" "X1 id" "1a" "a 1b" "a*" "str5" "byte" {
+  capture noisily gsort w, gen(`n')
+  display "rc=" _rc
+}
+describe, simple
+summarize id
+capture noisily gsort -v*
+display _rc
+display "[`:sortedby']"
+list id v1 v2, noobs sep(0)
+return list
+capture noisily gsort -s v*, gen(z)
+display _rc
+capture noisily gsort -id w*
+display _rc
+capture noisily gsort -(v1)
+display _rc
+capture noisily gsort id(v1)
+display _rc
+summarize id
+capture noisily gsort -id, gen(_b)
+display _rc
+display "[`:sortedby']"
+list id, noobs sep(0)
+return list
+summarize w
+gsort -id, gen(gg)
+return list
+describe, simple
+=== recheck-manage-collapse-p050-and-order
+clear
+input g y z
+1 2 5
+1 4 3
+1 . 7
+2 6 1
+2 9 2
+2 10 8
+end
+preserve
+collapse (p050) a=y (p01) b=y, by(g)
+describe
+list
+restore
+capture noisily collapse (mean) y (sd) y if g > 5, by(g)
+display _rc
+capture noisily collapse (mean) y (sd) y, by(g)
+display _rc
+capture noisily collapse (p0) y, by(g)
+display _rc
+=== recheck-manage-reserved-new-names
+clear
+set obs 3
+generate x = _n
+capture noisily rename x _b
+capture noisily rename x str5
+capture noisily rename x byte
+capture noisily egen _N = mean(x)
+capture noisily egen str5 = mean(x)
+capture noisily egen _b = mean(nosuch)
+capture noisily xtile _n = x
+capture noisily xtile in = x
+capture noisily xtile _skip = x
+capture noisily pctile _n = x
+capture noisily pctile if = x
+capture noisily generate _b = 1
+capture noisily generate _skip = 1
+capture noisily clonevar _cons = x
+egen _skip = mean(x)
+rename _skip y
+describe, simple

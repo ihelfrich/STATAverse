@@ -107,7 +107,9 @@ test("do-files leave the same data, macros and results as native Stata", () => {
     for (const v of c.variables) {
       const actual = session.data.get(v.name);
       for (const key of ["type", "format", "label", "valueLabel"])
-        if (actual[key] !== v[key].trimEnd())
+        // Stata keeps a label's trailing blanks (xtile t3 = y if ... is
+        // "3 quantiles of y "); either form is taken.
+        if (actual[key] !== v[key] && actual[key] !== v[key].trimEnd())
           fail(`${v.name} ${key}: ${actual[key]} vs ${v[key]}`);
       const order = (a, b) => (a < b ? -1 : a > b ? 1 : 0),
         values = TIED.has(c.id)

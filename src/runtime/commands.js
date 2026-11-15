@@ -17,7 +17,14 @@ import {
 } from "./format.js";
 import { ibeta } from "./distributions.js";
 import { invnormal } from "./functions-normal.js";
-import { applySyntax, clauses, loneEquals, splitAtComma } from "./syntax.js";
+import {
+  applySyntax,
+  assumedWeights,
+  clauses,
+  genericWeight,
+  loneEquals,
+  splitAtComma,
+} from "./syntax.js";
 import { renderSmcl, stringEnd } from "./smcl.js";
 import { ESTIMATION_COMMANDS, coefficientSpace } from "./estimation.js";
 import { MODEL_COMMANDS } from "./models.js";
@@ -68,7 +75,14 @@ import {
   remade,
   settle,
 } from "./data-commands.js";
-import { describe, renameGroup } from "./data-utilities.js";
+import {
+  describe,
+  parseWithWeight,
+  quantilesOf,
+  renameGroup,
+  valuePairs,
+  weightedSample,
+} from "./data-utilities.js";
 import { characteristicsOf, strLIds } from "./store.js";
 import { resolveVariable } from "./varlist.js";
 import {
@@ -105,9 +119,12 @@ import {
   isMissing,
   isName,
   isNumericType,
+  isReserved,
+  reservedNameMessage,
   isStringType,
   isType,
   missingName,
+  parseNumber,
   promote,
   stringWidth,
   truncateBytes,
@@ -162,17 +179,70 @@ const COLLAPSE_ONLY = {
 };
 const statistic = (name) => {
   if (STATISTICS[name]) return STATISTICS[name];
-  const p = /^p(\d{1,2})$/.exec(name);
-  if (p && Number(p[1]) >= 1)
+  const p = percentilePoint(name);
+  if (p !== null)
     return (v) =>
       percentile(
         [...v].sort((a, b) => a - b),
-        Number(p[1]),
+        p,
       );
   return null;
 };
+/**
+ * The percentile a statistic p# asks for, or null: # is an integer as
+ * confirm integer number reads it (p050 and p+5 too), from 1 to 99.
+ */
+function percentilePoint(name) {
+  const p = /^p([+-]?\d+)$/.exec(name);
+  return p && Number(p[1]) >= 1 && Number(p[1]) <= 99 ? Number(p[1]) : null;
+}
+
+/**
+ * A statistic collapse takes, as GetOpStat in collapse_17.ado reads it:
+ * the names in full, but semean, sebinomial and sepoisson to three
+ * letters, and p1 to p99 written as any integer (p01, p050 and p+5
+ * too). Null for anything else, total among them.
+ */
+function collapseStatistic(word) {
+  if (
+    /^(mean|median|sd|sum|rawsum|count|max|min|iqr|first|firstnm|last|lastnm|percent)$/.test(
+      word,
+    )
+  )
+    return word;
+  const se = ["semean", "sebinomial", "sepoisson"].find(
+    (full) => word.length >= 3 && full.startsWith(word),
+  );
+  if (se) return se;
+  return percentilePoint(word) === null ? null : word;
+}
+/** A statistic as collapse names it in labels and messages: (p 50). */
+const collapseName = (stat) =>
+  stat === "median" ? "p 50" : stat.replace(/^p([+-]?\d+)$/, "p $1");
 
 // ----- helpers -----
+/**
+ * The variable an option such as before(varname) names, as syntax reads a
+ * varname option: left empty it is not given (null); naming more than one
+ * variable is "before():  too many variables specified", and a variable
+ * it cannot find adds a line saying which option it was in.
+ */
+function optionVariable(session, typed, option) {
+  if (!typed.trim()) return null;
+  let names;
+  try {
+    names = session.varlist(typed);
+  } catch (error) {
+    if (!(error instanceof StataError)) throw error;
+    throw new StataError(
+      `${error.message}\n(error in option ${option}())`,
+      error.code,
+    );
+  }
+  if (names.length > 1)
+    throw new StataError(`${option}():  too many variables specified`, 103);
+  return names[0];
+}
 function numericColumn(session, name) {
   const variable = session.data.get(name);
   if (isStringType(variable.type)) throw new StataError("type mismatch", 109);
@@ -1055,28 +1125,158 @@ function sortCommand(session, text) {
   const parsed = session.parse("varlist [, STable]", text);
   session.data.sort(parsed.varlist);
 }
+/**
+ * gsort [+|-]varname ... [, generate(newvar) mfirst]: as gsort.ado does it.
+ * Signs are words of their own, as gsort.ado parses on " +-,", so x-y is x
+ * then -y. The names before the first - are sorted in the usual way and
+ * stay the sort order; a descending numeric variable puts its missing
+ * values last, themselves descending (.b before .a before .), unless
+ * mfirst puts them first. generate() numbers the distinct combinations of
+ * the keys 1, 2, ... in the sorted order, and the data are then sorted on
+ * it. gsort.ado holds r() while it works and puts it back at the end,
+ * which lists it in reverse order; when it stops on an error, r() is what
+ * its own summarize left.
+ */
 function gsort(session, text) {
-  // A sign may stand apart from its name: gsort x1 - x2 sorts x2
-  // descending. A sign before another sign is named.
-  const words = [];
-  for (const word of text.split(/\s+/).filter(Boolean)) {
-    const last = words.at(-1);
-    if (/^[+-]$/.test(last ?? "") && /^[+-]/.test(word))
-      throw new StataError(`${last} invalid name`, 198);
-    if (/^[+-]$/.test(last ?? "")) words[words.length - 1] += word;
-    else words.push(word);
+  const [head, optionText] = splitAtComma(text),
+    words = head.match(/[+-]|[^\s+-]+/g) ?? [],
+    data = session.data,
+    leading = [],
+    keys = [],
+    held = session.results.r ?? {};
+  session.results.r = {};
+  for (let k = 0; k < words.length; k++) {
+    let sign = "+";
+    if (words[k] === "+" || words[k] === "-") {
+      sign = words[k++];
+      // A sign with no name after it.
+      if (k >= words.length) throw invalid();
+      // A sign before another sign: Stata names the second.
+      if (words[k] === "+" || words[k] === "-")
+        throw new StataError(`${words[k]} invalid name`, 198);
+    }
+    // unabbrev reads each word as a varlist, which cannot start with a
+    // parenthesis, nor take an operator (id(v1) is read as one).
+    if (words[k].startsWith("(")) throw invalid();
+    if (words[k].includes("("))
+      throw new StataError(
+        "factor-variable and time-series operators not allowed",
+        101,
+      );
+    const names = session.varlist(words[k]);
+    if (!keys.length && sign === "+") leading.push(...names);
+    else keys.push({ word: words[k], names, descending: sign === "-" });
   }
-  const keys = words.flatMap((word) => {
-    // A sign with no name after it.
-    if (/^[+-]$/.test(word)) throw invalid();
-    const m = /^([+-]?)(.+)$/.exec(word);
-    // Each variable a name stands for is a key, in the same direction.
-    return session
-      .varlist(m[2])
-      .map((name) => ({ name, descending: m[1] === "-" }));
-  });
-  if (!keys.length) throw new StataError("varlist required", 100);
-  session.data.sort(keys);
+  if (!leading.length && !keys.length)
+    throw new StataError("varlist required", 100);
+  const options = session.parse(
+      "[, Generate(string) Mfirst oldsort]",
+      optionText === null ? "" : `,${optionText}`,
+    ).options,
+    generate = options.generate?.trim() ?? "";
+  if (generate) confirmNewVariables(session, generate);
+  // Without mfirst, each key after the first descending one is sorted on
+  // by itself and its type looked up by the word as it was typed, which
+  // takes one variable: so -s v* stops at v*, the data sorted on it. A
+  // descending numeric key's missing values are summarized.
+  if (!options.mfirst)
+    keys.forEach((key, k) => {
+      let name;
+      try {
+        name = typedVariable(session, key.word);
+      } catch (error) {
+        for (const done of keys.slice(0, k + 1)) data.sort(done.names);
+        throw error;
+      }
+      if (key.descending && !isStringType(data.get(name).type)) {
+        const kinds = new Set(data.get(name).data.filter(isMissing)).size;
+        session.results.r = kinds
+          ? { N: kinds, sum_w: kinds, sum: kinds, mean: 1, min: 1, max: 1 }
+          : { N: 0, sum_w: 0, sum: 0 };
+      }
+    });
+  const flat = keys.flatMap(({ names, descending }) =>
+    names.map((name) => ({ name, descending })),
+  );
+  if (options.mfirst) {
+    // Every key in its own direction, missing values counted as the
+    // largest: first when descending.
+    const ascending = (a, b) => (a < b ? -1 : a > b ? 1 : 0),
+      columns = [...leading.map((name) => ({ name })), ...flat].map(
+        ({ name, descending }) => ({
+          values: data.get(name).data,
+          order: descending ? (a, b) => ascending(b, a) : ascending,
+        }),
+      ),
+      index = Array.from({ length: data.n }, (_, i) => i);
+    index.sort((a, b) => {
+      for (const { values, order } of columns) {
+        const c = order(values[a], values[b]);
+        if (c) return c;
+      }
+      return a - b;
+    });
+    data.sorts = (data.sorts ?? 0) + 1;
+    data.reorder(index);
+    data.sortedBy = [...new Set(leading)];
+  } else data.sort([...leading, ...flat]);
+  if (generate) {
+    // The numbers are made in a temporary variable and renamed: a name
+    // only rename refuses is refused with the data already sorted.
+    const words = generate.split(/\s+/);
+    if (words.length > 1 || (isReserved(generate) && generate !== "_skip")) {
+      data.sortedBy = [];
+      throw words.length > 1
+        ? new StataError(`${words[1]} not allowed`, 101)
+        : new StataError(reservedNameMessage(generate), 198);
+    }
+    const columns = [...leading, ...flat.map((key) => key.name)].map(
+        (name) => data.get(name).data,
+      ),
+      ids = [];
+    let id = 0;
+    for (let i = 0; i < data.n; i++) {
+      if (!i || columns.some((values) => values[i] !== values[i - 1])) id++;
+      ids.push(id);
+    }
+    data.generate(generate, ids, {
+      type: id <= 100 ? "byte" : id <= 32740 ? "int" : "long",
+    });
+    data.get(generate).label = "Unique group ID from gsort";
+    data.sortedBy = [generate];
+  }
+  session.results.r = Object.fromEntries(Object.entries(held).reverse());
+}
+/**
+ * confirm new variable as gsort.ado uses it on generate(): each word a
+ * storage type or a name that is free, the first fault reported. It does
+ * not refuse reserved words, which rename does later.
+ */
+function confirmNewVariables(session, text) {
+  for (const word of text.split(/\s+/)) {
+    if (isType(word)) continue;
+    const stray =
+      /^[\p{L}_][\w\u0080-\u{10FFFF}]*([^\w\u0080-\u{10FFFF}])/u.exec(word);
+    if (stray) throw invalid(`${stray[1]} invalid name`);
+    if (!isName(word)) throw invalid(`${word} invalid name`);
+    if (session.data.has(word))
+      throw new StataError(`variable ${word} already defined`, 110);
+  }
+}
+/**
+ * The variable local typ : type word names: the name at the start of the
+ * word, an abbreviation, with anything after it not allowed (v* is "v
+ * ambiguous abbreviation" when v1 and v2 exist, and "* not allowed" when v
+ * does).
+ */
+function typedVariable(session, word) {
+  const start = /^[\w\u0080-\u{10FFFF}~]*/u.exec(word)[0];
+  if (!start) throw invalid(`${word[0]} invalid name`);
+  if (start === "_all") throw new StataError("variable _all not found", 111);
+  const name = session.varlist(start)[0];
+  if (start.length < word.length)
+    throw new StataError(`${word[start.length]} not allowed`, 101);
+  return name;
 }
 function rename(session, text, ctx) {
   // The panel and time variables of tsset and xtset keep their roles under
@@ -1108,22 +1308,118 @@ function rename(session, text, ctx) {
   renameGroup(session, text, ctx);
   follow();
 }
+/**
+ * order varlist [, first last before(varname) after(varname) alphabetic
+ * sequential]: as order.ado does it, with its messages for options that
+ * do not go together.
+ */
 function order(session, text) {
   const parsed = session.parse(
-      "varlist [, first last Before(varname) After(varname) ALPHAbetic]",
+      "varlist [, first last Before(string) After(string) SEQuential ALPHAbetic]",
       text,
     ),
-    data = session.data,
-    moved = parsed.options.alphabetic
+    options = parsed.options,
+    data = session.data;
+  for (const place of ["before", "after"])
+    if (options[place] !== undefined)
+      options[place] = optionVariable(session, options[place], place);
+  // An empty before() or after() is not given, and order.ado hands order
+  // with no option of its own to the built-in command, which takes none.
+  if (
+    !["before", "after", "first", "last", "sequential", "alphabetic"].some(
+      (name) => options[name],
+    ) &&
+    splitAtComma(text)[1]?.trim()
+  )
+    throw new StataError("options not allowed", 101);
+  for (const [a, b, message] of [
+    ["before", "after", "before() may not be combined with after()"],
+    ["before", "first", "before() may not be combined with first()"],
+    ["before", "last", "before() may not be combined with last()"],
+    ["after", "first", "after() may not be combined with first()"],
+    ["after", "last", "after() may not be combined with last()"],
+    ["first", "last", "first may not be combined with last"],
+    [
+      "sequential",
+      "alphabetic",
+      "sequential may not be combined with alphabetic",
+    ],
+  ])
+    if (options[a] && options[b]) throw invalid(message);
+  for (const place of ["before", "after"])
+    if (options[place] && parsed.varlist.includes(options[place]))
+      throw invalid(`varname specified in ${place}() may not be in varlist`);
+  const moved = options.alphabetic
       ? [...parsed.varlist].sort()
-      : parsed.varlist,
+      : options.sequential
+        ? sequentialOrder(parsed.varlist)
+        : parsed.varlist,
     rest = data.names.filter((name) => !moved.includes(name));
   let at = 0;
-  if (parsed.options.last) at = rest.length;
-  else if (parsed.options.before) at = rest.indexOf(parsed.options.before);
-  else if (parsed.options.after) at = rest.indexOf(parsed.options.after) + 1;
+  if (options.last) at = rest.length;
+  else if (options.before) at = rest.indexOf(options.before);
+  else if (options.after) at = rest.indexOf(options.after) + 1;
   if (at < 0) throw invalid();
   data.order([...rest.slice(0, at), ...moved, ...rest.slice(at)]);
+}
+/**
+ * The names in aorder's order, which order, sequential uses: SortAord in
+ * aorder.ado. Each name is split at its first digit into a stub and the
+ * number its digits start; names sort by stub, those with no number
+ * first, then by number, so v2 comes before v10. Names that tie on stub
+ * and number are sorted again on what follows the stub and the number as
+ * string() writes it (so v007 is sorted on its "07").
+ */
+function sequentialOrder(names) {
+  const items = names.map((name) => ({ name, rest: name }));
+  sortAord(items);
+  return items.map((item) => item.name);
+}
+function sortAord(items) {
+  const bytes = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  for (const item of items) {
+    const at = item.rest.search(/[0-9]/);
+    item.stub = at < 0 ? item.rest : item.rest.slice(0, at);
+    item.number = at < 0 ? null : leadingNumber(item.rest.slice(at));
+  }
+  items.sort(
+    (a, b) =>
+      bytes(a.stub, b.stub) ||
+      (a.number === null ? 0 : 1) - (b.number === null ? 0 : 1) ||
+      (a.number ?? 0) - (b.number ?? 0),
+  );
+  for (const item of items)
+    item.key =
+      item.stub +
+      (item.number === null ? "." : applyFormat(item.number, "%9.0g").trim());
+  if (items.every((item) => item.rest === item.key)) return;
+  for (const item of items) item.rest = item.rest.slice(item.key.length);
+  for (let start = 0; start < items.length;) {
+    let end = start + 1;
+    while (end < items.length && items[end].key === items[start].key) end++;
+    if (end - start > 1) {
+      const run = items.slice(start, end);
+      sortAord(run);
+      items.splice(start, run.length, ...run);
+    }
+    start = end;
+  }
+}
+/**
+ * The number at the start of text, which starts with a digit, as
+ * aorder.ado reads it: real() of ever longer starts of the text (up to 31
+ * characters), kept when real() can read them and they have no d or e.
+ * It is stored in a long that replace promotes to a double, so a number
+ * past a long's range is kept as a double (v3000000000 is 3e9).
+ */
+function leadingNumber(text) {
+  let value = Number(text[0]);
+  for (let i = 2; i <= Math.min(31, text.length); i++) {
+    const piece = text.slice(0, i);
+    if (/^\d+(?:E\d+)?$/.test(piece) && Number.isFinite(Number(piece)))
+      value = Number(piece);
+  }
+  return value;
 }
 function recast(session, text, ctx) {
   const m = /^(\S+)\s+([\s\S]*)$/.exec(text.trim());
@@ -2953,31 +3249,36 @@ function collapse(session, text, ctx) {
   for (const token of spec.match(/\([^)]*\)|[^\s()]+(?:\s*=\s*[^\s()]+)?/g) ??
     []) {
     if (token.startsWith("(")) {
-      stat = token.slice(1, -1).trim();
-      if (
-        !statistic(stat) &&
-        !ORDERED.includes(stat) &&
-        !COLLAPSE_ONLY[stat] &&
-        stat !== "percent"
-      )
-        throw new StataError(`(${stat}) invalid statistic`, 198);
+      const thing = token.slice(1, -1).trim();
+      stat = collapseStatistic(thing);
+      // GetOpStat in collapse_17.ado takes the p off a word it could not
+      // read as p1 to p99 before it reports it: (perc) is "(erc)".
+      if (!stat)
+        throw new StataError(
+          `(${/^p\S*$/.test(thing) ? thing.slice(1) : thing}) invalid statistic`,
+          198,
+        );
       continue;
     }
     const [left, right] = token.split("=").map((part) => part.trim());
     if (right)
-      targets.push({ name: left, source: session.varlist(right)[0], stat });
+      targets.push({
+        name: left,
+        source: session.varlist(right)[0],
+        stat,
+        typed: right,
+      });
     else
       for (const source of session.varlist(left))
-        targets.push({ name: source, source, stat });
+        targets.push({ name: source, source, stat, typed: source });
   }
   if (!targets.length) throw new StataError("varlist required", 100);
-  // A string variable can only be carried by position.
-  for (const t of targets)
-    if (isStringType(data.get(t.source).type) && !ORDERED.includes(t.stat))
-      throw new StataError(
-        `string variable ${t.source} not allowed with statistic ${t.stat}`,
-        109,
-      );
+  // collapse_17.ado's checks, in its order: a by() variable that is also a
+  // target, then a target named twice.
+  for (const k of parsed.options.by ?? []) {
+    const clash = targets.find((t) => t.name === k);
+    if (clash) throw invalid(`${clash.name} may not be both target and by()`);
+  }
   const gap = (column, i) =>
     typeof column[i] === "string" ? column[i] === "" : isMissing(column[i]);
   if (weightClause && !weightType)
@@ -2994,6 +3295,35 @@ function collapse(session, text, ctx) {
     weights.some((w) => !isMissing(w) && !Number.isInteger(w))
   )
     throw new StataError("may not use noninteger frequency weights", 401);
+  // cw keeps only observations with every source variable present. An
+  // observation whose weight is zero or missing is left out, so a group
+  // with no positive weight does not appear. collapse_17.ado marks and
+  // counts them before it looks for names that clash.
+  const rows = session
+    .rows(parsed, null)
+    .filter(
+      (i) =>
+        (!weights || (!isMissing(weights[i]) && weights[i] !== 0)) &&
+        (!parsed.options.cw ||
+          targets.every((t) => !gap(data.get(t.source).data, i))),
+    );
+  if (!rows.length) throw new StataError("no observations", 2000);
+  for (let i = 0; i < targets.length; i++) {
+    const j = targets.findIndex((t, k) => k > i && t.name === targets[i].name);
+    if (j < 0) continue;
+    const line = (t) =>
+      `       ${t.name} = (${collapseName(t.stat)}) ${t.typed}`;
+    throw invalid(
+      `error:\n${line(targets[i])}\n${line(targets[j])}\nname conflict`,
+    );
+  }
+  // A string variable can only be carried by position.
+  for (const t of targets)
+    if (isStringType(data.get(t.source).type) && !ORDERED.includes(t.stat))
+      throw new StataError(
+        `string variable ${t.source} not allowed with statistic ${t.stat}`,
+        109,
+      );
   // With analytic weights a count is of observations; with sampling and
   // importance weights it is the sum of the weights.
   const unweighted = [
@@ -3003,7 +3333,7 @@ function collapse(session, text, ctx) {
     ...ORDERED,
   ];
   const quantile = (stat) =>
-    stat === "median" || stat === "iqr" || /^p\d+$/.test(stat);
+    stat === "median" || stat === "iqr" || percentilePoint(stat) !== null;
   // The statistics collapse_17.ado's CheckWeight does not allow with each
   // kind of weight.
   const barred = {
@@ -3133,21 +3463,7 @@ function collapse(session, text, ctx) {
         : MISSING
       : column[i];
   };
-  const names = targets.map((t) => t.name);
-  if (new Set(names).size !== names.length)
-    throw new StataError("a target variable is named twice", 198);
   const by = parsed.options.by ?? [],
-    // cw keeps only observations with every source variable present. An
-    // observation whose weight is zero or missing is left out, so a group
-    // with no positive weight does not appear.
-    rows = session
-      .rows(parsed, null)
-      .filter(
-        (i) =>
-          (!weights || (!isMissing(weights[i]) && weights[i] !== 0)) &&
-          (!parsed.options.cw ||
-            targets.every((t) => !gap(data.get(t.source).data, i))),
-      ),
     groups = new Map(),
     // What a (percent) is a share of: every observation, or all the
     // weight, with a value.
@@ -3166,7 +3482,6 @@ function collapse(session, text, ctx) {
           return [column, all];
         }),
     );
-  if (!rows.length) throw new StataError("no observations", 2000);
   for (const i of rows) {
     const key = JSON.stringify(by.map((k) => data.get(k).data[i]));
     if (!groups.has(key)) groups.set(key, []);
@@ -3230,7 +3545,7 @@ function collapse(session, text, ctx) {
             : data.defaultType;
     result.generate(target.name, values, { type, string });
     Object.assign(result.get(target.name), {
-      label: `(${target.stat === "median" ? "p 50" : target.stat.replace(/^p(\d+)$/, "p $1")}) ${target.source}`,
+      label: `(${collapseName(target.stat)}) ${target.source}`,
       format: source.format,
     });
   }
@@ -3288,37 +3603,110 @@ function sysuse(session, text, ctx) {
   settle(session.data, `${name}.dta`);
 }
 
-function xtile(session, text) {
-  const parsed = session.parse(
-      "newvarname =exp [if] [in] [, Nquantiles(integer 2)]",
+/**
+ * xtile newvar = exp [weight] [if] [in] [, nquantiles(#) cutpoints(varname)
+ * altdef]: as xtile.ado does it. A value's category is one more than the
+ * number of quantiles (from pctile, with the weights or altdef) or
+ * cutpoints (the values of the variable, in all observations) below it,
+ * which is what MakeQuan and MakeCut work out: so a quantile or cutpoint
+ * that repeats skips a category. The new variable is a byte (or as large
+ * as its categories need) whatever type is asked for.
+ */
+function xtile(session, text, ctx) {
+  const parsed = parseWithWeight(
+      session,
+      "newvarname =exp [if] [in] [, Nquantiles(string) Cutpoints(string) ALTdef]",
+      "aweight fweight pweight",
       text,
+      ctx,
     ),
-    compiled = session.compile(parsed.exp),
-    q = parsed.options.nquantiles,
+    options = parsed.options,
     data = session.data,
-    values = new Array(data.n).fill(MISSING),
-    picked = [];
+    name = parsed.varlist[0],
+    exp = parsed.label;
+  let cutName = null;
+  if (options.cutpoints !== undefined)
+    cutName = optionVariable(session, options.cutpoints, "cutpoints");
+  if (cutName) {
+    if (isStringType(data.get(cutName).type))
+      throw new StataError(
+        `string variables not allowed in option cutpoints();\n${cutName} is a string variable`,
+        109,
+      );
+  }
+  const { rows, weights } = weightedSample(session, parsed);
+  if (parsed.weight && options.altdef)
+    throw invalid("altdef option cannot be used with weights");
+  // nquantiles() is put into xtile.ado's if commands as it was typed, so
+  // it is read as an expression is (x is x[1]), and then given to pctile
+  // as n(), which takes only an integer. Left empty it is not given.
+  const typedQuantiles = options.nquantiles?.trim() || undefined,
+    holds = (condition) => session.scalar(condition) !== 0;
+  if (typedQuantiles !== undefined) {
+    if (cutName)
+      throw invalid("both nquantiles() and cutpoints() cannot be specified");
+    if (holds(`${typedQuantiles} < 2`))
+      throw invalid("nquantiles() must be greater than or equal to 2");
+    // xtile.ado's counts leave r(N) behind, as its last one does below.
+    session.results.r = { N: rows.length };
+    if (holds(`${typedQuantiles} > ${rows.length} + 1`))
+      throw invalid(
+        "nquantiles() must be less than or equal to number of observations plus one",
+      );
+  }
+  const compiled = session.compile(parsed.exp);
   if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
-  if (q < 2) throw invalid("nquantiles() must be at least 2");
-  session.select(parsed, null, (i, env) => {
-    const value = compiled.evaluate(i, env);
-    if (!isMissing(value)) picked.push([i, value]);
-  });
-  const sorted = picked.map((p) => p[1]).sort((a, b) => a - b),
-    cuts = Array.from({ length: q - 1 }, (_, k) =>
-      percentile(sorted, (100 * (k + 1)) / q),
+  const all = evaluateAll(compiled, data.n),
+    pairs = valuePairs(all, rows, weights);
+  session.results.r = { N: pairs.length };
+  if (!pairs.length) throw new StataError("no observations", 2000);
+  let cuts, kept;
+  if (cutName) {
+    cuts = Array.from(data.get(cutName).data)
+      .filter((v) => !isMissing(v))
+      .sort((a, b) => a - b);
+    session.results.r = { N: cuts.length };
+    if (!cuts.length) throw new StataError("cutpoints() all missing", 2000);
+    // MakeCut numbers the distinct cutpoints from the smallest value up.
+    kept = new Set(cuts.filter((cut) => cut >= pairs[0][0])).size;
+  } else {
+    const nq = typedQuantiles === undefined ? 2 : parseNumber(typedQuantiles);
+    if (!Number.isInteger(nq))
+      throw invalid("option n() incorrectly specified");
+    cuts = quantilesOf(
+      pairs,
+      Array.from({ length: nq - 1 }, (_, k) => (100 * (k + 1)) / nq),
+      { weighted: Boolean(weights), altdef: options.altdef },
     );
-  // A value belongs to the first quantile whose upper limit it does not pass.
-  for (const [i, value] of picked)
-    values[i] = cuts.filter((cut) => value > cut).length + 1;
+    // MakeQuan numbers the distinct quantiles.
+    kept = new Set(cuts).size;
+  }
+  // How many of the sorted cut values lie below v.
+  const below = (v) => {
+    let low = 0,
+      high = cuts.length;
+    while (low < high) {
+      const mid = (low + high) >> 1;
+      if (cuts[mid] < v) low = mid + 1;
+      else high = mid;
+    }
+    return low;
+  };
+  const values = new Array(data.n).fill(MISSING);
+  let top = 1;
+  for (const i of rows)
+    if (!isMissing(all[i]))
+      top = Math.max(top, (values[i] = below(all[i]) + 1));
   const order = [...data.sortedBy];
-  data.generate(parsed.varlist[0], values, {
-    type: parsed.typed[0] ? parsed.types[0] : inferType(values),
+  data.generate(name, values, {
+    type: top <= 100 ? "byte" : top <= 32740 ? "int" : "long",
   });
   data.sortedBy = order;
-  data.get(parsed.varlist[0]).label = `${q} quantiles of ${parsed.exp.trim()}`;
+  data.get(name).label = cutName
+    ? `${exp} categorized by ${cutName}`
+    : `${typedQuantiles ?? 2} quantiles of ${exp}`;
+  session.results.r = { N: kept };
 }
-
 /** P(X >= k) for X binomial(n, p): Stata's Binomial(n, k, p). */
 function upperBinomial(n, k, p) {
   if (k <= 0) return 1;
