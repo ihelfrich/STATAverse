@@ -258,6 +258,10 @@ export const HELP = {
     "Checks that variables identify the observations uniquely.",
     "isid id year",
   ],
+  ivreg: [
+    "The older instrumental-variables command, still run by Stata 19 as two-stage least squares.",
+    "ivreg y x1 (x2 = z1 z2)",
+  ],
   ivregress: [
     "Instrumental-variables regression (2SLS, LIML, GMM).",
     "ivregress 2sls y x1 (x2 = z1 z2)",
@@ -368,6 +372,10 @@ export const HELP = {
     "noisily display r(mean)",
   ],
   notes: ["Adds or lists notes on the data.", "notes: text"],
+  numlist: [
+    "Expands a numeric list into r(numlist), as programs use it.",
+    'numlist "1/5 10(5)30"',
+  ],
   numlabel: ["Puts the numbers in front of value labels.", "numlabel, add"],
   ologit: ["Ordered logistic regression.", "ologit y x1 x2"],
   oneway: ["One-way analysis of variance.", "oneway y group"],
@@ -596,10 +604,23 @@ export const HELP = {
     "var y1 y2, lags(1/2)",
   ],
   vargranger: ["Granger causality tests after var.", "vargranger"],
+  varlmar: [
+    "Lagrange-multiplier test for autocorrelation in the residuals of var.",
+    "varlmar, mlag(2)",
+  ],
+  varnorm: [
+    "Tests whether the residuals of var are normally distributed.",
+    "varnorm",
+  ],
   varsoc: [
     "Lag-order selection statistics for a vector autoregression.",
     "varsoc y1 y2, maxlag(4)",
   ],
+  varstable: [
+    "Checks the stability condition of var: the eigenvalues of its companion matrix.",
+    "varstable",
+  ],
+  varwle: ["Wald tests that each lag of var can be left out.", "varwle"],
   version: [
     "Sets the version of Stata the do-file was written for.",
     "version 17",
