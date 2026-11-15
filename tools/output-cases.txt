@@ -21685,3 +21685,433 @@ capture noisily scalar t = 1]
 display _rc
 capture noisily scalar t = (1
 display _rc
+=== pass8-data-list-no-variables
+clear
+set obs 3
+list
+list in 1
+list, noobs clean
+list in 2/3, separator(1) abbreviate(4)
+summarize
+capture noisily list x
+display _rc
+capture noisily list _all
+display _rc
+capture noisily summarize _all
+display _rc
+=== pass8-data-reshape-nonnumeric-suffix
+clear
+input id income
+1 10
+2 20
+end
+capture noisily reshape long inc, i(id) j(year)
+display _rc
+describe, short
+list
+clear
+set obs 4
+generate id = _n
+generate incA = _n
+generate incB = 2*_n
+capture noisily reshape long inc, i(id)
+display _rc
+describe, short
+clear
+set obs 3
+generate id = _n
+generate x_1 = _n
+generate y_b = _n
+capture noisily reshape long x_ y_, i(id) j(k)
+display _rc
+list
+clear
+set obs 3
+generate id = _n
+generate income = _n
+generate inc1 = 5
+generate inc2 = 6
+reshape long inc, i(id) j(year)
+list
+=== pass8-data-rnormal-stream
+clear
+set obs 8
+set seed 12345
+generate double u = runiform()
+set seed 12345
+generate double x = rnormal()
+generate double m = rnormal(10, 2)
+generate double v = runiform()
+generate double a = rnormal(5, 0)
+generate double c = rnormal(5, -1)
+generate double d = runiform(3, 1)
+generate double e = runiform(2, 4)
+format u x m v e %18.0g
+list u x m v
+list a c d e
+set seed 7
+set obs 10000
+generate n = rnormal()
+generate w = runiform()
+summarize n w
+=== pass8-data-nonparametric-layout
+clear
+set seed 4242
+set obs 9718
+generate female = runiform() < .5
+generate region = 1 + floor(runiform()*4)
+generate age = 18 + floor(runiform()*47)
+generate educ = 8 + floor(runiform()*10)
+generate wage = round(exp(2 + .05*educ + .3*female + .5*rnormal()), .5)
+set linesize 79
+ranksum wage, by(female)
+kwallis wage, by(region)
+spearman wage age
+oneway wage educ, tabulate
+oneway wage region
+ranksum wage in 1/600, by(female)
+ranksum wage in 1/600, by(female) noexact porder
+ranksum wage in 1/40, by(female) porder
+capture noisily ranksum wage, by(female) exact
+capture noisily ranksum wage in 1/600, by(female) exact noexact
+capture noisily ranksum wage, by(region)
+spearman wage age in 1/40
+set linesize 200
+=== pass8-data-nonparametric-edges
+clear
+set seed 99
+set obs 300
+generate g = 1 + floor(runiform()*3)
+generate y = round(10*g + 3*rnormal(), 1)
+generate b = g == 1
+set linesize 79
+kwallis y, by(g)
+ranksum y, by(b)
+generate str5 s = cond(b, "alpha", "beta")
+ranksum y in 1/40, by(s)
+clear
+input g y
+1 5
+2 3
+2 4
+3 7
+3 7
+3 7
+4 1
+4 2
+4 4
+5 6
+5 9
+end
+oneway y g
+oneway y g, tabulate
+oneway y g if g != 2 & g != 4
+oneway y g if g == 1 | g == 3
+oneway y g if g == 3
+oneway y g if g == 2 | g == 4
+matrix list r(ANOVA)
+set linesize 200
+=== pass8-data-weight-notes
+clear
+set seed 7
+set obs 50
+generate x = rnormal()
+generate y = 1 + 2*x + rnormal()
+generate xx = 1 + mod(_n,7)
+generate w2 = runiform()*3
+generate g = mod(_n,3)
+generate h = mod(_n,2)
+generate r = round(x, .5)
+set linesize 79
+summarize y [weight=xx]
+summarize y [w=xx], detail
+summarize y r [aweight=w2], detail
+summarize r [aw=xx], detail
+summarize r [fw=xx], detail
+summarize y [aw=xx] in 1/3, detail
+summarize y [aw=xx] in 1, detail
+summarize y [aw=xx] if x > 10, detail
+bysort h: summarize y [w=xx], detail
+tabulate g [weight=xx]
+tabulate g h [w=xx]
+tabulate g [weight=xx], summarize(y)
+tab1 g h [weight=xx]
+tab2 g h [w=xx]
+tabstat y [weight=xx]
+tabstat y [w=xx], by(g)
+set linesize 200
+=== pass8-data-ranksum-long-labels
+set linesize 79
+clear
+set seed 3
+set obs 30
+generate treatment_indicator = runiform() < .5
+generate outcome_measure_long = round(10*rnormal(), 1)
+label define tl 0 "Control group (untreated)" 1 "Treated participants"
+label values treatment_indicator tl
+ranksum outcome_measure_long, by(treatment_indicator) porder
+kwallis outcome_measure_long, by(treatment_indicator)
+spearman outcome_measure_long treatment_indicator
+set linesize 200
+=== pass8-data2-weighted-percentile-ties
+set linesize 79
+clear
+input x w
+1 9999999
+2 2
+3 9999999
+end
+summarize x [fw=w], detail
+display r(p50)
+summarize x [aw=w], detail
+display r(p50)
+replace w = 499999990 in 1
+replace w = 20 in 2
+replace w = 499999990 in 3
+summarize x [aw=w], detail
+display r(p50) " " r(p25) " " r(p75)
+clear
+input x w
+1 1
+2 1e-8
+3 1
+end
+summarize x [aw=w], detail
+clear
+set obs 3
+generate x = _n
+generate double w = 1
+replace w = 1e-6 in 2
+replace w = 1 - 1e-6 + 2e-8 in 3
+tabstat x [aw=w], stats(p50 n mean)
+summarize x [aw=w], detail
+replace w = cond(_n == 2, 1e-8, 1)
+tabstat x [aw=w], stats(p50)
+clear
+set obs 100001
+generate x = _n
+generate w = 1
+tabstat x [aw=w], stats(p1 p5)
+tabstat x [fw=w], stats(p1 p5)
+set linesize 200
+=== pass8-data2-large-frequency-weights
+set linesize 79
+clear
+input x w
+1 99999990
+2 20
+3 99999990
+end
+summarize x [fw=w]
+summarize x [fw=w], detail
+tabstat x [fw=w], stats(p50 n mean sd sum p1 p99 sk k v)
+clear
+input x w
+1 499999990
+2 40
+3 499999990
+end
+summarize x [fw=w], detail
+tabstat x [fw=w], stats(p50 n)
+replace w = 4999 in 1
+replace w = 2 in 2
+replace w = 4999 in 3
+summarize x [fw=w], detail
+set linesize 200
+=== pass8-data2-tab-noninteger-frequency
+set linesize 79
+clear
+set obs 6
+generate x = _n
+generate v = _n/2
+generate g = mod(_n,2)
+capture noisily tab1 x [w=v]
+display _rc
+capture noisily tab1 x [fw=v]
+display _rc
+capture noisily tab2 x g [w=v]
+display _rc
+capture noisily tab2 x g [fw=v]
+display _rc
+tab1 x [aw=v]
+set linesize 200
+=== pass8-data2-kwallis-groups
+set linesize 79
+clear
+set seed 97531
+set obs 400
+generate k = 1 + floor(12*runiform())
+generate y = round(rnormal(50, 15) + k, 1)
+kwallis y, by(k)
+capture noisily kwallis y if k == 1, by(k)
+display _rc
+capture noisily kwallis y if k == 99, by(k)
+display _rc
+kwallis y if k <= 10, by(k)
+kwallis y if k <= 6, by(k)
+set linesize 200
+=== pass8-data2-spearman-matrix
+set linesize 79
+clear
+set seed 2468
+set obs 250
+generate g = 1 + floor(3*runiform())
+generate female = runiform() < .45
+generate y = round(10*rnormal() + 3*g, .5)
+generate z = rnormal()
+replace y = . in 7
+replace z = . in 9/10
+generate str8 s = cond(runiform() < .5, "alpha", "beta-long")
+generate a_very_long_variable_name = rnormal()
+spearman y z g
+spearman y z g, stats(rho obs p)
+spearman y z g, star(.05)
+spearman y z g, stats(p obs)
+spearman y z g, stats(obs)
+spearman y z g, stats(p)
+spearman y z g, pw
+spearman y z g, pw stats(obs rho)
+spearman y z g female a_very_long_variable_name, bonferroni print(.05) stats(rho p)
+spearman y z g female, sidak star(.01) stats(p rho)
+spearman y z, matrix
+spearman y a_very_long_variable_name
+capture noisily spearman y s
+display _rc
+capture noisily spearman y z s
+display _rc
+capture noisily spearman y z, bonferroni sidak
+display _rc
+capture noisily spearman y z, star(1.5)
+display _rc
+capture noisily spearman y z, print(0)
+display _rc
+capture noisily spearman y z g, stats(rho foo)
+display _rc
+capture noisily spearman y z g, star(a)
+display _rc
+capture noisily spearman y z g, print(.1 .2)
+display _rc
+generate v1 = rnormal()
+generate v2 = rnormal()
+generate v3 = rnormal()
+generate v4 = rnormal()
+generate v5 = rnormal()
+spearman y z g female v1 v2 v3 v4 v5
+spearman y z g female v1 v2 v3 v4 v5, stats(rho obs) print(.2)
+set linesize 60
+spearman y z g female v1 v2
+set linesize 79
+drop s
+spearman if _n < 50
+set linesize 200
+=== pass8-data2-oneway-weights
+set linesize 79
+clear
+set seed 2468
+set obs 250
+generate g = 1 + floor(3*runiform())
+generate female = runiform() < .45
+generate y = round(10*rnormal() + 3*g, .5)
+replace y = . in 7
+generate w = 1 + floor(4*runiform())
+generate v = runiform()*2
+replace v = 0 in 20/24
+oneway y g [fw=w]
+oneway y g [aw=w]
+oneway y g [aw=v]
+oneway y g [w=w]
+oneway y g [iw=w]
+oneway y g [fw=w], tabulate
+oneway y g [aw=v], tabulate
+capture noisily oneway y g [fw=v]
+display _rc
+capture noisily oneway y g [pw=w]
+display _rc
+oneway y g if g < 3 & w == 1 [fw=w]
+oneway y female [fw=w] in 1/30
+replace w = 0 if g == 3
+oneway y g [fw=w]
+clear
+set obs 60
+generate k = mod(_n, 10) + 1
+generate y = mod(_n * 7, 13)
+replace k = . in 1/5
+replace k = .a in 6/8
+oneway y k
+oneway y k, missing
+oneway y k, missing tabulate
+oneway y k [fw=k], missing
+set linesize 200
+=== pass8-data2-no-variables
+set linesize 79
+clear
+set obs 3
+capture noisily list, sepby(x)
+display _rc
+capture noisily list, sepby(_all)
+display _rc
+capture noisily list in 1/2, sepby(x) noobs
+display _rc
+capture noisily sort _all
+display _rc
+capture noisily sort x
+display _rc
+capture noisily gsort _all
+display _rc
+capture noisily list, N
+display _rc
+capture noisily list, n
+display _rc
+generate a = _n
+generate b = 4 - _n
+capture noisily list, sepby(x)
+display _rc
+capture noisily list, sepby(a c)
+display _rc
+capture noisily list, n
+display _rc
+gsort -a
+list
+gsort a-b
+list
+set linesize 200
+=== pass8-data2-trig-functions
+set linesize 79
+clear
+set obs 4
+generate z = tanh(_n/4)
+list
+generate a = asin(_n - 2)
+generate b = acos(_n/4)
+generate c = atan2(_n, -2)
+generate d = acosh(_n - 1)
+generate e = atanh(_n/3 - .5)
+generate f = sinh(_n * 300)
+generate g = cosh(-_n)
+generate h = asinh(-_n)
+generate i = tan(_n)
+generate j = sin(_n) + cos(_n) + atan(_n)
+list a-j
+display missing(atan2(., 1))
+display tanh(-1e10)
+display tanh(1e10)
+display asin(1)
+display acos(-1)
+summarize a-j
+set linesize 200
+=== pass8-data2-rt
+set linesize 79
+clear
+set obs 5
+set seed 777
+generate double t1 = rt(5)
+generate double t2 = rt(10)
+generate double t3 = rt(1)
+generate double t4 = rt(cond(_n == 2, ., 30))
+generate double u = runiform()
+format t1-u %21.0g
+list
+display missing(rt(.5))
+display missing(rt(0))
+summarize t1-t4
+set linesize 200

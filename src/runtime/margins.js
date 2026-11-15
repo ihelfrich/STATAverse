@@ -111,6 +111,21 @@ export function nullSpace(model, rows) {
 }
 
 /**
+ * A margin's variance, g'Vg. A margin whose variance is zero in exact
+ * arithmetic (after xtreg, fe the average prediction is the mean of the
+ * outcome, whatever the coefficients) comes out as rounding noise of
+ * either sign, some 1e-20 of the terms that cancel; Stata shows it as
+ * missing. A variance that small beside its terms is taken as zero.
+ */
+function marginVariance(gradient, V) {
+  const v = quadratic(gradient, V);
+  let size = 0;
+  gradient.forEach((a, i) =>
+    gradient.forEach((b, j) => (size += Math.abs(a * V[i][j] * b))),
+  );
+  return Math.abs(v) <= 1e-14 * size ? 0 : v;
+}
+/**
  * Whether a row of the design is estimable: orthogonal to each null vector
  * of the design, and with no weight on a factor that has only one level in
  * the estimation sample. Stata omits such a factor's level as collinear
@@ -1237,7 +1252,7 @@ function margins(session, text, ctx) {
       level,
       critical,
       tail,
-      variance: (gradient) => quadratic(gradient, V),
+      variance: (gradient) => marginVariance(gradient, V),
     },
     ctx,
   );

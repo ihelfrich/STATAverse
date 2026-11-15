@@ -163,6 +163,9 @@ const bounded = (text) => {
 };
 
 const one = (fn, extra = {}) => ({ args: [N], returns: N, fn, ...extra });
+// asin() as Stata 19's results show it computed: atan2(x, sqrt(1 - x^2)).
+const asin = (x) =>
+  Math.abs(x) <= 1 ? Math.atan2(x, Math.sqrt(1 - x * x)) : MISSING;
 const keep = (fn) => one((x) => (isMissing(x) ? x : fn(x)), { lenient: true });
 const text = (fn) => ({ args: [S], returns: S, fn });
 
@@ -275,6 +278,36 @@ export const FUNCTIONS = {
   lnfactorial: one(lnfactorial),
   logit: one((p) => (p > 0 && p < 1 ? Math.log(p / (1 - p)) : MISSING)),
   invlogit: one((x) => 1 / (1 + Math.exp(-x))),
+  // Trigonometric and hyperbolic functions, in radians. Where Stata's
+  // results show it computes one from others (acos as pi/2 less asin, the
+  // inverse hyperbolic functions from logarithms), these do the same, which
+  // agrees with Stata 19 to the last bit more often than the library
+  // functions do; a result out of range, or too large, is missing.
+  sin: one(Math.sin),
+  cos: one(Math.cos),
+  tan: one((x) => Math.sin(x) / Math.cos(x)),
+  asin: one(asin),
+  acos: one((x) => Math.PI / 2 - asin(x)),
+  atan: one(Math.atan),
+  atan2: { args: [N, N], returns: N, fn: Math.atan2 },
+  sinh: one(Math.sinh),
+  cosh: one(Math.cosh),
+  tanh: one((x) => {
+    const e = Math.exp(2 * x);
+    return e === Infinity ? 1 : (e - 1) / (e + 1);
+  }),
+  asinh: one((x) => {
+    const y = Math.sign(x) * Math.log(Math.abs(x) + Math.sqrt(x * x + 1));
+    return Number.isFinite(y) ? y : Math.asinh(x);
+  }),
+  acosh: one((x) => {
+    if (x < 1) return MISSING;
+    const y = Math.log(x + Math.sqrt(x * x - 1));
+    return Number.isFinite(y) ? y : Math.acosh(x);
+  }),
+  atanh: one((x) =>
+    Math.abs(x) < 1 ? 0.5 * Math.log((1 + x) / (1 - x)) : MISSING,
+  ),
   normal: one(normal),
   invnormal: one(invnormal),
   normalden: {
@@ -332,16 +365,20 @@ export const FUNCTIONS = {
   invchi2tail: { args: [N, N], returns: N, fn: invchi2tail },
   invchi2: { args: [N, N], returns: N, fn: (df, p) => invchi2tail(df, 1 - p) },
 
-  // Random numbers. runiform() follows Stata's stream; the others are built
-  // on it and differ from Stata's draws.
+  // Random numbers. runiform() and rnormal() follow Stata's stream; the
+  // others are built on runiform() and differ from Stata's draws.
   runiform: {
     args: [N, N],
     min: 0,
     returns: N,
     state: true,
+    // runiform(a, b) needs a < b, both nonmissing; otherwise it is missing
+    // and, as in Stata, takes no draw from the stream.
     fn: (state, a, b) => {
+      if (a !== undefined && !(b !== undefined && a < b && !isMissing(b)))
+        return MISSING;
       const u = (state.rng ??= new Generator(state.seed)).uniform();
-      return a === undefined ? u : b === undefined ? MISSING : a + (b - a) * u;
+      return a === undefined ? u : a + (b - a) * u;
     },
   },
   rnormal: {
@@ -349,10 +386,39 @@ export const FUNCTIONS = {
     min: 0,
     returns: N,
     state: true,
+    // As in Stata, a missing argument or a negative sd gives missing and
+    // an sd of zero gives the mean, neither taking a draw from the stream.
     fn: (state, mean = 0, sd = 1) =>
-      sd < 0
+      isMissing(mean) || isMissing(sd) || sd < 0
         ? MISSING
-        : mean + sd * (state.rng ??= new Generator(state.seed)).normal(),
+        : sd === 0
+          ? mean
+          : mean + sd * (state.rng ??= new Generator(state.seed)).normal(),
+  },
+  // rt(df): Kinderman and Monahan's ratio of uniforms, as Stata draws it:
+  // u, then v, from the stream, x = b(2v - 1)/u, kept when u^2 is within
+  // the t density at x (scaled to 1 at 0). With seed 777 and df 5 the
+  // draws are Stata 19's to the last bit; the constant b is computed as
+  // Stata's agrees with for most df, and for some it differs in its last
+  // bit, and so the draws by about as much. A df below 1, above 2^53 - 1
+  // or missing gives missing and takes no draw.
+  rt: {
+    args: [N],
+    returns: N,
+    state: true,
+    fn: (state, df) => {
+      if (!(df >= 1 && df <= 2 ** 53 - 1)) return MISSING;
+      const rng = (state.rng ??= new Generator(state.seed)),
+        b =
+          Math.sqrt(2 / (1 + 1 / df)) *
+          Math.pow((df - 1) / (df + 1), (df - 1) / 4);
+      for (;;) {
+        const u = rng.uniform(),
+          v = rng.uniform(),
+          x = (b * (2 * v - 1)) / u;
+        if (4 * Math.log(u) <= -(df + 1) * Math.log1p((x * x) / df)) return x;
+      }
+    },
   },
   runiformint: {
     args: [N, N],

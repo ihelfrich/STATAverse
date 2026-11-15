@@ -249,8 +249,8 @@ some 900 hand-written cases had missed. Tolerances are in
 
 Native `import delimited` and graph export do not work here (no Java), so data
 enters native runs by `input` or `insheet`, and graphs are compared by the
-numbers they are drawn from. Only `runiform()` follows Stata's random stream;
-anything using `rnormal()` and the other generators is compared through data
+numbers they are drawn from. `runiform()` and `rnormal()` follow Stata's
+random stream; anything using the other generators is compared through data
 entered by `input`, or distributionally.
 
 **Spending.** His rule is that any Claude use that incurs additional charges or

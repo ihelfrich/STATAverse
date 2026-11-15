@@ -156684,6 +156684,2612 @@
       ]
     },
     {
+      "id": "pass8-data-list-no-variables",
+      "source": "clear\nset obs 3\nlist\nlist in 1\nlist, noobs clean\nlist in 2/3, separator(1) abbreviate(4)\nsummarize\ncapture noisily list x\ndisplay _rc\ncapture noisily list _all\ndisplay _rc\ncapture noisily summarize _all\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "list", "lines": [] },
+        { "command": "list in 1", "lines": [] },
+        { "command": "list, noobs clean", "lines": [] },
+        { "command": "list in 2/3, separator(1) abbreviate(4)", "lines": [] },
+        { "command": "summarize", "lines": [] },
+        {
+          "command": "capture noisily list x",
+          "lines": ["no variables defined"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily list _all",
+          "lines": ["no variables defined"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily summarize _all",
+          "lines": ["no variables defined"]
+        },
+        { "command": "display _rc", "lines": ["111"] }
+      ]
+    },
+    {
+      "id": "pass8-data-reshape-nonnumeric-suffix",
+      "source": "clear\ninput id income\n1 10\n2 20\nend\ncapture noisily reshape long inc, i(id) j(year)\ndisplay _rc\ndescribe, short\nlist\nclear\nset obs 4\ngenerate id = _n\ngenerate incA = _n\ngenerate incB = 2*_n\ncapture noisily reshape long inc, i(id)\ndisplay _rc\ndescribe, short\nclear\nset obs 3\ngenerate id = _n\ngenerate x_1 = _n\ngenerate y_b = _n\ncapture noisily reshape long x_ y_, i(id) j(k)\ndisplay _rc\nlist\nclear\nset obs 3\ngenerate id = _n\ngenerate income = _n\ngenerate inc1 = 5\ngenerate inc2 = 6\nreshape long inc, i(id) j(year)\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id income",
+          "lines": [
+            "            id     income",
+            "  1. 1 10",
+            "  2. 2 20",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "capture noisily reshape long inc, i(id) j(year)",
+          "lines": ["variable year contains all missing values"]
+        },
+        { "command": "display _rc", "lines": ["498"] },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             2",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------+",
+            "     | id   income |",
+            "     |-------------|",
+            "  1. |  1       10 |",
+            "  2. |  2       20 |",
+            "     +-------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate incA = _n", "lines": [] },
+        { "command": "generate incB = 2*_n", "lines": [] },
+        {
+          "command": "capture noisily reshape long inc, i(id)",
+          "lines": ["variable _j contains all missing values"]
+        },
+        { "command": "display _rc", "lines": ["498"] },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             4",
+            "    Variables:             3",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate x_1 = _n", "lines": [] },
+        { "command": "generate y_b = _n", "lines": [] },
+        {
+          "command": "capture noisily reshape long x_ y_, i(id) j(k)",
+          "lines": [
+            "(j = 1)",
+            "(variable y_1 not found)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                3   ->   3",
+            "Number of variables                   3   ->   5",
+            "j variable (1 values)                     ->   k",
+            "xij variables:",
+            "                                    x_1   ->   x_",
+            "                                    y_1   ->   y_",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------------+",
+            "     | id   k   x_   y_b   y_ |",
+            "     |------------------------|",
+            "  1. |  1   1    1     1    . |",
+            "  2. |  2   1    2     2    . |",
+            "  3. |  3   1    3     3    . |",
+            "     +------------------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate income = _n", "lines": [] },
+        { "command": "generate inc1 = 5", "lines": [] },
+        { "command": "generate inc2 = 6", "lines": [] },
+        {
+          "command": "reshape long inc, i(id) j(year)",
+          "lines": [
+            "(j = 1 2)",
+            "",
+            "Data                               Wide   ->   Long",
+            "-----------------------------------------------------------------------------",
+            "Number of observations                3   ->   6",
+            "Number of variables                   4   ->   4",
+            "j variable (2 values)                     ->   year",
+            "xij variables:",
+            "                              inc1 inc2   ->   inc",
+            "-----------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------------+",
+            "     | id   year   income   inc |",
+            "     |--------------------------|",
+            "  1. |  1      1        1     5 |",
+            "  2. |  1      2        1     6 |",
+            "  3. |  2      1        2     5 |",
+            "  4. |  2      2        2     6 |",
+            "  5. |  3      1        3     5 |",
+            "     |--------------------------|",
+            "  6. |  3      2        3     6 |",
+            "     +--------------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-data-rnormal-stream",
+      "source": "clear\nset obs 8\nset seed 12345\ngenerate double u = runiform()\nset seed 12345\ngenerate double x = rnormal()\ngenerate double m = rnormal(10, 2)\ngenerate double v = runiform()\ngenerate double a = rnormal(5, 0)\ngenerate double c = rnormal(5, -1)\ngenerate double d = runiform(3, 1)\ngenerate double e = runiform(2, 4)\nformat u x m v e %18.0g\nlist u x m v\nlist a c d e\nset seed 7\nset obs 10000\ngenerate n = rnormal()\ngenerate w = runiform()\nsummarize n w\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 8",
+          "lines": ["Number of observations (_N) was 0, now 8."]
+        },
+        { "command": "set seed 12345", "lines": [] },
+        { "command": "generate double u = runiform()", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        { "command": "generate double x = rnormal()", "lines": [] },
+        { "command": "generate double m = rnormal(10, 2)", "lines": [] },
+        { "command": "generate double v = runiform()", "lines": [] },
+        { "command": "generate double a = rnormal(5, 0)", "lines": [] },
+        {
+          "command": "generate double c = rnormal(5, -1)",
+          "lines": ["(8 missing values generated)"]
+        },
+        {
+          "command": "generate double d = runiform(3, 1)",
+          "lines": ["(8 missing values generated)"]
+        },
+        { "command": "generate double e = runiform(2, 4)", "lines": [] },
+        { "command": "format u x m v e %18.0g", "lines": [] },
+        {
+          "command": "list u x m v",
+          "lines": [
+            "     +--------------------------------------------------------------------------------+",
+            "     |                 u                    x                   m                   v |",
+            "     |--------------------------------------------------------------------------------|",
+            "  1. | .3576297228884259    .9591999837964262    10.3946158530112   .3482758777950375 |",
+            "  2. | .4004426170440613   -.0018050319261233   13.22044764074868   .6520972071268466 |",
+            "  3. | .6893833170027684    .5440770501958156    8.39315494806254   .5304788569395079 |",
+            "  4. | .5597355706411157    .0016287139391725   12.19202332752497   .3601540810191856 |",
+            "  5. | .5744512939917109    .3576809061013269   9.118594550553357   .8782553409393542 |",
+            "     |--------------------------------------------------------------------------------|",
+            "  6. | .2076905268617547    1.878867680998293   7.977146954850408   .0815043857875651 |",
+            "  7. | .0286626992551849    2.754745980304331   12.03845465936497   .4955085325811736 |",
+            "  8. | .6889244778794504   -.6125968334256553   13.74395283298788   .3427709002494576 |",
+            "     +--------------------------------------------------------------------------------+"
+          ]
+        },
+        {
+          "command": "list a c d e",
+          "lines": [
+            "     +-------------------------------+",
+            "     | a   c   d                   e |",
+            "     |-------------------------------|",
+            "  1. | 5   .   .   2.945337858726281 |",
+            "  2. | 5   .   .   3.392212664960773 |",
+            "  3. | 5   .   .   2.148442966891982 |",
+            "  4. | 5   .   .   2.814965829853692 |",
+            "  5. | 5   .   .   2.393523136842683 |",
+            "     |-------------------------------|",
+            "  6. | 5   .   .    3.32416475114664 |",
+            "  7. | 5   .   .    3.75429775056634 |",
+            "  8. | 5   .   .   2.388466202105394 |",
+            "     +-------------------------------+"
+          ]
+        },
+        { "command": "set seed 7", "lines": [] },
+        {
+          "command": "set obs 10000",
+          "lines": ["Number of observations (_N) was 8, now 10,000."]
+        },
+        { "command": "generate n = rnormal()", "lines": [] },
+        { "command": "generate w = runiform()", "lines": [] },
+        {
+          "command": "summarize n w",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           n |     10,000    .0080258    1.001074   -3.82497   3.647815",
+            "           w |     10,000    .4992477    .2895781   .0000137   .9999622"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pass8-data-nonparametric-layout",
+      "source": "clear\nset seed 4242\nset obs 9718\ngenerate female = runiform() < .5\ngenerate region = 1 + floor(runiform()*4)\ngenerate age = 18 + floor(runiform()*47)\ngenerate educ = 8 + floor(runiform()*10)\ngenerate wage = round(exp(2 + .05*educ + .3*female + .5*rnormal()), .5)\nset linesize 79\nranksum wage, by(female)\nkwallis wage, by(region)\nspearman wage age\noneway wage educ, tabulate\noneway wage region\nranksum wage in 1/600, by(female)\nranksum wage in 1/600, by(female) noexact porder\nranksum wage in 1/40, by(female) porder\ncapture noisily ranksum wage, by(female) exact\ncapture noisily ranksum wage in 1/600, by(female) exact noexact\ncapture noisily ranksum wage, by(region)\nspearman wage age in 1/40\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4242", "lines": [] },
+        {
+          "command": "set obs 9718",
+          "lines": ["Number of observations (_N) was 0, now 9,718."]
+        },
+        { "command": "generate female = runiform() < .5", "lines": [] },
+        { "command": "generate region = 1 + floor(runiform()*4)", "lines": [] },
+        { "command": "generate age = 18 + floor(runiform()*47)", "lines": [] },
+        { "command": "generate educ = 8 + floor(runiform()*10)", "lines": [] },
+        {
+          "command": "generate wage = round(exp(2 + .05*educ + .3*female + .5*rnormal()), .5)",
+          "lines": []
+        },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "ranksum wage, by(female)",
+          "lines": [
+            "Two-sample Wilcoxon rank-sum (Mann–Whitney) test",
+            "",
+            "      female |      Obs    Rank sum    Expected",
+            "-------------+---------------------------------",
+            "           0 |     4831    19862391    23476245",
+            "           1 |     4887    27362230    23748377",
+            "-------------+---------------------------------",
+            "    Combined |     9718    47224621    47224621",
+            "",
+            "Unadjusted variance   1.912e+10",
+            "Adjustment for ties  -7487076.7",
+            "                     ----------",
+            "Adjusted variance     1.911e+10",
+            "",
+            "H0: wage(female==0) = wage(female==1)",
+            "         z = -26.139",
+            "Prob > |z| =  0.0000"
+          ]
+        },
+        {
+          "command": "kwallis wage, by(region)",
+          "lines": [
+            "Kruskal–Wallis equality-of-populations rank test",
+            "",
+            "  +---------------------------+",
+            "  | region |   Obs | Rank sum |",
+            "  |--------+-------+----------|",
+            "  |      1 | 2,441 | 1.20e+07 |",
+            "  |      2 | 2,441 | 1.19e+07 |",
+            "  |      3 | 2,402 | 1.16e+07 |",
+            "  |      4 | 2,434 | 1.17e+07 |",
+            "  +---------------------------+",
+            "",
+            "  chi2(3) =  2.449",
+            "     Prob = 0.4847",
+            "",
+            "  chi2(3) with ties =  2.450",
+            "               Prob = 0.4845"
+          ]
+        },
+        {
+          "command": "spearman wage age",
+          "lines": [
+            " Number of obs =    9718",
+            "Spearman's rho =       0.0043",
+            "",
+            "Test of H0: wage and age are independent",
+            "    Prob > |t| =       0.6740"
+          ]
+        },
+        {
+          "command": "oneway wage educ, tabulate",
+          "lines": [
+            "            |           Summary of wage",
+            "       educ |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "          8 |   14.668394    8.386253         965",
+            "          9 |   15.290957   9.2781634         940",
+            "         10 |   16.535359   9.3375812       1,004",
+            "         11 |   16.878743   9.6496322       1,002",
+            "         12 |   17.630322   9.5967767         963",
+            "         13 |   18.618219   10.023517         977",
+            "         14 |   19.335861   11.527477         923",
+            "         15 |   20.821114   11.882055       1,023",
+            "         16 |   21.771503   12.496218         965",
+            "         17 |   22.847803    11.95925         956",
+            "------------+------------------------------------",
+            "      Total |   18.440986   10.810037       9,718",
+            "",
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      65620.7253      9    7291.1917     66.16     0.0000",
+            " Within groups      1069877.68   9708   110.205777",
+            "------------------------------------------------------------------------",
+            "    Total           1135498.41   9717   116.856891",
+            "",
+            "Bartlett's equal-variances test: chi2(9) = 320.8266    Prob>chi2 = 0.000"
+          ]
+        },
+        {
+          "command": "oneway wage region",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      271.265405      3   90.4218017      0.77     0.5085",
+            " Within groups      1135227.14   9714   116.865055",
+            "------------------------------------------------------------------------",
+            "    Total           1135498.41   9717   116.856891",
+            "",
+            "Bartlett's equal-variances test: chi2(3) =   9.6623    Prob>chi2 = 0.022"
+          ]
+        },
+        {
+          "command": "ranksum wage in 1/600, by(female)",
+          "lines": [
+            "Two-sample Wilcoxon rank-sum (Mann–Whitney) test",
+            "",
+            "      female |      Obs    Rank sum    Expected",
+            "-------------+---------------------------------",
+            "           0 |      300     74480.5       90150",
+            "           1 |      300    105819.5       90150",
+            "-------------+---------------------------------",
+            "    Combined |      600      180300      180300",
+            "",
+            "Unadjusted variance  4507500.00",
+            "Adjustment for ties    -2039.40",
+            "                     ----------",
+            "Adjusted variance    4505460.60",
+            "",
+            "H0: wage(female==0) = wage(female==1)",
+            "         z = -7.382",
+            "Prob > |z| = 0.0000",
+            "",
+            "Note: Exact p-value is not computed by default for sample sizes > 200.",
+            "      Use option exact to compute it."
+          ]
+        },
+        {
+          "command": "ranksum wage in 1/600, by(female) noexact porder",
+          "lines": [
+            "Two-sample Wilcoxon rank-sum (Mann–Whitney) test",
+            "",
+            "      female |      Obs    Rank sum    Expected",
+            "-------------+---------------------------------",
+            "           0 |      300     74480.5       90150",
+            "           1 |      300    105819.5       90150",
+            "-------------+---------------------------------",
+            "    Combined |      600      180300      180300",
+            "",
+            "Unadjusted variance  4507500.00",
+            "Adjustment for ties    -2039.40",
+            "                     ----------",
+            "Adjusted variance    4505460.60",
+            "",
+            "H0: wage(female==0) = wage(female==1)",
+            "         z = -7.382",
+            "Prob > |z| = 0.0000",
+            "",
+            "P{wage(female==0) > wage(female==1)} = 0.326"
+          ]
+        },
+        {
+          "command": "ranksum wage in 1/40, by(female) porder",
+          "lines": [
+            "Two-sample Wilcoxon rank-sum (Mann–Whitney) test",
+            "",
+            "      female |      Obs    Rank sum    Expected",
+            "-------------+---------------------------------",
+            "           0 |       25       453.5       512.5",
+            "           1 |       15       366.5       307.5",
+            "-------------+---------------------------------",
+            "    Combined |       40         820         820",
+            "",
+            "Unadjusted variance     1281.25",
+            "Adjustment for ties       -1.80",
+            "                     ----------",
+            "Adjusted variance       1279.45",
+            "",
+            "H0: wage(female==0) = wage(female==1)",
+            "         z = -1.649",
+            "Prob > |z| = 0.0991",
+            "Exact prob = 0.1010",
+            "",
+            "P{wage(female==0) > wage(female==1)} = 0.343"
+          ]
+        },
+        {
+          "command": "capture noisily ranksum wage, by(female) exact",
+          "lines": ["number of observations must be <= 1,000 for exact option"]
+        },
+        {
+          "command": "capture noisily ranksum wage in 1/600, by(female) exact noexact",
+          "lines": ["only one of options exact or noexact is allowed"]
+        },
+        {
+          "command": "capture noisily ranksum wage, by(region)",
+          "lines": ["more than 2 groups found, only 2 allowed"]
+        },
+        {
+          "command": "spearman wage age in 1/40",
+          "lines": [
+            " Number of obs =      40",
+            "Spearman's rho =      -0.3287",
+            "",
+            "Test of H0: wage and age are independent",
+            "    Prob > |t| =       0.0384"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "pass8-data-nonparametric-edges",
+      "source": "clear\nset seed 99\nset obs 300\ngenerate g = 1 + floor(runiform()*3)\ngenerate y = round(10*g + 3*rnormal(), 1)\ngenerate b = g == 1\nset linesize 79\nkwallis y, by(g)\nranksum y, by(b)\ngenerate str5 s = cond(b, \"alpha\", \"beta\")\nranksum y in 1/40, by(s)\nclear\ninput g y\n1 5\n2 3\n2 4\n3 7\n3 7\n3 7\n4 1\n4 2\n4 4\n5 6\n5 9\nend\noneway y g\noneway y g, tabulate\noneway y g if g != 2 & g != 4\noneway y g if g == 1 | g == 3\noneway y g if g == 3\noneway y g if g == 2 | g == 4\nmatrix list r(ANOVA)\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 99", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate g = 1 + floor(runiform()*3)", "lines": [] },
+        { "command": "generate y = round(10*g + 3*rnormal(), 1)", "lines": [] },
+        { "command": "generate b = g == 1", "lines": [] },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "kwallis y, by(g)",
+          "lines": [
+            "Kruskal–Wallis equality-of-populations rank test",
+            "",
+            "  +--------------------+",
+            "  | g | Obs | Rank sum |",
+            "  |---+-----+----------|",
+            "  | 1 |  87 |  3902.50 |",
+            "  | 2 | 103 | 14422.50 |",
+            "  | 3 | 110 | 26825.00 |",
+            "  +--------------------+",
+            "",
+            "  chi2(2) = 257.956",
+            "     Prob =  0.0001",
+            "",
+            "  chi2(2) with ties = 258.376",
+            "               Prob =  0.0001"
+          ]
+        },
+        {
+          "command": "ranksum y, by(b)",
+          "lines": [
+            "Two-sample Wilcoxon rank-sum (Mann–Whitney) test",
+            "",
+            "           b |      Obs    Rank sum    Expected",
+            "-------------+---------------------------------",
+            "           0 |      213     41247.5     32056.5",
+            "           1 |       87      3902.5     13093.5",
+            "-------------+---------------------------------",
+            "    Combined |      300       45150       45150",
+            "",
+            "Unadjusted variance   464819.25",
+            "Adjustment for ties     -755.60",
+            "                     ----------",
+            "Adjusted variance     464063.65",
+            "",
+            "H0: y(b==0) = y(b==1)",
+            "         z = 13.492",
+            "Prob > |z| = 0.0000",
+            "",
+            "Note: Exact p-value is not computed by default for sample sizes > 200.",
+            "      Use option exact to compute it."
+          ]
+        },
+        {
+          "command": "generate str5 s = cond(b, \"alpha\", \"beta\")",
+          "lines": []
+        },
+        {
+          "command": "ranksum y in 1/40, by(s)",
+          "lines": [
+            "Two-sample Wilcoxon rank-sum (Mann–Whitney) test",
+            "",
+            "           s |      Obs    Rank sum    Expected",
+            "-------------+---------------------------------",
+            "       alpha |       13        91.5       266.5",
+            "        beta |       27       728.5       553.5",
+            "-------------+---------------------------------",
+            "    Combined |       40         820         820",
+            "",
+            "Unadjusted variance     1199.25",
+            "Adjustment for ties       -3.83",
+            "                     ----------",
+            "Adjusted variance       1195.42",
+            "",
+            "H0: y(s==alpha) = y(s==beta)",
+            "         z = -5.061",
+            "Prob > |z| = 0.0000",
+            "Exact prob = 0.0000"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input g y",
+          "lines": [
+            "             g          y",
+            "  1. 1 5",
+            "  2. 2 3",
+            "  3. 2 4",
+            "  4. 3 7",
+            "  5. 3 7",
+            "  6. 3 7",
+            "  7. 4 1",
+            "  8. 4 2",
+            "  9. 4 4",
+            " 10. 5 6",
+            " 11. 5 9",
+            " 12. end"
+          ]
+        },
+        {
+          "command": "oneway y g",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      50.3333333      4   12.5833333      7.81     0.0147",
+            " Within groups      9.66666667      6   1.61111111",
+            "------------------------------------------------------------------------",
+            "    Total                   60     10            6",
+            "",
+            "Bartlett's equal-variances test: chi2(2) =   0.7447    Prob>chi2 = 0.689",
+            "",
+            "note: Bartlett's test performed on cells with positive variance:",
+            "      1 single-observation cells not used",
+            "      1 multiple-observation cells not used"
+          ]
+        },
+        {
+          "command": "oneway y g, tabulate",
+          "lines": [
+            "            |            Summary of y",
+            "          g |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "          1 |           5           0           1",
+            "          2 |         3.5   .70710678           2",
+            "          3 |           7           0           3",
+            "          4 |   2.3333333   1.5275252           3",
+            "          5 |         7.5   2.1213203           2",
+            "------------+------------------------------------",
+            "      Total |           5   2.4494897          11",
+            "",
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      50.3333333      4   12.5833333      7.81     0.0147",
+            " Within groups      9.66666667      6   1.61111111",
+            "------------------------------------------------------------------------",
+            "    Total                   60     10            6",
+            "",
+            "Bartlett's equal-variances test: chi2(2) =   0.7447    Prob>chi2 = 0.689",
+            "",
+            "note: Bartlett's test performed on cells with positive variance:",
+            "      1 single-observation cells not used",
+            "      1 multiple-observation cells not used"
+          ]
+        },
+        {
+          "command": "oneway y g if g != 2 & g != 4",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      4.33333333      2   2.16666667      1.44     0.3636",
+            " Within groups             4.5      3          1.5",
+            "------------------------------------------------------------------------",
+            "    Total           8.83333333      5   1.76666667"
+          ]
+        },
+        {
+          "command": "oneway y g if g == 1 | g == 3",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups               3      1            3",
+            " Within groups               0      2            0",
+            "------------------------------------------------------------------------",
+            "    Total                    3      3            1"
+          ]
+        },
+        {
+          "command": "oneway y g if g == 3",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups               0      0            .",
+            " Within groups               0      2            0",
+            "------------------------------------------------------------------------",
+            "    Total                    0      2            0"
+          ]
+        },
+        {
+          "command": "oneway y g if g == 2 | g == 4",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      1.63333333      1   1.63333333      0.95     0.4020",
+            " Within groups      5.16666667      3   1.72222222",
+            "------------------------------------------------------------------------",
+            "    Total                  6.8      4          1.7",
+            "",
+            "Bartlett's equal-variances test: chi2(1) =   0.4532    Prob>chi2 = 0.501"
+          ]
+        },
+        {
+          "command": "matrix list r(ANOVA)",
+          "lines": [
+            "r(ANOVA)[3,5]",
+            "                     SS         df         MS          F          p",
+            "Between gr~s  1.6333333          1  1.6333333   .9483871  .40195643",
+            "Within gro~s  5.1666667          3  1.7222222          .          .",
+            "       Total        6.8          4        1.7          .          ."
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "pass8-data-weight-notes",
+      "source": "clear\nset seed 7\nset obs 50\ngenerate x = rnormal()\ngenerate y = 1 + 2*x + rnormal()\ngenerate xx = 1 + mod(_n,7)\ngenerate w2 = runiform()*3\ngenerate g = mod(_n,3)\ngenerate h = mod(_n,2)\ngenerate r = round(x, .5)\nset linesize 79\nsummarize y [weight=xx]\nsummarize y [w=xx], detail\nsummarize y r [aweight=w2], detail\nsummarize r [aw=xx], detail\nsummarize r [fw=xx], detail\nsummarize y [aw=xx] in 1/3, detail\nsummarize y [aw=xx] in 1, detail\nsummarize y [aw=xx] if x > 10, detail\nbysort h: summarize y [w=xx], detail\ntabulate g [weight=xx]\ntabulate g h [w=xx]\ntabulate g [weight=xx], summarize(y)\ntab1 g h [weight=xx]\ntab2 g h [w=xx]\ntabstat y [weight=xx]\ntabstat y [w=xx], by(g)\nset linesize 200\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7", "lines": [] },
+        {
+          "command": "set obs 50",
+          "lines": ["Number of observations (_N) was 0, now 50."]
+        },
+        { "command": "generate x = rnormal()", "lines": [] },
+        { "command": "generate y = 1 + 2*x + rnormal()", "lines": [] },
+        { "command": "generate xx = 1 + mod(_n,7)", "lines": [] },
+        { "command": "generate w2 = runiform()*3", "lines": [] },
+        { "command": "generate g = mod(_n,3)", "lines": [] },
+        { "command": "generate h = mod(_n,2)", "lines": [] },
+        { "command": "generate r = round(x, .5)", "lines": [] },
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "summarize y [weight=xx]",
+          "lines": [
+            "(analytic weights assumed)",
+            "",
+            "    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max",
+            "-------------+-----------------------------------------------------------------",
+            "           y |      50         198    1.060288   2.370379  -4.436225   5.821401"
+          ]
+        },
+        {
+          "command": "summarize y [w=xx], detail",
+          "lines": [
+            "(analytic weights assumed)",
+            "",
+            "                              y",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%    -4.436225      -4.436225",
+            " 5%    -3.499701      -3.654361",
+            "10%    -2.411115      -3.499701       Obs                  50",
+            "25%    -.2799653      -2.956441       Sum of wgt.         198",
+            "",
+            "50%     1.109704                      Mean           1.060288",
+            "                        Largest       Std. dev.      2.370379",
+            "75%     2.858475       3.785648",
+            "90%     3.552011       4.412754       Variance       5.618698",
+            "95%     5.377598       5.377598       Skewness      -.1989952",
+            "99%     5.821401       5.821401       Kurtosis       2.575912"
+          ]
+        },
+        {
+          "command": "summarize y r [aweight=w2], detail",
+          "lines": [
+            "                              y",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%    -4.436225      -4.436225",
+            " 5%    -3.654361      -3.654361",
+            "10%    -2.411115      -3.499701       Obs                  50",
+            "25%    -.1545143      -2.956441       Sum of wgt.  76.7011081",
+            "",
+            "50%     1.018047                      Mean           .9496914",
+            "                        Largest       Std. dev.      2.431083",
+            "75%     2.858475       3.785648",
+            "90%     3.785648       4.412754       Variance       5.910165",
+            "95%     4.412754       5.377598       Skewness      -.2274767",
+            "99%     5.821401       5.821401       Kurtosis       2.596113",
+            "",
+            "                              r",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%         -2.5           -2.5",
+            " 5%         -2.5           -2.5",
+            "10%           -2             -2       Obs                  50",
+            "25%          -.5             -2       Sum of wgt.  76.7011081",
+            "",
+            "50%            0                      Mean           .0266496",
+            "                        Largest       Std. dev.      1.147931",
+            "75%            1            1.5",
+            "90%          1.5            1.5       Variance       1.317744",
+            "95%            2              2       Skewness      -.2871466",
+            "99%          2.5            2.5       Kurtosis        2.96898"
+          ]
+        },
+        {
+          "command": "summarize r [aw=xx], detail",
+          "lines": [
+            "                              r",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%         -2.5           -2.5",
+            " 5%           -2           -2.5",
+            "10%           -1             -2       Obs                  50",
+            "25%          -.5             -2       Sum of wgt.         198",
+            "",
+            "50%            0                      Mean           .1111111",
+            "                        Largest       Std. dev.       1.12837",
+            "75%            1            1.5",
+            "90%          1.5            1.5       Variance        1.27322",
+            "95%            2              2       Skewness      -.2033691",
+            "99%          2.5            2.5       Kurtosis       2.943858"
+          ]
+        },
+        {
+          "command": "summarize r [fw=xx], detail",
+          "lines": [
+            "                              r",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%         -2.5           -2.5",
+            " 5%           -2           -2.5",
+            "10%           -1             -2       Obs                 198",
+            "25%          -.5             -2       Sum of wgt.         198",
+            "",
+            "50%            0                      Mean           .1111111",
+            "                        Largest       Std. dev.      1.119861",
+            "75%            1            1.5",
+            "90%          1.5            1.5       Variance       1.254089",
+            "95%            2              2       Skewness      -.2033691",
+            "99%          2.5            2.5       Kurtosis       2.943858"
+          ]
+        },
+        {
+          "command": "summarize y [aw=xx] in 1/3, detail",
+          "lines": [
+            "                              y",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%    -1.909131      -1.909131",
+            " 5%    -1.909131      -.1816536",
+            "10%    -1.909131      -.0916456       Obs                   3",
+            "25%    -1.909131              .       Sum of wgt.           9",
+            "",
+            "50%    -.1816536                      Mean          -.7374778",
+            "                        Largest       Std. dev.      1.015569",
+            "75%    -.1816536              .",
+            "90%    -.0916456      -1.909131       Variance       1.031379",
+            "95%    -.0916456      -.1816536       Skewness      -.7014934",
+            "99%    -.0916456      -.0916456       Kurtosis       1.500181"
+          ]
+        },
+        {
+          "command": "summarize y [aw=xx] in 1, detail",
+          "lines": [
+            "                              y",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%    -.0916456      -.0916456",
+            " 5%    -.0916456              .",
+            "10%    -.0916456              .       Obs                   1",
+            "25%    -.0916456              .       Sum of wgt.           2",
+            "",
+            "50%    -.0916456                      Mean          -.0916456",
+            "                        Largest       Std. dev.             .",
+            "75%    -.0916456              .",
+            "90%    -.0916456              .       Variance              .",
+            "95%    -.0916456              .       Skewness              .",
+            "99%    -.0916456      -.0916456       Kurtosis              ."
+          ]
+        },
+        {
+          "command": "summarize y [aw=xx] if x > 10, detail",
+          "lines": [
+            "                              y",
+            "-------------------------------------------------------------",
+            "no observations"
+          ]
+        },
+        {
+          "command": "bysort h: summarize y [w=xx], detail",
+          "lines": [
+            "-------------------------------------------------------------------------------",
+            "-> h = 0",
+            "(analytic weights assumed)",
+            "",
+            "                              y",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%    -3.654361      -3.654361",
+            " 5%    -2.485439      -2.956441",
+            "10%    -1.909131      -2.485439       Obs                  25",
+            "25%     .5725022      -1.909131       Sum of wgt.         101",
+            "",
+            "50%     1.484398                      Mean           1.609969",
+            "                        Largest       Std. dev.       2.47693",
+            "75%     3.386947       3.785648",
+            "90%     5.377598       4.412754       Variance       6.135181",
+            "95%     5.377598       5.377598       Skewness      -.2421424",
+            "99%     5.821401       5.821401       Kurtosis       2.536106",
+            "",
+            "-------------------------------------------------------------------------------",
+            "-> h = 1",
+            "",
+            "                              y",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%    -4.436225      -4.436225",
+            " 5%    -3.499701      -3.499701",
+            "10%    -2.411115      -2.411115       Obs                  25",
+            "25%    -.9876117        -2.0869       Sum of wgt.          97",
+            "",
+            "50%     .4158457                      Mean           .4879387",
+            "                        Largest       Std. dev.      2.156596",
+            "75%     2.038257       2.858475",
+            "90%     3.124598       3.124598       Variance       4.650905",
+            "95%     3.550686       3.550686       Skewness      -.4321039",
+            "99%     3.552011       3.552011       Kurtosis        2.32319"
+          ]
+        },
+        {
+          "command": "tabulate g [weight=xx]",
+          "lines": [
+            "(frequency weights assumed)",
+            "",
+            "          g |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |         67       33.84       33.84",
+            "          1 |         64       32.32       66.16",
+            "          2 |         67       33.84      100.00",
+            "------------+-----------------------------------",
+            "      Total |        198      100.00"
+          ]
+        },
+        {
+          "command": "tabulate g h [w=xx]",
+          "lines": [
+            "(frequency weights assumed)",
+            "",
+            "           |           h",
+            "         g |         0          1 |     Total",
+            "-----------+----------------------+----------",
+            "         0 |        35         32 |        67",
+            "         1 |        33         31 |        64",
+            "         2 |        33         34 |        67",
+            "-----------+----------------------+----------",
+            "     Total |       101         97 |       198"
+          ]
+        },
+        {
+          "command": "tabulate g [weight=xx], summarize(y)",
+          "lines": [
+            "(analytic weights assumed)",
+            "",
+            "            |                  Summary of y",
+            "          g |        Mean   Std. dev.       Freq.         Obs",
+            "------------+------------------------------------------------",
+            "          0 |   .65138522   2.0001272          67          16",
+            "          1 |    1.420037   3.1108454          64          17",
+            "          2 |   1.1255489   1.9357147          67          17",
+            "------------+------------------------------------------------",
+            "      Total |   1.0602877   2.3703792         198          50"
+          ]
+        },
+        {
+          "command": "tab1 g h [weight=xx]",
+          "lines": [
+            "(frequency weights assumed)",
+            "",
+            "-> tabulation of g",
+            "",
+            "          g |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |         67       33.84       33.84",
+            "          1 |         64       32.32       66.16",
+            "          2 |         67       33.84      100.00",
+            "------------+-----------------------------------",
+            "      Total |        198      100.00",
+            "",
+            "-> tabulation of h",
+            "",
+            "          h |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          0 |        101       51.01       51.01",
+            "          1 |         97       48.99      100.00",
+            "------------+-----------------------------------",
+            "      Total |        198      100.00"
+          ]
+        },
+        {
+          "command": "tab2 g h [w=xx]",
+          "lines": [
+            "(frequency weights assumed)",
+            "",
+            "-> tabulation of g by h",
+            "",
+            "           |           h",
+            "         g |         0          1 |     Total",
+            "-----------+----------------------+----------",
+            "         0 |        35         32 |        67",
+            "         1 |        33         31 |        64",
+            "         2 |        33         34 |        67",
+            "-----------+----------------------+----------",
+            "     Total |       101         97 |       198"
+          ]
+        },
+        {
+          "command": "tabstat y [weight=xx]",
+          "lines": [
+            "(analytic weights assumed)",
+            "",
+            "    Variable |      Mean",
+            "-------------+----------",
+            "           y |  1.060288",
+            "------------------------"
+          ]
+        },
+        {
+          "command": "tabstat y [w=xx], by(g)",
+          "lines": [
+            "(analytic weights assumed)",
+            "",
+            "Summary for variables: y",
+            "Group variable: g",
+            "",
+            "       g |      Mean",
+            "---------+----------",
+            "       0 |  .6513852",
+            "       1 |  1.420037",
+            "       2 |  1.125549",
+            "---------+----------",
+            "   Total |  1.060288",
+            "--------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "pass8-data-ranksum-long-labels",
+      "source": "set linesize 79\nclear\nset seed 3\nset obs 30\ngenerate treatment_indicator = runiform() < .5\ngenerate outcome_measure_long = round(10*rnormal(), 1)\nlabel define tl 0 \"Control group (untreated)\" 1 \"Treated participants\"\nlabel values treatment_indicator tl\nranksum outcome_measure_long, by(treatment_indicator) porder\nkwallis outcome_measure_long, by(treatment_indicator)\nspearman outcome_measure_long treatment_indicator\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 3", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        {
+          "command": "generate treatment_indicator = runiform() < .5",
+          "lines": []
+        },
+        {
+          "command": "generate outcome_measure_long = round(10*rnormal(), 1)",
+          "lines": []
+        },
+        {
+          "command": "label define tl 0 \"Control group (untreated)\" 1 \"Treated participants\"",
+          "lines": []
+        },
+        { "command": "label values treatment_indicator tl", "lines": [] },
+        {
+          "command": "ranksum outcome_measure_long, by(treatment_indicator) porder",
+          "lines": [
+            "Two-sample Wilcoxon rank-sum (Mann–Whitney) test",
+            "",
+            "treatment_~r |      Obs    Rank sum    Expected",
+            "-------------+---------------------------------",
+            "Control grou |       13       217.5       201.5",
+            "Treated part |       17       247.5       263.5",
+            "-------------+---------------------------------",
+            "    Combined |       30         465         465",
+            "",
+            "Unadjusted variance      570.92",
+            "Adjustment for ties       -1.78",
+            "                     ----------",
+            "Adjusted variance        569.14",
+            "",
+            "H0: outcom~g(treatm~r==Control group (untreated)) = outcom~g(treatm~r==Treated",
+            "> participants)",
+            "         z =  0.671",
+            "Prob > |z| = 0.5024",
+            "Exact prob = 0.5148",
+            "",
+            "P{outcom~g(treatm~r==Control group (untreated)) > outcom~g(treatm~r==Treated pa",
+            "> rticipants)} = 0.572"
+          ]
+        },
+        {
+          "command": "kwallis outcome_measure_long, by(treatment_indicator)",
+          "lines": [
+            "Kruskal–Wallis equality-of-populations rank test",
+            "",
+            "  +--------------------------------------------+",
+            "  |       treatment_indicator | Obs | Rank sum |",
+            "  |---------------------------+-----+----------|",
+            "  | Control group (untreated) |  13 |   217.50 |",
+            "  |      Treated participants |  17 |   247.50 |",
+            "  +--------------------------------------------+",
+            "",
+            "  chi2(1) =  0.448",
+            "     Prob = 0.5031",
+            "",
+            "  chi2(1) with ties =  0.450",
+            "               Prob = 0.5024"
+          ]
+        },
+        {
+          "command": "spearman outcome_measure_long treatment_indicator",
+          "lines": [
+            " Number of obs =      30",
+            "Spearman's rho =      -0.1245",
+            "",
+            "Test of H0: outcome_measure_long and treatment_indicator are independent",
+            "    Prob > |t| =       0.5120"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "pass8-data2-weighted-percentile-ties",
+      "source": "set linesize 79\nclear\ninput x w\n1 9999999\n2 2\n3 9999999\nend\nsummarize x [fw=w], detail\ndisplay r(p50)\nsummarize x [aw=w], detail\ndisplay r(p50)\nreplace w = 499999990 in 1\nreplace w = 20 in 2\nreplace w = 499999990 in 3\nsummarize x [aw=w], detail\ndisplay r(p50) \" \" r(p25) \" \" r(p75)\nclear\ninput x w\n1 1\n2 1e-8\n3 1\nend\nsummarize x [aw=w], detail\nclear\nset obs 3\ngenerate x = _n\ngenerate double w = 1\nreplace w = 1e-6 in 2\nreplace w = 1 - 1e-6 + 2e-8 in 3\ntabstat x [aw=w], stats(p50 n mean)\nsummarize x [aw=w], detail\nreplace w = cond(_n == 2, 1e-8, 1)\ntabstat x [aw=w], stats(p50)\nclear\nset obs 100001\ngenerate x = _n\ngenerate w = 1\ntabstat x [aw=w], stats(p1 p5)\ntabstat x [fw=w], stats(p1 p5)\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input x w",
+          "lines": [
+            "             x          w",
+            "  1. 1 9999999",
+            "  2. 2 2",
+            "  3. 3 9999999",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "summarize x [fw=w], detail",
+          "lines": [
+            "                              x",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%            1              1",
+            " 5%            1              2",
+            "10%            1              3       Obs          20,000,000",
+            "25%            1              .       Sum of wgt.  20,000,000",
+            "",
+            "50%            2                      Mean                  2",
+            "                        Largest       Std. dev.             1",
+            "75%            3              .",
+            "90%            3              1       Variance       .9999999",
+            "95%            3              2       Skewness              0",
+            "99%            3              3       Kurtosis              1"
+          ]
+        },
+        { "command": "display r(p50)", "lines": ["2"] },
+        {
+          "command": "summarize x [aw=w], detail",
+          "lines": [
+            "                              x",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%            1              1",
+            " 5%            1              2",
+            "10%            1              3       Obs                   3",
+            "25%            1              .       Sum of wgt.    20000000",
+            "",
+            "50%            2                      Mean                  2",
+            "                        Largest       Std. dev.      1.224745",
+            "75%            3              .",
+            "90%            3              1       Variance            1.5",
+            "95%            3              2       Skewness              0",
+            "99%            3              3       Kurtosis              1"
+          ]
+        },
+        { "command": "display r(p50)", "lines": ["2"] },
+        {
+          "command": "replace w = 499999990 in 1",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "replace w = 20 in 2", "lines": ["(1 real change made)"] },
+        {
+          "command": "replace w = 499999990 in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "summarize x [aw=w], detail",
+          "lines": [
+            "                              x",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%            1              1",
+            " 5%            1              2",
+            "10%            1              3       Obs                   3",
+            "25%            1              .       Sum of wgt.  1.0000e+09",
+            "",
+            "50%            2                      Mean                  2",
+            "                        Largest       Std. dev.      1.224745",
+            "75%            3              .",
+            "90%            3              1       Variance            1.5",
+            "95%            3              2       Skewness              0",
+            "99%            3              3       Kurtosis              1"
+          ]
+        },
+        {
+          "command": "display r(p50) \" \" r(p25) \" \" r(p75)",
+          "lines": ["2 1 3"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input x w",
+          "lines": [
+            "             x          w",
+            "  1. 1 1",
+            "  2. 2 1e-8",
+            "  3. 3 1",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "summarize x [aw=w], detail",
+          "lines": [
+            "                              x",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%            1              1",
+            " 5%            1              2",
+            "10%            1              3       Obs                   3",
+            "25%            1              .       Sum of wgt.  2.00000001",
+            "",
+            "50%            2                      Mean                  2",
+            "                        Largest       Std. dev.      1.224745",
+            "75%            3              .",
+            "90%            3              1       Variance            1.5",
+            "95%            3              2       Skewness              0",
+            "99%            3              3       Kurtosis              1"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate double w = 1", "lines": [] },
+        {
+          "command": "replace w = 1e-6 in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace w = 1 - 1e-6 + 2e-8 in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "tabstat x [aw=w], stats(p50 n mean)",
+          "lines": [
+            "    Variable |       p50         N      Mean",
+            "-------------+------------------------------",
+            "           x |       1.5         3         2",
+            "--------------------------------------------"
+          ]
+        },
+        {
+          "command": "summarize x [aw=w], detail",
+          "lines": [
+            "                              x",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%            1              1",
+            " 5%            1              2",
+            "10%            1              3       Obs                   3",
+            "25%            1              .       Sum of wgt.  2.00000002",
+            "",
+            "50%          1.5                      Mean                  2",
+            "                        Largest       Std. dev.      1.224745",
+            "75%            3              .",
+            "90%            3              1       Variance       1.499999",
+            "95%            3              2       Skewness       9.80e-07",
+            "99%            3              3       Kurtosis       1.000001"
+          ]
+        },
+        {
+          "command": "replace w = cond(_n == 2, 1e-8, 1)",
+          "lines": ["(2 real changes made)"]
+        },
+        {
+          "command": "tabstat x [aw=w], stats(p50)",
+          "lines": [
+            "    Variable |       p50",
+            "-------------+----------",
+            "           x |         2",
+            "------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 100001",
+          "lines": ["Number of observations (_N) was 0, now 100,001."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate w = 1", "lines": [] },
+        {
+          "command": "tabstat x [aw=w], stats(p1 p5)",
+          "lines": [
+            "    Variable |        p1        p5",
+            "-------------+--------------------",
+            "           x |    1000.5      5001",
+            "----------------------------------"
+          ]
+        },
+        {
+          "command": "tabstat x [fw=w], stats(p1 p5)",
+          "lines": [
+            "    Variable |        p1        p5",
+            "-------------+--------------------",
+            "           x |    1000.5      5001",
+            "----------------------------------"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "pass8-data2-large-frequency-weights",
+      "source": "set linesize 79\nclear\ninput x w\n1 99999990\n2 20\n3 99999990\nend\nsummarize x [fw=w]\nsummarize x [fw=w], detail\ntabstat x [fw=w], stats(p50 n mean sd sum p1 p99 sk k v)\nclear\ninput x w\n1 499999990\n2 40\n3 499999990\nend\nsummarize x [fw=w], detail\ntabstat x [fw=w], stats(p50 n)\nreplace w = 4999 in 1\nreplace w = 2 in 2\nreplace w = 4999 in 3\nsummarize x [fw=w], detail\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input x w",
+          "lines": [
+            "             x          w",
+            "  1. 1 99999990",
+            "  2. 2 20",
+            "  3. 3 99999990",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "summarize x [fw=w]",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           x |200,000,004           2           1          1          3"
+          ]
+        },
+        {
+          "command": "summarize x [fw=w], detail",
+          "lines": [
+            "                              x",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%            1              1",
+            " 5%            1              2",
+            "10%            1              3       Obs         200,000,004",
+            "25%            1              .       Sum of wgt. 200,000,004",
+            "",
+            "50%            2                      Mean                  2",
+            "                        Largest       Std. dev.             1",
+            "75%            3              .",
+            "90%            3              1       Variance       .9999999",
+            "95%            3              2       Skewness              0",
+            "99%            3              3       Kurtosis              1"
+          ]
+        },
+        {
+          "command": "tabstat x [fw=w], stats(p50 n mean sd sum p1 p99 sk k v)",
+          "lines": [
+            "    Variable |       p50         N      Mean        SD       Sum        p1",
+            "-------------+------------------------------------------------------------",
+            "           x |         2  2.00e+08         2         1  4.00e+08         1",
+            "--------------------------------------------------------------------------",
+            "",
+            "    Variable |       p99  Skewness  Kurtosis  Variance",
+            "-------------+----------------------------------------",
+            "           x |         3         0         1  .9999999",
+            "------------------------------------------------------"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input x w",
+          "lines": [
+            "             x          w",
+            "  1. 1 499999990",
+            "  2. 2 40",
+            "  3. 3 499999990",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "summarize x [fw=w], detail",
+          "lines": [
+            "                              x",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%            1              1",
+            " 5%            1              2",
+            "10%            1              3       Obs          1000000040",
+            "25%            1              .       Sum of wgt.  1000000040",
+            "",
+            "50%            2                      Mean                  2",
+            "                        Largest       Std. dev.             1",
+            "75%            3              .",
+            "90%            3              1       Variance              1",
+            "95%            3              2       Skewness              0",
+            "99%            3              3       Kurtosis              1"
+          ]
+        },
+        {
+          "command": "tabstat x [fw=w], stats(p50 n)",
+          "lines": [
+            "    Variable |       p50         N",
+            "-------------+--------------------",
+            "           x |         2  1.00e+09",
+            "----------------------------------"
+          ]
+        },
+        {
+          "command": "replace w = 4999 in 1",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "replace w = 2 in 2", "lines": ["(1 real change made)"] },
+        {
+          "command": "replace w = 4999 in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "summarize x [fw=w], detail",
+          "lines": [
+            "                              x",
+            "-------------------------------------------------------------",
+            "      Percentiles      Smallest",
+            " 1%            1              1",
+            " 5%            1              2",
+            "10%            1              3       Obs              10,000",
+            "25%            1              .       Sum of wgt.      10,000",
+            "",
+            "50%            2                      Mean                  2",
+            "                        Largest       Std. dev.        .99995",
+            "75%            3              .",
+            "90%            3              1       Variance          .9999",
+            "95%            3              2       Skewness              0",
+            "99%            3              3       Kurtosis         1.0002"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "pass8-data2-tab-noninteger-frequency",
+      "source": "set linesize 79\nclear\nset obs 6\ngenerate x = _n\ngenerate v = _n/2\ngenerate g = mod(_n,2)\ncapture noisily tab1 x [w=v]\ndisplay _rc\ncapture noisily tab1 x [fw=v]\ndisplay _rc\ncapture noisily tab2 x g [w=v]\ndisplay _rc\ncapture noisily tab2 x g [fw=v]\ndisplay _rc\ntab1 x [aw=v]\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate v = _n/2", "lines": [] },
+        { "command": "generate g = mod(_n,2)", "lines": [] },
+        {
+          "command": "capture noisily tab1 x [w=v]",
+          "lines": [
+            "(frequency weights assumed)",
+            "may not use noninteger frequency weights"
+          ]
+        },
+        { "command": "display _rc", "lines": ["401"] },
+        {
+          "command": "capture noisily tab1 x [fw=v]",
+          "lines": ["may not use noninteger frequency weights"]
+        },
+        { "command": "display _rc", "lines": ["401"] },
+        {
+          "command": "capture noisily tab2 x g [w=v]",
+          "lines": [
+            "(frequency weights assumed)",
+            "may not use noninteger frequency weights"
+          ]
+        },
+        { "command": "display _rc", "lines": ["401"] },
+        {
+          "command": "capture noisily tab2 x g [fw=v]",
+          "lines": ["may not use noninteger frequency weights"]
+        },
+        { "command": "display _rc", "lines": ["401"] },
+        {
+          "command": "tab1 x [aw=v]",
+          "lines": [
+            "-> tabulation of x",
+            "",
+            "          x |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 | .285714286        4.76        4.76",
+            "          2 | .571428571        9.52       14.29",
+            "          3 | .857142857       14.29       28.57",
+            "          4 | 1.14285714       19.05       47.62",
+            "          5 | 1.42857143       23.81       71.43",
+            "          6 | 1.71428571       28.57      100.00",
+            "------------+-----------------------------------",
+            "      Total |          6      100.00"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "pass8-data2-kwallis-groups",
+      "source": "set linesize 79\nclear\nset seed 97531\nset obs 400\ngenerate k = 1 + floor(12*runiform())\ngenerate y = round(rnormal(50, 15) + k, 1)\nkwallis y, by(k)\ncapture noisily kwallis y if k == 1, by(k)\ndisplay _rc\ncapture noisily kwallis y if k == 99, by(k)\ndisplay _rc\nkwallis y if k <= 10, by(k)\nkwallis y if k <= 6, by(k)\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 97531", "lines": [] },
+        {
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        { "command": "generate k = 1 + floor(12*runiform())", "lines": [] },
+        {
+          "command": "generate y = round(rnormal(50, 15) + k, 1)",
+          "lines": []
+        },
+        {
+          "command": "kwallis y, by(k)",
+          "lines": [
+            "Kruskal–Wallis equality-of-populations rank test",
+            "",
+            "  +---------------------+",
+            "  |  k | Obs | Rank sum |",
+            "  |----+-----+----------|",
+            "  |  1 |  31 |  4941.50 |",
+            "  |  2 |  28 |  4110.00 |",
+            "  |  3 |  32 |  5857.00 |",
+            "  |  4 |  28 |  4665.50 |",
+            "  |  5 |  35 |  6325.00 |",
+            "  |----+-----+----------|",
+            "  |  6 |  25 |  3729.00 |",
+            "  |  7 |  37 |  8292.00 |",
+            "  |  8 |  40 |  9681.00 |",
+            "  |  9 |  40 |  8845.00 |",
+            "  | 10 |  37 |  7543.50 |",
+            "  |----+-----+----------|",
+            "  | 11 |  37 |  8001.50 |",
+            "  | 12 |  30 |  8209.00 |",
+            "  +---------------------+",
+            "",
+            "  chi2(11) = 39.749",
+            "      Prob = 0.0001",
+            "",
+            "  chi2(11) with ties = 39.770",
+            "                Prob = 0.0001"
+          ]
+        },
+        {
+          "command": "capture noisily kwallis y if k == 1, by(k)",
+          "lines": ["at least two populations are required"]
+        },
+        { "command": "display _rc", "lines": ["498"] },
+        {
+          "command": "capture noisily kwallis y if k == 99, by(k)",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "kwallis y if k <= 10, by(k)",
+          "lines": [
+            "Kruskal–Wallis equality-of-populations rank test",
+            "",
+            "  +---------------------+",
+            "  |  k | Obs | Rank sum |",
+            "  |----+-----+----------|",
+            "  |  1 |  31 |  4343.50 |",
+            "  |  2 |  28 |  3628.00 |",
+            "  |  3 |  32 |  5104.50 |",
+            "  |  4 |  28 |  4077.00 |",
+            "  |  5 |  35 |  5499.00 |",
+            "  |----+-----+----------|",
+            "  |  6 |  25 |  3273.00 |",
+            "  |  7 |  37 |  7175.50 |",
+            "  |  8 |  40 |  8327.50 |",
+            "  |  9 |  40 |  7649.00 |",
+            "  | 10 |  37 |  6534.00 |",
+            "  +---------------------+",
+            "",
+            "  chi2(9) = 25.223",
+            "     Prob = 0.0027",
+            "",
+            "  chi2(9) with ties = 25.238",
+            "               Prob = 0.0027"
+          ]
+        },
+        {
+          "command": "kwallis y if k <= 6, by(k)",
+          "lines": [
+            "Kruskal–Wallis equality-of-populations rank test",
+            "",
+            "  +--------------------+",
+            "  | k | Obs | Rank sum |",
+            "  |---+-----+----------|",
+            "  | 1 |  31 |  2739.50 |",
+            "  | 2 |  28 |  2305.00 |",
+            "  | 3 |  32 |  3171.00 |",
+            "  | 4 |  28 |  2497.00 |",
+            "  | 5 |  35 |  3350.50 |",
+            "  |---+-----+----------|",
+            "  | 6 |  25 |  2047.00 |",
+            "  +--------------------+",
+            "",
+            "  chi2(5) =  2.680",
+            "     Prob = 0.7492",
+            "",
+            "  chi2(5) with ties =  2.682",
+            "               Prob = 0.7489"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "pass8-data2-spearman-matrix",
+      "source": "set linesize 79\nclear\nset seed 2468\nset obs 250\ngenerate g = 1 + floor(3*runiform())\ngenerate female = runiform() < .45\ngenerate y = round(10*rnormal() + 3*g, .5)\ngenerate z = rnormal()\nreplace y = . in 7\nreplace z = . in 9/10\ngenerate str8 s = cond(runiform() < .5, \"alpha\", \"beta-long\")\ngenerate a_very_long_variable_name = rnormal()\nspearman y z g\nspearman y z g, stats(rho obs p)\nspearman y z g, star(.05)\nspearman y z g, stats(p obs)\nspearman y z g, stats(obs)\nspearman y z g, stats(p)\nspearman y z g, pw\nspearman y z g, pw stats(obs rho)\nspearman y z g female a_very_long_variable_name, bonferroni print(.05) stats(rho p)\nspearman y z g female, sidak star(.01) stats(p rho)\nspearman y z, matrix\nspearman y a_very_long_variable_name\ncapture noisily spearman y s\ndisplay _rc\ncapture noisily spearman y z s\ndisplay _rc\ncapture noisily spearman y z, bonferroni sidak\ndisplay _rc\ncapture noisily spearman y z, star(1.5)\ndisplay _rc\ncapture noisily spearman y z, print(0)\ndisplay _rc\ncapture noisily spearman y z g, stats(rho foo)\ndisplay _rc\ncapture noisily spearman y z g, star(a)\ndisplay _rc\ncapture noisily spearman y z g, print(.1 .2)\ndisplay _rc\ngenerate v1 = rnormal()\ngenerate v2 = rnormal()\ngenerate v3 = rnormal()\ngenerate v4 = rnormal()\ngenerate v5 = rnormal()\nspearman y z g female v1 v2 v3 v4 v5\nspearman y z g female v1 v2 v3 v4 v5, stats(rho obs) print(.2)\nset linesize 60\nspearman y z g female v1 v2\nset linesize 79\ndrop s\nspearman if _n < 50\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2468", "lines": [] },
+        {
+          "command": "set obs 250",
+          "lines": ["Number of observations (_N) was 0, now 250."]
+        },
+        { "command": "generate g = 1 + floor(3*runiform())", "lines": [] },
+        { "command": "generate female = runiform() < .45", "lines": [] },
+        {
+          "command": "generate y = round(10*rnormal() + 3*g, .5)",
+          "lines": []
+        },
+        { "command": "generate z = rnormal()", "lines": [] },
+        {
+          "command": "replace y = . in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace z = . in 9/10",
+          "lines": ["(2 real changes made, 2 to missing)"]
+        },
+        {
+          "command": "generate str8 s = cond(runiform() < .5, \"alpha\", \"beta-long\")",
+          "lines": []
+        },
+        {
+          "command": "generate a_very_long_variable_name = rnormal()",
+          "lines": []
+        },
+        {
+          "command": "spearman y z g",
+          "lines": [
+            "(obs=247)",
+            "",
+            "             |        y        z        g",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "           z |   0.1075   1.0000",
+            "           g |   0.2414   0.1988   1.0000"
+          ]
+        },
+        {
+          "command": "spearman y z g, stats(rho obs p)",
+          "lines": [
+            "+-----------------+",
+            "|  Key            |",
+            "|-----------------|",
+            "|   rho           |",
+            "|   Number of obs |",
+            "|   Sig. level    |",
+            "+-----------------+",
+            "",
+            "             |        y        z        g",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "             |      247",
+            "             |",
+            "             |",
+            "           z |   0.1075   1.0000",
+            "             |      247      247",
+            "             |   0.0917",
+            "             |",
+            "           g |   0.2414   0.1988   1.0000",
+            "             |      247      247      247",
+            "             |   0.0001   0.0017",
+            "             |"
+          ]
+        },
+        {
+          "command": "spearman y z g, star(.05)",
+          "lines": [
+            "(obs=247)",
+            "",
+            "             |        y        z        g",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "           z |   0.1075   1.0000",
+            "           g |   0.2414*  0.1988*  1.0000"
+          ]
+        },
+        {
+          "command": "spearman y z g, stats(p obs)",
+          "lines": [
+            "+-----------------+",
+            "|  Key            |",
+            "|-----------------|",
+            "|   Number of obs |",
+            "|   Sig. level    |",
+            "+-----------------+",
+            "",
+            "             |        y        z        g",
+            "-------------+---------------------------",
+            "           y |      247",
+            "             |",
+            "             |",
+            "           z |      247      247",
+            "             |   0.0917",
+            "             |",
+            "           g |      247      247      247",
+            "             |   0.0001   0.0017",
+            "             |"
+          ]
+        },
+        {
+          "command": "spearman y z g, stats(obs)",
+          "lines": [
+            "+-----------------+",
+            "|  Key            |",
+            "|-----------------|",
+            "|   Number of obs |",
+            "+-----------------+",
+            "",
+            "             |        y        z        g",
+            "-------------+---------------------------",
+            "           y |      247",
+            "           z |      247      247",
+            "           g |      247      247      247"
+          ]
+        },
+        {
+          "command": "spearman y z g, stats(p)",
+          "lines": [
+            "(obs=247)",
+            "",
+            "+-----------------+",
+            "|  Key            |",
+            "|-----------------|",
+            "|   Sig. level    |",
+            "+-----------------+",
+            "",
+            "             |        y        z        g",
+            "-------------+---------------------------",
+            "           y |",
+            "           z |   0.0917",
+            "           g |   0.0001   0.0017"
+          ]
+        },
+        {
+          "command": "spearman y z g, pw",
+          "lines": [
+            "(obs=varies)",
+            "",
+            "             |        y        z        g",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "           z |   0.1075   1.0000",
+            "           g |   0.2443   0.1906   1.0000"
+          ]
+        },
+        {
+          "command": "spearman y z g, pw stats(obs rho)",
+          "lines": [
+            "+-----------------+",
+            "|  Key            |",
+            "|-----------------|",
+            "|   rho           |",
+            "|   Number of obs |",
+            "+-----------------+",
+            "",
+            "             |        y        z        g",
+            "-------------+---------------------------",
+            "           y |   1.0000",
+            "             |      249",
+            "             |",
+            "           z |   0.1075   1.0000",
+            "             |      247      248",
+            "             |",
+            "           g |   0.2443   0.1906   1.0000",
+            "             |      249      248      250",
+            "             |"
+          ]
+        },
+        {
+          "command": "spearman y z g female a_very_long_variable_name, bonferroni print(.05) stats(rho p)",
+          "lines": [
+            "(obs=247)",
+            "",
+            "+-----------------+",
+            "|  Key            |",
+            "|-----------------|",
+            "|   rho           |",
+            "|   Sig. level    |",
+            "+-----------------+",
+            "",
+            "             |        y        z        g   female a_very~e",
+            "-------------+---------------------------------------------",
+            "           y |   1.0000",
+            "             |",
+            "             |",
+            "           z |            1.0000",
+            "             |",
+            "             |",
+            "           g |   0.2414   0.1988   1.0000",
+            "             |   0.0013   0.0169",
+            "             |",
+            "      female |                              1.0000",
+            "             |",
+            "             |",
+            "a_very_lon~e |                                       1.0000",
+            "             |",
+            "             |"
+          ]
+        },
+        {
+          "command": "spearman y z g female, sidak star(.01) stats(p rho)",
+          "lines": [
+            "(obs=247)",
+            "",
+            "+-----------------+",
+            "|  Key            |",
+            "|-----------------|",
+            "|   rho           |",
+            "|   Sig. level    |",
+            "+-----------------+",
+            "",
+            "             |        y        z        g   female",
+            "-------------+------------------------------------",
+            "           y |   1.0000",
+            "             |",
+            "             |",
+            "           z |   0.1075   1.0000",
+            "             |   0.4385",
+            "             |",
+            "           g |   0.2414*  0.1988   1.0000",
+            "             |   0.0008   0.0101",
+            "             |",
+            "      female |  -0.0041   0.1282  -0.0378   1.0000",
+            "             |   1.0000   0.2370   0.9922",
+            "             |"
+          ]
+        },
+        {
+          "command": "spearman y z, matrix",
+          "lines": [
+            "(obs=247)",
+            "",
+            "             |        y        z",
+            "-------------+------------------",
+            "           y |   1.0000",
+            "           z |   0.1075   1.0000"
+          ]
+        },
+        {
+          "command": "spearman y a_very_long_variable_name",
+          "lines": [
+            " Number of obs =     249",
+            "Spearman's rho =      -0.0410",
+            "",
+            "Test of H0: y and a_very_long_variab~e are independent",
+            "    Prob > |t| =       0.5196"
+          ]
+        },
+        {
+          "command": "capture noisily spearman y s",
+          "lines": [
+            "(s ignored because string variable)",
+            "too few variables specified"
+          ]
+        },
+        { "command": "display _rc", "lines": ["102"] },
+        {
+          "command": "capture noisily spearman y z s",
+          "lines": [
+            "(s ignored because string variable)",
+            "",
+            " Number of obs =     247",
+            "Spearman's rho =       0.1075",
+            "",
+            "Test of H0: y and z are independent",
+            "    Prob > |t| =       0.0917"
+          ]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily spearman y z, bonferroni sidak",
+          "lines": ["only one of bonferroni and sidak can be specified"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily spearman y z, star(1.5)",
+          "lines": ["star() must be between 0 and 1"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily spearman y z, print(0)",
+          "lines": ["print() must be between 0 and 1"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily spearman y z g, stats(rho foo)",
+          "lines": ["stats() must contain one or more of rho, obs, and p"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily spearman y z g, star(a)",
+          "lines": ["star() invalid -- invalid number"]
+        },
+        { "command": "display _rc", "lines": ["121"] },
+        {
+          "command": "capture noisily spearman y z g, print(.1 .2)",
+          "lines": ["print() invalid -- single number required"]
+        },
+        { "command": "display _rc", "lines": ["123"] },
+        { "command": "generate v1 = rnormal()", "lines": [] },
+        { "command": "generate v2 = rnormal()", "lines": [] },
+        { "command": "generate v3 = rnormal()", "lines": [] },
+        { "command": "generate v4 = rnormal()", "lines": [] },
+        { "command": "generate v5 = rnormal()", "lines": [] },
+        {
+          "command": "spearman y z g female v1 v2 v3 v4 v5",
+          "lines": [
+            "(obs=247)",
+            "",
+            "             |        y        z        g   female       v1       v2       v3",
+            "-------------+---------------------------------------------------------------",
+            "           y |   1.0000",
+            "           z |   0.1075   1.0000",
+            "           g |   0.2414   0.1988   1.0000",
+            "      female |  -0.0041   0.1282  -0.0378   1.0000",
+            "          v1 |   0.0733   0.0555   0.0415  -0.0967   1.0000",
+            "          v2 |   0.0736   0.0137  -0.0894   0.0560   0.0035   1.0000",
+            "          v3 |  -0.0719  -0.0511  -0.0075  -0.0031  -0.0284  -0.0807   1.0000",
+            "          v4 |   0.0670  -0.0227   0.0945   0.1112  -0.0952  -0.0115  -0.1208",
+            "          v5 |  -0.0788   0.0020   0.0506   0.0189   0.0213   0.1162  -0.0086",
+            "",
+            "             |       v4       v5",
+            "-------------+------------------",
+            "          v4 |   1.0000",
+            "          v5 |  -0.0864   1.0000"
+          ]
+        },
+        {
+          "command": "spearman y z g female v1 v2 v3 v4 v5, stats(rho obs) print(.2)",
+          "lines": [
+            "+-----------------+",
+            "|  Key            |",
+            "|-----------------|",
+            "|   rho           |",
+            "|   Number of obs |",
+            "+-----------------+",
+            "",
+            "             |        y        z        g   female       v1       v2       v3",
+            "-------------+---------------------------------------------------------------",
+            "           y |   1.0000",
+            "             |      247",
+            "             |",
+            "           z |   0.1075   1.0000",
+            "             |      247      247",
+            "             |",
+            "           g |   0.2414   0.1988   1.0000",
+            "             |      247      247      247",
+            "             |",
+            "      female |            0.1282            1.0000",
+            "             |               247               247",
+            "             |",
+            "          v1 |                             -0.0967   1.0000",
+            "             |                                 247      247",
+            "             |",
+            "          v2 |                    -0.0894                     1.0000",
+            "             |                        247                        247",
+            "             |",
+            "          v3 |                                                         1.0000",
+            "             |                                                            247",
+            "             |",
+            "          v4 |                     0.0945   0.1112  -0.0952           -0.1208",
+            "             |                        247      247      247               247",
+            "             |",
+            "          v5 |                                                0.1162",
+            "             |                                                   247",
+            "             |",
+            "",
+            "             |       v4       v5",
+            "-------------+------------------",
+            "          v4 |   1.0000",
+            "             |      247",
+            "             |",
+            "          v5 |  -0.0864   1.0000",
+            "             |      247      247",
+            "             |"
+          ]
+        },
+        { "command": "set linesize 60", "lines": [] },
+        {
+          "command": "spearman y z g female v1 v2",
+          "lines": [
+            "(obs=247)",
+            "",
+            "             |        y        z        g   female       v1",
+            "-------------+---------------------------------------------",
+            "           y |   1.0000",
+            "           z |   0.1075   1.0000",
+            "           g |   0.2414   0.1988   1.0000",
+            "      female |  -0.0041   0.1282  -0.0378   1.0000",
+            "          v1 |   0.0733   0.0555   0.0415  -0.0967   1.0000",
+            "          v2 |   0.0736   0.0137  -0.0894   0.0560   0.0035",
+            "",
+            "             |       v2",
+            "-------------+---------",
+            "          v2 |   1.0000"
+          ]
+        },
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "drop s", "lines": [] },
+        {
+          "command": "spearman if _n < 50",
+          "lines": [
+            "(obs=46)",
+            "",
+            "             |        g   female        y        z a_very~e       v1       v2",
+            "-------------+---------------------------------------------------------------",
+            "           g |   1.0000",
+            "      female |   0.0713   1.0000",
+            "           y |   0.5805  -0.0328   1.0000",
+            "           z |   0.3053   0.1654   0.3725   1.0000",
+            "a_very_lon~e |  -0.1057  -0.2047  -0.0773  -0.0067   1.0000",
+            "          v1 |   0.1636   0.0475   0.0260  -0.0763   0.1412   1.0000",
+            "          v2 |  -0.0648   0.1719   0.1754   0.1248   0.0514   0.1942   1.0000",
+            "          v3 |   0.0785  -0.0704   0.0610  -0.2322   0.1964  -0.0934   0.0263",
+            "          v4 |   0.1255   0.0377   0.0950   0.0621  -0.0850  -0.0825  -0.0334",
+            "          v5 |   0.0783  -0.0540   0.0501   0.1032  -0.0520  -0.1181   0.1850",
+            "",
+            "             |       v3       v4       v5",
+            "-------------+---------------------------",
+            "          v3 |   1.0000",
+            "          v4 |  -0.2117   1.0000",
+            "          v5 |   0.1461  -0.1790   1.0000"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "pass8-data2-oneway-weights",
+      "source": "set linesize 79\nclear\nset seed 2468\nset obs 250\ngenerate g = 1 + floor(3*runiform())\ngenerate female = runiform() < .45\ngenerate y = round(10*rnormal() + 3*g, .5)\nreplace y = . in 7\ngenerate w = 1 + floor(4*runiform())\ngenerate v = runiform()*2\nreplace v = 0 in 20/24\noneway y g [fw=w]\noneway y g [aw=w]\noneway y g [aw=v]\noneway y g [w=w]\noneway y g [iw=w]\noneway y g [fw=w], tabulate\noneway y g [aw=v], tabulate\ncapture noisily oneway y g [fw=v]\ndisplay _rc\ncapture noisily oneway y g [pw=w]\ndisplay _rc\noneway y g if g < 3 & w == 1 [fw=w]\noneway y female [fw=w] in 1/30\nreplace w = 0 if g == 3\noneway y g [fw=w]\nclear\nset obs 60\ngenerate k = mod(_n, 10) + 1\ngenerate y = mod(_n * 7, 13)\nreplace k = . in 1/5\nreplace k = .a in 6/8\noneway y k\noneway y k, missing\noneway y k, missing tabulate\noneway y k [fw=k], missing\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2468", "lines": [] },
+        {
+          "command": "set obs 250",
+          "lines": ["Number of observations (_N) was 0, now 250."]
+        },
+        { "command": "generate g = 1 + floor(3*runiform())", "lines": [] },
+        { "command": "generate female = runiform() < .45", "lines": [] },
+        {
+          "command": "generate y = round(10*rnormal() + 3*g, .5)",
+          "lines": []
+        },
+        {
+          "command": "replace y = . in 7",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "generate w = 1 + floor(4*runiform())", "lines": [] },
+        { "command": "generate v = runiform()*2", "lines": [] },
+        {
+          "command": "replace v = 0 in 20/24",
+          "lines": ["(5 real changes made)"]
+        },
+        {
+          "command": "oneway y g [fw=w]",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      3686.67228      2   1843.33614     16.48     0.0000",
+            " Within groups      71565.1551    640   111.820555",
+            "------------------------------------------------------------------------",
+            "    Total           75251.8274    642   117.214684",
+            "",
+            "Bartlett's equal-variances test: chi2(2) =   6.0441    Prob>chi2 = 0.049"
+          ]
+        },
+        {
+          "command": "oneway y g [aw=w]",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      1427.65381      2   713.826904      6.34     0.0021",
+            " Within groups      27713.4115    246   112.656144",
+            "------------------------------------------------------------------------",
+            "    Total           29141.0653    248   117.504296",
+            "",
+            "Bartlett's equal-variances test: chi2(2) =   4.0449    Prob>chi2 = 0.132"
+          ]
+        },
+        {
+          "command": "oneway y g [aw=v]",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      1236.56163      2   618.280813      5.75     0.0036",
+            " Within groups       25916.731    241   107.538303",
+            "------------------------------------------------------------------------",
+            "    Total           27153.2927    243   111.741945",
+            "",
+            "Bartlett's equal-variances test: chi2(2) =   6.2291    Prob>chi2 = 0.044"
+          ]
+        },
+        {
+          "command": "oneway y g [w=w]",
+          "lines": [
+            "(analytic weights assumed)",
+            "",
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      1427.65381      2   713.826904      6.34     0.0021",
+            " Within groups      27713.4115    246   112.656144",
+            "------------------------------------------------------------------------",
+            "    Total           29141.0653    248   117.504296",
+            "",
+            "Bartlett's equal-variances test: chi2(2) =   4.0449    Prob>chi2 = 0.132"
+          ]
+        },
+        {
+          "command": "oneway y g [iw=w]",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      3686.67228      2   1843.33614     16.48     0.0000",
+            " Within groups      71565.1551    640   111.820555",
+            "------------------------------------------------------------------------",
+            "    Total           75251.8274    642   117.214684",
+            "",
+            "Bartlett's equal-variances test: chi2(2) =   6.0441    Prob>chi2 = 0.049"
+          ]
+        },
+        {
+          "command": "oneway y g [fw=w], tabulate",
+          "lines": [
+            "            |                  Summary of y",
+            "          g |        Mean   Std. dev.       Freq.         Obs",
+            "------------+------------------------------------------------",
+            "          1 |    2.853211   9.6647258         218         218",
+            "          2 |   6.0891892   10.509772         185         185",
+            "          3 |   8.5270833   11.383772         240         240",
+            "------------+------------------------------------------------",
+            "      Total |   5.9020218   10.826573         643         643",
+            "",
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      3686.67228      2   1843.33614     16.48     0.0000",
+            " Within groups      71565.1551    640   111.820555",
+            "------------------------------------------------------------------------",
+            "    Total           75251.8274    642   117.214684",
+            "",
+            "Bartlett's equal-variances test: chi2(2) =   6.0441    Prob>chi2 = 0.049"
+          ]
+        },
+        {
+          "command": "oneway y g [aw=v], tabulate",
+          "lines": [
+            "            |                  Summary of y",
+            "          g |        Mean   Std. dev.       Freq.         Obs",
+            "------------+------------------------------------------------",
+            "          1 |   3.3345865   8.7328215          87          90",
+            "          2 |   6.8655057   10.551276          63          65",
+            "          3 |   8.5086652   11.768034          80          89",
+            "------------+------------------------------------------------",
+            "      Total |   6.1047175   10.570806         230         244",
+            "",
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      1236.56163      2   618.280813      5.75     0.0036",
+            " Within groups       25916.731    241   107.538303",
+            "------------------------------------------------------------------------",
+            "    Total           27153.2927    243   111.741945",
+            "",
+            "Bartlett's equal-variances test: chi2(2) =   6.2291    Prob>chi2 = 0.044"
+          ]
+        },
+        {
+          "command": "capture noisily oneway y g [fw=v]",
+          "lines": ["may not use noninteger frequency weights"]
+        },
+        { "command": "display _rc", "lines": ["401"] },
+        {
+          "command": "capture noisily oneway y g [pw=w]",
+          "lines": ["pweights not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "oneway y g if g < 3 & w == 1 [fw=w]",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      57.7022977      1   57.7022977      0.59     0.4469",
+            " Within groups      3212.94056     33   97.3618351",
+            "------------------------------------------------------------------------",
+            "    Total           3270.64286     34   96.1953782",
+            "",
+            "Bartlett's equal-variances test: chi2(1) =   0.0118    Prob>chi2 = 0.913"
+          ]
+        },
+        {
+          "command": "oneway y female [fw=w] in 1/30",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      487.023062      1   487.023062      3.04     0.0855",
+            " Within groups      11535.4364     72   160.214394",
+            "------------------------------------------------------------------------",
+            "    Total           12022.4595     73   164.691225",
+            "",
+            "Bartlett's equal-variances test: chi2(1) =   2.1601    Prob>chi2 = 0.142"
+          ]
+        },
+        {
+          "command": "replace w = 0 if g == 3",
+          "lines": ["(92 real changes made)"]
+        },
+        {
+          "command": "oneway y g [fw=w]",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups        1047.935      1     1047.935     10.35     0.0014",
+            " Within groups      40593.0811    401   101.229629",
+            "------------------------------------------------------------------------",
+            "    Total           41641.0161    402   103.584617",
+            "",
+            "Bartlett's equal-variances test: chi2(1) =   1.4005    Prob>chi2 = 0.237"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 60",
+          "lines": ["Number of observations (_N) was 0, now 60."]
+        },
+        { "command": "generate k = mod(_n, 10) + 1", "lines": [] },
+        { "command": "generate y = mod(_n * 7, 13)", "lines": [] },
+        {
+          "command": "replace k = . in 1/5",
+          "lines": ["(5 real changes made, 5 to missing)"]
+        },
+        {
+          "command": "replace k = .a in 6/8",
+          "lines": ["(3 real changes made, 3 to missing)"]
+        },
+        {
+          "command": "oneway y k",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      21.8333333      9   2.42592593      0.14     0.9979",
+            " Within groups      706.166667     42   16.8134921",
+            "------------------------------------------------------------------------",
+            "    Total                  728     51   14.2745098",
+            "",
+            "Bartlett's equal-variances test: chi2(9) =   0.1393    Prob>chi2 = 1.000"
+          ]
+        },
+        {
+          "command": "oneway y k, missing",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups            23.7     11   2.15454545      0.13     0.9996",
+            " Within groups      788.033333     48   16.4173611",
+            "------------------------------------------------------------------------",
+            "    Total           811.733333     59   13.7581921",
+            "",
+            "Bartlett's equal-variances test: chi2(11) =   0.2412    Prob>chi2 = 1.000"
+          ]
+        },
+        {
+          "command": "oneway y k, missing tabulate",
+          "lines": [
+            "            |            Summary of y",
+            "          k |        Mean   Std. dev.       Freq.",
+            "------------+------------------------------------",
+            "          1 |   6.6666667   3.7771241           6",
+            "          2 |         6.4   4.2778499           5",
+            "          3 |         5.6   4.2778499           5",
+            "          4 |         4.8   3.9623226           5",
+            "          5 |         6.6   4.2778499           5",
+            "          6 |         5.8   3.9623226           5",
+            "          7 |           5   4.1231056           5",
+            "          8 |         6.8   3.9623226           5",
+            "          9 |           6   4.1231056           5",
+            "         10 |   6.1666667   4.2622373           6",
+            "          . |         5.4   3.6469165           5",
+            "         .a |   5.6666667   3.7859389           3",
+            "------------+------------------------------------",
+            "      Total |   5.9333333   3.7092037          60",
+            "",
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups            23.7     11   2.15454545      0.13     0.9996",
+            " Within groups      788.033333     48   16.4173611",
+            "------------------------------------------------------------------------",
+            "    Total           811.733333     59   13.7581921",
+            "",
+            "Bartlett's equal-variances test: chi2(11) =   0.2412    Prob>chi2 = 1.000"
+          ]
+        },
+        {
+          "command": "oneway y k [fw=k], missing",
+          "lines": [
+            "                        Analysis of variance",
+            "    Source              SS         df      MS            F     Prob > F",
+            "------------------------------------------------------------------------",
+            "Between groups      107.807459      9   11.9786066      0.84     0.5787",
+            " Within groups      3930.06667    276    14.239372",
+            "------------------------------------------------------------------------",
+            "    Total           4037.87413    285   14.1679794",
+            "",
+            "Bartlett's equal-variances test: chi2(9) =   0.7518    Prob>chi2 = 1.000"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "pass8-data2-no-variables",
+      "source": "set linesize 79\nclear\nset obs 3\ncapture noisily list, sepby(x)\ndisplay _rc\ncapture noisily list, sepby(_all)\ndisplay _rc\ncapture noisily list in 1/2, sepby(x) noobs\ndisplay _rc\ncapture noisily sort _all\ndisplay _rc\ncapture noisily sort x\ndisplay _rc\ncapture noisily gsort _all\ndisplay _rc\ncapture noisily list, N\ndisplay _rc\ncapture noisily list, n\ndisplay _rc\ngenerate a = _n\ngenerate b = 4 - _n\ncapture noisily list, sepby(x)\ndisplay _rc\ncapture noisily list, sepby(a c)\ndisplay _rc\ncapture noisily list, n\ndisplay _rc\ngsort -a\nlist\ngsort a-b\nlist\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        {
+          "command": "capture noisily list, sepby(x)",
+          "lines": [
+            "no variables defined",
+            "option sepby() incorrectly specified"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "capture noisily list, sepby(_all)", "lines": [] },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily list in 1/2, sepby(x) noobs",
+          "lines": [
+            "no variables defined",
+            "option sepby() incorrectly specified"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "capture noisily sort _all", "lines": [] },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily sort x",
+          "lines": ["no variables defined"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily gsort _all",
+          "lines": ["varlist required"]
+        },
+        { "command": "display _rc", "lines": ["100"] },
+        { "command": "capture noisily list, N", "lines": [] },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily list, n",
+          "lines": ["option n not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "generate a = _n", "lines": [] },
+        { "command": "generate b = 4 - _n", "lines": [] },
+        {
+          "command": "capture noisily list, sepby(x)",
+          "lines": [
+            "variable x not found",
+            "option sepby() incorrectly specified"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily list, sepby(a c)",
+          "lines": [
+            "variable c not found",
+            "option sepby() incorrectly specified"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily list, n",
+          "lines": ["option n not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "gsort -a", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------+",
+            "     | a   b |",
+            "     |-------|",
+            "  1. | 3   1 |",
+            "  2. | 2   2 |",
+            "  3. | 1   3 |",
+            "     +-------+"
+          ]
+        },
+        { "command": "gsort a-b", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------+",
+            "     | a   b |",
+            "     |-------|",
+            "  1. | 1   3 |",
+            "  2. | 2   2 |",
+            "  3. | 3   1 |",
+            "     +-------+"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "pass8-data2-trig-functions",
+      "source": "set linesize 79\nclear\nset obs 4\ngenerate z = tanh(_n/4)\nlist\ngenerate a = asin(_n - 2)\ngenerate b = acos(_n/4)\ngenerate c = atan2(_n, -2)\ngenerate d = acosh(_n - 1)\ngenerate e = atanh(_n/3 - .5)\ngenerate f = sinh(_n * 300)\ngenerate g = cosh(-_n)\ngenerate h = asinh(-_n)\ngenerate i = tan(_n)\ngenerate j = sin(_n) + cos(_n) + atan(_n)\nlist a-j\ndisplay missing(atan2(., 1))\ndisplay tanh(-1e10)\ndisplay tanh(1e10)\ndisplay asin(1)\ndisplay acos(-1)\nsummarize a-j\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "generate z = tanh(_n/4)", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +----------+",
+            "     |        z |",
+            "     |----------|",
+            "  1. | .2449187 |",
+            "  2. | .4621172 |",
+            "  3. | .6351489 |",
+            "  4. | .7615942 |",
+            "     +----------+"
+          ]
+        },
+        {
+          "command": "generate a = asin(_n - 2)",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "generate b = acos(_n/4)", "lines": [] },
+        { "command": "generate c = atan2(_n, -2)", "lines": [] },
+        {
+          "command": "generate d = acosh(_n - 1)",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "generate e = atanh(_n/3 - .5)", "lines": [] },
+        {
+          "command": "generate f = sinh(_n * 300)",
+          "lines": ["(2 missing values generated)"]
+        },
+        { "command": "generate g = cosh(-_n)", "lines": [] },
+        { "command": "generate h = asinh(-_n)", "lines": [] },
+        { "command": "generate i = tan(_n)", "lines": [] },
+        { "command": "generate j = sin(_n) + cos(_n) + atan(_n)", "lines": [] },
+        {
+          "command": "list a-j",
+          "lines": [
+            "     +-----------------------------------------------------------------------+",
+            "  1. |         a |        b |        c |        d |         e | f |        g |",
+            "     | -1.570796 | 1.318116 | 2.677945 |        . | -.1682361 | . | 1.543081 |",
+            "     |-----------------------------------------------------------------------|",
+            "     |               h       |               i       |               j       |",
+            "     |       -.8813736       |        1.557408       |        2.167171       |",
+            "     +-----------------------------------------------------------------------+",
+            "",
+            "     +-----------------------------------------------------------------------+",
+            "  2. |         a |        b |        c |        d |         e | f |        g |",
+            "     |         0 | 1.047198 | 2.356194 |        0 |  .1682361 | . | 3.762196 |",
+            "     |-----------------------------------------------------------------------|",
+            "     |               h       |               i       |               j       |",
+            "     |       -1.443635       |        -2.18504       |        1.600299       |",
+            "     +-----------------------------------------------------------------------+",
+            "",
+            "     +-----------------------------------------------------------------------+",
+            "  3. |         a |        b |        c |        d |         e | f |        g |",
+            "     |  1.570796 | .7227343 | 2.158799 | 1.316958 |  .5493062 | . | 10.06766 |",
+            "     |-----------------------------------------------------------------------|",
+            "     |               h       |               i       |               j       |",
+            "     |       -1.818447       |       -.1425465       |        .4001733       |",
+            "     +-----------------------------------------------------------------------+",
+            "",
+            "     +-----------------------------------------------------------------------+",
+            "  4. |         a |        b |        c |        d |         e | f |        g |",
+            "     |         . |        0 | 2.034444 | 1.762747 |  1.198948 | . | 27.30823 |",
+            "     |-----------------------------------------------------------------------|",
+            "     |               h       |               i       |               j       |",
+            "     |       -2.094712       |        1.157821       |       -.0846285       |",
+            "     +-----------------------------------------------------------------------+"
+          ]
+        },
+        { "command": "display missing(atan2(., 1))", "lines": ["1"] },
+        { "command": "display tanh(-1e10)", "lines": ["-1"] },
+        { "command": "display tanh(1e10)", "lines": ["1"] },
+        { "command": "display asin(1)", "lines": ["1.5707963"] },
+        { "command": "display acos(-1)", "lines": ["3.1415927"] },
+        {
+          "command": "summarize a-j",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           a |          3           0    1.570796  -1.570796   1.570796",
+            "           b |          4     .772012    .5693235          0   1.318116",
+            "           c |          4    2.306846    .2806366   2.034444   2.677945",
+            "           d |          3    1.026568      .91655          0   1.762747",
+            "           e |          4    .4370635     .586436  -.1682361   1.198948",
+            "-------------+---------------------------------------------------------",
+            "           f |          0",
+            "           g |          4    10.67029    11.66493   1.543081   27.30823",
+            "           h |          4   -1.559542    .5249717  -2.094712  -.8813736",
+            "           i |          4    .0969107    1.685548   -2.18504   1.557408",
+            "           j |          4    1.020754    1.041975  -.0846285   2.167171"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "pass8-data2-rt",
+      "source": "set linesize 79\nclear\nset obs 5\nset seed 777\ngenerate double t1 = rt(5)\ngenerate double t2 = rt(10)\ngenerate double t3 = rt(1)\ngenerate double t4 = rt(cond(_n == 2, ., 30))\ngenerate double u = runiform()\nformat t1-u %21.0g\nlist\ndisplay missing(rt(.5))\ndisplay missing(rt(0))\nsummarize t1-t4\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "set seed 777", "lines": [] },
+        { "command": "generate double t1 = rt(5)", "lines": [] },
+        { "command": "generate double t2 = rt(10)", "lines": [] },
+        { "command": "generate double t3 = rt(1)", "lines": [] },
+        {
+          "command": "generate double t4 = rt(cond(_n == 2, ., 30))",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "generate double u = runiform()", "lines": [] },
+        { "command": "format t1-u %21.0g", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------------------------------------------+",
+            "  1. |                    t1 |                    t2 |                    t3 |",
+            "     |  2.883019778368681507 | -.6099745013654971348 | -1.504033782514008877 |",
+            "     |-----------------------------------------------------------------------|",
+            "     |                          t4       |                          u        |",
+            "     |       -1.583057445908007788       |       .6888438213922477571        |",
+            "     +-----------------------------------------------------------------------+",
+            "",
+            "     +-----------------------------------------------------------------------+",
+            "  2. |                    t1 |                    t2 |                    t3 |",
+            "     |  1.131073052850974925 | -.4659749764059284427 |  .2341687787119891839 |",
+            "     |-----------------------------------------------------------------------|",
+            "     |                          t4       |                          u        |",
+            "     |                           .       |       .3520046693964199447        |",
+            "     +-----------------------------------------------------------------------+",
+            "",
+            "     +-----------------------------------------------------------------------+",
+            "  3. |                    t1 |                    t2 |                    t3 |",
+            "     |  1.157743972343511896 |  1.932983406573942409 |  4.778090287406222103 |",
+            "     |-----------------------------------------------------------------------|",
+            "     |                          t4       |                          u        |",
+            "     |       -.1443573512484412069       |       .3766840885151719887        |",
+            "     +-----------------------------------------------------------------------+",
+            "",
+            "     +-----------------------------------------------------------------------+",
+            "  4. |                    t1 |                    t2 |                    t3 |",
+            "     |  1.846144836952780421 | -.3994473103803785063 | -.9645738162209228639 |",
+            "     |-----------------------------------------------------------------------|",
+            "     |                          t4       |                          u        |",
+            "     |        1.675980991258473995       |       .3780167871197256391        |",
+            "     +-----------------------------------------------------------------------+",
+            "",
+            "     +-----------------------------------------------------------------------+",
+            "  5. |                    t1 |                    t2 |                    t3 |",
+            "     | -.6809117153259269806 | -.2769292763367633969 | -.9578676049571571705 |",
+            "     |-----------------------------------------------------------------------|",
+            "     |                          t4       |                          u        |",
+            "     |        2.156613561555836167       |        .575825205709490473        |",
+            "     +-----------------------------------------------------------------------+"
+          ]
+        },
+        { "command": "display missing(rt(.5))", "lines": ["1"] },
+        { "command": "display missing(rt(0))", "lines": ["1"] },
+        {
+          "command": "summarize t1-t4",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          t1 |          5    1.267414    1.301125  -.6809117    2.88302",
+            "          t2 |          5    .0361315    1.067163  -.6099745   1.932983",
+            "          t3 |          5    .3171568    2.573522  -1.504034    4.77809",
+            "          t4 |          4    .5262949    1.720354  -1.583057   2.156614"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
