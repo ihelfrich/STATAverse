@@ -172,3 +172,212 @@ test("order, sequential puts numbered names in aorder's order", () => {
     "xa",
   ]);
 });
+
+test("order, sequential keeps a number past a long's range as a double", () => {
+  // Stata 19: order *, sequential; ds. aorder.ado's replace promotes its
+  // long to a double, so v3000000000 sorts after v2147483647.
+  const names = [
+    "v10",
+    "v3000000000",
+    "v2",
+    "v2147483647",
+    "v1",
+    "v99999999999999999999",
+    "v9999999999999999999a",
+    "v20240115",
+  ];
+  const { session } = run(
+    `clear\nset obs 1\n${names.map((name) => `generate ${name} = 1`).join("\n")}\norder *, sequential`,
+  );
+  assert.deepEqual(session.data.names, [
+    "v1",
+    "v2",
+    "v10",
+    "v20240115",
+    "v2147483647",
+    "v3000000000",
+    "v9999999999999999999a",
+    "v99999999999999999999",
+  ]);
+});
+
+test("an empty varname option is not given, and too many is named first", () => {
+  // Stata 19: capture noisily, then display _rc.
+  const setup =
+    "clear\nset obs 5\ngenerate x = _n\ngenerate v1 = 1\ngenerate v2 = 2\n";
+  let { session, output } = run(
+    `${setup}capture noisily order x, after(v*)\ndisplay _rc`,
+  );
+  assert.deepEqual(output.at(-2).lines, [
+    "after():  too many variables specified",
+  ]);
+  assert.equal(output.at(-1).lines.join("").trim(), "103");
+  ({ output } = run(`${setup}capture noisily order x, before()\ndisplay _rc`));
+  assert.deepEqual(output.at(-2).lines, ["options not allowed"]);
+  assert.equal(output.at(-1).lines.join("").trim(), "101");
+  // xtile q = x, cutpoints() is xtile q = x, with nq(2); so is nq().
+  ({ session } = run(`${setup}xtile q = x, cutpoints()\nxtile r = x, nq()`));
+  assert.equal(session.data.get("q").label, "2 quantiles of x");
+  assert.equal(session.data.get("r").label, "2 quantiles of x");
+  assert.deepEqual(Array.from(session.data.get("q").data), [1, 1, 1, 2, 2]);
+});
+
+test("xtile and pctile labels keep the blanks syntax leaves in =exp", () => {
+  // Stata 19: display "[`:variable label q']".
+  const { session } = run(
+    [
+      "clear",
+      "set obs 20",
+      "generate x = mod(_n*7, 11)",
+      "generate w = 1 + mod(_n, 3)",
+      "generate g = mod(_n, 2)",
+      "generate c = _n*2 in 1/3",
+      "xtile a1 = x [aw=w]",
+      "xtile a2 = x+( 1 ) [aw=w], nq(3)",
+      "xtile a3 = x + ( 1 )  [aw=w] , nq(3)",
+      "xtile a4 = x[aw=w], nq(3)",
+      "xtile a5 =   x  if g",
+      "xtile a6 = (x) *2 [fw=w] if g , nq(3)",
+      "xtile a7 = x, nq(4.0)",
+      "xtile a8 = x if g, cutpoints(c)",
+      "pctile p1 = x [aw=w]",
+      "pctile p2 = x   in 1/10",
+    ].join("\n"),
+  );
+  const labels = Object.fromEntries(
+    session.data.variables.map((v) => [v.name, v.label]),
+  );
+  assert.equal(labels.a1, "2 quantiles of x ");
+  assert.equal(labels.a2, "3 quantiles of x+(1  )");
+  assert.equal(labels.a3, "3 quantiles of x + (1  ) ");
+  assert.equal(labels.a4, "3 quantiles of x");
+  assert.equal(labels.a5, "2 quantiles of x  ");
+  assert.equal(labels.a6, "3 quantiles of (x ) *2  ");
+  assert.equal(labels.a7, "4.0 quantiles of x");
+  assert.equal(labels.a8, "x  categorized by c");
+  assert.equal(labels.p1, "percentiles of x ");
+  assert.equal(labels.p2, "percentiles of x   ");
+});
+
+test("xtile reads nquantiles() as an expression and pctile n() as an integer", () => {
+  // Stata 19: capture noisily xtile z = x, nq(...); display _rc.
+  const setup =
+    "clear\nset obs 20\ngenerate x = mod(_n*7, 11)\nscalar s4 = 4\n";
+  const said = (option) => {
+    const { output } = run(
+      `${setup}capture noisily xtile z = x, nq(${option})\ndisplay _rc`,
+    );
+    return [
+      output.at(-2).lines.join("\n"),
+      output.at(-1).lines.join("").trim(),
+    ];
+  };
+  assert.deepEqual(said("1+3"), ["option n() incorrectly specified", "198"]);
+  assert.deepEqual(said("x"), ["option n() incorrectly specified", "198"]);
+  assert.deepEqual(said("s4"), ["option n() incorrectly specified", "198"]);
+  assert.deepEqual(said("nosuch"), ["nosuch not found", "111"]);
+  assert.deepEqual(said("0+1"), [
+    "nquantiles() must be greater than or equal to 2",
+    "198",
+  ]);
+  const { output } = run(
+    `${setup}capture noisily _pctile x, p()\ncapture noisily pctile p = x, nq(1+3)`,
+  );
+  assert.deepEqual(output.at(-2).lines, ["option p() incorrectly specified"]);
+  assert.deepEqual(output.at(-1).lines, ["option nq() incorrectly specified"]);
+});
+
+test("_pctile takes negative importance weights", () => {
+  // Stata 19: return list after _pctile x [iw=iw], p(25 50 75).
+  const { session } = run(
+    "clear\ninput x iw\n1 -1\n2 2\n3 1\n4 0.5\n5 2\n6 1\nend\n_pctile x [iw=iw], p(25 50 75)",
+  );
+  assert.deepEqual(session.results.r, { r1: 3, r2: 5, r3: 5 });
+});
+
+test("gsort refuses what gsort.ado's confirm, type and rename refuse", () => {
+  // Stata 19: capture noisily gsort ...; display _rc; return list.
+  const codes = {
+    "gsort -v*": 111,
+    "gsort -s v*, gen(z)": 111,
+    "gsort -id w*": 101,
+    "gsort -(v1)": 198,
+    "gsort id(v1)": 101,
+    "gsort w, gen(a b)": 101,
+    "gsort w, gen(byte g)": 101,
+    "gsort w, gen(X1 id)": 110,
+    "gsort w, gen(a-b)": 198,
+    "gsort w, gen(_b)": 198,
+    "gsort w, gen(_skip)": 0,
+  };
+  const setup =
+    'clear\ninput id v1 v2 str2 s w\n1 1 2 "a" 3\n2 1 . "b" 1\n3 2 1 "c" 2\n4 . 3 "d" 3\n5 2 .a "e" 1\n6 .b 1 "f" 2\nend\n';
+  for (const [command, rc] of Object.entries(codes)) {
+    const { output } = run(`${setup}capture ${command}\ndisplay _rc`);
+    assert.equal(Number(output.at(-1).lines.join("").trim()), rc, command);
+  }
+  // Stopped at v*, the data are sorted on it, r() is empty and z is not
+  // made.
+  let { session } = run(`${setup}summarize id\ncapture gsort -s v*, gen(z)`);
+  assert.deepEqual(session.data.sortedBy, ["v1", "v2"]);
+  assert.deepEqual(Array.from(session.data.get("id").data), [1, 2, 3, 5, 4, 6]);
+  assert.deepEqual(session.results.r, {});
+  assert.equal(session.data.has("z"), false);
+  // Stopped at the rename, the data are sorted and r() is what gsort.ado's
+  // summarize left.
+  ({ session } = run(`${setup}summarize id\ncapture gsort -id, gen(_b)`));
+  assert.deepEqual(session.data.sortedBy, []);
+  assert.deepEqual(Array.from(session.data.get("id").data), [6, 5, 4, 3, 2, 1]);
+  assert.deepEqual(session.results.r, { N: 0, sum_w: 0, sum: 0 });
+  // Finished, r() is put back in reverse order.
+  ({ session } = run(`${setup}summarize w\ngsort -id, gen(gg)`));
+  assert.deepEqual(Object.keys(session.results.r), [
+    "sum",
+    "max",
+    "min",
+    "sd",
+    "Var",
+    "mean",
+    "sum_w",
+    "N",
+  ]);
+});
+
+test("collapse takes (p050) and counts observations before name conflicts", () => {
+  // Stata 19: describe and list after collapse (p050) a=y, by(g); and
+  // capture noisily of an empty if with a name conflict.
+  const setup = "clear\ninput g y\n1 2\n1 4\n1 .\n2 6\n2 9\n2 10\nend\n";
+  const { session } = run(`${setup}collapse (p050) a=y, by(g)`);
+  assert.equal(session.data.get("a").label, "(p 050) y");
+  assert.deepEqual(Array.from(session.data.get("a").data), [3, 9]);
+  const { output } = run(
+    `${setup}capture noisily collapse (mean) y (sd) y if g > 5, by(g)\ndisplay _rc`,
+  );
+  assert.deepEqual(output.at(-2).lines, ["no observations"]);
+  assert.equal(output.at(-1).lines.join("").trim(), "2000");
+});
+
+test("a reserved word as a new variable's name is an invalid varname", () => {
+  // Stata 19: capture noisily of each.
+  const said = {
+    "rename x _b": "_b invalid varname",
+    "rename x str5": "str5 invalid variable name",
+    "egen _N = mean(x)": "_N invalid varname",
+    "xtile _n = x": "_n invalid varname",
+    "xtile in = x": "varlist required",
+    "xtile _skip = x": "_skip not allowed",
+    "pctile _n = x": "_n invalid varname",
+    "clonevar _cons = x": "_cons invalid varname",
+  };
+  for (const [command, message] of Object.entries(said)) {
+    const { output } = run(
+      `clear\nset obs 3\ngenerate x = _n\ncapture noisily ${command}`,
+    );
+    assert.deepEqual(output.at(-1).lines, [message], command);
+  }
+  // egen and rename take _skip.
+  const { session } = run(
+    "clear\nset obs 3\ngenerate x = _n\negen _skip = mean(x)\nrename _skip k\nrename x _skip",
+  );
+  assert.deepEqual(session.data.names, ["_skip", "k"]);
+});

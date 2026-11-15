@@ -12,6 +12,7 @@ import {
 import { evaluateAll } from "./expression.js";
 import {
   assumedWeights,
+  clauses,
   genericWeight,
   optionItems,
   splitAtComma,
@@ -95,12 +96,142 @@ export function quantilesOf(
  * The observations _pctile, pctile and xtile work with, as Stata's mark
  * picks them: those that if and in select and whose weight is neither
  * missing nor zero, with the weights (null without weights). A negative
- * weight, or a fractional frequency weight, is an error.
+ * weight, or a fractional frequency weight, is an error, but an importance
+ * weight may be negative, as _pctile takes it.
  */
 export function weightedSample(session, parsed) {
-  return weightedRows(session, parsed, session.rows(parsed, null), {
-    expand: false,
-  });
+  const rows = session.rows(parsed, null);
+  if (parsed.weight?.type !== "iweight")
+    return weightedRows(session, parsed, rows, { expand: false });
+  const weights = evaluateAll(
+    session.compile(parsed.weight.exp),
+    session.data.n,
+  );
+  return {
+    rows: rows.filter((i) => !isMissing(weights[i]) && weights[i] !== 0),
+    weights,
+  };
+}
+
+/**
+ * The next token as gettoken reads it with parse(`""[](),"') quotes:
+ * leading blanks skipped, then a parsing character, a quoted string, or
+ * everything up to the next parsing character (trailing blanks kept).
+ * Returns [token, rest], or null when nothing is left.
+ */
+function nextToken(text, parse) {
+  const start = text.search(/\S/);
+  if (start < 0) return null;
+  let end;
+  if (text[start] === '"') {
+    const close = text.indexOf('"', start + 1);
+    end = close < 0 ? text.length : close + 1;
+  } else if (parse.includes(text[start])) end = start + 1;
+  else {
+    end = start;
+    while (end < text.length && !parse.includes(text[end])) end++;
+  }
+  return [text.slice(start, end), text.slice(end)];
+}
+/** The weight words _parsewt.ado's Parse takes, at their shortest. */
+const PARSEWT_WEIGHTS = [
+  ["weight", 1],
+  ["fweight", 2],
+  ["aweight", 2],
+  ["pweight", 2],
+  ["iweight", 2],
+  ["frequency", 4],
+  ["cellsize", 4],
+];
+/**
+ * A command as _parsewt.ado hands it on: the first [weight=exp] outside
+ * parentheses and options taken out, with what came before it rebuilt
+ * from its tokens (a blank each token began with is lost, and every token
+ * after the first ")" is preceded by one) and what followed it kept as it
+ * was. Returns { command, weight }, the command as it was and a null
+ * weight when there is none; xtile and pctile label their variables
+ * with the expression this leaves.
+ */
+export function parseWeight(text) {
+  const parse = '"[](),';
+  let rest = text,
+    before = "",
+    depth = 0,
+    inOptions = false,
+    space = "";
+  for (let next; (next = nextToken(rest, parse));) {
+    const [token, after] = next;
+    rest = after;
+    if (depth === 0 && !inOptions && token === "[") {
+      const weight = weightInBrackets(rest);
+      if (weight)
+        return { command: before + weight.rest, weight: weight.clause };
+      depth++;
+      before += token;
+      continue;
+    }
+    if (token === "(") depth++;
+    else if (token === ")") {
+      depth--;
+      space = " ";
+    } else if (token === ",") inOptions = !inOptions;
+    before += space + token;
+  }
+  return { command: text, weight: null };
+}
+// Parse in _parsewt.ado: type=exp] at the start of text, with the text
+// after the ], or null when it is not a weight.
+function weightInBrackets(text) {
+  const equals = text.indexOf("=");
+  if (equals < 0) return null;
+  const type = text.slice(0, equals).trim();
+  if (
+    !type ||
+    !PARSEWT_WEIGHTS.some(
+      ([full, shortest]) =>
+        full.slice(0, Math.max(shortest, type.length)) === type,
+    )
+  )
+    return null;
+  let depth = 1,
+    exp = "",
+    rest = text.slice(equals + 1);
+  for (let next; depth && (next = nextToken(rest, '"[]'));) {
+    const [token, after] = next;
+    rest = after;
+    if (token === "]") depth--;
+    if (depth) {
+      if (token === "[") depth++;
+      exp += token;
+    }
+  }
+  return { clause: `[${type}=${exp}]`, rest };
+}
+/**
+ * newvarname =exp ... as xtile.ado and pctile.ado parse it: the weight
+ * first, as _parsewt does, then the rest. The result has the weight, and
+ * label: the expression as syntax leaves it, which keeps the blanks
+ * before if, in or the comma.
+ */
+export function parseWithWeight(session, declaration, weights, text, ctx) {
+  const { command, weight } = parseWeight(text);
+  let parsedWeight = null;
+  if (weight) {
+    parsedWeight = session.parse(`[${weights}]`, weight).weight;
+    if (genericWeight(weight)) ctx.out(assumedWeights(parsedWeight.type));
+  }
+  const parsed = session.parse(declaration, command),
+    head = splitAtComma(command)[0],
+    found = clauses(head, true),
+    at = found.findIndex((clause) => clause.kind === "exp");
+  parsed.weight = parsedWeight;
+  parsed.label =
+    at < 0
+      ? parsed.exp
+      : head
+          .slice(found[at].after, found[at + 1]?.at ?? head.length)
+          .replace(/^\s+/, "");
+  return parsed;
 }
 
 /** [value, weight] pairs of the rows with a value, sorted by value. */
@@ -120,12 +251,15 @@ export function typedOption(text, full, minimum) {
   );
 }
 
-/** nquantiles(#) read as an integer, refused as Stata's syntax refuses it. */
+/**
+ * nquantiles(#) read as an integer, refused as Stata's syntax refuses it:
+ * a number whose value is whole (4.0 and +4 are 4) is one.
+ */
 function wholeNumber(argument, typed) {
-  const text = argument.trim();
-  if (!/^[+-]?\d+$/.test(text))
+  const value = parseNumber(argument);
+  if (value === undefined || isMissing(value) || !Number.isInteger(value))
     throw new StataError(`option ${typed}() incorrectly specified`, 198);
-  return Number(text);
+  return value;
 }
 
 const evenly = (nq) =>
@@ -197,15 +331,16 @@ function pctileScalar(session, text, ctx) {
  * touse), counted on from those the caller holds.
  */
 function pctile(session, text, ctx) {
-  const parsed = session.parse(
-      "newvarname =exp [if] [in] [aweight fweight pweight] [, Nquantiles(string) ALTdef Genp(string)]",
+  const parsed = parseWithWeight(
+      session,
+      "newvarname =exp [if] [in] [, Nquantiles(string) ALTdef Genp(string)]",
+      "aweight fweight pweight",
       text,
+      ctx,
     ),
     options = parsed.options,
     data = session.data,
     name = parsed.varlist[0];
-  if (parsed.weight && genericWeight(text))
-    ctx.out(assumedWeights(parsed.weight.type));
   const nq =
     options.nquantiles === undefined
       ? 2
@@ -252,7 +387,7 @@ function pctile(session, text, ctx) {
     data.generate(name, fill(found), {
       type: parsed.typed[0] ? parsed.types[0] : undefined,
     });
-    data.get(name).label = `percentiles of ${parsed.exp.trim()}`;
+    data.get(name).label = `percentiles of ${parsed.label}`;
     if (percentages.length) {
       data.generate(percentages[0], fill(points), { type: "float" });
       data.get(percentages[0]).label = `percentages for ${held}`;

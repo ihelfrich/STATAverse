@@ -288,7 +288,6 @@ const FAILED_R = new Map([
     "duplicates",
     "separate",
     "split",
-    "gsort",
     "insobs",
     "numlabel",
     "append",

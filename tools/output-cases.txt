@@ -26852,3 +26852,166 @@ generate x = _n
 generate str3 s = "a b"
 capture noisily split x
 capture noisily split s x
+=== recheck-manage-order-sequential-long-numbers
+clear
+set obs 1
+foreach v in v10 v3000000000 v2 v2147483647 v1 v99999999999999999999 v9999999999999999999a v20240115 {
+  generate `v' = 1
+}
+order *, sequential
+describe, simple
+capture noisily order v1, after(v1*)
+display _rc
+capture noisily order v1, before(v2 v10)
+display _rc
+capture noisily order v1, after(_all)
+display _rc
+capture noisily order v1, before()
+display _rc
+capture noisily order v1, before(zz)
+display _rc
+order v1, after() last
+describe, simple
+generate c = 1
+capture noisily xtile q = v1, cutpoints(v1 c)
+display _rc
+=== recheck-manage-xtile-labels-and-nquantiles
+clear
+set seed 2024
+set obs 30
+generate x = round(runiform()*10)
+generate w = 1 + mod(_n, 3)
+generate g = mod(_n, 2)
+generate c = 3*_n in 1/3
+xtile q1 = x [aw=w], nq(4)
+xtile q2 = x+( 1 ) [aw=w], nq(3)
+xtile q3 = x if g==1, nq(3)
+xtile q4 = x   , nq(3)
+xtile q5 = x if g, cutpoints(c)
+xtile q6 = x[aw=w], nq(3)
+xtile q7 = (x) *2 [fw=w] if g , nq(3)
+xtile q8 = x, nq(4.0)
+xtile q9 = x, cutpoints()
+pctile p1 = x [aw=w] , nq(3)
+pctile p2 = x   in 1/10
+foreach v of varlist q* p* {
+  display "`v' [`:variable label `v'']"
+}
+tabulate q1
+tabulate q5
+capture noisily xtile z1 = x, nq(1+3)
+display _rc
+capture noisily xtile z2 = x, nq(x)
+display _rc
+capture noisily xtile z3 = x, nq(nosuch)
+display _rc
+capture noisily xtile z4 = x, nq(0+1)
+display _rc
+capture noisily xtile z5 = x, nq(2.5)
+display _rc
+capture noisily xtile q9 = x, nq()
+display _rc
+capture noisily pctile z6 = x, nq(1+3)
+display _rc
+capture noisily _pctile x, nq(4.0)
+display _rc
+capture noisily _pctile x, p()
+display _rc
+capture noisily _pctile x, nq()
+display _rc
+describe, short
+=== recheck-manage-pctile-importance-weights
+clear
+input x iw
+1 -1
+2 2
+3 1
+4 0.5
+5 2
+6 1
+end
+_pctile x [iw=iw], p(25 50 75)
+return list
+_pctile x [iw=iw], nq(3)
+return list
+=== recheck-manage-gsort-generate-names
+clear
+input id v1 v2 str2 s w
+1 1 2 "a" 3
+2 1 . "b" 1
+3 2 1 "c" 2
+4 . 3 "d" 3
+5 2 .a "e" 1
+6 .b 1 "f" 2
+end
+foreach n in "a b" "_n" "_b" "in" "byte g" "a-b" "_N" "id" "X1 id" "1a" "a 1b" "a*" "str5" "byte" {
+  capture noisily gsort w, gen(`n')
+  display "rc=" _rc
+}
+describe, simple
+summarize id
+capture noisily gsort -v*
+display _rc
+display "[`:sortedby']"
+list id v1 v2, noobs sep(0)
+return list
+capture noisily gsort -s v*, gen(z)
+display _rc
+capture noisily gsort -id w*
+display _rc
+capture noisily gsort -(v1)
+display _rc
+capture noisily gsort id(v1)
+display _rc
+summarize id
+capture noisily gsort -id, gen(_b)
+display _rc
+display "[`:sortedby']"
+list id, noobs sep(0)
+return list
+summarize w
+gsort -id, gen(gg)
+return list
+describe, simple
+=== recheck-manage-collapse-p050-and-order
+clear
+input g y z
+1 2 5
+1 4 3
+1 . 7
+2 6 1
+2 9 2
+2 10 8
+end
+preserve
+collapse (p050) a=y (p01) b=y, by(g)
+describe
+list
+restore
+capture noisily collapse (mean) y (sd) y if g > 5, by(g)
+display _rc
+capture noisily collapse (mean) y (sd) y, by(g)
+display _rc
+capture noisily collapse (p0) y, by(g)
+display _rc
+=== recheck-manage-reserved-new-names
+clear
+set obs 3
+generate x = _n
+capture noisily rename x _b
+capture noisily rename x str5
+capture noisily rename x byte
+capture noisily egen _N = mean(x)
+capture noisily egen str5 = mean(x)
+capture noisily egen _b = mean(nosuch)
+capture noisily xtile _n = x
+capture noisily xtile in = x
+capture noisily xtile _skip = x
+capture noisily pctile _n = x
+capture noisily pctile if = x
+capture noisily generate _b = 1
+capture noisily generate _skip = 1
+capture noisily clonevar _cons = x
+egen _skip = mean(x)
+rename _skip y
+describe, simple

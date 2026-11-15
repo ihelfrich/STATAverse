@@ -13,6 +13,7 @@ import {
   isName,
   isNumericType,
   isReserved,
+  reservedNameMessage,
   isStringType,
   MAX_STRING_WIDTH,
   promote,
@@ -224,8 +225,10 @@ export class Dataset {
    * and how many values are missing.
    */
   generate(name, values, { type, string } = {}) {
-    if (!isName(name) || isReserved(name))
-      throw new StataError(`${name} invalid name`, 198);
+    if (!isName(name)) throw new StataError(`${name} invalid name`, 198);
+    // Only syntax keeps _skip for itself; egen and rename take it.
+    if (isReserved(name) && name !== "_skip")
+      throw new StataError(reservedNameMessage(name), 198);
     if (this.has(name))
       throw new StataError(`variable ${name} already defined`, 110);
     if (values.length !== this.n)
@@ -440,8 +443,10 @@ export class Dataset {
   }
   rename(from, to) {
     const variable = this.get(from);
-    if (!isName(to) || isReserved(to))
-      throw new StataError(`${to} invalid name`, 198);
+    if (!isName(to)) throw new StataError(`${to} invalid name`, 198);
+    // rename takes _skip, which only syntax keeps for itself.
+    if (isReserved(to) && to !== "_skip")
+      throw new StataError(reservedNameMessage(to), 198);
     if (this.has(to))
       throw new StataError(`variable ${to} already defined`, 110);
     variable.name = to;

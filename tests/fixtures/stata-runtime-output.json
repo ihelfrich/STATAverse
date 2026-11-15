@@ -185980,6 +185980,551 @@
       ]
     },
     {
+      "id": "recheck-manage-order-sequential-long-numbers",
+      "source": "clear\nset obs 1\nforeach v in v10 v3000000000 v2 v2147483647 v1 v99999999999999999999 v9999999999999999999a v20240115 {\n  generate `v' = 1\n}\norder *, sequential\ndescribe, simple\ncapture noisily order v1, after(v1*)\ndisplay _rc\ncapture noisily order v1, before(v2 v10)\ndisplay _rc\ncapture noisily order v1, after(_all)\ndisplay _rc\ncapture noisily order v1, before()\ndisplay _rc\ncapture noisily order v1, before(zz)\ndisplay _rc\norder v1, after() last\ndescribe, simple\ngenerate c = 1\ncapture noisily xtile q = v1, cutpoints(v1 c)\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        {
+          "command": "foreach v in v10 v3000000000 v2 v2147483647 v1 v99999999999999999999 v9999999999999999999a v20240115 {",
+          "lines": ["  2.   generate `v' = 1", "  3. }"]
+        },
+        { "command": "order *, sequential", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "v1            v2            v10           v20240115     v2147483647   v3000000000   v999999999~a  v999999999~9"
+          ]
+        },
+        {
+          "command": "capture noisily order v1, after(v1*)",
+          "lines": ["after():  too many variables specified"]
+        },
+        { "command": "display _rc", "lines": ["103"] },
+        {
+          "command": "capture noisily order v1, before(v2 v10)",
+          "lines": ["before():  too many variables specified"]
+        },
+        { "command": "display _rc", "lines": ["103"] },
+        {
+          "command": "capture noisily order v1, after(_all)",
+          "lines": ["after():  too many variables specified"]
+        },
+        { "command": "display _rc", "lines": ["103"] },
+        {
+          "command": "capture noisily order v1, before()",
+          "lines": ["options not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily order v1, before(zz)",
+          "lines": ["variable zz not found", "(error in option before())"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        { "command": "order v1, after() last", "lines": [] },
+        {
+          "command": "describe, simple",
+          "lines": [
+            "v2            v10           v20240115     v2147483647   v3000000000   v999999999~a  v999999999~9  v1"
+          ]
+        },
+        { "command": "generate c = 1", "lines": [] },
+        {
+          "command": "capture noisily xtile q = v1, cutpoints(v1 c)",
+          "lines": ["cutpoints():  too many variables specified"]
+        },
+        { "command": "display _rc", "lines": ["103"] }
+      ]
+    },
+    {
+      "id": "recheck-manage-xtile-labels-and-nquantiles",
+      "source": "clear\nset seed 2024\nset obs 30\ngenerate x = round(runiform()*10)\ngenerate w = 1 + mod(_n, 3)\ngenerate g = mod(_n, 2)\ngenerate c = 3*_n in 1/3\nxtile q1 = x [aw=w], nq(4)\nxtile q2 = x+( 1 ) [aw=w], nq(3)\nxtile q3 = x if g==1, nq(3)\nxtile q4 = x   , nq(3)\nxtile q5 = x if g, cutpoints(c)\nxtile q6 = x[aw=w], nq(3)\nxtile q7 = (x) *2 [fw=w] if g , nq(3)\nxtile q8 = x, nq(4.0)\nxtile q9 = x, cutpoints()\npctile p1 = x [aw=w] , nq(3)\npctile p2 = x   in 1/10\nforeach v of varlist q* p* {\n  display \"`v' [`:variable label `v'']\"\n}\ntabulate q1\ntabulate q5\ncapture noisily xtile z1 = x, nq(1+3)\ndisplay _rc\ncapture noisily xtile z2 = x, nq(x)\ndisplay _rc\ncapture noisily xtile z3 = x, nq(nosuch)\ndisplay _rc\ncapture noisily xtile z4 = x, nq(0+1)\ndisplay _rc\ncapture noisily xtile z5 = x, nq(2.5)\ndisplay _rc\ncapture noisily xtile q9 = x, nq()\ndisplay _rc\ncapture noisily pctile z6 = x, nq(1+3)\ndisplay _rc\ncapture noisily _pctile x, nq(4.0)\ndisplay _rc\ncapture noisily _pctile x, p()\ndisplay _rc\ncapture noisily _pctile x, nq()\ndisplay _rc\ndescribe, short\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2024", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate x = round(runiform()*10)", "lines": [] },
+        { "command": "generate w = 1 + mod(_n, 3)", "lines": [] },
+        { "command": "generate g = mod(_n, 2)", "lines": [] },
+        {
+          "command": "generate c = 3*_n in 1/3",
+          "lines": ["(27 missing values generated)"]
+        },
+        { "command": "xtile q1 = x [aw=w], nq(4)", "lines": [] },
+        { "command": "xtile q2 = x+( 1 ) [aw=w], nq(3)", "lines": [] },
+        { "command": "xtile q3 = x if g==1, nq(3)", "lines": [] },
+        { "command": "xtile q4 = x   , nq(3)", "lines": [] },
+        { "command": "xtile q5 = x if g, cutpoints(c)", "lines": [] },
+        { "command": "xtile q6 = x[aw=w], nq(3)", "lines": [] },
+        { "command": "xtile q7 = (x) *2 [fw=w] if g , nq(3)", "lines": [] },
+        { "command": "xtile q8 = x, nq(4.0)", "lines": [] },
+        { "command": "xtile q9 = x, cutpoints()", "lines": [] },
+        { "command": "pctile p1 = x [aw=w] , nq(3)", "lines": [] },
+        { "command": "pctile p2 = x   in 1/10", "lines": [] },
+        {
+          "command": "foreach v of varlist q* p* {",
+          "lines": [
+            "  2.   display \"`v' [`:variable label `v'']\"",
+            "  3. }",
+            "q1 [4 quantiles of x ]",
+            "q2 [3 quantiles of x+(1  )]",
+            "q3 [3 quantiles of x ]",
+            "q4 [3 quantiles of x   ]",
+            "q5 [x  categorized by c]",
+            "q6 [3 quantiles of x]",
+            "q7 [3 quantiles of (x ) *2  ]",
+            "q8 [4.0 quantiles of x]",
+            "q9 [2 quantiles of x]",
+            "p1 [percentiles of x  ]",
+            "p2 [percentiles of x   ]"
+          ]
+        },
+        {
+          "command": "tabulate q1",
+          "lines": [
+            "4 quantiles |",
+            "      of x  |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |         11       36.67       36.67",
+            "          2 |          4       13.33       50.00",
+            "          3 |          7       23.33       73.33",
+            "          4 |          8       26.67      100.00",
+            "------------+-----------------------------------",
+            "      Total |         30      100.00"
+          ]
+        },
+        {
+          "command": "tabulate q5",
+          "lines": [
+            "          x |",
+            "categorized |",
+            "       by c |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |          7       46.67       46.67",
+            "          2 |          3       20.00       66.67",
+            "          3 |          3       20.00       86.67",
+            "          4 |          2       13.33      100.00",
+            "------------+-----------------------------------",
+            "      Total |         15      100.00"
+          ]
+        },
+        {
+          "command": "capture noisily xtile z1 = x, nq(1+3)",
+          "lines": ["option n() incorrectly specified"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily xtile z2 = x, nq(x)",
+          "lines": ["option n() incorrectly specified"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily xtile z3 = x, nq(nosuch)",
+          "lines": ["nosuch not found"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily xtile z4 = x, nq(0+1)",
+          "lines": ["nquantiles() must be greater than or equal to 2"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily xtile z5 = x, nq(2.5)",
+          "lines": ["option n() incorrectly specified"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily xtile q9 = x, nq()",
+          "lines": ["variable q9 already defined"]
+        },
+        { "command": "display _rc", "lines": ["110"] },
+        {
+          "command": "capture noisily pctile z6 = x, nq(1+3)",
+          "lines": ["option nq() incorrectly specified"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "capture noisily _pctile x, nq(4.0)", "lines": [] },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily _pctile x, p()",
+          "lines": ["option p() incorrectly specified"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily _pctile x, nq()",
+          "lines": ["option nq() incorrectly specified"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:            30",
+            "    Variables:            15",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-manage-pctile-importance-weights",
+      "source": "clear\ninput x iw\n1 -1\n2 2\n3 1\n4 0.5\n5 2\n6 1\nend\n_pctile x [iw=iw], p(25 50 75)\nreturn list\n_pctile x [iw=iw], nq(3)\nreturn list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input x iw",
+          "lines": [
+            "             x         iw",
+            "  1. 1 -1",
+            "  2. 2 2",
+            "  3. 3 1",
+            "  4. 4 0.5",
+            "  5. 5 2",
+            "  6. 6 1",
+            "  7. end"
+          ]
+        },
+        { "command": "_pctile x [iw=iw], p(25 50 75)", "lines": [] },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                 r(r1) =  3",
+            "                 r(r2) =  5",
+            "                 r(r3) =  5"
+          ]
+        },
+        { "command": "_pctile x [iw=iw], nq(3)", "lines": [] },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                 r(r1) =  3",
+            "                 r(r2) =  5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-manage-gsort-generate-names",
+      "source": "clear\ninput id v1 v2 str2 s w\n1 1 2 \"a\" 3\n2 1 . \"b\" 1\n3 2 1 \"c\" 2\n4 . 3 \"d\" 3\n5 2 .a \"e\" 1\n6 .b 1 \"f\" 2\nend\nforeach n in \"a b\" \"_n\" \"_b\" \"in\" \"byte g\" \"a-b\" \"_N\" \"id\" \"X1 id\" \"1a\" \"a 1b\" \"a*\" \"str5\" \"byte\" {\n  capture noisily gsort w, gen(`n')\n  display \"rc=\" _rc\n}\ndescribe, simple\nsummarize id\ncapture noisily gsort -v*\ndisplay _rc\ndisplay \"[`:sortedby']\"\nlist id v1 v2, noobs sep(0)\nreturn list\ncapture noisily gsort -s v*, gen(z)\ndisplay _rc\ncapture noisily gsort -id w*\ndisplay _rc\ncapture noisily gsort -(v1)\ndisplay _rc\ncapture noisily gsort id(v1)\ndisplay _rc\nsummarize id\ncapture noisily gsort -id, gen(_b)\ndisplay _rc\ndisplay \"[`:sortedby']\"\nlist id, noobs sep(0)\nreturn list\nsummarize w\ngsort -id, gen(gg)\nreturn list\ndescribe, simple\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id v1 v2 str2 s w",
+          "lines": [
+            "            id         v1         v2          s          w",
+            "  1. 1 1 2 \"a\" 3",
+            "  2. 2 1 . \"b\" 1",
+            "  3. 3 2 1 \"c\" 2",
+            "  4. 4 . 3 \"d\" 3",
+            "  5. 5 2 .a \"e\" 1",
+            "  6. 6 .b 1 \"f\" 2",
+            "  7. end"
+          ]
+        },
+        {
+          "command": "foreach n in \"a b\" \"_n\" \"_b\" \"in\" \"byte g\" \"a-b\" \"_N\" \"id\" \"X1 id\" \"1a\" \"a 1b\" \"a*\" \"str5\" \"byte\" {",
+          "lines": [
+            "  2.   capture noisily gsort w, gen(`n')",
+            "  3.   display \"rc=\" _rc",
+            "  4. }",
+            "b not allowed",
+            "rc=101",
+            "_n invalid varname",
+            "rc=198",
+            "_b invalid varname",
+            "rc=198",
+            "in invalid varname",
+            "rc=198",
+            "g not allowed",
+            "rc=101",
+            "- invalid name",
+            "rc=198",
+            "_N invalid varname",
+            "rc=198",
+            "variable id already defined",
+            "rc=110",
+            "variable id already defined",
+            "rc=110",
+            "1a invalid name",
+            "rc=198",
+            "1b invalid name",
+            "rc=198",
+            "* invalid name",
+            "rc=198",
+            "str5 invalid variable name",
+            "rc=198",
+            "byte invalid varname",
+            "rc=198"
+          ]
+        },
+        { "command": "describe, simple", "lines": ["id  v1  v2  s   w"] },
+        {
+          "command": "summarize id",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          id |          6         3.5    1.870829          1          6"
+          ]
+        },
+        {
+          "command": "capture noisily gsort -v*",
+          "lines": ["v ambiguous abbreviation"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        { "command": "display \"[`:sortedby']\"", "lines": ["[v1 v2]"] },
+        {
+          "command": "list id v1 v2, noobs sep(0)",
+          "lines": [
+            "  +--------------+",
+            "  | id   v1   v2 |",
+            "  |--------------|",
+            "  |  1    1    2 |",
+            "  |  2    1    . |",
+            "  |  3    2    1 |",
+            "  |  5    2   .a |",
+            "  |  4    .    3 |",
+            "  |  6   .b    1 |",
+            "  +--------------+"
+          ]
+        },
+        { "command": "return list", "lines": [] },
+        {
+          "command": "capture noisily gsort -s v*, gen(z)",
+          "lines": ["v ambiguous abbreviation"]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily gsort -id w*",
+          "lines": ["* not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily gsort -(v1)",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily gsort id(v1)",
+          "lines": ["factor-variable and time-series operators not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "summarize id",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          id |          6         3.5    1.870829          1          6"
+          ]
+        },
+        {
+          "command": "capture noisily gsort -id, gen(_b)",
+          "lines": ["_b invalid varname"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "display \"[`:sortedby']\"", "lines": ["[]"] },
+        {
+          "command": "list id, noobs sep(0)",
+          "lines": [
+            "  +----+",
+            "  | id |",
+            "  |----|",
+            "  |  6 |",
+            "  |  5 |",
+            "  |  4 |",
+            "  |  3 |",
+            "  |  2 |",
+            "  |  1 |",
+            "  +----+"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  0",
+            "              r(sum_w) =  0",
+            "                r(sum) =  0"
+          ]
+        },
+        {
+          "command": "summarize w",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           w |          6           2    .8944272          1          3"
+          ]
+        },
+        { "command": "gsort -id, gen(gg)", "lines": [] },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                r(sum) =  12",
+            "                r(max) =  3",
+            "                r(min) =  1",
+            "                 r(sd) =  .8944271909999159",
+            "                r(Var) =  .8",
+            "               r(mean) =  2",
+            "              r(sum_w) =  6",
+            "                  r(N) =  6"
+          ]
+        },
+        { "command": "describe, simple", "lines": ["id  v1  v2  s   w   gg"] }
+      ]
+    },
+    {
+      "id": "recheck-manage-collapse-p050-and-order",
+      "source": "clear\ninput g y z\n1 2 5\n1 4 3\n1 . 7\n2 6 1\n2 9 2\n2 10 8\nend\npreserve\ncollapse (p050) a=y (p01) b=y, by(g)\ndescribe\nlist\nrestore\ncapture noisily collapse (mean) y (sd) y if g > 5, by(g)\ndisplay _rc\ncapture noisily collapse (mean) y (sd) y, by(g)\ndisplay _rc\ncapture noisily collapse (p0) y, by(g)\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input g y z",
+          "lines": [
+            "             g          y          z",
+            "  1. 1 2 5",
+            "  2. 1 4 3",
+            "  3. 1 . 7",
+            "  4. 2 6 1",
+            "  5. 2 9 2",
+            "  6. 2 10 8",
+            "  7. end"
+          ]
+        },
+        { "command": "preserve", "lines": [] },
+        { "command": "collapse (p050) a=y (p01) b=y, by(g)", "lines": [] },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             2",
+            "    Variables:             3",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "g               float   %9.0g",
+            "a               float   %9.0g                 (p 050) y",
+            "b               float   %9.0g                 (p 01) y",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by: g",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------+",
+            "     | g   a   b |",
+            "     |-----------|",
+            "  1. | 1   3   2 |",
+            "  2. | 2   9   6 |",
+            "     +-----------+"
+          ]
+        },
+        { "command": "restore", "lines": [] },
+        {
+          "command": "capture noisily collapse (mean) y (sd) y if g > 5, by(g)",
+          "lines": ["no observations"]
+        },
+        { "command": "display _rc", "lines": ["2000"] },
+        {
+          "command": "capture noisily collapse (mean) y (sd) y, by(g)",
+          "lines": [
+            "error:",
+            "       y = (mean) y",
+            "       y = (sd) y",
+            "name conflict"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily collapse (p0) y, by(g)",
+          "lines": ["(0) invalid statistic"]
+        },
+        { "command": "display _rc", "lines": ["198"] }
+      ]
+    },
+    {
+      "id": "recheck-manage-reserved-new-names",
+      "source": "clear\nset obs 3\ngenerate x = _n\ncapture noisily rename x _b\ncapture noisily rename x str5\ncapture noisily rename x byte\ncapture noisily egen _N = mean(x)\ncapture noisily egen str5 = mean(x)\ncapture noisily egen _b = mean(nosuch)\ncapture noisily xtile _n = x\ncapture noisily xtile in = x\ncapture noisily xtile _skip = x\ncapture noisily pctile _n = x\ncapture noisily pctile if = x\ncapture noisily generate _b = 1\ncapture noisily generate _skip = 1\ncapture noisily clonevar _cons = x\negen _skip = mean(x)\nrename _skip y\ndescribe, simple\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        {
+          "command": "capture noisily rename x _b",
+          "lines": ["_b invalid varname"]
+        },
+        {
+          "command": "capture noisily rename x str5",
+          "lines": ["str5 invalid variable name"]
+        },
+        {
+          "command": "capture noisily rename x byte",
+          "lines": ["byte invalid varname"]
+        },
+        {
+          "command": "capture noisily egen _N = mean(x)",
+          "lines": ["_N invalid varname"]
+        },
+        {
+          "command": "capture noisily egen str5 = mean(x)",
+          "lines": ["str5 invalid variable name"]
+        },
+        {
+          "command": "capture noisily egen _b = mean(nosuch)",
+          "lines": ["nosuch not found"]
+        },
+        {
+          "command": "capture noisily xtile _n = x",
+          "lines": ["_n invalid varname"]
+        },
+        {
+          "command": "capture noisily xtile in = x",
+          "lines": ["varlist required"]
+        },
+        {
+          "command": "capture noisily xtile _skip = x",
+          "lines": ["_skip not allowed"]
+        },
+        {
+          "command": "capture noisily pctile _n = x",
+          "lines": ["_n invalid varname"]
+        },
+        {
+          "command": "capture noisily pctile if = x",
+          "lines": ["varlist required"]
+        },
+        {
+          "command": "capture noisily generate _b = 1",
+          "lines": ["_b invalid varname"]
+        },
+        {
+          "command": "capture noisily generate _skip = 1",
+          "lines": ["_skip not allowed"]
+        },
+        {
+          "command": "capture noisily clonevar _cons = x",
+          "lines": ["_cons invalid varname"]
+        },
+        { "command": "egen _skip = mean(x)", "lines": [] },
+        { "command": "rename _skip y", "lines": [] },
+        { "command": "describe, simple", "lines": ["x  y"] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
