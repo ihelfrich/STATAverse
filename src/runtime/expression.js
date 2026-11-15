@@ -99,6 +99,35 @@ function tokenize(source) {
       push("coefficient", { kind: m[1], name: m[2] }, i);
       i += m[0].length;
     } else if (
+      c === "[" &&
+      (!tokens.length ||
+        (tokens.at(-1).type === "op" && !/^[)\]]$/.test(tokens.at(-1).value)))
+    ) {
+      // Where a value is expected, [/p] is _b[/p] and [eq]x is _b[eq:x],
+      // as Stata reads the shorthand; anything else in brackets is not.
+      const free = /^\[\s*\/\s*([^\]\s]+)\s*\]/.exec(rest),
+        equation = /^\[\s*([^\]/\s][^\]]*?)\s*\]([\p{L}_][\w]*)/u.exec(rest);
+      if (free) {
+        if (/^[\p{L}_]/u.test(rest.slice(free[0].length)))
+          throw new StataError(`equation [/${free[1]}] not found`, 303);
+        push("coefficient", { kind: "_b", name: `/${free[1]}` }, i);
+        i += free[0].length;
+      } else if (equation) {
+        push(
+          "coefficient",
+          {
+            kind: "_b",
+            name: `${equation[1]}:${equation[2]}`,
+            shorthand: true,
+          },
+          i,
+        );
+        i += equation[0].length;
+      } else {
+        push("op", "[", i);
+        i++;
+      }
+    } else if (
       (m = /^((?:(?:[LFDS]\d*)+\.+)+)([\p{L}_][\w\u0080-\u{10FFFF}]*)/iu.exec(
         rest,
       ))
@@ -296,10 +325,19 @@ export function compileExpression(source, scope = {}) {
     if (token.type === "coefficient") {
       if (!scope.coefficient)
         throw new StataError(`[${token.value.name}] not found`, 111);
-      const { kind, name } = token.value;
+      const { kind, name, shorthand } = token.value;
       // Looked up when the expression is compiled, so a wrong name stops
       // the command before it runs.
-      scope.coefficient(kind, name);
+      try {
+        scope.coefficient(kind, name);
+      } catch (error) {
+        // [eq]x names the equation, or the coefficient, it cannot find.
+        if (!shorthand || !(error instanceof StataError)) throw error;
+        const [equation, coefficient] = name.split(":");
+        if (/^equation/.test(error.message))
+          throw new StataError(`equation [${equation}] not found`, 303);
+        throw new StataError(`[${coefficient}] not found`, 111);
+      }
       return node(N, () => scope.coefficient(kind, name));
     }
     if (token.type === "series") {

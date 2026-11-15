@@ -19,7 +19,7 @@
 import { StataError } from "./errors.js";
 import { evaluateAll } from "./expression.js";
 import { applyFormat } from "./format.js";
-import { chi2tail } from "./distributions.js";
+import { chi2tail, invttail } from "./distributions.js";
 import { invnormal } from "./functions-normal.js";
 import { defineCharacteristic } from "./store.js";
 import { splitAtComma } from "./syntax.js";
@@ -1864,18 +1864,27 @@ function coxNewton(evaluate, k) {
 }
 
 /** The st_hcd.ado header of stcox and streg. */
-function stHeaderTable(ctx, e) {
+/**
+ * The header of stcox and streg; under bootstrap or jackknife `test` is
+ * the prefix's: Wald chi2 or F, from the replicates' variance.
+ */
+function stHeaderTable(ctx, e, test = null) {
   const subjects = trimmed(e.N_sub, "%12.0fc"),
     failures = trimmed(e.N_fail, "%12.0fc"),
     risk = trimmed(Math.round(e.risk / 0.0001) * 0.0001, "%12.0gc"),
     left = Math.max(subjects.length, failures.length, risk.length),
     nobs = trimmed(e.N, "%10.0fc"),
-    chi2 = trimmed(e.chi2, "%10.2f"),
+    chi2 = trimmed(test ? test.value : e.chi2, "%10.2f"),
     right = Math.max(nobs.length, chi2.length, 1, 6),
-    statistic = `${e.chi2type === "Wald" ? "Wald" : "LR"} chi2(${trimmed(e.df_m, "%4.0f")})`,
+    statistic = test
+      ? test.label
+      : `${e.chi2type === "Wald" ? "Wald" : "LR"} chi2(${trimmed(e.df_m, "%4.0f")})`,
     widest = Math.max(13, statistic.length, 11),
     at = 79 - widest - 3 - right,
-    p = trimmed(e.df_m > 0 ? chi2tail(e.df_m, e.chi2) : MISSING, "%10.4f"),
+    p = trimmed(
+      test ? test.p : e.df_m > 0 ? chi2tail(e.df_m, e.chi2) : MISSING,
+      "%10.4f",
+    ),
     pair = (label, value) =>
       `${label.padEnd(widest)} = ${value.padStart(right)}`;
   ctx.out("");
@@ -1886,9 +1895,50 @@ function stHeaderTable(ctx, e) {
   ctx.out(`Time at risk    = ${risk.padStart(left)}`);
   ctx.out(`${" ".repeat(at - 1)}${pair(statistic, chi2)}`);
   ctx.out(
-    `${column(`Log likelihood = ${trimmed(e.ll, "%10.0g")}`, at)}${pair("Prob > chi2", p)}`,
+    `${column(`Log likelihood = ${trimmed(e.ll, "%10.0g")}`, at)}${pair(test?.pLabel ?? "Prob > chi2", p)}`,
   );
 }
+/** The prefix's test as the survival header shows it. */
+const prefixTest = (r) =>
+  r.df
+    ? {
+        label: `F(${r.test.df}, ${r.df})`,
+        value: r.test.F,
+        p: r.test.p,
+        pLabel: "Prob > F",
+      }
+    : {
+        label: `Wald chi2(${r.test.df})`,
+        value: r.test.value,
+        p: r.test.p,
+        pLabel: "Prob > chi2",
+      };
+/**
+ * The title; under a prefix stcox then says which made the variance
+ * (streg does not).
+ */
+function prefixTitle(ctx, title, r) {
+  ctx.out(title);
+  if (!r) return;
+  ctx.out("");
+  ctx.out(r.method === "bootstrap" ? "Bootstrap results" : "Jackknife results");
+}
+/**
+ * stcox and streg under bootstrap and jackknife: the test of the
+ * covariates (not streg's constant), and their own table with the
+ * prefix's heads and variance.
+ */
+const SURVIVAL_RESAMPLED = {
+  tested: (fit) =>
+    fit.names
+      .map((name, j) =>
+        name !== "_cons" && fit.estimable[j] && fit.V[j][j] !== 0 ? j : -1,
+      )
+      .filter((j) => j >= 0),
+  show(session, ctx, fit, r) {
+    (fit.kind === "stcox" ? coxTable : stregTable)(session, ctx, fit, {}, r);
+  },
+};
 
 /** N_sub, N_fail and risk of a sample, as st_hc.ado counts them. */
 function stCounts(session, sample, T, T0, D) {
@@ -1985,6 +2035,7 @@ function stcox(session, text, ctx) {
     sample: f.sample,
     level: o.level,
     eform: o.hr !== false ? "Haz. ratio" : null,
+    resampled: SURVIVAL_RESAMPLED,
     survival: {
       method: ties,
       T,
@@ -2029,13 +2080,17 @@ function stcox(session, text, ctx) {
   unconverged(fit);
 }
 
-function coxTable(session, ctx, model, o) {
+function coxTable(session, ctx, model, o, r = null) {
   const e = session.results.e;
-  ctx.out(`Cox regression with ${TIES[model.survival.method]}`);
-  stHeaderTable(ctx, { ...e, df_m: model.df_m });
-  ctx.out("");
-  const level = o.level ?? model.level,
-    hr = o.hr !== false;
+  if (!r || r.header !== false) {
+    prefixTitle(ctx, `Cox regression with ${TIES[model.survival.method]}`, r);
+    stHeaderTable(ctx, { ...e, df_m: model.df_m }, r && prefixTest(r));
+    ctx.out("");
+  }
+  if (r && r.table === false) return;
+  const level = r?.level ?? o.level ?? model.level,
+    hr = r ? !!model.eform : o.hr !== false,
+    df = r?.df ?? 0;
   // A coefficient held at zero with no variance is shown omitted, as
   // _coef_table shows one.
   const f = {
@@ -2048,16 +2103,20 @@ function coxTable(session, ctx, model, o) {
       ),
     },
     w = tableWidth(session, tableModel(f, baseLevelsAsked(o)), ["_t"]),
-    head = [];
-  tableHead(
-    { out: (line) => head.push(line) },
-    "_t",
-    level,
-    hr ? "Haz. ratio" : "Coefficient",
-    false,
-    false,
-    w,
-  );
+    head = [],
+    sink = { out: (line) => head.push(line) };
+  if (r?.note) ctx.out(r.note.padStart(w + 66));
+  if (r) r.heads(sink, w, "_t", hr ? "Haz. ratio" : "Coefficient");
+  else
+    tableHead(
+      sink,
+      "_t",
+      level,
+      hr ? "Haz. ratio" : "Coefficient",
+      false,
+      false,
+      w,
+    );
   // With no covariates the table is its heading alone.
   (model.names.length ? head : head.slice(0, -1)).forEach((line) =>
     ctx.out(line),
@@ -2066,7 +2125,8 @@ function coxTable(session, ctx, model, o) {
     session,
     f,
     baseLevelsAsked(o),
-    (j) => row("", model.b[j], Math.sqrt(model.V[j][j]), level, 0, hr).slice(1),
+    (j) =>
+      row("", model.b[j], Math.sqrt(model.V[j][j]), level, df, hr).slice(1),
     w,
     hr ? 1 : 0,
   ).forEach(ctx.out);
@@ -2574,7 +2634,8 @@ function streg(session, text, ctx) {
     vce: "oim",
     sample: f.sample,
     level: o.level,
-    streg: { dist, aft, label },
+    streg: { dist, aft, label, hr: !aft && o.hr !== false },
+    resampled: SURVIVAL_RESAMPLED,
     ...(aux
       ? {
           auxiliary: {
@@ -2709,36 +2770,36 @@ function streg(session, text, ctx) {
   unconverged(fit);
 }
 
-function stregTable(session, ctx, model, o) {
+function stregTable(session, ctx, model, o, r = null) {
   const e = session.results.e,
     { aft } = model.streg,
-    level = o.level ?? model.level,
-    hr = !aft && o.hr !== false,
+    level = r?.level ?? o.level ?? model.level,
+    hr = r ? !!model.streg.hr : !aft && o.hr !== false,
+    df = r?.df ?? 0,
     // With no covariates the one row is the baseline hazard itself.
     alone = model.names.length === 1;
-  ctx.out(model.title);
-  stHeaderTable(ctx, e);
-  ctx.out("");
+  if (!r || r.header !== false) {
+    prefixTitle(ctx, model.title, null);
+    stHeaderTable(ctx, e, r && prefixTest(r));
+    ctx.out("");
+  }
+  if (r && r.table === false) return;
   const f = {
       columns: model.columns,
       names: model.names,
       at: model.names.map((_, j) => (model.estimable[j] ? j : -1)),
     },
-    w = tableWidth(session, tableModel(f, baseLevelsAsked(o)), ["_t"]);
-  tableHead(
-    ctx,
-    "_t",
-    level,
-    hr ? (alone ? "Hazard" : "Haz. ratio") : "Coefficient",
-    false,
-    false,
-    w,
-  );
+    w = tableWidth(session, tableModel(f, baseLevelsAsked(o)), ["_t"]),
+    word = hr ? (alone ? "Hazard" : "Haz. ratio") : "Coefficient";
+  if (r?.note) ctx.out(r.note.padStart(w + 66));
+  if (r) r.heads(ctx, w, "_t", word);
+  else tableHead(ctx, "_t", level, word, false, false, w);
   layoutRows(
     session,
     f,
     baseLevelsAsked(o),
-    (j) => row("", model.b[j], Math.sqrt(model.V[j][j]), level, 0, hr).slice(1),
+    (j) =>
+      row("", model.b[j], Math.sqrt(model.V[j][j]), level, df, hr).slice(1),
     w,
     hr ? 1 : 0,
   ).forEach(ctx.out);
@@ -2746,11 +2807,13 @@ function stregTable(session, ctx, model, o) {
   if (aux) {
     const b = aux.b[0],
       se = Math.sqrt(aux.V[0][0]),
-      z = invnormal(1 - (1 - level / 100) / 2),
+      z = df
+        ? invttail(df, (1 - level / 100) / 2)
+        : invnormal(1 - (1 - level / 100) / 2),
       plain = (label, value, error, low, high) =>
         `${label.padStart(w)} |${trimmed(value, "%9.0g").padStart(11)}${trimmed(error, "%9.0g").padStart(11)}${" ".repeat(17)}${trimmed(low, "%9.0g").padStart(13)}${trimmed(high, "%9.0g").padStart(12)}`;
     ctx.out(split(w));
-    ctx.out(row(`${`/${aux.names[0]}`.padStart(w)} `, b, se, level, 0));
+    ctx.out(row(`${`/${aux.names[0]}`.padStart(w)} `, b, se, level, df));
     if (aux.names[0] === "ln_p") {
       const pv = Math.exp(b);
       ctx.out(split(w));
@@ -2807,12 +2870,40 @@ function linearAt(model, i, constant = true) {
 }
 
 function survivalPredict(session, text, ctx) {
+  const declaration = `newvarname [if] [in] [, XB STDP HR SCHoenfeld SCAledsch | BASESurv BASEChazard BASEHC MGale CSNell DEViance ESR DFBeta LDisplace LMax EFFects Median MEAN Surv CHazard Hazard Time LNTime SCores PARTial]`,
+    [head, tail] = splitAtComma(text),
+    names = head.replace(/(^|\s)(if|in)\s[\s\S]*$/, "").trim(),
+    qualifier = head.trim().slice(names.length),
+    several = names.includes("*") || /\s/.test(names);
+  // schoenfeld, scaledsch, esr, dfbeta and scores make a variable for each
+  // covariate, named stub* or listed; such a list meets the refusal of
+  // the statistic, not an error in the names.
+  const statistic =
+    tail === null
+      ? {}
+      : session.parse(declaration, `__predicted, ${tail}`).options;
   const model = estimates(session),
-    cox = model.kind === "stcox",
-    parsed = session.parse(
-      `newvarname [if] [in] [, XB STDP HR | BASESurv BASEChazard BASEHC MGale CSNell DEViance SCHoenfeld SCAledsch ESR DFBeta LDisplace LMax EFFects Median MEAN Surv CHazard Hazard Time LNTime SCores PARTial]`,
-      text,
-    ),
+    cox = model.kind === "stcox";
+  if (statistic.schoenfeld || statistic.scaledsch)
+    return schoenfeldPredict(
+      session,
+      model,
+      names,
+      session.parse(
+        declaration,
+        `__predicted ${qualifier}${tail === null ? "" : `, ${tail}`}`,
+      ),
+      ctx,
+    );
+  // Several names for one statistic: Stata assumes hr first.
+  if (
+    several &&
+    cox &&
+    !["xb", "stdp", "hr"].some((name) => statistic[name]) &&
+    !names.includes("*")
+  )
+    ctx.out("(option hr assumed; predicted hazard ratio)");
+  const parsed = session.parse(declaration, text),
     o = parsed.options,
     asked = ["xb", "stdp", "hr"].filter((name) => o[name]);
   if (asked.length > 1) throw invalid("only one statistic may be specified");
@@ -2870,6 +2961,99 @@ function survivalPredict(session, text, ctx) {
         : "S.E. of the prediction";
 }
 
+/**
+ * predict stub* or one name per covariate, schoenfeld or scaledsch after
+ * stcox: the Schoenfeld residuals at each failure, or scaled, b + d V r
+ * for d failures, as stcox_p makes them.
+ */
+function schoenfeldPredict(session, model, typedNames, parsed, ctx) {
+  // A storage type may come first: predict double ss*, scaledsch.
+  const typed = /^(byte|int|long|float|double)\s+([\s\S]*)$/.exec(typedNames),
+    names = typed ? typed[2].trim() : typedNames,
+    o = parsed.options,
+    scaled = !!o.scaledsch;
+  if (o.schoenfeld && o.scaledsch)
+    throw invalid("only one statistic may be specified");
+  if (model.kind !== "stcox")
+    throw invalid(`option ${scaled ? "scaledsch" : "schoenfeld"} not allowed`);
+  if (model.survival.method === "marginal")
+    throw new StataError(
+      "Schoenfeld residuals not available after estimation using option exactm or\nexactp with command stcox",
+      322,
+    );
+  const k = model.names.length,
+    stub = /^(\S+)\*$/.exec(names),
+    list = stub
+      ? Array.from({ length: k }, (_, j) => `${stub[1]}${j + 1}`)
+      : names.split(/\s+/).filter(Boolean);
+  if (!stub && names.includes("*")) throw invalid(`${names} invalid name`);
+  // The names are checked before their number.
+  const data = session.data;
+  for (const name of list) {
+    if (!/^[A-Za-z_]\w{0,31}$/.test(name))
+      throw invalid(`${name} invalid name`);
+    if (data.has(name))
+      throw new StataError(`variable ${name} already defined`, 110);
+  }
+  if (list.length > k)
+    throw new StataError(`you must specify ${k} new variables`, 103);
+  if (list.length < k)
+    throw list.length > 1
+      ? new StataError(
+          `too few variables specified\n${indented(
+            `The current estimation results for {bf:cox} have ${k} equations so you must specify ${k} new variables, or you can use the equation() option and specify one variable at a time.`,
+            4,
+            session.settings.linesize ?? 79,
+          )}`,
+          102,
+        )
+      : new StataError(`you must specify ${k} new variables`, 102);
+  const { theta, V, active } = model.survival,
+    residuals = schoenfeld(model),
+    failures = residuals.length,
+    wanted = new Set(session.rows(parsed, null)),
+    columns = list.map(() => new Array(data.n).fill(MISSING));
+  for (const x of residuals) {
+    const row = model.sample[x.i];
+    if (!wanted.has(row)) continue;
+    const r = scaled
+      ? theta.map(
+          (b, a) =>
+            b + failures * V[a].reduce((t, v, c) => t + v * x.residual[c], 0),
+        )
+      : x.residual;
+    // A covariate left out (a factor's base level) has a residual of 0.
+    model.names.forEach((name, j) => {
+      const a = active.indexOf(name);
+      columns[j][row] = a >= 0 ? r[a] : 0;
+    });
+  }
+  list.forEach((name, j) => {
+    data.generate(name, columns[j], { type: typed ? typed[1] : "float" });
+    data.get(name).label =
+      `${scaled ? "Scaled Schoenfeld" : "Schoenfeld"} residual, ${model.names[j]}`;
+  });
+}
+
+/**
+ * A paragraph as SMCL's {p 4 4 2} lays out an error: indented, its lines
+ * no wider than the line size, measured (as Stata does) with the markup
+ * {bf:...} in them, which is then dropped.
+ */
+function indented(text, indent, width) {
+  const lines = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    if (line && indent + line.length + 1 + word.length > width) {
+      lines.push(line);
+      line = word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  lines.push(line);
+  return lines
+    .map((l) => `${" ".repeat(indent)}${l.replace(/\{bf:([^}]*)\}/g, "$1")}`)
+    .join("\n");
+}
 /** Schoenfeld residuals at each failure, as stcox_p computes them. */
 function schoenfeld(model) {
   const { T, T0, D, X, theta, method } = model.survival,

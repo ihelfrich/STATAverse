@@ -36,7 +36,7 @@ import { MORE_GRAPH_COMMANDS } from "./graphics-more.js";
 import { LIKELIHOOD_COMMANDS } from "./likelihood.js";
 import { MORE_POSTESTIMATION } from "./more-postestimation.js";
 import { QUANTILE_COMMANDS } from "./quantile.js";
-import { RESAMPLING_COMMANDS } from "./resampling.js";
+import { RESAMPLING_COMMANDS, resamplingEstat } from "./resampling.js";
 import { MORE_DATA_COMMANDS } from "./more-data.js";
 import { STATS_MORE_COMMANDS } from "./stats-more.js";
 import { TABLE_COMMANDS } from "./tables.js";
@@ -3321,6 +3321,7 @@ COMMANDS.forEach((c, k) => {
   COMMANDS[k] = {
     ...COMMANDS[k],
     run: (session, text, ctx) =>
+      (c.name === "estat" && resamplingEstat(session, text, ctx)) ||
       causalPostestimation(c.name, session, text, ctx) ||
       (c.name !== "margins" &&
         survivalPostestimation(session, c.name, text, ctx))

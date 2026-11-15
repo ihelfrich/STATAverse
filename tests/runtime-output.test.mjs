@@ -209,6 +209,8 @@ for (const c of fixture.cases)
             // itself (values near 2000), whose F statistic, shown whole by
             // return list, agrees with Stata's to about eight digits.
             "causal-didregress",
+            // So does estat granger's, of leads with two clusters.
+            "pass8-rcs-didregress-granger-and-collinear-groups",
             // Stata's ml search moves the Gompertz model's starting
             // values when records enter late; the fit ends where Stata's
             // does.

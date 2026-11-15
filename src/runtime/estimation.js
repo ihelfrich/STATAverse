@@ -2425,7 +2425,12 @@ export function linear(model, text, session) {
   // Spaces may stand around # and after a level's dot: 1.female # c.x, 2. reg.
   let source = text
     .replace(/\s*#\s*/g, "#")
-    .replace(/(?<![\w.])(\d+[A-Za-z]*)\s*\.\s*(?=[A-Za-z_])/g, "$1.");
+    .replace(/(?<![\w.])(\d+[A-Za-z]*)\s*\.\s*(?=[A-Za-z_])/g, "$1.")
+    // [/athrho], a free parameter in brackets, is _b[/athrho].
+    .replace(
+      /(?<!_(?:b|coef|se)\s*)\[\s*\/\s*([A-Za-z_]\w*)\s*\](?![\w(])/g,
+      "_b[/$1]",
+    );
   // _b[name], _b[eq:name], _b[[eq]name], _b[/name] for a parameter of the
   // equation "/", and [eq]_b[name], which names the equation outside. A
   // name alone is a coefficient of the main equations, never of "/".
@@ -2701,6 +2706,9 @@ export function coefficientValue(model, kind, name) {
     space = coefficientSpace(model),
     read = (entry) => {
       const at = space.entries.indexOf(entry);
+      // A model's own e(b) is read as it stands, which nlcom moves.
+      if (kind === "_b" && model.stripe && !model.space)
+        return model.b[entry.index];
       return kind === "_b" ? space.b[at] : Math.sqrt(space.V[at][at]);
     },
     slash = /^\/\s*(?::\s*)?(.+)$/.exec(text),
@@ -2711,6 +2719,32 @@ export function coefficientValue(model, kind, name) {
     );
     if (!entry) throw missing();
     return read(entry);
+  }
+  // A fit of several equations (heckman): [#2]x is the second equation's,
+  // and an equation it does not have is not found.
+  if (colon && model.names.some((n) => n.includes(":"))) {
+    const equations = [
+        ...new Set(
+          model.names
+            .filter((n) => n.includes(":"))
+            .map((n) => n.replace(/:.*$/, "")),
+        ),
+      ],
+      given = colon[1].trim(),
+      numbered = /^#(\d+)$/.exec(given),
+      equation = numbered ? equations[Number(numbered[1]) - 1] : given,
+      base =
+        model.baseEquation !== undefined
+          ? String(model.equations?.[model.baseEquation])
+          : null;
+    // mlogit's base outcome is an equation e(b) does not hold.
+    if (equation !== base) {
+      if (equation === undefined || !equations.includes(equation))
+        throw new StataError(`equation [${given}] not found`, 303);
+      const at = coefficientIndex(model, `${equation}:${colon[2].trim()}`);
+      if (at < 0) throw missing();
+      return kind === "_b" ? model.b[at] : Math.sqrt(model.V[at][at]);
+    }
   }
   if (colon && !model.names.some((n) => n.includes(":"))) {
     const equation = colon[1].trim(),

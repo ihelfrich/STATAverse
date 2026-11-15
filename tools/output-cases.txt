@@ -23380,3 +23380,530 @@ display "[" ustrregexs(0) "]"
 display ustrregexm("abc","(b)")
 display ustrregexrf("xyz","y","Q")
 display "[" ustrregexs(0) "]"
+=== pass8-rcs-bootstrap-heckman
+clear
+set seed 4242
+set obs 800
+generate educ = 8 + floor(runiform()*10)
+generate age = 20 + floor(runiform()*40)
+generate kids = floor(runiform()*7)
+generate married = runiform() < .5
+generate u1 = invnormal(runiform())
+generate u2 = 0.6*u1 + 0.8*invnormal(runiform())
+generate s = (-1 + 0.1*educ - 0.3*kids + 0.5*married + 0.02*age + u1) > 0
+generate wage = 1 + 0.08*educ + 0.02*age + u2 if s
+bootstrap, reps(20) seed(1): heckman wage educ age, select(educ kids married age) twostep
+estat bootstrap, percentile
+bootstrap, reps(10) seed(2): heckman wage educ age, select(educ kids married age) nolog
+display e(N_reps) " " e(chi2) " " e(df_m) " " e(k_eq)
+jackknife, nodots: heckman wage educ age, select(educ kids married age) twostep
+=== pass8-rcs-bootstrap-teffects-survival
+clear
+set seed 4243
+set obs 600
+generate x1 = invnormal(runiform())
+generate x2 = runiform()*4
+generate t = runiform() < invlogit(-0.3 + 0.6*x1 - 0.2*x2)
+generate y = 1 + 0.5*x1 + 0.3*x2 + 1.5*t + invnormal(runiform())
+bootstrap, reps(10) seed(3): teffects ra (y x1 x2) (t)
+clear
+set seed 4244
+set obs 300
+generate id = _n
+generate drug = runiform() < .5
+generate age = 40 + floor(runiform()*30)
+generate female = runiform() < .5
+generate time = -ln(runiform()) / (0.05*exp(-0.7*drug + 0.03*(age-55) + 0.2*female))
+generate fail = runiform() < .75
+replace time = ceil(time*10)/10
+stset time, failure(fail)
+bootstrap, reps(10) seed(4): stcox drug age
+bootstrap, reps(10) seed(4) nodots: streg drug age, distribution(weibull) nolog
+jackknife, nodots: stcox drug age
+jackknife, nodots: streg drug age, distribution(weibull) nolog nohr
+=== pass8-rcs-free-parameter-brackets
+clear
+set seed 4242
+set obs 800
+generate educ = 8 + floor(runiform()*10)
+generate age = 20 + floor(runiform()*40)
+generate kids = floor(runiform()*7)
+generate married = runiform() < .5
+generate u1 = invnormal(runiform())
+generate u2 = 0.6*u1 + 0.8*invnormal(runiform())
+generate s = (-1 + 0.1*educ - 0.3*kids + 0.5*married + 0.02*age + u1) > 0
+generate wage = 1 + 0.08*educ + 0.02*age + u2 if s
+heckman wage educ age, select(educ kids married age) nolog
+display [/athrho]
+display [/athrho]+1
+display [wage]educ
+display [select]_cons
+display [ wage ]educ
+display [/ athrho]
+lincom [/athrho] + [/lnsigma]
+test [/athrho] = 0
+nlcom exp([/athrho])
+capture noisily display [/nosuch]
+capture noisily display [wage]nosuch
+capture noisily display [/athrho]_cons
+regress wage educ age
+capture noisily display [wage]educ
+display _rc
+=== pass8-rcs-heckman-clusters-and-robust
+clear
+set seed 4242
+set obs 800
+generate educ = 8 + floor(runiform()*10)
+generate age = 20 + floor(runiform()*40)
+generate kids = floor(runiform()*7)
+generate married = runiform() < .5
+generate u1 = invnormal(runiform())
+generate u2 = 0.6*u1 + 0.8*invnormal(runiform())
+generate s = (-1 + 0.1*educ - 0.3*kids + 0.5*married + 0.02*age + u1) > 0
+generate wage = 1 + 0.08*educ + 0.02*age + u2 if s
+heckman wage educ age, select(educ kids married age) vce(cluster kids) nolog
+display e(rank) " " e(df_m) " " e(chi2) " " e(p)
+generate c11 = mod(_n, 11)
+heckman wage educ age, select(educ kids married age) vce(cluster c11) nolog
+display e(rank) " " e(df_m) " " e(chi2) " " e(p)
+generate c12 = mod(_n, 12)
+heckman wage educ age, select(educ kids married age) vce(cluster c12) nolog
+capture noisily heckman wage educ age, select(educ kids married age) vce(cluster kids) twostep
+heckman wage educ age, select(educ kids married age) vce(robust)
+=== pass8-rcs-didregress-granger-and-collinear-groups
+clear
+set seed 4245
+set obs 1000
+generate id = _n
+generate treated = id > 500
+expand 8
+bysort id: generate year = 1999 + _n
+generate x = invnormal(runiform())
+generate d = treated & year >= 2006
+generate y = 0.5*x + 0.3*treated + 0.1*(year-2000) + 2*d + invnormal(runiform())
+didregress (y x) (d), time(year) group(treated)
+estat granger
+return list
+generate g4 = 1 + mod(id, 4)
+replace d = g4 >= 3 & year >= 2004
+didregress (y x) (d), time(year) group(g4)
+estat ptrends
+estat granger
+clear
+set seed 4246
+set obs 3000
+generate state = 1 + floor(runiform()*25)
+generate year = 2000 + floor(runiform()*12)
+generate x = invnormal(runiform())
+generate treated = state <= 8
+generate d = treated & year >= 2007
+generate y = 1 + 0.5*x + 0.05*state + 0.1*(year-2000) + 1.9*d + invnormal(runiform())
+didregress (y x i.state) (d), group(state) time(year)
+display _se[r1vs0.d]
+matrix b = e(b)
+display b[1,3] " " b[1,4]
+=== pass8-rcs-stcox-schoenfeld-and-names
+clear
+set seed 4244
+set obs 300
+generate id = _n
+generate drug = runiform() < .5
+generate age = 40 + floor(runiform()*30)
+generate female = runiform() < .5
+generate time = -ln(runiform()) / (0.05*exp(-0.7*drug + 0.03*(age-55) + 0.2*female))
+generate fail = runiform() < .75
+replace time = ceil(time*10)/10
+stset time, failure(fail) id(id)
+stcox drug age female, nolog
+predict sc*, schoenfeld
+predict q1 q2 q3, scaledsch
+describe sc1 sc2 sc3 q1 q2 q3
+summarize sc1 sc2 sc3 q1 q2 q3
+list sc1 sc2 q3 in 1/4
+capture noisily predict k*, xb
+capture noisily predict k l, xb
+capture noisily predict k l
+capture noisily predict k l m n, schoenfeld
+display _rc
+capture noisily predict k l, schoenfeld
+display _rc
+capture noisily predict k, scaledsch
+display _rc
+capture noisily predict q1 k l, scaledsch
+display _rc
+stcox drug age, efron nolog
+predict e*, schoenfeld
+summarize e1 e2
+predict k1 k2 if drug, scaledsch
+summarize k1 k2
+stcox drug, nolog
+predict one, schoenfeld
+predict two, scaledsch
+summarize one two
+=== pass8-rcs-lrtest-estimators
+clear
+set seed 4244
+set obs 300
+generate id = _n
+generate drug = runiform() < .5
+generate age = 40 + floor(runiform()*30)
+generate female = runiform() < .5
+generate time = -ln(runiform()) / (0.05*exp(-0.7*drug + 0.03*(age-55) + 0.2*female))
+generate fail = runiform() < .75
+replace time = ceil(time*10)/10
+stset time, failure(fail)
+streg drug age, distribution(exponential) nolog nohr
+estimates store e1
+streg drug age, distribution(weibull) nolog nohr
+estimates store w1
+capture noisily lrtest e1 w1
+display _rc
+lrtest e1 w1, force
+capture noisily lrtest w1 e1
+streg drug, distribution(exponential) nolog nohr
+estimates store e0
+lrtest e0 e1
+streg drug age, distribution(gompertz) nolog nohr
+estimates store g1
+capture noisily lrtest g1 e1
+logit fail drug age
+estimates store l1
+probit fail drug age
+estimates store p1
+capture noisily lrtest l1 p1
+=== pass8-rcs-resampled-variance
+clear
+set seed 4247
+set obs 302
+generate a = invnormal(runiform())
+generate b = invnormal(runiform())
+generate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))
+bootstrap _b, reps(30) seed(5): regress y a b
+matrix list e(V)
+test a = 2
+lincom a - b
+estat vce
+estimates table, se
+margins, dydx(a)
+display e(rank) " " e(N) " " e(df_r)
+regress y a b, vce(bootstrap, reps(30) seed(5))
+test a = 2
+lincom a - b
+jackknife, nodots: regress y a b
+matrix list e(V)
+test a b
+test a = 2
+lincom a - b
+regress y a b, vce(jackknife)
+test a b
+margins, dydx(a)
+predict p
+summarize p
+=== pass8-rcs-statistics-as-estimates
+clear
+set seed 4247
+set obs 302
+generate a = invnormal(runiform())
+generate b = invnormal(runiform())
+generate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))
+generate g = mod(_n, 3)
+generate cl = mod(_n, 40)
+bootstrap m=r(mean), reps(30) seed(5): summarize b
+test m = 1
+lincom m - 1
+bootstrap r(mean), reps(30) seed(5): summarize b
+test _bs_1 = 1
+bootstrap sa=_b[a], reps(30) seed(5): regress y a b
+test sa = 2
+lincom sa - 2
+capture noisily nlcom sa^2
+nlcom _b[sa]^2
+display _b[sa] " " _se[sa]
+jackknife r(mean): summarize a
+test _jk_1 = 0
+lincom _jk_1
+display e(title)
+bootstrap _b[a], reps(40) seed(3): regress y a b
+display e(title)
+bootstrap _b[a], reps(40) seed(3) strata(g) cluster(cl): regress y a b
+bootstrap diff=(_b[a]-_b[b]), reps(40) seed(3): regress y a b
+jackknife diff=(_b[a]-_b[b]): regress y a b
+display e(title)
+bootstrap m=r(mean) s=r(sd), reps(20) seed(2): summarize a
+test m s
+test (m = 0) (s = 1)
+=== pass8-rcs-estat-bootstrap
+clear
+set seed 4247
+set obs 302
+generate a = invnormal(runiform())
+generate b = invnormal(runiform())
+generate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))
+generate g = mod(_n, 3)
+generate cl = mod(_n, 40)
+bootstrap m=r(mean), reps(30) seed(5): summarize b
+estat bootstrap
+estat bootstrap, all
+estat bootstrap, percentile
+estat bootstrap, normal
+estat bootstrap, bc percentile noheader
+estat bootstrap, nolegend
+bootstrap _b, reps(30) seed(5): regress y a b
+estat bootstrap
+estat bootstrap, all
+bootstrap m=r(mean) s=r(sd), reps(20) seed(2) level(90): summarize a
+estat bootstrap, all
+capture noisily estat bootstrap, bca
+jackknife r(mean), nodots: summarize a
+capture noisily estat bootstrap
+bootstrap _b, reps(30) seed(5) strata(g) cluster(cl): regress y a b
+estat bootstrap
+=== pass8-rcs-resampling-time-series
+clear
+set seed 4248
+set obs 200
+generate t = _n
+generate e = invnormal(runiform())
+generate y = e in 1
+replace y = 0.4*y[_n-1] + e in 2/l
+tsset t
+capture noisily bootstrap _b, reps(10) seed(1): arima y, ar(1)
+display _rc
+capture noisily bootstrap _b, reps(10) seed(1): regress y L.y
+display _rc
+capture noisily bootstrap _b, reps(10) seed(1): regress y l.y
+capture noisily bootstrap _b, reps(10) seed(1): regress D.y t
+bootstrap, reps(10) seed(1): regress y t
+capture noisily bootstrap _b, reps(10) seed(1): newey y t, lag(1)
+capture noisily bootstrap _b, reps(10) seed(1): prais y t
+jackknife _b: regress y L.y
+capture noisily bootstrap r(mean), reps(10) seed(1): summarize L.y
+capture noisily regress y L.y, vce(bootstrap, reps(10) seed(1))
+generate y1 = L.y
+bootstrap _b, reps(10) seed(1) nodots: regress y y1
+=== pass8-rcs-prefix-options-weights-equations
+clear
+set seed 4247
+set obs 302
+generate a = invnormal(runiform())
+generate b = invnormal(runiform())
+generate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))
+generate wt = 1 + floor(runiform()*3)
+replace a = . in 1/57
+bootstrap r(mean), reps(20) seed(3) nowarn: summarize a
+jackknife r(mean) [fweight=wt]: summarize a
+jackknife r(mean): summarize a [fweight=wt]
+jackknife m=r(mean) [fweight=wt], nodots: summarize a
+display e(N) " " e(N_reps) " " e(N_misreps) " " _se[m]
+jackknife _b [fweight=wt], nodots: regress y b
+capture noisily jackknife _b [pweight=wt], nodots: regress y b
+jackknife _b, nodots: regress y b [fweight=wt]
+capture noisily bootstrap r(mean) [fweight=wt], reps(5) seed(1): summarize a
+bootstrap (a: r(mean)) (b: r(sd)), reps(20) seed(2): summarize b
+matrix list e(b)
+test _b[a:_bs_1] = 0
+jackknife (a: r(mean)) (b: r(sd)), nodots: summarize b
+=== pass8-rcs-bootstrap-header-widths
+clear
+set seed 11
+set obs 200
+generate a = invnormal(runiform())
+generate b = invnormal(runiform())
+generate y = 1 + 2*a - 1.5*b + 0.5*invnormal(runiform())
+bootstrap, reps(40) seed(3): regress y a b
+bootstrap _b, reps(25) seed(7) nodots: regress y a b
+regress y a b, vce(bootstrap, reps(30) seed(5) nodots)
+jackknife, nodots: regress y a b
+generate z = invnormal(runiform())
+bootstrap, reps(20) seed(3) nodots: regress z a
+jackknife, nodots: regress z a
+clear
+set seed 4242
+set obs 9718
+generate age = 18 + floor(runiform()*50)
+generate female = runiform() < .5
+generate wage = 8 + 0.3*age - 2*female + invnormal(runiform())*4
+set seed 1
+bootstrap _b, reps(20) nodots: regress wage age female
+jackknife _b, nodots: regress wage age female
+=== pass8-rcs2-jackknife-lags-in-place
+clear
+set seed 4248
+set obs 200
+generate t = _n
+generate e = invnormal(runiform())
+generate y = e in 1
+replace y = 0.4*y[_n-1] + e in 2/l
+tsset t
+jackknife, nodots: regress y L.y if t > 20
+jackknife, nodots: regress y L.y in 50/120
+regress y L.y if t > 20, vce(jackknife, nodots)
+generate cl = ceil(t/10)
+jackknife, nodots cluster(cl): regress y L.y
+jackknife, nodots: regress y L(1/2).y
+capture noisily bootstrap, reps(10) seed(1): regress y L(1/2).y
+capture noisily bootstrap _b, reps(5) seed(2) nodots: regress y L(1/2).y
+capture noisily bootstrap _b, reps(5) seed(1) nodots: arima y, ar(1)
+capture noisily bootstrap, reps(10) seed(1): regress y LD.y
+=== pass8-rcs2-resampled-ancillary-rows
+clear
+set seed 4247
+set obs 302
+generate a = invnormal(runiform())
+generate b = invnormal(runiform())
+generate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))
+set seed 777
+generate yc = cond(y < 0, 0, y)
+generate k = floor(runiform()*3)
+generate cnt = floor(exp(0.5 + 0.3*a + 1.5*runiform()) * runiform() * 3)
+bootstrap, reps(8) seed(31) nodots: tobit yc a b, ll(0)
+bootstrap, reps(8) seed(32) nodots: ologit k a b
+bootstrap, reps(8) seed(42) nodots: oprobit k a b
+bootstrap, reps(8) seed(34) nodots: nbreg cnt a b
+jackknife, nodots: nbreg cnt a b
+capture noisily bootstrap, reps(8) seed(33) nodots: mlogit k a b
+display _rc
+capture noisily jackknife, nodots: mlogit k a b
+bootstrap, reps(8) seed(40) nodots: mlogit k a b, baseoutcome(0)
+bootstrap, reps(8) seed(40) nodots: mlogit k a b, baseoutcome(1)
+jackknife, nodots: ologit k a b
+jackknife, nodots: tobit yc a b, ll(0)
+=== pass8-rcs2-prefix-replays
+clear
+set seed 4247
+set obs 302
+generate a = invnormal(runiform())
+generate b = invnormal(runiform())
+generate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))
+bootstrap, reps(20) seed(1) nodots: regress y a b
+bootstrap
+bootstrap, level(90)
+regress
+regress, level(80)
+bs, noheader
+jackknife, nodots: regress y a b
+jackknife
+regress
+capture noisily bootstrap
+display _rc
+bootstrap r(mean) r(sd), reps(20) seed(2) nodots: summarize a
+bootstrap, level(90)
+capture noisily jackknife
+clear
+set seed 4244
+set obs 300
+generate id = _n
+generate drug = runiform() < .5
+generate age = 40 + floor(runiform()*30)
+generate female = runiform() < .5
+generate time = -ln(runiform()) / (0.05*exp(-0.7*drug + 0.03*(age-55) + 0.2*female))
+generate fail = runiform() < .75
+replace time = ceil(time*10)/10
+stset time, failure(fail)
+bootstrap, reps(5) seed(1) nodots: stcox drug age
+stcox
+bootstrap, nohr
+bootstrap, notable
+clear
+set seed 4242
+set obs 800
+generate educ = 8 + floor(runiform()*10)
+generate age = 20 + floor(runiform()*40)
+generate kids = floor(runiform()*7)
+generate married = runiform() < .5
+generate u1 = invnormal(runiform())
+generate u2 = 0.6*u1 + 0.8*invnormal(runiform())
+generate s = (-1 + 0.1*educ - 0.3*kids + 0.5*married + 0.02*age + u1) > 0
+generate wage = 1 + 0.08*educ + 0.02*age + u2 if s
+bootstrap, reps(5) seed(1) nodots: heckman wage educ age, select(educ kids married age) twostep
+heckman
+bootstrap, level(90)
+=== pass8-rcs2-explists-equations-heckman
+clear
+set seed 4247
+set obs 302
+generate a = invnormal(runiform())
+generate b = invnormal(runiform())
+generate y = 1 + 2.1*a - 0.7*b + invnormal(runiform())*(1+abs(a))
+bootstrap _b (fit: e(r2)), reps(10) seed(4) nodots: regress y a b
+matrix list e(b)
+bootstrap r(mean) (b: r(sd)), reps(20) seed(2) nodots: summarize a
+matrix list e(b)
+bootstrap r(mean) (b: r(sd) r(N)) r(max) (c: r(min)), reps(20) seed(2) nodots: summarize a
+jackknife _b (fit: e(r2)), nodots: regress y a b in 1/50
+capture noisily bootstrap, reps(5) seed(1) nodots: summarize y
+generate bin = y > 1
+jackknife, nodots: logit bin a b
+margins, dydx(a)
+clear
+set seed 4242
+set obs 800
+generate educ = 8 + floor(runiform()*10)
+generate age = 20 + floor(runiform()*40)
+generate kids = floor(runiform()*7)
+generate married = runiform() < .5
+generate u1 = invnormal(runiform())
+generate u2 = 0.6*u1 + 0.8*invnormal(runiform())
+generate s = (-1 + 0.1*educ - 0.3*kids + 0.5*married + 0.02*age + u1) > 0
+generate wage = 1 + 0.08*educ + 0.02*age + u2 if s
+bootstrap _b[educ], reps(10) seed(3) nodots: heckman wage educ age, select(educ kids married age) twostep
+display e(title)
+quietly heckman wage educ age, select(educ kids married age) nolog
+display [#1]educ
+display [#2]kids
+capture noisily display [nosuch]educ
+replace wage = wage + [/athrho] if wage < 0
+count if educ > [wage]educ*100
+generate c5 = mod(_n,5)
+heckman wage educ, select(educ kids) vce(cluster c5) nolog
+display e(rank)
+matrix list e(V)
+set seed 31
+generate w = 1 + floor(runiform()*3)
+heckman wage educ age [pweight=w], select(educ kids married age)
+heckman wage educ age, select(educ kids married age) robust iterate(1)
+clear
+set obs 120000
+set seed 77
+generate a = runiform()
+generate b = runiform()
+generate y = 1 + 5*a - 3*b + runiform()*0.1
+bootstrap, reps(5) seed(1) nodots: regress y a b
+bootstrap, reps(5) seed(1) nodots: regress y a
+jackknife _b, nodots: regress y a b in 1/300
+=== pass8-rcs2-stcox-predict-titles-estat
+clear
+set seed 4244
+set obs 300
+generate id = _n
+generate drug = runiform() < .5
+generate age = 40 + floor(runiform()*30)
+generate female = runiform() < .5
+generate time = -ln(runiform()) / (0.05*exp(-0.7*drug + 0.03*(age-55) + 0.2*female))
+generate fail = runiform() < .75
+replace time = ceil(time*10)/10
+stset time, failure(fail) id(id)
+quietly stcox drug age female
+predict double ss*, scaledsch
+predict float tt*, schoenfeld
+summarize ss1 ss2 ss3 tt1
+capture noisily predict q1 q2, schoenfeld
+generate grp = mod(id,3)
+quietly stcox drug i.grp
+predict h*, schoenfeld
+summarize h*
+bootstrap _b[drug], reps(10) seed(3) nodots: stcox drug age
+bootstrap _b[drug], reps(10) seed(3) nodots: streg drug age, dist(weibull) nolog
+clear
+set seed 4243
+set obs 600
+generate x1 = invnormal(runiform())
+generate x2 = runiform()*4
+generate t = runiform() < invlogit(-0.3 + 0.6*x1 - 0.2*x2)
+generate y = 1 + 0.5*x1 + 0.3*x2 + 1.5*t + invnormal(runiform())
+bootstrap _b[ATE:r1vs0.t], reps(10) seed(3) nodots: teffects ra (y x1 x2) (t)
+quietly bootstrap, reps(10) seed(3) nodots: teffects ra (y x1 x2) (t)
+capture noisily estat bootstrap
+bootstrap m=r(mean), reps(30) seed(5) nodots: summarize y
+capture noisily estat bootstrap, percentile level(90)
+capture noisily estat bootstrap, bca

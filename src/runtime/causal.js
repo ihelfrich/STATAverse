@@ -1216,6 +1216,7 @@ function estimateTeffects(session, spec) {
       N,
       sample: rows,
       vce: cluster ? "cluster" : "robust",
+      resampled: TEFFECTS_RESAMPLED,
       teffects: {
         converged,
         unidentified: dropped.length > 0,
@@ -1336,8 +1337,19 @@ function tableCells(b, se, level, df, formats = {}) {
 }
 
 /** Prints a teffects fit: its header and its table. */
+/**
+ * teffects under bootstrap and jackknife: no model test, and its own table
+ * with the prefix's heads and variance.
+ */
+const TEFFECTS_RESAMPLED = {
+  tested: () => [],
+  show(session, ctx, fit, r) {
+    showTeffects(session, fit, ctx, { level: r.level, resampled: r });
+  },
+};
 function showTeffects(session, model, ctx, options) {
   const { level, aequations, coeflegend, baseLevels } = options,
+    r = options.resampled ?? null,
     formats = options.formats ?? {},
     te = model.teffects,
     tVariable = session.data.get(te.tvar),
@@ -1396,13 +1408,16 @@ function showTeffects(session, model, ctx, options) {
             model.b[k],
             model.seMissing?.[k] ? NaN : Math.sqrt(model.V[k][k]),
             level,
-            0,
+            r?.df ?? 0,
             formats,
           );
+  if (r && r.table === false) return;
   // The note of clusters is aligned with the table's right edge.
-  if (te.clustvar && !coeflegend)
+  if (r?.note) ctx.out(r.note.padStart(w + 66));
+  else if (te.clustvar && !coeflegend && !r)
     ctx.out(clusterNote(te.clusters, te.clustvar, count, w + 66));
   if (coeflegend) legendHeads(ctx, w, model.depvar);
+  else if (r) r.heads(ctx, w, model.depvar, "Coefficient");
   else heads(ctx, w, model.depvar, level, true);
   let current = null;
   for (const r of main) {
@@ -1946,7 +1961,10 @@ function heckman(session, text, ctx) {
       options.vce &&
       !/^conv(e(n(t(i(o(n(al?)?)?)?)?)?)?)?$/.test(options.vce.trim())
     )
-      throw new StataError(`vcetype ${options.vce.trim()} not allowed`, 198);
+      throw new StataError(
+        `vcetype ${options.vce.trim().split(/[\s,]+/)[0]} not allowed`,
+        198,
+      );
     if (options.robust || options.cluster)
       throw new StataError("option robust not allowed with twostep", 198);
   } else
@@ -2100,8 +2118,12 @@ function heckman(session, text, ctx) {
     );
   const bLambda = second[k1],
     rss = rssOf(second, xStar),
-    deltaBar = own.reduce((t, i) => t + weightOf(i) * delta[i], 0) / n1;
-  let sigma = Math.sqrt(rss / n1 + deltaBar * bLambda * bLambda),
+    // As heckman.ado's GetIval: delta's plain mean over the selected
+    // observations, and the weighted residual sum over the weights' sum
+    // (e(N) of an fweighted fit; a pweighted one normalizes its weights).
+    deltaBar = own.reduce((t, i) => t + delta[i], 0) / own.length,
+    weightSum = own.reduce((t, i) => t + weightOf(i), 0);
+  let sigma = Math.sqrt(rss / weightSum + deltaBar * bLambda * bLambda),
     rho = bLambda / sigma;
   const rho1 = rho,
     method = rhoMethods[0] ?? "rhosigma";
@@ -2165,7 +2187,14 @@ function heckman(session, text, ctx) {
     if (error instanceof StataError && error.log && options.log !== false) {
       ctx.out("");
       error.log.forEach((v, k) =>
-        ctx.out(iterationText(k, "Log likelihood", v, error.notes?.[k])),
+        ctx.out(
+          iterationText(
+            k,
+            robust || cluster ? "Log pseudolikelihood" : "Log likelihood",
+            v,
+            error.notes?.[k],
+          ),
+        ),
       );
     }
     throw error;
@@ -2188,8 +2217,10 @@ function heckman(session, text, ctx) {
         for (let c = 0; c < K; c++) meat[a][c] += sum[a] * sum[c];
     clusters = groups.size;
     const scale = clusters / (clusters - 1);
-    V = multiply(multiply(full.V, meat), full.V).map((r) =>
-      r.map((v) => v * scale),
+    const sandwich = multiply(multiply(full.V, meat), full.V);
+    // Exactly symmetric, as Stata posts it.
+    V = sandwich.map((r, a) =>
+      r.map((v, c) => ((v + sandwich[c][a]) / 2) * scale),
     );
   }
   const theta = full.theta,
@@ -2205,7 +2236,12 @@ function heckman(session, text, ctx) {
         gradL[1] * gradL[1] * V[K - 1][K - 1],
     ),
     regressors = fx.active.map((_, a) => a),
-    chi2 = waldOf(theta, V, regressors),
+    // ml computes the model test only from a variance of full rank, which
+    // a clustered one, of rank at most the clusters less one, may not be;
+    // the test then has the degrees of freedom left of that rank.
+    rankV = cluster ? matrixRank(V) : K,
+    chi2 = rankV < K ? MISSING : waldOf(theta, V, regressors),
+    dfModel = Math.max(0, regressors.length - (K - rankV)),
     robustish = robust || !!cluster,
     chi2c = robustish
       ? (athrho * athrho) / V[K - 2][K - 2]
@@ -2252,14 +2288,15 @@ function heckman(session, text, ctx) {
       N: n,
       sample: rows,
       ll: full.ll,
-      rank: K,
+      rank: rankV,
       // test names a variable in every equation that has it.
       equations: [depvar, selName],
       vce: cluster ? "cluster" : robust ? "robust" : "oim",
+      resampled: HECKMAN_RESAMPLED,
       heckman: {
         method: "ml",
         n1,
-        df: regressors.length,
+        df: dfModel,
         chi2,
         chi2c,
         chi2Type: robustish ? "Wald" : "LR",
@@ -2278,7 +2315,7 @@ function heckman(session, text, ctx) {
     };
   session.estimates = model;
   session.results.e = {
-    rank: K,
+    rank: rankV,
     N: n,
     ic: full.log.length - 1,
     k: stripe.length,
@@ -2288,9 +2325,9 @@ function heckman(session, text, ctx) {
     rc: 0,
     ll: full.ll,
     k_eq_model: 1,
-    df_m: regressors.length,
+    df_m: dfModel,
     chi2,
-    p: chi2tail(regressors.length, chi2),
+    p: isMissing(chi2) ? MISSING : chi2tail(dfModel, chi2),
     rho: rhoML,
     sigma: sigmaML,
     lambda: lambdaML,
@@ -2376,7 +2413,14 @@ function heckman(session, text, ctx) {
   if (options.log !== false) {
     ctx.out("");
     full.log.forEach((v, k) =>
-      ctx.out(iterationText(k, "Log likelihood", v, full.notes[k])),
+      ctx.out(
+        iterationText(
+          k,
+          robustish ? "Log pseudolikelihood" : "Log likelihood",
+          v,
+          full.notes[k],
+        ),
+      ),
     );
   }
   // ml says so where it stopped short, after its log or, without one,
@@ -2391,7 +2435,8 @@ function heckman(session, text, ctx) {
     session.data.get(millsOut).label = "nonselection hazard";
   }
   showHeckman(session, model, ctx, level, display);
-  if (!full.converged) throw new StataError("convergence not achieved", 430);
+  // ml stops at iterate() with a warning, not an error.
+  if (!full.converged) ctx.out("Warning: Convergence not achieved.");
 }
 
 /** One line of an iteration log. */
@@ -2486,6 +2531,7 @@ function heckmanTwostep(session, ctx, fit) {
     rank: K,
     equations: [depvar, selName],
     vce: "conventional",
+    resampled: HECKMAN_RESAMPLED,
     heckman: {
       method: "two-step",
       n1,
@@ -2544,10 +2590,33 @@ function heckmanTwostep(session, ctx, fit) {
 function showHeckman(session, model, ctx, level, display = {}) {
   const h = model.heckman,
     ml = h.method === "ml",
-    word = h.robust ? "Log pseudolikelihood" : "Log likelihood",
-    formats = display.formats ?? {};
-  if (!display.noheader) {
-    ctx.out("");
+    // Under bootstrap or jackknife: the prefix's heads, test and note.
+    r = display.resampled ?? null,
+    word = h.robust && !r ? "Log pseudolikelihood" : "Log likelihood",
+    formats = display.formats ?? {},
+    df = r?.df ?? 0,
+    test = r
+      ? r.df
+        ? {
+            label: `F(${applyFormat(r.test.df, "%4.0f")},${applyFormat(r.df, "%7.0f")})`,
+            value: r.test.F,
+            p: r.test.p,
+            pLabel: "Prob > F",
+          }
+        : {
+            label: `Wald chi2(${r.test.df})`,
+            value: r.test.value,
+            p: r.test.p,
+            pLabel: "Prob > chi2",
+          }
+      : {
+          label: `Wald chi2(${ml || h.df ? h.df : ""})`,
+          value: h.chi2,
+          p: isMissing(h.chi2) ? MISSING : chi2tail(h.df, h.chi2),
+          pLabel: "Prob > chi2",
+        };
+  if (!display.noheader && !(r && r.header === false)) {
+    if (!r) ctx.out("");
     crcsHeader(ctx, [
       [
         ml
@@ -2565,21 +2634,21 @@ function showHeckman(session, model, ctx, level, display = {}) {
       [""],
       [
         "",
-        `Wald chi2(${ml || h.df ? h.df : ""})`,
-        applyFormat(h.chi2, h.chi2 < 1e6 ? "%9.2f" : "%9.2e").trim(),
+        test.label,
+        applyFormat(test.value, test.value < 1e6 ? "%9.2f" : "%9.2e").trim(),
       ],
       [
         ml ? `${word} = ${applyFormat(model.ll, "%9.0g")}` : "",
-        "Prob > chi2",
-        applyFormat(
-          isMissing(h.chi2) ? MISSING : chi2tail(h.df, h.chi2),
-          "%10.4f",
-        ).trim(),
+        test.pLabel,
+        applyFormat(test.p, "%10.4f").trim(),
       ],
     ]);
     ctx.out("");
   }
-  if (h.clustvar) ctx.out(clusterNote(h.clusters, h.clustvar, count));
+  if (r && r.table === false) return;
+  if (r?.note) ctx.out(r.note.padStart(78));
+  else if (h.clustvar && !r)
+    ctx.out(clusterNote(h.clusters, h.clustvar, count));
   // The first column counts the equations' names and their coefficients.
   const cap = Math.max(12, capWidth(session)),
     w = Math.max(
@@ -2599,7 +2668,7 @@ function showHeckman(session, model, ctx, level, display = {}) {
         model.b[k],
         model.seMissing?.[k] ? NaN : Math.sqrt(model.V[k][k]),
         level,
-        0,
+        df,
         formats,
       ),
     number = (v) =>
@@ -2607,7 +2676,8 @@ function showHeckman(session, model, ctx, level, display = {}) {
     plainRow = (label, value, se, low, high) =>
       `${label}|${number(value).padStart(11)}${number(se).padStart(11)}${" ".repeat(17)}${number(low).padStart(13)}${number(high).padStart(12)}`,
     shownDepvar = h.selName === "select" ? model.depvar : "";
-  heads(ctx, w, shownDepvar, level, h.robust);
+  if (r) r.heads(ctx, w, shownDepvar, "Coefficient");
+  else heads(ctx, w, shownDepvar, level, h.robust);
   const equation = (name, f) => {
     const positions = model.stripe
       .map((e, k) => (e.equation === name ? k : -1))
@@ -2641,7 +2711,9 @@ function showHeckman(session, model, ctx, level, display = {}) {
   }
   const a = at("athrho"),
     l = at("lnsigma"),
-    critical = invnormal(1 - (1 - level / 100) / 2),
+    critical = df
+      ? invttail(df, (1 - level / 100) / 2)
+      : invnormal(1 - (1 - level / 100) / 2),
     seA = Math.sqrt(model.V[a][a]),
     seL = Math.sqrt(model.V[l][l]);
   ctx.out(`${"/athrho".padStart(w)} |${cell(a)}`);
@@ -2675,11 +2747,50 @@ function showHeckman(session, model, ctx, level, display = {}) {
     ),
   );
   ctx.out(rule(w));
-  const test = `${h.chi2Type} test of indep. eqns. (rho = 0): chi2(1) = ${applyFormat(h.chi2c, "%-8.2f")}`;
+  const indep = `${h.chi2Type} test of indep. eqns. (rho = 0): chi2(1) = ${applyFormat(h.chi2c, "%-8.2f")}`;
   ctx.out(
-    `${test.length < 58 ? test.padEnd(58) : test}Prob > chi2 = ${applyFormat(chi2tail(1, h.chi2c), "%6.4f")}`,
+    `${indep.length < 58 ? indep.padEnd(58) : indep}Prob > chi2 = ${applyFormat(chi2tail(1, h.chi2c), "%6.4f")}`,
   );
 }
+
+/**
+ * heckman under bootstrap and jackknife: the test of the outcome
+ * equation's slopes, and its own table with the prefix's variance, lambda's
+ * error from it by the delta method.
+ */
+const HECKMAN_RESAMPLED = {
+  tested: (fit) =>
+    fit.stripe
+      .map((e, k) =>
+        e.equation === fit.depvar && e.name !== "_cons" && fit.estimable[k]
+          ? k
+          : -1,
+      )
+      .filter((k) => k >= 0),
+  show(session, ctx, fit, r) {
+    const h = fit.heckman,
+      at = (name) => fit.stripe.findIndex((e) => e.name === name);
+    let seLambda;
+    if (h.method === "ml") {
+      const a = at("athrho"),
+        l = at("lnsigma"),
+        ga = h.sigma * (1 - h.rho * h.rho),
+        gl = h.lambda;
+      seLambda = Math.sqrt(
+        ga * ga * fit.V[a][a] +
+          2 * ga * gl * fit.V[a][l] +
+          gl * gl * fit.V[l][l],
+      );
+    } else seLambda = Math.sqrt(fit.V[at("lambda")][at("lambda")]);
+    showHeckman(
+      session,
+      { ...fit, heckman: { ...h, seLambda } },
+      ctx,
+      r.level,
+      { resampled: r },
+    );
+  },
+};
 
 function replayHeckman(session, text, ctx) {
   const model = session.estimates;
@@ -2765,7 +2876,11 @@ function absorbedFit(
         k === constant
           ? totalWeight
           : all[k].reduce((t, u, i) => t + wt(i) * (u - mean) ** 2, 0);
-    if (!(spread > 0) || !(norm2 > 1e-13 * spread)) continue;
+    // A column the absorbed means leave constant (a dummy of the group
+    // absorbed) is omitted, whatever rounding is left of its spread.
+    const size = all[k].reduce((t, u, i) => t + wt(i) * u * u, 0);
+    if (!(spread > 1e-13 * size) || !(spread > 0) || !(norm2 > 1e-13 * spread))
+      continue;
     const norm = Math.sqrt(norm2);
     Q.push(v.map((u) => u / norm));
     R.push([...r, norm]);
@@ -2843,8 +2958,34 @@ function absorbedFit(
 function fTest(fit, at) {
   const shown = at.filter((k) => k >= 0);
   if (!shown.length) return null;
-  const chi2 = waldOf(fit.beta, fit.V, shown),
-    df = shown.length,
+  // As test does, from the generalized inverse of the tested part of the
+  // variance that invsym() makes: it sweeps the column of largest variance
+  // left first, and drops a constraint that those swept already span (as
+  // with two clusters, whose variance has rank one); the test has as many
+  // degrees of freedom as constraints are left.
+  const S = shown.map((r) => shown.map((c) => fit.V[r][c])),
+    W = S.map((r) => r.slice()),
+    left = new Set(S.keys()),
+    independent = [];
+  for (;;) {
+    let c = -1;
+    for (const j of left)
+      if (W[j][j] > 1e-10 * Math.abs(S[j][j]) && (c < 0 || W[j][j] > W[c][c]))
+        c = j;
+    if (c < 0) break;
+    left.delete(c);
+    independent.push(c);
+    for (let r = 0; r < S.length; r++) {
+      if (r === c) continue;
+      const f = W[r][c] / W[c][c];
+      if (f) for (let a = 0; a < S.length; a++) W[r][a] -= f * W[c][a];
+    }
+  }
+  independent.sort((x, y) => x - y);
+  if (!independent.length) return null;
+  const tested = independent.map((c) => shown[c]),
+    chi2 = waldOf(fit.beta, fit.V, tested),
+    df = tested.length,
     F = chi2 / df;
   return { F, df, df_r: fit.df_r, p: Ftail(df, fit.df_r, F) };
 }
@@ -3384,7 +3525,12 @@ function didregress(xt) {
         ...controlsShown.map((c) => ({
           equation: "Controls",
           name:
-            where(ordered.indexOf(c)) < 0 && !c.base ? `o.${c.name}` : c.name,
+            // An omitted level is 2o.state, as Stata writes it; a variable o.x.
+            where(ordered.indexOf(c)) < 0 && !c.base
+              ? /^\d+\./.test(c.name)
+                ? c.name.replace(".", "o.")
+                : `o.${c.name}`
+              : c.name,
         })),
         { equation: "Controls", name: "_cons" },
       ],
@@ -3515,7 +3661,10 @@ function matrixRank(V) {
     A = V.map((r, i) => r.map((v, j) => v * scale[i] * scale[j]));
   let rank = 0;
   for (let c = 0; c < n; c++) {
-    if (!(A[c][c] > 1e-12)) continue;
+    // A pivot this small is the noise of convergence in a clustered
+    // variance, which the cluster sums of the scores (zero at the maximum)
+    // leave of rank at most the clusters less one.
+    if (!(A[c][c] > 1e-9)) continue;
     rank++;
     const p = A[c][c];
     for (let r = 0; r < n; r++) {
