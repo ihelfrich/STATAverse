@@ -140,6 +140,7 @@ function cross(session, text) {
       using.push(j);
     }
   arrange(data, data.variables, master);
+  data.permuteMarks(master);
   data.n = master.length;
   data.sortedBy = [];
   for (const variable of other.variables)
@@ -226,6 +227,7 @@ function joinby(session, text, ctx) {
         }
   const mine = [...data.variables];
   arrange(data, mine, master);
+  data.permuteMarks(master);
   data.n = master.length;
   // A row that exists only in the using data takes its keys from there.
   for (const key of keys) {
@@ -307,6 +309,8 @@ function stack(session, text, ctx) {
     ctx.out("         Press any key to continue, Ctrl-Break to abort.");
   }
   data.variables = [];
+  data.esample = null;
+  data.rowIds = null;
   data.n = rows.length * sets;
   data.sortedBy = [];
   data.generate(

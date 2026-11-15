@@ -7,7 +7,7 @@ import { Dataset } from "./store.js";
 import { splitCommands, parseBlocks } from "./dofile.js";
 import { expandMacros, isMacroName, macroWords } from "./macros.js";
 import { compileExpression } from "./expression.js";
-import { applySyntax, loneEquals, splitAtComma } from "./syntax.js";
+import { applySyntax, clauses, loneEquals, splitAtComma } from "./syntax.js";
 import { numlistText, parseNumlist } from "./numlist.js";
 import { expandVarlist } from "./varlist.js";
 import { applyFormat, parseFormat, stringOf } from "./format.js";
@@ -435,6 +435,32 @@ const BY_RECALL_REPLAYING = new Set([
   "newey",
   "prais",
 ]);
+// Commands that read the active fit's sample against the data, which run
+// with the observations where the fit found them (see inFitLayout).
+const FIT_LAYOUT = new Set([
+  "predict",
+  "margins",
+  "estat",
+  "dfbeta",
+  "rvfplot",
+  "avplot",
+  "lvr2plot",
+  "xttest0",
+  "contrast",
+  "pwcompare",
+]);
+// What a fit keeps that is not one value per observation of its sample,
+// however long.
+const ROW_KEYS_KEPT = new Set([
+  "names",
+  "b",
+  "V",
+  "columns",
+  "estimable",
+  "xtxInverse",
+  "fitRowIds",
+  "fitSortedBy",
+]);
 // Prefix commands, which run an estimator and show their own replay.
 const PREFIX_COMMANDS = new Set([
   "svy",
@@ -549,6 +575,21 @@ function fitTable(lines) {
   return lines.slice(k);
 }
 
+/**
+ * Marks the estimation sample of a fit just made in the data, as Stata's
+ * e(sample) marks it: 1 in each observation the fit used, 0 elsewhere. The
+ * data remember whose sample they carry, so that a fit made active again
+ * (estimates restore) keeps the marker, which a sort may since have moved
+ * away from the row numbers the fit keeps.
+ */
+function markSample(session, owner, rows) {
+  const data = session.data,
+    marks = new Uint8Array(data.n);
+  if (rows) for (const i of rows) if (i >= 0 && i < data.n) marks[i] = 1;
+  data.esample = marks;
+  data.esampleOf = owner;
+}
+
 // The e() results whose scalars have been posted again by a command that
 // holds the estimates (see dispatch).
 const heldScalars = new WeakSet();
@@ -583,6 +624,13 @@ export class Session {
       results: this.results,
       state: this.state,
       rc: () => this.rc,
+      // e(sample): 1 in the observations the active estimates used, as the
+      // data mark them (restore brings back the marks preserved); with no
+      // estimates at all, 0.
+      esample: (i) =>
+        this.estimates || Object.keys(this.results.e ?? {}).length
+          ? (this.data.esample?.[i] ?? 0)
+          : 0,
       matrix: matrixAccess(this),
       coefficient: (kind, name) => {
         const model = this.estimates;
@@ -737,7 +785,10 @@ export class Session {
       const env = { start: group.start, count: group.count, sums: [] },
         testEnv = { start: group.start, count: group.count, sums: [] };
       for (let i = group.start; i < group.start + group.count; i++) {
-        if (i < first - 1 || i > last - 1) continue;
+        // In a fit's layout (see inFitLayout), in counts the observations
+        // as they are.
+        const at = this.layoutRows ? this.layoutRows[i] : i;
+        if (at < first - 1 || at > last - 1) continue;
         // A graph's by() draws each panel from its own rows.
         if (this.panelRows && !this.panelRows.has(i)) continue;
         if (parsed.only && !parsed.only.has(i)) continue;
@@ -1133,22 +1184,25 @@ export class Session {
         }
         throw error;
       }
-      const reported = flags.leadAt !== undefined && error.recorded;
+      const reported = flags.leadAt !== undefined && error.recorded,
+        // quietly hides what the command printed before it failed, as
+        // "(analytic weights assumed)", but not the error.
+        before = flags.quiet ? [] : lines;
       if (flags.capture) {
         this.rc = error.code;
         put(
           flags.noisy && !reported
-            ? [...lines, ...(error.message ? [error.message] : [])]
+            ? [...before, ...(error.message ? [error.message] : [])]
             : [],
           0,
         );
         return;
       }
-      if (reported) put(lines, 0);
+      if (reported) put(before, 0);
       else
         put(
           [
-            ...lines,
+            ...before,
             ...(error.message ? [error.message] : []),
             `r(${error.code});`,
           ],
@@ -1168,17 +1222,27 @@ export class Session {
   }
 
   dispatch(text, frame, flags, lines, output) {
-    let rest = text;
+    let rest = text,
+      byHere = false;
+    // by runs one command for each group: a prefix after it, as in
+    // by g: quietly regress y x, is refused, as Stata refuses it.
+    const notAfterBy = (name) => {
+      if (byHere)
+        throw new StataError(`${name} may not be combined with by`, 190);
+    };
     for (;;) {
       const word = /^[A-Za-z_][A-Za-z_0-9]*/.exec(rest)?.[0] ?? "";
       const after = rest.slice(word.length);
       if (/^cap(t(u(re?)?)?)?$/.test(word)) {
+        notAfterBy("capture");
         flags.capture = true;
         rest = after.trim();
       } else if (/^qui(e(t(ly?)?)?)?$/.test(word)) {
+        notAfterBy("quietly");
         flags.quiet = true;
         rest = after.trim();
       } else if (/^n(o(i(s(i(ly?)?)?)?)?)?$/.test(word) && word.length <= 7) {
+        notAfterBy("noisily");
         flags.quiet = false;
         flags.noisy = true;
         rest = after.trim();
@@ -1188,10 +1252,15 @@ export class Session {
       else if (/^(by|bys(o(rt?)?)?)$/.test(word)) {
         const colon = after.indexOf(":");
         flags.by = this.byPrefix(after.slice(0, colon), word !== "by");
+        byHere = true;
         rest = after.slice(colon + 1).trim();
-      } else if (/^vers(i(on?)?)?$/.test(word) && /^\s+[\d.]+\s*:/.test(after))
+      } else if (
+        /^vers(i(on?)?)?$/.test(word) &&
+        /^\s+[\d.]+\s*:/.test(after)
+      ) {
+        notAfterBy("version");
         rest = after.replace(/^\s+[\d.]+\s*:/, "").trim();
-      else break;
+      } else break;
       rest = rest.replace(/^:\s*/, "");
     }
     // noisily prints even inside quietly { }, and so does what it runs.
@@ -1279,9 +1348,14 @@ export class Session {
         for (const fit of this.fitsOnData) fit.fitData = copy;
         this.fitsOnData.clear();
       }
+      this.postedSample = null;
       try {
         if (replayed) value = this.replay(command, body, ctx, lines);
-        else if (recall)
+        else if (recall) {
+          // An estimation command run by group takes no in range, and
+          // Stata says so before the first group.
+          if (clauses(splitAtComma(body)[0]).some((c) => c.kind === "in"))
+            throw new StataError("'in' may not be combined with 'by'", 190);
           try {
             value = perGroup((session, text, inner) => {
               const rows = new Set(),
@@ -1315,6 +1389,8 @@ export class Session {
             this.pendingSort = null;
             if (keys && !this.panelRows) this.data.sort(keys);
           }
+        } else if (!flags.by && FIT_LAYOUT.has(command.name))
+          value = this.inFitLayout(() => command.run(this, body, ctx));
         else value = command.run(this, body, ctx);
       } catch (error) {
         if (error instanceof StataError) {
@@ -1333,6 +1409,19 @@ export class Session {
       }
       if (drawsGraph(command.name, body)) this.results.r = {};
       const model = this.estimates;
+      // A new fit marks its estimation sample in the data; with no
+      // estimates left, nothing is marked. A command that posts e()
+      // without keeping a model (mean, proportion, anova) names its sample.
+      const posted = this.postedSample;
+      this.postedSample = null;
+      if (posted) markSample(this, this.results.e, posted);
+      else if (model !== before) {
+        if (!model) {
+          if (this.data.esampleOf !== this.results.e)
+            this.data.esample = this.data.esampleOf = null;
+        } else if (this.data.esampleOf !== model)
+          markSample(this, model, model.sample);
+      }
       // Stata's estat ic, ovtest, imtest, hettest and vif, and lincom, hold
       // the estimates while they work and post them again, and e()'s
       // scalars then list in the reverse of the order the fit stored them.
@@ -1353,6 +1442,12 @@ export class Session {
         heldScalars.add(reordered);
         this.results.e = reordered;
         if (this.meanTotalResults?.e === e) this.meanTotalResults.e = reordered;
+      }
+      // The observations the fit used, known by their identities, which
+      // a later sort or drop does not change (see inFitLayout).
+      if (model && model !== before && !model.fitRowIds && model.sample) {
+        model.fitRowIds = this.data.ensureRowIds().slice();
+        model.fitSortedBy = [...this.data.sortedBy];
       }
       if (model && model !== before && !model.fitData) {
         // Only fits that can still be replayed are kept: the active one
@@ -1460,15 +1555,22 @@ export class Session {
         throw new StataError(`option ${name}${parens} not allowed`, 198);
       kept.push(option);
     }
-    const options = kept.join(" ");
+    const options = kept.join(" "),
+      [head, typed] = splitAtComma(replay.body),
+      // A replay shows the fit with the display options it is given, not
+      // those the fit was shown with (beta, level(90), or), as Stata's
+      // does.
+      typedOptions =
+        (typed ?? "").match(/[A-Za-z_]\w*(\((?:[^()]|\([^()]*\))*\))?/g) ?? [],
+      display = (option) => REPLAY_OPTIONS.test(/^\w+/.exec(option)[0]),
+      shownWith = typedOptions.some(display);
     // Shown as the fit was, unless another estimator's fit is shown its
     // own way (logit after logistic).
-    if (!options && command.name === replay.command) {
+    if (!options && !shownWith && command.name === replay.command) {
       for (const line of ["", ...replay.lines]) ctx.out(line);
       return;
     }
-    const [head, typed] = splitAtComma(replay.body),
-      e = this.results.e,
+    const e = this.results.e,
       data = this.data,
       shown = [];
     // The fit is made again from the data it was made from.
@@ -1477,12 +1579,10 @@ export class Session {
       this.data.restore(model.fitData);
     }
     try {
-      // An option asked for again replaces the one typed with the fit.
-      const asked = new Set(kept.map((option) => /^\w+/.exec(option)[0])),
-        before = (typed ?? "")
-          .match(/[A-Za-z_]\w*(\((?:[^()]|\([^()]*\))*\))?/g)
-          ?.filter((option) => !asked.has(/^\w+/.exec(option)[0]))
-          .join(" ");
+      // The fit's own options, without those that only showed it.
+      const before = typedOptions
+        .filter((option) => !display(option))
+        .join(" ");
       command.run(this, `${head}, ${before ?? ""} ${options}`, {
         ...ctx,
         replaying: true,
@@ -1509,6 +1609,99 @@ export class Session {
         );
     }
     for (const line of ["", ...fitTable(shown)]) ctx.out(line);
+  }
+
+  /**
+   * Runs a command that follows a fit with the observations where the fit
+   * found them. A fit keeps the row numbers of its sample; once the data
+   * are sorted (sort, gsort, bysort, tsset) or observations dropped, those
+   * numbers name other observations, while Stata's postestimation reads
+   * e(sample) as the observations carry it. For the length of the command
+   * the observations are put back in the order of the fit, those dropped
+   * since leaving the sample, and then returned to the order they are in.
+   */
+  inFitLayout(run) {
+    const model = this.estimates,
+      data = this.data,
+      fit = model?.fitRowIds,
+      ids = data.rowIds;
+    if (
+      this.layoutRows ||
+      !fit ||
+      !ids ||
+      ids.length !== data.n ||
+      !model.sample
+    )
+      return run();
+    const n = data.n,
+      N0 = fit.length;
+    let same = n === N0;
+    for (let i = 0; same && i < n; i++) same = ids[i] === fit[i];
+    if (same) return run();
+    const at = (model.fitRowIndex ??= new Map(
+        Array.from(fit, (id, k) => [id, k]),
+      )),
+      from = new Int32Array(n).fill(-1);
+    let mapped = 0;
+    for (let i = 0; i < n; i++) {
+      const f = at.get(ids[i]);
+      if (f !== undefined) {
+        from[i] = f;
+        mapped++;
+      }
+    }
+    if (!mapped) return run();
+    const rows = Array.from({ length: n }, (_, i) => i),
+      order = [
+        ...rows.filter((i) => from[i] >= 0).sort((a, b) => from[a] - from[b]),
+        ...rows.filter((i) => from[i] < 0),
+      ],
+      saved = new Map();
+    if (mapped < N0) {
+      // Observations of the fit dropped since: the sample is the rest, at
+      // their places in the layout, with whatever the fit keeps for each
+      // observation of its sample.
+      const place = new Int32Array(N0).fill(-1);
+      order.forEach((row, k) => {
+        if (from[row] >= 0) place[from[row]] = k;
+      });
+      const sample = model.sample,
+        keep = Array.from(sample, (r) => place[r] >= 0),
+        length = sample.length;
+      for (const [key, value] of Object.entries(model)) {
+        if (
+          key === "sample" ||
+          ROW_KEYS_KEPT.has(key) ||
+          !(Array.isArray(value) || ArrayBuffer.isView(value)) ||
+          value.length !== length
+        )
+          continue;
+        saved.set(key, value);
+        model[key] = value.filter((_, k) => keep[k]);
+      }
+      saved.set("sample", sample);
+      model.sample = Array.from(sample, (r) => place[r]).filter((r) => r >= 0);
+      if (typeof model.N === "number" && model.N === length) {
+        saved.set("N", model.N);
+        model.N = model.sample.length;
+      }
+    }
+    const sortedBy = data.sortedBy,
+      back = new Array(n);
+    order.forEach((row, k) => (back[row] = k));
+    data.reorder(order);
+    data.sortedBy = model.fitSortedBy ? [...model.fitSortedBy] : [];
+    this.layoutRows = order;
+    try {
+      return run();
+    } finally {
+      this.layoutRows = null;
+      for (const [key, value] of saved) model[key] = value;
+      if (this.data === data && data.n === n) {
+        data.reorder(back);
+        data.sortedBy = sortedBy;
+      }
+    }
   }
 
   /** A fit, stored or active, shown again with display options. */

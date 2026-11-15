@@ -7,7 +7,7 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { density, invnormal, normal } from "./functions-normal.js";
 import { marginTermsOf, marginsTable, withBaseLevels } from "./margins.js";
-import { count, labelled } from "./reports.js";
+import { count, labelled, wrapLine } from "./reports.js";
 import { MISSING, isMissing } from "./values.js";
 import { parseNumlist } from "./numlist.js";
 
@@ -567,6 +567,20 @@ export function outcomeMargins(session, model, text, ctx) {
   };
 }
 
+/** Text broken at the spaces into lines no wider than width. */
+function wordWrap(text, width) {
+  const lines = [];
+  let line = "";
+  for (const word of text.trim().split(/\s+/)) {
+    if (line && line.length + 1 + word.length > width) {
+      lines.push(line);
+      line = word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
 /**
  * predict after ologit, oprobit and mlogit: the probability of one outcome,
  * or of every outcome when a variable is named for each; xb and stdp give
@@ -579,6 +593,25 @@ export function outcomePredict(session, model, text, ctx) {
       `predict after ${model.command} is not available with these regressors yet`,
       198,
     );
+  // stub* names one new variable for each outcome: stub1, stub2, ...
+  const stub =
+    /^(\s*(?:(?:byte|int|long|float|double|str\d+|strL)\s+)?)([A-Za-z_]\w*)\*(?=\s|,|$)/.exec(
+      text,
+    );
+  // A storage type before stub* or a range (p1-p4) is the type of every
+  // variable they name; before a list, only of the first.
+  const typedAll = stub
+    ? /\S/.test(stub[1])
+      ? stub[1].trim()
+      : null
+    : (/^\s*(byte|int|long|float|double|str\d+|strL)\s+[A-Za-z_]\w*-[A-Za-z_]\w*(?=\s|,|$)/.exec(
+        text,
+      )?.[1] ?? null);
+  if (stub)
+    text =
+      stub[1] +
+      s.outcomes.map((_, k) => `${stub[2]}${k + 1}`).join(" ") +
+      text.slice(stub[0].length);
   const parsed = session.parse(
       "newvarlist [if] [in] [, Pr XB STDP Outcome(string) | SCores]",
       text,
@@ -590,17 +623,6 @@ export function outcomePredict(session, model, text, ctx) {
     linearOnly = options.xb || options.stdp;
   if (Number(!!options.pr) + Number(!!options.xb) + Number(!!options.stdp) > 1)
     throw new StataError("only one statistic may be specified", 198);
-  if (
-    linearOnly
-      ? names.length > 1
-      : ![1, s.outcomes.length].includes(names.length)
-  )
-    throw new StataError(
-      linearOnly
-        ? "too many variables specified"
-        : `you must specify 1 or ${s.outcomes.length} new variables`,
-      names.length > 1 ? 103 : 102,
-    );
   let chosen = 0;
   if (options.outcome !== undefined) {
     const word = options.outcome.trim();
@@ -609,15 +631,34 @@ export function outcomePredict(session, model, text, ctx) {
       : s.outcomes.findIndex((value) => String(value) === word);
     if (!(chosen >= 0 && chosen < s.outcomes.length))
       throw new StataError(`outcome ${word} not found`, 303);
-    if (names.length > 1)
-      throw new StataError(
-        "option outcome() is not allowed when several variables are named",
-        198,
-      );
   }
   if (!linearOnly && !options.pr)
     ctx.out(
       `(option pr assumed; predicted ${options.outcome !== undefined ? "probability" : "probabilities"})`,
+    );
+  // One new variable, or one for each outcome; Stata's mlogit wraps its
+  // explanation at the words, ologit's and oprobit's break after "or".
+  const k = s.outcomes.length,
+    linesize = session.settings.linesize ?? 79;
+  if (![1, k].includes(names.length)) {
+    const head = `${model.depvar} has ${k} outcomes and so you must specify ${k} new variables, or `,
+      tail =
+        "you can use the outcome() option and specify variables one at a time",
+      explained = multinomial
+        ? wordWrap(head + tail, linesize)
+        : [...wrapLine(head, linesize), tail];
+    throw new StataError(
+      [
+        `too ${names.length < k ? "few" : "many"} variables specified`,
+        ...explained,
+      ].join("\n"),
+      names.length < k ? 102 : 103,
+    );
+  }
+  if (names.length > 1 && (linearOnly || options.outcome !== undefined))
+    throw new StataError(
+      `option ${linearOnly ? (options.xb ? "xb" : "stdp") : "pr with outcome()"} requires that you specify 1 new variable\ntoo many variables specified`,
+      103,
     );
   const columns = names.map(() => new Array(data.n).fill(MISSING)),
     theta = s.theta;
@@ -658,7 +699,7 @@ export function outcomePredict(session, model, text, ctx) {
   let missing = 0;
   names.forEach((name, k) => {
     const made = data.generate(name, columns[k], {
-      type: parsed.typed[k] ? parsed.types[k] : undefined,
+      type: typedAll ?? (parsed.typed[k] ? parsed.types[k] : undefined),
     });
     missing = Math.max(missing, made.missing);
     const j = names.length > 1 ? k : chosen,

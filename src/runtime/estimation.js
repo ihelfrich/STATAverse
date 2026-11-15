@@ -661,6 +661,30 @@ export function design(session, text, rows, constant = true, levelRows) {
   return { dependent, columns, sample };
 }
 
+/**
+ * Refuses a weight that Stata's command takes but the browser does not yet,
+ * so that it is not mistaken for one Stata does not allow.
+ */
+export function weightsNotYet(parsed, command) {
+  if (parsed.weight)
+    throw new StataError(
+      `${parsed.weight.type}s are not available with ${command} in the browser yet`,
+      198,
+      "Fit the model without the weight here, or fit it in Stata.",
+    );
+}
+
+/**
+ * Clears e(), as Stata's regress, logit, probit, ologit and mlogit clear it
+ * when they find no observations or an outcome that does not vary: the
+ * estimates, their results and the sample they marked are gone.
+ */
+export function forgetEstimates(session) {
+  session.estimates = null;
+  session.results.e = {};
+  session.data.esample = session.data.esampleOf = null;
+}
+
 export function fit(session, parsed, by) {
   const rows = session.rows(parsed, by),
     options = parsed.options,
@@ -712,13 +736,25 @@ export function fit(session, parsed, by) {
       // A frequency weight stands for that many identical observations.
       obs = obs.flatMap((i) => new Array(all[i]).fill(i));
     } else {
-      // Analytic and sampling weights are rescaled to sum to N.
-      const scale = obs.length / sumW;
+      // Analytic and sampling weights are rescaled to sum to N; importance
+      // weights, outside a robust variance, are not, and their sum is the
+      // number of observations, as Stata's regress counts them.
+      const scale = wtype === "iweight" && !robust ? 1 : obs.length / sumW;
       w = obs.map((i) => all[i] * scale);
     }
   }
-  const n = obs.length;
-  if (!n) throw new StataError("no observations", 2000);
+  const counted = wtype === "iweight" && !robust;
+  if (!obs.length)
+    throw Object.assign(new StataError("no observations", 2000), {
+      empty: true,
+    });
+  // One observation (however heavily weighted) fits nothing: Stata says so
+  // before it looks for collinearity, with the sample already marked.
+  if (new Set(obs).size < 2)
+    throw Object.assign(new StataError("insufficient observations", 2001), {
+      sample: obs,
+    });
+  const n = counted ? sumW : obs.length;
   const y = obs.map((i) => dependent.data[i]),
     active = columns.filter((c) => !c.base && !c.forcedOmit),
     x = active.map((c) => obs.map(c.value)),
@@ -733,18 +769,26 @@ export function fit(session, parsed, by) {
   // Choose columns by pivoting: at each step take the column with the most
   // variation left after those already chosen, as Stata does, so which of
   // two collinear variables is omitted does not depend on their order.
+  // With factor variables in the list, Stata's _rmcoll has already omitted
+  // each variable collinear with those before it, the later of two.
   const cross = (a, b) =>
       w
         ? a.reduce((t, v, i) => t + w[i] * v * b[i], 0)
         : a.reduce((t, v, i) => t + v * b[i], 0),
     original = xc.map((column) => cross(column, column)),
     remaining = xc.map((column) => column.slice()),
-    chosen = new Set();
+    chosen = new Set(),
+    factorList = columns.some(
+      (c) => c.levels || !c.term?.variable || /#|(^|#)\d+[bno]*\./.test(c.name),
+    ),
+    set = new Set(
+      factorList ? active.flatMap((c, k) => (c.collinear ? [k] : [])) : [],
+    );
   for (;;) {
     let best = -1,
       size = 0;
     remaining.forEach((column, k) => {
-      if (chosen.has(k)) return;
+      if (chosen.has(k) || set.has(k)) return;
       const norm = cross(column, column);
       if (norm > 1e-11 * original[k] && norm > size * (1 + 1e-12)) {
         best = k;
@@ -755,7 +799,7 @@ export function fit(session, parsed, by) {
     chosen.add(best);
     const pivot = remaining[best].slice();
     remaining.forEach((column, k) => {
-      if (chosen.has(k)) return;
+      if (chosen.has(k) || set.has(k)) return;
       const weight = cross(column, pivot) / size;
       remaining[k] = column.map((v, i) => v - weight * pivot[i]);
     });
@@ -1256,7 +1300,7 @@ export function termRows(
       return out.push(
         model.estimable[k]
           ? `${label.padStart(w)} |${cells(k)}`
-          : `${label.padStart(w)} |${String(omittedValue).padStart(11)}  (omitted)`,
+          : `${label.padStart(w)} |${String(omittedValue).padStart(11)}  (omitted)${baseTail.slice(3)}`,
       );
     }
     // A factor whose only level is a hidden base (which tobit keeps) shows
@@ -1299,7 +1343,10 @@ export function termRows(
               !model.columns[k].empty &&
               !model.columns[k].omittedCell
             ? `${label}|${String(omittedValue).padStart(11)}  (base)${baseTail}`
-            : `${label}|${String(omittedValue).padStart(11)}  (${model.columns[k]?.empty ? "empty" : "omitted"})`,
+            : model.columns[k]?.empty
+              ? `${label}|${String(omittedValue).padStart(11)}  (empty)`
+              : // regress, beta shows an omitted variable's beta, zero.
+                `${label}|${String(omittedValue).padStart(11)}  (omitted)${baseTail.slice(3)}`,
       );
     if (block.term === "_cons" || block.term.variable)
       return row(
@@ -1433,6 +1480,27 @@ export const unmarked = (name) =>
 
 /** Set by the resampling module: runs vce(bootstrap) and vce(jackknife). */
 export const hooks = { resamplingVce: null };
+/**
+ * regress's fit. Finding no observations, Stata's regress has already
+ * cleared e(); finding one, it has marked it as e(sample) and keeps the
+ * estimates before it.
+ */
+function regressFit(session, parsed) {
+  try {
+    return fit(session, parsed, null);
+  } catch (error) {
+    if (error instanceof StataError && error.empty) forgetEstimates(session);
+    if (error instanceof StataError && error.sample) {
+      const data = session.data,
+        marks = new Uint8Array(data.n);
+      for (const i of error.sample) marks[i] = 1;
+      data.esample = marks;
+      data.esampleOf = session.estimates;
+    }
+    throw error;
+  }
+}
+
 function regress(session, text, ctx) {
   const requested = /\bvce\s*\(((?:[^()]|\([^()]*\))*)\)/.exec(text)?.[1];
   if (
@@ -1444,7 +1512,7 @@ function regress(session, text, ctx) {
       "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta CLuster(string) BASElevels ALLBASElevels | noHEader EForm(string) ABSorb(varname)]",
       text,
     ),
-    model = fit(session, parsed, null),
+    model = regressFit(session, parsed),
     level = parsed.options.level,
     // A replay of a clustered fit with beta shows no beta coefficients.
     noBeta = !!model.clusters && !!parsed.options.beta,
@@ -1482,6 +1550,16 @@ function regress(session, text, ctx) {
   model.baseLevels = baseLevelsAsked(parsed.options);
   session.estimates = model;
   session.results.e = regressResults(session, model, text, parsed);
+  // [weight=exp] is an analytic weight, and Stata says so first; the sum
+  // of the weights comes before the notes on the columns.
+  if (parsed.weight && genericWeight(text) && !ctx.replaying)
+    ctx.out(assumedWeights(parsed.weight.type));
+  if (
+    model.wtype &&
+    model.wtype !== "fweight" &&
+    !(model.wtype === "iweight" && model.vce === "ols")
+  )
+    ctx.out(`(sum of wgt is ${g(model.sumW, "%18.0gc")})`);
   // Stata's notes, in the order of the columns; a cell of an interaction
   // is named without its omitted markers.
   for (const column of model.columns)
@@ -1495,8 +1573,6 @@ function regress(session, text, ctx) {
       ctx.out(
         `note: ${unmarked(column.name)} omitted because of collinearity.`,
       );
-  if (model.wtype && model.wtype !== "fweight")
-    ctx.out(`(sum of wgt is ${g(model.sumW, "%18.0gc")})`);
   ctx.out("");
   if (wide) {
     side.forEach((line, k) =>
@@ -3739,6 +3815,9 @@ function correlate(session, text, ctx) {
     // left than its column, as Stata 19 shows it; pwcorr pads by columns.
     row = (name) => rowName(name, names, byteLength),
     column = (name) => columnName(name, names, byteLength);
+  // [w=exp] is an analytic weight, and Stata says so first.
+  if (parsed.weight && genericWeight(text))
+    ctx.out(assumedWeights(parsed.weight.type));
   if (sumW) ctx.out(`(sum of wgt is ${applyFormat(sumW, "%18.0gc").trim()})`);
   ctx.out(`(obs=${count(n)})`);
   // Under time-series operators a column shows its operators above the

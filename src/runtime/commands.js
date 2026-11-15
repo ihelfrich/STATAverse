@@ -1772,7 +1772,10 @@ function returns(kind) {
       // return clear outside an r-class program has nothing to clear: r()
       // stays as it is.
       if (kind === "r" && !owner) return;
-      if (kind === "e") session.estimates = null;
+      if (kind === "e") {
+        session.estimates = null;
+        session.data.esample = session.data.esampleOf = null;
+      }
       return void Object.keys(target).forEach((key) => delete target[key]);
     }
     if (!owner && /^(sca|loc|add|mat|post|repost)\w*\b/.test(text))
@@ -3170,7 +3173,7 @@ export const COMMANDS = [
     // The file's name and whether the data had changed come back too.
     const data = session.data;
     session.preserved.push({
-      ...data.snapshot(),
+      ...data.snapshot({ marks: true }),
       filename: data.filename,
       filedate: data.filedate,
       clean: data.clean,

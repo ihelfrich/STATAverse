@@ -40,6 +40,7 @@ function takeRows(data, index) {
     for (let k = 0; k < m; k++) to[k] = from[index[k]];
     v.data = to;
   }
+  data.permuteMarks(index);
   data.n = m;
   data.sortedBy = [];
 }
@@ -1880,7 +1881,7 @@ function bootstrap(session, text, ctx) {
       ? { rows: null, stripped: parts.command }
       : commandSample(session, parts.command),
     command = sample.stripped,
-    snapshot = data.snapshot(),
+    snapshot = data.snapshot({ marks: true }),
     originals = variablesOf(data),
     title = `Bootstrap replications (${count(reps)}): `,
     replicates = [],
@@ -2304,6 +2305,9 @@ function bootstrap(session, text, ctx) {
       ...extras,
       "function:sample": true,
     };
+    // e(sample) is every observation the replicates were drawn from.
+    session.postedSample =
+      sample.rows ?? Array.from({ length: data.n }, (_, i) => i);
   }
   ctx.out("");
 }
@@ -2342,7 +2346,7 @@ function jackknife(session, text, ctx) {
       ? { rows: null, stripped: parts.command }
       : commandSample(session, parts.command),
     command = sample.stripped,
-    snapshot = data.snapshot(),
+    snapshot = data.snapshot({ marks: true }),
     originals = variablesOf(data),
     replicates = [],
     all = [],
@@ -2905,6 +2909,9 @@ function jackknife(session, text, ctx) {
       "matrix:b_jk": jackknifeMean,
       "function:sample": true,
     };
+    // e(sample) is every observation the replicates were drawn from.
+    session.postedSample =
+      sample.rows ?? Array.from({ length: data.n }, (_, i) => i);
   }
   ctx.out("");
 }
@@ -2921,7 +2928,7 @@ function simulate(session, text, ctx) {
     data = session.data,
     every = dotsEvery(options),
     name = commandName(parts.command),
-    snapshot = data.snapshot(),
+    snapshot = data.snapshot({ marks: true }),
     results = [];
   if (parts.coefficients)
     throw new StataError("simulate needs a list of expressions", 198);

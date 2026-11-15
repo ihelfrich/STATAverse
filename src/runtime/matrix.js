@@ -533,17 +533,29 @@ export function matrixExpression(session, source) {
       if (!piece) throw new StataError("invalid syntax", 198);
       at += piece[0].length;
       const spec = piece[1];
+      // A row or column by number or by name ("x", or "1.g" for 1b.g).
+      const end = (text) => {
+        const quoted = /^"([^"]*)"$/.exec(text);
+        if (!quoted) {
+          if (text === ".") throw new StataError("invalid syntax", 198);
+          return session.scalar(text);
+        }
+        const label = quoted[1],
+          plain = (name) =>
+            name
+              .replace(/(^|[:#])(\d+)bn?o?\./g, "$1$2.")
+              .replace(/(^|[:#])o\./g, "$1");
+        let k = names.indexOf(label);
+        if (k < 0) k = names.findIndex((name) => plain(name) === label);
+        if (k < 0) throw new StataError(`${label} not found`, 111);
+        return k + 1;
+      };
       let m2;
-      if ((m2 = /^(.+?)\s*\.\.\.$/.exec(spec)))
-        return range(session.scalar(m2[1]), count);
+      if ((m2 = /^(.+?)\s*\.\.\.$/.exec(spec))) return range(end(m2[1]), count);
       if ((m2 = /^(.+?)\s*\.\.\s*(.+)$/.exec(spec)))
-        return range(session.scalar(m2[1]), session.scalar(m2[2]));
-      if ((m2 = /^"([^"]*)"$/.exec(spec))) {
-        const k = names.indexOf(m2[1]);
-        if (k < 0) throw new StataError(`${m2[1]} not found`, 111);
-        return [k];
-      }
-      return range(session.scalar(spec), session.scalar(spec));
+        return range(end(m2[1]), end(m2[2]));
+      const only = end(spec);
+      return range(only, only);
       function range(first, last) {
         if (
           typeof first !== "number" ||
@@ -592,12 +604,24 @@ export function matrixExpression(session, source) {
     }
     if ((m = /^([er])\(\s*(\w+)\s*\)/.exec(rest))) {
       at += m[0].length;
-      if (m[1] === "e" && (m[2] === "b" || m[2] === "V"))
-        return fromEstimates(session, "e", m[2]);
       const kind = session.results[m[1]] ?? {};
-      if (kind[`matrix:${m[2]}`]) return fromEstimates(session, m[1], m[2]);
-      if (typeof kind[m[2]] === "number") return scalarMatrix(kind[m[2]]);
-      throw new StataError(`matrix ${m[1]}(${m[2]}) not found`, 111);
+      if (
+        (m[1] === "e" && (m[2] === "b" || m[2] === "V")) ||
+        kind[`matrix:${m[2]}`]
+      ) {
+        const value = fromEstimates(session, m[1], m[2]);
+        // A result subscripted, as e(b)[1,1..2] or e(V)[1..2,"x"].
+        if (text[at] === "[") {
+          at++;
+          return subscript(value);
+        }
+        return value;
+      }
+      // A scalar result is a 1 x 1 matrix, and so is one that does not
+      // exist, which is missing; a macro is not a matrix.
+      if (typeof kind[m[2]] === "string")
+        throw new StataError("type mismatch", 109);
+      return scalarMatrix(kind[m[2]] ?? MISSING);
     }
     if ((m = /^([A-Za-z_]\w*)/.exec(rest))) {
       const name = m[1],
@@ -629,7 +653,7 @@ export function matrixExpression(session, source) {
         // Any other function is a scalar function, as det(A) or sqrt(2).
         if (
           !Object.hasOwn(SCALAR_FUNCTIONS, name) &&
-          !/^(rowsof|colsof|el|det|trace|sum|string|strofreal|scalar|r|e|c)$/.test(
+          !/^(rowsof|colsof|el|det|trace|issymmetric|matmissing|colnumb|rownumb|sum|string|strofreal|scalar|r|e|c)$/.test(
             name,
           )
         )
@@ -1039,12 +1063,53 @@ function mkmat(session, text) {
   else for (const variable of variables) store(variable.name, [variable]);
 }
 
-/** A[i,j], rowsof(A), colsof(A) and el(A,i,j) for the expression compiler. */
+/**
+ * A[i,j], rowsof(A), colsof(A), el(A,i,j), det(A) and trace(A) for the
+ * expression compiler, where A is a named matrix or a result matrix written
+ * as e(b) or r(table).
+ */
 export function matrixAccess(session) {
+  // A result matrix is built once per expression: e(b) is made from the
+  // fit, which does not change while an expression is evaluated.
+  const results = new Map();
+  const result = (kind, name) => {
+    if (kind === "e" && session.estimates && (name === "b" || name === "V"))
+      return fromEstimates(session, kind, name);
+    const stored = session.results[kind]?.[`matrix:${name}`];
+    // A scalar or macro result, or none, is not a matrix here.
+    if (!stored?.values) throw new StataError("type mismatch", 109);
+    return stored;
+  };
   const find = (name) => {
-    const matrix = session.matrices?.get(name);
-    if (!matrix) throw new StataError(`matrix ${name} not found`, 111);
-    return matrix;
+    const m = /^([er])\((\w+)\)$/.exec(name);
+    if (!m) {
+      const matrix = session.matrices?.get(name);
+      if (!matrix) throw new StataError(`${name} not found`, 111);
+      return matrix;
+    }
+    if (!results.has(name)) results.set(name, result(m[1], m[2]));
+    return results.get(name);
+  };
+  // A row or column named in a subscript, as b[1,"female"]: an equation's
+  // column is named with it, as "1:age", and an omitted one without its
+  // marker.
+  // A factor's base level is named without its marker too, as "1.g" for
+  // 1b.g.
+  const unmarked = (name) =>
+    (name ?? "")
+      .replace(/(^|[:#])(\d*)o\./g, (_, before, level) =>
+        level ? `${before}${level}.` : before,
+      )
+      .replace(/(^|[:#])(\d+)bn?o?\./g, "$1$2.");
+  const lookup = (names, label) => {
+    let at = names.indexOf(label);
+    if (at < 0) at = names.findIndex((name) => unmarked(name) === label);
+    return at;
+  };
+  const position = (names, label) => {
+    const at = lookup(names, label);
+    if (at < 0) throw new StataError(`"${label}" not found`, 111);
+    return at + 1;
   };
   const squareOf = (name) => {
     const { values } = find(name);
@@ -1053,8 +1118,31 @@ export function matrixAccess(session) {
     return values;
   };
   return {
-    has: (name) => !!session.matrices?.has(name),
+    has: (name) => {
+      try {
+        return Boolean(find(name));
+      } catch (error) {
+        if (error instanceof StataError) return false;
+        throw error;
+      }
+    },
     rows: (name) => find(name).values.length,
+    // colnumb() and rownumb(): the number of the column or row of that
+    // name, missing when there is none.
+    number: (name, which, label) => {
+      const matrix = find(name),
+        at = lookup(which === "row" ? matrix.rowNames : matrix.colNames, label);
+      return at < 0 ? MISSING : at + 1;
+    },
+    symmetric: (name) => {
+      const { values } = find(name);
+      return Number(
+        values.length === values[0].length &&
+          values.every((row, i) => row.every((v, j) => v === values[j][i])),
+      );
+    },
+    anyMissing: (name) =>
+      Number(find(name).values.some((row) => row.some(isMissing))),
     columns: (name) => find(name).colNames.length,
     det: (name) => determinant(squareOf(name)),
     trace: (name) =>
@@ -1064,7 +1152,11 @@ export function matrixAccess(session) {
         0,
       ),
     element: (name, i, j) => {
-      const row = find(name).values[Math.trunc(i) - 1],
+      const matrix = find(name);
+      // A subscript may name the row or column.
+      if (typeof j === "string") j = position(matrix.colNames, j);
+      if (typeof i === "string") i = position(matrix.rowNames, i);
+      const row = matrix.values[Math.trunc(i) - 1],
         value = row?.[Math.trunc(j) - 1];
       return value === undefined || isMissing(i) || isMissing(j)
         ? 2 ** 1023

@@ -2034,7 +2034,14 @@ function heckman(session, text, ctx) {
     sz0 = selectionFrame(session, selWords, selConstant, new Set(base)),
     isSelected = (i) =>
       selVariable ? selVariable.data[i] !== 0 : !isMissing(yVariable.data[i]),
-    outcome0 = framed(
+    // Fewer than two selected observations with an outcome fit nothing,
+    // which Stata says before it looks further.
+    enough = sz0.sample.length
+      ? sz0.sample.filter((i) => isSelected(i) && !isMissing(yVariable.data[i]))
+          .length >= 2
+      : true;
+  if (!enough) throw new StataError("insufficient observations", 2001);
+  const outcome0 = framed(
       session,
       words,
       constant,

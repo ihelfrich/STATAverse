@@ -23907,3 +23907,792 @@ capture noisily estat bootstrap
 bootstrap m=r(mean), reps(30) seed(5) nodots: summarize y
 capture noisily estat bootstrap, percentile level(90)
 capture noisily estat bootstrap, bca
+=== pass8-estimation-esample
+clear
+set seed 4711
+set obs 400
+generate id = ceil(_n/8)
+generate t = mod(_n, 8) + 1
+generate x = runiform()
+generate z = runiform()
+replace x = . if runiform() < .08
+replace z = . if runiform() < .12
+generate u = runiform()
+generate y = 1 + 2*x - z + u
+generate yb = y > 1.6
+generate yc = floor(3*u + x)
+count if e(sample)
+quietly regress y x z
+display e(N)
+count if e(sample)
+generate s1 = e(sample)
+tabulate s1, missing
+summarize y if e(sample)
+quietly regress y x if e(sample)
+display e(N)
+count if e(sample) in 1/100
+quietly logit yb x z
+count if e(sample)
+quietly probit yb x
+count if e(sample)
+quietly poisson yc x z
+count if e(sample)
+quietly ologit yc x z
+count if e(sample)
+quietly mlogit yc x
+count if e(sample)
+quietly tobit y x z, ll(1.5)
+count if e(sample)
+xtset id t
+quietly xtreg y x z, fe
+count if e(sample)
+quietly ivregress 2sls y (x = u) z
+count if e(sample)
+quietly areg y z, absorb(id)
+count if e(sample)
+quietly glm yb x z, family(binomial)
+count if e(sample)
+quietly qreg y x z in 1/200
+count if e(sample)
+quietly mixed y x z || id:
+count if e(sample)
+quietly clogit yb x z, group(id)
+count if e(sample)
+quietly mean y z
+count if e(sample)
+quietly proportion yc
+count if e(sample)
+quietly regress y x z [fweight=t] if id > 10
+count if e(sample)
+quietly bootstrap, reps(5) seed(1): regress y x z
+count if e(sample)
+quietly regress y x z
+estimates store A
+quietly regress y x
+count if e(sample)
+sort u
+estimates restore A
+count if e(sample)
+generate s2 = e(sample)
+summarize s2
+quietly regress y z
+sort x
+count if e(sample)
+expand 2 in 1/3
+count if e(sample)
+keep if e(sample) | id == 3
+count if e(sample)
+preserve
+drop if id == 1
+count if e(sample)
+restore
+count if e(sample)
+ereturn clear
+count if e(sample)
+display e(sample)
+=== pass8-estimation-esample-failures
+clear
+set seed 7
+set obs 30
+generate id = ceil(_n/10)
+generate age = 20 + floor(40*runiform())
+generate wage = 10 + .5*age + 3*runiform()
+generate yb = runiform() < .5
+replace yb = 1 if id == 3
+generate yc = 2 if id == 3
+replace yc = floor(3*runiform()) if id < 3
+quietly regress wage age
+capture regress wage age in 1
+display _rc " " e(N) " " e(cmd)
+count if e(sample)
+quietly regress wage age
+capture regress wage age if id > 5
+display _rc " " e(N) " " e(cmd)
+count if e(sample)
+quietly regress wage age
+capture logit yb age if id == 3
+display _rc " " e(N) " " e(cmd)
+count if e(sample)
+quietly regress wage age
+capture logit yb age in 1
+display _rc " " e(N) " " e(cmd)
+count if e(sample)
+quietly regress wage age
+capture probit yb age if id == 3
+display _rc " " e(N) " " e(cmd)
+quietly regress wage age
+capture cloglog yb age if id == 3
+display _rc " " e(N) " " e(cmd)
+quietly regress wage age
+capture noisily ologit yc age if id == 3
+display _rc " " e(N) " " e(cmd)
+quietly regress wage age
+capture noisily mlogit yc age if id == 3
+display _rc " " e(N) " " e(cmd)
+quietly regress wage age
+capture regress wage nosuch
+display _rc " " e(N) " " e(cmd)
+count if e(sample)
+generate g = cond(_n == 30, 2, 1)
+sort g
+by g: regress wage age
+display "N " e(N) " " e(cmd)
+count if e(sample)
+sort id
+by id: logit yb age, nolog
+display "N " e(N) " " e(cmd)
+count if e(sample)
+=== pass8-estimation-matrix-subscripts
+clear
+set seed 31
+set obs 300
+generate school = ceil(_n/5)
+generate x = runiform()
+generate age = 20 + 40*runiform()
+generate female = runiform() < .5
+generate score = 50 + 10*runiform() + 2*x + 3*mod(school, 7)
+generate wage = 5 + .3*age - 2*female + 10*runiform()
+quietly mixed score x || school:
+display e(ll) " " e(N) " " e(N_g)[1,1]
+display el(e(N_g),1,1)
+quietly regress wage age female
+display e(b)[1,1]
+display e(b)[1,2] + e(b)[1,3]
+display el(e(b),1,1)
+display el(r(table),1,2)
+display rowsof(e(V)) " " colsof(e(b))
+display r(table)[1,1]*2
+display trace(e(V))
+generate double bb = e(b)[1,1]*age
+summarize bb
+scalar s = e(V)[2,2]
+display s
+display "v " e(b)[1,4]
+display "v " e(b)[1,.]
+display e(b)["y1","age"]
+display e(V)[1,"female"]
+display e(b)[1,"_cons"]
+capture noisily display e(b)[1,"nosuch"]
+display _rc
+capture noisily display e(b)["nosuch",1]
+display _rc
+capture noisily display e(N)[1,1]
+display _rc
+capture noisily display e(cmd)[1,1]
+display _rc
+capture noisily display rowsof(nosuch)
+display _rc
+capture noisily display el(nosuch,1,1)
+display _rc
+capture noisily display colsof(e(N))
+display _rc
+capture noisily display el(e(N),1,1)
+display _rc
+capture noisily display el(e(V),"age","female")
+display _rc
+matrix b = e(b)
+display b[1,"female"]
+display b[1.7,2.2]
+display "v " b[0,1]
+matrix A = e(N)
+matrix list A
+matrix C = r(nosuch)
+matrix list C
+capture noisily matrix C = e(cmd)
+display _rc
+putexcel set pass8.xlsx, replace
+putexcel B1 = matrix(e(b))
+putexcel B3 = matrix(r(table)), names
+quietly regress wage age female
+putexcel B30 = matrix(r(table)), names
+putexcel B20 = matrix(e(N))
+putexcel B24 = matrix(e(nosuch))
+capture noisily putexcel B26 = matrix(nosuch)
+display _rc
+capture noisily putexcel A1 = matrix(e(cmd))
+display _rc
+putexcel A40 = matrix(e(b)*2)
+quietly mlogit female age
+display e(b)[1,"1:age"]
+capture noisily display e(b)[1,"age"]
+display _rc
+ereturn clear
+capture noisily display e(b)[1,1]
+display _rc
+capture noisily matrix C = e(b)
+display _rc
+=== pass8-estimation-insufficient
+clear
+set seed 7
+set obs 30
+generate id = ceil(_n/10)
+generate t = _n
+generate age = 20 + floor(40*runiform())
+generate x1 = runiform()
+generate x2 = runiform()
+generate wage = 10 + .5*age + 3*runiform()
+generate yb = runiform() < .5
+generate yc = floor(3*runiform())
+generate w = 3
+capture noisily regress wage age in 1
+display _rc
+capture noisily regress wage in 1
+display _rc
+capture noisily regress wage age in 1 [fweight=w]
+display _rc
+capture noisily regress wage age in 1, noconstant
+display _rc
+regress wage age in 1/2
+capture noisily logit yb age in 1
+display _rc
+capture noisily probit yb age in 1
+display _rc
+capture noisily logistic yb age in 1
+display _rc
+capture noisily poisson yc age in 1 [fweight=w]
+display _rc
+capture noisily qreg wage age in 1
+display _rc
+capture noisily tobit wage age in 1, ll(20)
+display _rc
+capture noisily nbreg yc age in 1
+display _rc
+capture noisily mlogit yc age in 1
+display _rc
+capture noisily ologit yc age in 1
+display _rc
+capture noisily oprobit yc age in 1
+display _rc
+capture noisily cloglog yb age in 1
+display _rc
+capture noisily areg wage age in 1, absorb(id)
+display _rc
+capture noisily ivregress 2sls wage (age = yb) in 1
+display _rc
+capture noisily ivregress 2sls wage x1 (age = yb) x2 in 1
+display _rc
+capture noisily ivregress 2sls wage (age x1 = yb x2) in 1
+display _rc
+capture noisily ivregress 2sls wage (age = yb) in 1/2
+display _rc
+capture noisily ivregress gmm wage (age = yb) in 1
+display _rc
+capture noisily ivregress liml wage (age = yb) in 1
+display _rc
+tsset t
+capture noisily prais wage age in 1
+display _rc
+sort t
+by t: regress wage age if t < 4
+=== pass8-estimation-by-in
+clear
+set seed 11
+set obs 200
+generate female = runiform() < .5
+generate age = 20 + 40*runiform()
+generate wage = 5 + .3*age + 10*runiform()
+sort female
+capture noisily by female: regress wage age in 1/100
+display _rc
+capture noisily bysort female: regress wage age in 1/100
+display _rc
+capture noisily by female: logit female age in 1/100
+display _rc
+capture noisily by female: regress wage age in 1/100, robust
+display _rc
+capture noisily by female: regress wage age if age > 30 in 1/150
+display _rc
+capture noisily by female: probit female age in 1/50
+display _rc
+by female: regress wage age if age > 55
+=== pass8-estimation-predict-stub
+clear
+set seed 4242
+set obs 500
+generate x1 = runiform()
+generate female = runiform() < .5
+generate u = runiform() + .4*x1 + .2*female
+generate educ = 1 + (u > .45) + (u > .7) + (u > .95)
+generate a_much_longer_outcome_name = educ
+quietly mlogit educ x1 female, baseoutcome(1)
+predict q*, pr
+summarize q1 q2 q3 q4
+predict r*
+summarize r1 r4
+predict double s* if x1 > .5
+summarize s2
+capture noisily predict t*, xb
+display _rc
+capture noisily predict a b, pr
+display _rc
+capture noisily predict a b c d e, pr
+display _rc
+capture noisily predict c1 c2 c3 c4, outcome(2)
+display _rc
+capture noisily predict d*, outcome(2)
+display _rc
+capture noisily predict q*, pr
+display _rc
+capture noisily predict e1 e2, xb
+display _rc
+capture noisily predict a b c d, xb outcome(2)
+display _rc
+predict p1-p4, pr
+summarize p1 p4
+quietly ologit educ x1 female
+predict o*
+summarize o1 o4
+capture noisily predict g*, xb
+display _rc
+quietly oprobit educ x1 female
+predict h*, pr
+summarize h2
+quietly mlogit a_much_longer_outcome_name x1 female
+capture noisily predict a b
+display _rc
+quietly ologit a_much_longer_outcome_name x1 female
+capture noisily predict a b
+display _rc
+set linesize 79
+quietly mlogit a_much_longer_outcome_name x1 female
+capture noisily predict a b c d e, xb
+display _rc
+quietly ologit a_much_longer_outcome_name x1 female
+capture noisily predict a b
+display _rc
+set linesize 200
+=== pass8-estimation-estimates-table-b
+clear
+set seed 4242
+set obs 300
+generate x1 = runiform()
+generate x2 = runiform()
+generate y = 1 + 1.4*x1 - .6*x2 + runiform()
+quietly regress y x1
+estimates store a
+quietly regress y x1 x2
+estimates table a ., b se
+estimates table a ., b star
+estimates table a ., b
+estimates table a ., b(%9.3f) se
+estimates table a ., b(%9.3f) se(%9.4f)
+estimates table a ., b se stats(N r2)
+estimates table a ., se
+estimates table a ., b(%7.2f) star(.1 .05 .01)
+=== pass8-estimation-collinear-factor
+clear
+set seed 4711
+set obs 500
+generate x1 = runiform()
+generate x2 = runiform()
+generate t = 1 + floor(4*runiform())
+generate g = 1 + floor(3*runiform())
+generate y = 1 + .7*x1 - .3*x2 + .5*t + runiform()
+generate x3 = 2*x1
+generate x4 = x1 + x2
+regress y x1 x3 i.t
+regress y i.t x1 x3
+regress y c.x1 x3 i.t
+regress y x1 x3 i.g x2
+regress y x1 x3 x2
+regress y x3 x1 i.t
+regress y x1 x2 x4 i.t
+regress y x4 x1 x2 i.g
+regress y x1 x3 i.t, beta
+regress y x1 x3 c.x2#c.x2
+regress y x1 x3 x2 1.t
+regress y c.x1 x3 x2
+=== pass8-estimation-weight-notes
+clear
+set seed 7
+set obs 50
+generate double x = invnormal(runiform())
+generate double y = 1 + 2*x + invnormal(runiform())
+generate xx = 1 + mod(_n, 7)
+generate yb = y > 1
+generate yc = floor(3*runiform())
+generate g = 1 + mod(_n, 3)
+regress y x [weight=xx]
+regress y x [w=xx]
+regress y x [w=xx], robust
+areg y x [w=xx], absorb(g)
+mean y [w=xx]
+total y [w=xx]
+proportion yc [w=xx]
+ratio y/xx [w=xx]
+logit yb x [w=xx]
+probit yb x [w=xx]
+poisson yc x [w=xx]
+glm yc x [w=xx], family(poisson)
+ivregress 2sls y (x = xx) [w=xx]
+logistic yb x [w=xx]
+=== pass8-estimation-logit-iterations
+clear
+set seed 777
+set obs 10000
+generate double x = invnormal(runiform())
+generate double z = invnormal(runiform())
+generate double y = 5 + 2*x + 2*invnormal(runiform())
+generate y01 = y > 5
+logit y01 x
+logit y01 x z
+probit y01 x
+generate y02 = y > 7
+logit y02 x z
+logit y02 x z in 1/300
+logistic y02 x
+logit y02 x if z > 1
+probit y02 x z
+probit y02 x if z > 1, vce(robust)
+=== pass8-estimation-nbreg-boundary
+clear
+set seed 5
+set obs 2000
+generate double x1 = invnormal(runiform())
+generate female = runiform() < .5
+generate count = (runiform() < .5) + (runiform() < .5) + (runiform() < .5 + .1*(x1>0)) + (runiform() < .5)
+nbreg count x1 female
+display e(rank) " " e(df_m) " " e(chi2_c) " " e(ll) " " e(ll_c) " " e(chi2)
+nbreg count x1 female, irr
+=== pass8b-estimation-fit-layout
+clear
+set seed 909
+set obs 200
+generate x = runiform()
+generate z = runiform()
+replace x = . if runiform() < .15
+generate g = 1 + floor(3*runiform())
+generate y = 1 + 2*x - z + .3*g + runiform()
+generate yb = (y + runiform()) > 2.2 if !missing(y)
+generate u = runiform()
+quietly regress y x z i.g
+sort u
+margins g
+estat hettest
+estat ovtest
+estat vif
+predict double df1, dfits
+summarize df1
+quietly logit yb x z
+sort g
+margins, dydx(x)
+estat classification
+predict double r1, residuals
+summarize r1
+quietly regress y x z i.g
+bysort g: egen my = mean(y)
+margins g
+drop if g == 3 & x > .8
+margins g
+=== pass8b-estimation-panel-layout
+clear
+set seed 4711
+set obs 200
+generate id = ceil(_n/5)
+generate t = mod(_n-1, 5) + 1
+generate x = runiform()
+generate z = runiform()
+replace x = . if runiform() < .1
+generate g = 1 + floor(3*runiform())
+generate y = 1 + 2*x - z + .3*g + runiform()
+generate u = runiform()
+xtset id t
+quietly xtreg y x z, fe
+gsort -u
+predict double u1, u
+quietly summarize u1
+display r(N) " " %9.0g r(sd) " " %9.0g r(min) " " %9.0g r(max)
+predict double e1, e
+quietly summarize e1
+display r(N) " " %9.0g r(sd) " " %9.0g r(min) " " %9.0g r(max)
+quietly areg y x z, absorb(g)
+sort u
+predict double ar1, residuals
+quietly summarize ar1
+display r(N) " " %9.0g r(sd) " " %9.0g r(min) " " %9.0g r(max)
+tsset id t
+quietly regress y x z
+gsort -u
+estat ovtest
+=== pass8b-estimation-predict-types
+clear
+set seed 4242
+set obs 500
+generate x1 = invnormal(runiform())
+generate female = runiform() < .5
+generate u = runiform() + .15*x1 + .1*female
+generate educ = 1 + (u > .3) + (u > .6) + (u > .85)
+quietly mlogit educ x1 female, baseoutcome(1)
+predict byte j1-j4
+summarize j2 j4
+predict double q*
+describe q3
+predict double r1 r2 r3 r4
+describe r1 r2
+quietly ologit educ x1 female
+predict int k*
+summarize k1 k2
+capture noisily predict str5 sp*
+=== pass8b-estimation-iweights
+clear
+set seed 3
+set obs 120
+generate x = runiform()
+generate w = 1 + floor(3*runiform())
+generate y = 1 + x + runiform()
+regress y x [iw=w]
+display e(N) " " e(df_r) " " e(rmse)
+regress y x [iw=w], vce(robust)
+=== pass8b-estimation-matrix-functions
+clear
+set seed 31
+set obs 150
+generate x = runiform()
+generate z = runiform()
+generate y = 1 + 2*x - z + runiform()
+generate g = 1 + floor(3*runiform())
+quietly regress y x z
+matrix A = e(b)[1,1..2]
+matrix list A
+matrix B = e(V)[1..2,"x"]
+matrix list B
+matrix C = e(V)["x".."z","x".."z"]
+matrix list C
+matrix D = e(b)[1,2...]
+matrix list D
+display colnumb(e(b),"z")
+display rownumb(e(V),"_cons")
+display el(e(b),1,colnumb(e(b),"z"))
+display issymmetric(e(V))
+display matmissing(e(b))
+capture noisily display colnumb(e(b),1)
+capture noisily display (e(b))[1,1]
+matrix bb = e(b)
+display colnumb(bb,"z") " " matmissing(bb) " " issymmetric(bb)
+quietly regress y x i.g
+display e(b)[1,"1.g"]
+matrix E = e(b)[1,"1.g".."3.g"]
+matrix list E
+=== pass8b-estimation-estimates-store
+clear
+set seed 5
+set obs 80
+generate x = runiform()
+generate z = runiform()
+replace x = . if runiform() < .2
+replace z = . if runiform() < .3
+generate y = 1 + 2*x + runiform()
+quietly regress y x
+estimates store m1, title(My first model)
+quietly regress y
+estimates store m2
+estimates dir
+estimates store m2, title(again)
+estimates dir
+quietly regress y x
+estimates store m3
+drop _est_m3
+estimates restore m3
+count if e(sample)
+quietly regress y z
+estimates store m4
+keep y z
+estimates restore m4
+count if e(sample)
+capture noisily estimates store m5, nosuch
+=== pass8b-estimation-estimates-table-formats
+clear
+set seed 4242
+set obs 300
+generate x1 = runiform()
+generate x2 = runiform()
+generate g = 1 + floor(3*runiform())
+generate y = 1 + 1.4*x1 - .6*x2 + .2*g + runiform()
+quietly regress y x1
+estimates store a
+quietly regress y x1 x2 i.g
+estimates store b
+estimates table a b, b(%5.2f)
+estimates table a b, b(%6.3f) se(%5.2f)
+estimates table a b, b(%4.1f) star
+estimates table a b, b(%5.2f) stats(N r2)
+estimates table a b, b se stats(N r2) stfmt(%9.2f)
+estimates table a b, b(%3.1f) se(%8.4f)
+estimates table a b, nobase
+estimates table a b, b(%5.2f) modelwidth(14)
+estimates table a b, modelwidth(6)
+capture noisily estimates table a, b(%5.2)
+capture noisily estimates table a, b(%9.3g) se(nonsense)
+=== pass8b-estimation-ordered-aweights
+clear
+set seed 3
+set obs 120
+generate x = runiform()
+generate w = 1 + floor(3*runiform())
+generate y = 1 + x + runiform()
+generate yc = floor(3*runiform()+x)
+generate id = ceil(_n/6)
+generate t = mod(_n-1,6)+1
+xtset id t
+ologit yc x [aw=w]
+oprobit yc x [aw=w]
+correlate y x [w=w]
+capture noisily xtreg y x [w=w], fe
+capture noisily quietly xtreg y x [w=w], fe
+nbreg yc x [pw=w]
+=== pass8b-estimation-binary-options
+clear
+set seed 777
+set obs 3000
+generate x = invnormal(runiform())
+generate z = invnormal(runiform())
+generate g = 1 + floor(4*runiform())
+generate y = 5 + 2*x - z + .5*g + 2*invnormal(runiform())
+generate y01 = y > 6
+probit y01 x z, iterate(1)
+display e(converged) " " e(ic)
+logit y01 x z, iterate(0)
+logit y01 x z, iter(3) nolog
+logit y01 x z, nocoef
+logit y01 x z, nocoef nolog
+probit y01 x z, difficult nolog
+logit y01 x z, tolerance(1e-3) nolog
+logit y01 x z, ltolerance(1e-3)
+logistic y01 x z, iterate(1)
+probit y01 x z in 1/40
+probit y01 x in 1/25
+predict double xb in 1/25, xb
+=== pass8b-estimation-pattern-statistics
+clear
+set seed 808
+set obs 90
+generate x = runiform()
+generate z = runiform()
+generate g = 1 + floor(3*runiform())
+replace x = . if runiform() < .2
+generate y = 1 + 2*x - z + runiform()
+generate yb = y > 1.7 if !missing(y)
+generate xr = round(x, .25)
+quietly logit yb x z
+predict double s1, deviance
+predict double s2, hat
+predict double s3, rstandard
+predict double s4, dx2
+predict double s5, ddeviance
+predict double s6, dbeta
+predict s7, number
+summarize s1-s7
+quietly logit yb xr i.g
+predict double p1, residuals
+predict double p2, deviance
+predict double p3, hat
+predict p4, number
+summarize p1-p4
+predict double h1 if g == 1, hat
+summarize h1
+quietly probit yb xr i.g
+predict double d1, deviance
+summarize d1
+capture noisily predict double d2, residuals
+capture noisily predict double d3, hat
+=== pass8b-estimation-insufficient
+clear
+set seed 7
+set obs 30
+generate x = runiform()
+generate z = runiform()
+generate yc = floor(3*runiform())
+generate y = 1 + x + runiform()
+generate yb = runiform() < .5
+generate w = 3
+generate g = ceil(_n/10)
+replace yc = 0 in 1
+replace yc = 0 in 30
+replace g = 4 in 30
+capture noisily poisson yc x in 1
+capture noisily poisson yc in 1
+capture noisily poisson yc x if yc == 0 & g == 4
+capture noisily poisson yc x in 1 [fw=w]
+capture noisily poisson yc x, exposure(nosuch)
+sort g
+capture noisily by g: poisson yc x, nolog
+display _rc
+xtset g
+capture noisily xtreg y x in 1, fe
+capture noisily xtreg y x in 1, re
+capture noisily xtreg y x if x > 5, fe
+capture noisily xtreg y x if x > 5, re
+capture noisily heckman y x in 1, select(yb = z)
+capture noisily heckman y x in 1/2, select(yb = z)
+capture noisily heckman y x if x > 5, select(yb = z)
+=== pass8b-estimation-replay-display
+clear
+set seed 4711
+set obs 300
+generate x1 = runiform()
+generate x2 = runiform()
+generate y = 2 + .7*x1 - .2*x2 + runiform()
+generate yb = y > 2.5
+regress y x1 x2, beta
+regress
+regress, level(90)
+logit yb x1, or nolog
+logit
+=== pass8c-estimation-by-prefixes
+clear
+set seed 4711
+set obs 60
+generate g = ceil(3*runiform())
+generate x = runiform()
+generate z = runiform()
+generate y = 1 + .7*x + runiform()
+capture noisily by g: quietly regress y x z
+capture noisily bysort g: quietly regress y x z
+capture noisily by g: qui summarize y
+capture noisily by g: noisily regress y x z
+capture noisily by g: capture noisily summarize y
+capture noisily by g: version 17: summarize y
+capture noisily by g: quietlyx summarize y
+quietly by g: regress y x z
+display e(N)
+=== pass8c-estimation-predict-string
+clear
+set seed 4711
+set obs 200
+generate x1 = runiform()
+generate female = runiform() < .5
+generate educ = floor(3*runiform() + x1)
+quietly oprobit educ x1 female
+capture noisily predict str5 sp*
+capture noisily predict str5 sp1 sp2 sp3
+capture noisily predict str5 q
+predict double sp*
+summarize sp*
+=== pass8c-estimation-putexcel-open
+clear
+putexcel set p8open.xlsx, replace open
+putexcel describe
+putexcel A1 = 5
+putexcel B1 = matrix(I(2))
+capture noisily putexcel set p8other.xlsx, replace
+putexcel describe
+putexcel save
+putexcel describe
+putexcel A3 = 7
+putexcel save
+putexcel close
+putexcel set p8open.xlsx, modify open
+putexcel A4 = 8
+capture noisily putexcel save, foo
+capture noisily putexcel close now
+putexcel close
+putexcel set p8open.xlsx, modify open sheet(Two)
+putexcel close
+putexcel describe
+putexcel set p8empty.xlsx, replace open
+putexcel save
+import excel p8open.xlsx, clear
+list
+putexcel clear
+capture noisily putexcel close
+capture noisily putexcel save

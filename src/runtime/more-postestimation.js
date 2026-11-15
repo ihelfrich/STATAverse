@@ -12,6 +12,7 @@ import {
   fit,
   invertSymmetric,
   quadratic,
+  weightsNotYet,
 } from "./estimation.js";
 import { count } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
@@ -26,10 +27,10 @@ function newey(session, text, ctx) {
   if (!session.panel?.time)
     throw new StataError("time variable not set, use tsset varname ...", 111);
   const parsed = session.parse(
-      "anything [if] [in] , LAG(integer) [Level(cilevel) noCONStant FORCE]",
+      "anything [if] [in] [aweight] , LAG(integer) [Level(cilevel) noCONStant FORCE]",
       text,
     ),
-    lag = parsed.options.lag,
+    lag = (weightsNotYet(parsed, "newey"), parsed.options.lag),
     model = fit(
       session,
       { ...parsed, options: { ...parsed.options, vce: undefined } },

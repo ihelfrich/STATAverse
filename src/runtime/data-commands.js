@@ -118,6 +118,22 @@ export function changed(session) {
   empty ??= fingerprint(new Dataset());
   return fingerprint(data) !== (data.clean ?? empty);
 }
+/**
+ * Runs change(), after which data that had not changed since they were
+ * saved or read still count as unchanged: Stata's estimates store, clear
+ * and drop add and remove their _est_ variables without setting c(changed).
+ */
+export function unchangedBy(session, change) {
+  const was = changed(session);
+  try {
+    return change();
+  } finally {
+    if (!was) {
+      session.data.clean = fingerprint(session.data);
+      session.data.dirty = false;
+    }
+  }
+}
 /** Run after each command: marks the data once they have changed. */
 export function markChanged(session) {
   if (!session.data.dirty && changed(session)) session.data.dirty = true;
@@ -737,6 +753,16 @@ function merge(session, text, ctx) {
   result.n = all.length;
   result.label = data.label;
   result.valueLabels = data.valueLabels;
+  // The estimation sample stays with the master observations; a using
+  // observation, or a master one repeated for another match, is outside it.
+  if (data.esample) {
+    result.esample = Uint8Array.from(all, (row) =>
+      row.master !== null && rows[row.master] === row
+        ? data.esample[row.master]
+        : 0,
+    );
+    result.esampleOf = data.esampleOf;
+  }
   for (const variable of data.variables) {
     const text = isStringType(variable.type),
       theirs =
@@ -1220,7 +1246,7 @@ function reshapeLevels(session, ctx, spec) {
 /** A copy of the data, to work on without touching what is in memory. */
 function workingCopy(data) {
   const copy = new Dataset({ defaultType: data.defaultType });
-  copy.restore(data.snapshot());
+  copy.restore(data.snapshot({ marks: true }));
   return copy;
 }
 /** Groups of observations with the same values of names, in sorted data. */
@@ -1582,6 +1608,15 @@ function reshapeLong(session, ctx) {
     ...[...columns.keys()].filter((n) => !front.includes(n)),
   ])
     columns.get(name)();
+  // reshape long keeps the estimation sample in the last observation of
+  // each i, which is the original observation in Stata's reshape.
+  if (work.esample) {
+    const last = sortedLevels.at(-1);
+    result.esample = Uint8Array.from(rows, ([r, level]) =>
+      level === last ? work.esample[r] : 0,
+    );
+    result.esampleOf = work.esampleOf;
+  }
   result.sortedBy = [...front];
   applyCharsForLong(result, spec);
   rebuilt(session, result);
@@ -1828,7 +1863,9 @@ function expandCommand(session, text, ctx) {
   ignored(negative, "negative");
   ignored(zero, "zero");
   data.reorder(order);
-  // Copies go at the end, and only then are the data no longer sorted.
+  // Copies go at the end, outside the estimation sample as Stata leaves
+  // them, and only then are the data no longer sorted.
+  data.esample?.fill(0, before);
   if (order.length > before) data.sortedBy = [];
   // generate() marks the original observations 0 and the copies 1, with
   // the value label _merge unless a label of that name is already defined.
