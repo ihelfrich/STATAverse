@@ -7,7 +7,7 @@ import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { density, invnormal, normal } from "./functions-normal.js";
 import { marginTermsOf, marginsTable, withBaseLevels } from "./margins.js";
-import { count, labelled } from "./reports.js";
+import { count, labelled, wrapLine } from "./reports.js";
 import { MISSING, isMissing } from "./values.js";
 import { parseNumlist } from "./numlist.js";
 
@@ -567,6 +567,20 @@ export function outcomeMargins(session, model, text, ctx) {
   };
 }
 
+/** Text broken at the spaces into lines no wider than width. */
+function wordWrap(text, width) {
+  const lines = [];
+  let line = "";
+  for (const word of text.trim().split(/\s+/)) {
+    if (line && line.length + 1 + word.length > width) {
+      lines.push(line);
+      line = word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
 /**
  * predict after ologit, oprobit and mlogit: the probability of one outcome,
  * or of every outcome when a variable is named for each; xb and stdp give
@@ -600,16 +614,6 @@ export function outcomePredict(session, model, text, ctx) {
     linearOnly = options.xb || options.stdp;
   if (Number(!!options.pr) + Number(!!options.xb) + Number(!!options.stdp) > 1)
     throw new StataError("only one statistic may be specified", 198);
-  if (linearOnly && names.length > 1)
-    throw new StataError(
-      `option ${options.xb ? "xb" : "stdp"} requires that you specify 1 new variable\ntoo many variables specified`,
-      103,
-    );
-  if (!linearOnly && ![1, s.outcomes.length].includes(names.length))
-    throw new StataError(
-      `you must specify 1 or ${s.outcomes.length} new variables`,
-      names.length > 1 ? 103 : 102,
-    );
   let chosen = 0;
   if (options.outcome !== undefined) {
     const word = options.outcome.trim();
@@ -623,9 +627,28 @@ export function outcomePredict(session, model, text, ctx) {
     ctx.out(
       `(option pr assumed; predicted ${options.outcome !== undefined ? "probability" : "probabilities"})`,
     );
-  if (options.outcome !== undefined && names.length > 1)
+  // One new variable, or one for each outcome; Stata's mlogit wraps its
+  // explanation at the words, ologit's and oprobit's break after "or".
+  const k = s.outcomes.length,
+    linesize = session.settings.linesize ?? 79;
+  if (![1, k].includes(names.length)) {
+    const head = `${model.depvar} has ${k} outcomes and so you must specify ${k} new variables, or `,
+      tail =
+        "you can use the outcome() option and specify variables one at a time",
+      explained = multinomial
+        ? wordWrap(head + tail, linesize)
+        : [...wrapLine(head, linesize), tail];
     throw new StataError(
-      `option ${linearOnly ? (options.xb ? "xb" : "stdp") : "pr"} with outcome() requires that you specify 1 new variable\ntoo many variables specified`,
+      [
+        `too ${names.length < k ? "few" : "many"} variables specified`,
+        ...explained,
+      ].join("\n"),
+      names.length < k ? 102 : 103,
+    );
+  }
+  if (names.length > 1 && (linearOnly || options.outcome !== undefined))
+    throw new StataError(
+      `option ${linearOnly ? (options.xb ? "xb" : "stdp") : "pr with outcome()"} requires that you specify 1 new variable\ntoo many variables specified`,
       103,
     );
   const columns = names.map(() => new Array(data.n).fill(MISSING)),

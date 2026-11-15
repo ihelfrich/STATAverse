@@ -14,6 +14,7 @@ import {
   invertSymmetric,
   numericVarlist,
   tableWidth,
+  weightsNotYet,
 } from "./estimation.js";
 import { count } from "./reports.js";
 
@@ -157,10 +158,10 @@ export function quantileFit(x, observed, q) {
 
 function qreg(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, Quantile(real 0.5) Level(cilevel) noLOg | VCE(string) WLSiter(integer 1)]",
+      "anything [if] [in] [fweight aweight iweight pweight] [, Quantile(real 0.5) Level(cilevel) noLOg | VCE(string) WLSiter(integer 1)]",
       text,
     ),
-    options = parsed.options,
+    options = (weightsNotYet(parsed, "qreg"), parsed.options),
     q = options.quantile >= 1 ? options.quantile / 100 : options.quantile;
   if (!(q > 0 && q < 1))
     throw new StataError("quantile() must be between 0 and 1", 198);

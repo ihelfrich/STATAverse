@@ -587,6 +587,30 @@ export function design(session, text, rows, constant = true, levelRows) {
   return { dependent, columns, sample };
 }
 
+/**
+ * Refuses a weight that Stata's command takes but the browser does not yet,
+ * so that it is not mistaken for one Stata does not allow.
+ */
+export function weightsNotYet(parsed, command) {
+  if (parsed.weight)
+    throw new StataError(
+      `${parsed.weight.type}s are not available with ${command} in the browser yet`,
+      198,
+      "Fit the model without the weight here, or fit it in Stata.",
+    );
+}
+
+/**
+ * Clears e(), as Stata's regress, logit, probit, ologit and mlogit clear it
+ * when they find no observations or an outcome that does not vary: the
+ * estimates, their results and the sample they marked are gone.
+ */
+export function forgetEstimates(session) {
+  session.estimates = null;
+  session.results.e = {};
+  session.data.esample = session.data.esampleOf = null;
+}
+
 export function fit(session, parsed, by) {
   const rows = session.rows(parsed, by),
     options = parsed.options,
@@ -644,11 +668,16 @@ export function fit(session, parsed, by) {
     }
   }
   const n = obs.length;
-  if (!n) throw new StataError("no observations", 2000);
+  if (!n)
+    throw Object.assign(new StataError("no observations", 2000), {
+      empty: true,
+    });
   // One observation (however heavily weighted) fits nothing: Stata says so
-  // before it looks for collinearity.
+  // before it looks for collinearity, with the sample already marked.
   if (new Set(obs).size < 2)
-    throw new StataError("insufficient observations", 2001);
+    throw Object.assign(new StataError("insufficient observations", 2001), {
+      sample: obs,
+    });
   const y = obs.map((i) => dependent.data[i]),
     active = columns.filter((c) => !c.base),
     x = active.map((c) => obs.map(c.value)),
@@ -673,10 +702,7 @@ export function fit(session, parsed, by) {
     remaining = xc.map((column) => column.slice()),
     chosen = new Set(),
     factorList = columns.some(
-      (c) =>
-        c.levels ||
-        !c.term?.variable ||
-        /#|(^|#)\d+[bno]*\./.test(c.name),
+      (c) => c.levels || !c.term?.variable || /#|(^|#)\d+[bno]*\./.test(c.name),
     ),
     set = new Set(
       factorList ? active.flatMap((c, k) => (c.collinear ? [k] : [])) : [],
@@ -1376,6 +1402,27 @@ export const unmarked = (name) =>
 
 /** Set by the resampling module: runs vce(bootstrap) and vce(jackknife). */
 export const hooks = { resamplingVce: null };
+/**
+ * regress's fit. Finding no observations, Stata's regress has already
+ * cleared e(); finding one, it has marked it as e(sample) and keeps the
+ * estimates before it.
+ */
+function regressFit(session, parsed) {
+  try {
+    return fit(session, parsed, null);
+  } catch (error) {
+    if (error instanceof StataError && error.empty) forgetEstimates(session);
+    if (error instanceof StataError && error.sample) {
+      const data = session.data,
+        marks = new Uint8Array(data.n);
+      for (const i of error.sample) marks[i] = 1;
+      data.esample = marks;
+      data.esampleOf = session.estimates;
+    }
+    throw error;
+  }
+}
+
 function regress(session, text, ctx) {
   const requested = /\bvce\s*\(((?:[^()]|\([^()]*\))*)\)/.exec(text)?.[1];
   if (
@@ -1387,7 +1434,7 @@ function regress(session, text, ctx) {
       "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta CLuster(string) BASElevels ALLBASElevels | noHEader EForm(string) ABSorb(varname)]",
       text,
     ),
-    model = fit(session, parsed, null),
+    model = regressFit(session, parsed),
     level = parsed.options.level,
     // A replay of a clustered fit with beta shows no beta coefficients.
     noBeta = !!model.clusters && !!parsed.options.beta,

@@ -266,12 +266,15 @@ export function compileExpression(source, scope = {}) {
     return variable(name);
   };
 
-  /** A matrix's element, name[row, column], from the bracket on. */
+  /**
+   * A matrix's element, name[row, column], from the bracket on. A subscript
+   * is a number or the name of the row or column, as b[1,"female"].
+   */
   function element(name) {
     at++;
-    const row = numeric(or());
+    const row = or().evaluate;
     if (!take(",")) throw invalid("a matrix element needs a row and a column");
-    const column = numeric(or());
+    const column = or().evaluate;
     if (!take("]")) throw new StataError("too few ')' or ']'", 132);
     // Found when the expression is compiled, so a wrong name stops it.
     scope.matrix.rows(name);

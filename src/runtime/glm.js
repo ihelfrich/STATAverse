@@ -16,10 +16,12 @@ import {
   invertSymmetric,
   numericVarlist,
   tableWidth,
+  weightsNotYet,
 } from "./estimation.js";
 import {
   dot,
   frame,
+  twoOrMore,
   iterationLine,
   iterations,
   layoutRows,
@@ -760,7 +762,7 @@ function glm(session, text, ctx) {
  */
 function fitCloglog(session, parsed, ctx) {
   const constant = parsed.options.constant !== false,
-    whole = frame(session, parsed, constant),
+    whole = twoOrMore(frame(session, parsed, constant)),
     outcome = whole.y.map((v) => Number(v !== 0));
   if (!whole.x[0].length)
     throw new StataError("too few variables specified", 102);
@@ -846,11 +848,12 @@ function fitCloglog(session, parsed, ctx) {
 
 function cloglog(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, Level(cilevel) noLOg noCONStant BASElevels ALLBASElevels | Robust VCE(string) EForm OFFset(varname)]",
+      "anything [if] [in] [fweight pweight iweight] [, Level(cilevel) noLOg noCONStant BASElevels ALLBASElevels | Robust VCE(string) EForm OFFset(varname)]",
       text,
     ),
     fitted =
-      (numericVarlist(session, parsed.anything),
+      (weightsNotYet(parsed, "cloglog"),
+      numericVarlist(session, parsed.anything),
       fitCloglog(session, parsed, ctx)),
     { n, y, ll } = fitted,
     zeros = y.filter((v) => !v).length,

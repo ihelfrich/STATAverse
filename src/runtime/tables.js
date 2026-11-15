@@ -9,6 +9,7 @@ import {
 } from "./format.js";
 import { Ftail, invttail, ttail } from "./distributions.js";
 import { project } from "./diagnostics.js";
+import { weightsNotYet } from "./estimation.js";
 import {
   count,
   displayWidth,
@@ -1681,10 +1682,11 @@ function proportion(session, text, ctx) {
  */
 function anova(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, | Partial SEquential noCONStant DOF(integer 0)]",
+      "anything [if] [in] [aweight fweight] [, | Partial SEquential noCONStant DOF(integer 0)]",
       text,
     ),
-    words = parsed.anything.trim().split(/\s+/),
+    words =
+      (weightsNotYet(parsed, "anova"), parsed.anything.trim().split(/\s+/)),
     data = session.data,
     dependent = data.get(session.varlist(words[0])[0]);
   if (isStringType(dependent.type)) throw new StataError("type mismatch", 109);

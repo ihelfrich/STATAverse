@@ -10,7 +10,7 @@ import { zip } from "../console-zip.js";
 import { STANDARD_MESSAGES } from "./error-messages.js";
 import { StataError } from "./errors.js";
 import { applyFormat, parseFormat } from "./format.js";
-import { matrixNamed } from "./matrix.js";
+import { matrixExpression } from "./matrix.js";
 import { count } from "./reports.js";
 import { Dataset } from "./store.js";
 import {
@@ -1908,8 +1908,9 @@ function putValue(session, value, options) {
 }
 
 function matrixCells(session, name, options) {
-  // A named matrix, or a result matrix such as e(b) or r(table).
-  const matrix = matrixNamed(session, name.replace(/\s+/g, ""));
+  // A matrix expression, as Stata takes it: a named matrix, a result such
+  // as e(b) or r(table) (a scalar result or none being 1 x 1), or e(b)*2.
+  const matrix = matrixExpression(session, name);
   const rows = options.names || options.rownames,
     cols = options.names || options.colnames,
     dr = cols ? 1 : 0,

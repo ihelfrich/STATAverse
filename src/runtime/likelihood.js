@@ -15,10 +15,12 @@ import {
   abbreviate,
   baseLevelsAsked,
   design,
+  forgetEstimates,
   invertSymmetric,
   numericVarlist,
   tableWidth,
   termRows,
+  weightsNotYet,
 } from "./estimation.js";
 import { count, labelled } from "./reports.js";
 import { optionItems, splitAtComma } from "./syntax.js";
@@ -84,6 +86,29 @@ export function layoutRows(session, f, baseLevels, cell, w, omittedValue = 0) {
  * the cut points of ologit and oprobit are; base cells of interactions are
  * then omitted as they would be beside a constant.
  */
+/**
+ * The frame of a model that needs two observations, as Stata's tobit,
+ * ologit, oprobit, mlogit, nbreg and cloglog do: one, however weighted,
+ * fits nothing, and Stata says so before it looks at the outcome.
+ */
+/**
+ * The frame of nbreg, which Stata refuses when every outcome is zero, once
+ * it has counted two observations or more (poisson looks first).
+ */
+export function notAllZero(f) {
+  if (f.y.length && f.y.every((v) => v === 0))
+    throw new StataError(
+      `${f.dependent.name} is zero for all observations`,
+      498,
+    );
+  return f;
+}
+
+export function twoOrMore(f) {
+  if (f.y.length === 1) throw new StataError("insufficient observations", 2001);
+  return f;
+}
+
 export function frame(
   session,
   parsed,
@@ -473,13 +498,15 @@ function tobit(session, text, ctx) {
     asked = requested(session, parsed),
     given = (name) =>
       new RegExp(`\\b${name}\\b`).test(splitAtComma(text)[1] ?? ""),
-    f = frame(
-      session,
-      parsed,
-      options.constant !== false,
-      undefined,
-      true,
-      asked,
+    f = twoOrMore(
+      frame(
+        session,
+        parsed,
+        options.constant !== false,
+        undefined,
+        true,
+        asked,
+      ),
     ),
     // A limit is a number, or an expression that gives one, as tobit's
     // _chk_limit takes it; . is no limit.
@@ -827,13 +854,22 @@ function ordered(kind) {
       ),
       options = parsed.options,
       asked = requested(session, parsed),
-      f = frame(session, parsed, false, true, false, asked),
+      f = twoOrMore(frame(session, parsed, false, true, false, asked)),
       n = f.y.length,
       weight = (i) => (f.w ? f.w[i] : 1),
       levels = [...new Set(f.y)].sort((a, b) => a - b),
       cuts = levels.length - 1,
       k = f.active.length;
-    if (cuts < 1) throw new StataError("outcome does not vary", 2000);
+    // ologit and oprobit have cleared e() by then, and say so after a
+    // blank line.
+    if (cuts < 1) {
+      forgetEstimates(session);
+      ctx.out("");
+      throw new StataError(
+        `too few categories in variable ${f.dependent.name}`,
+        148,
+      );
+    }
     const category = f.y.map((v) => levels.indexOf(v)),
       // One observation's log likelihood and score.
       term = (r, i, theta) => {
@@ -1133,12 +1169,12 @@ function ordered(kind) {
 // ----- multinomial logit -----
 function mlogit(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, Baseoutcome(real 0) Level(cilevel) noLOg RRr noCONStant BASElevels ALLBASElevels | Robust VCE(string)]",
+      "anything [if] [in] [fweight pweight iweight] [, Baseoutcome(real 0) Level(cilevel) noLOg RRr noCONStant BASElevels ALLBASElevels | Robust VCE(string)]",
       text,
     ),
-    options = parsed.options,
+    options = (weightsNotYet(parsed, "mlogit"), parsed.options),
     constant = options.constant !== false,
-    f = frame(session, parsed, constant);
+    f = twoOrMore(frame(session, parsed, constant));
   // Without factor variables there are no base levels to show; the table
   // with them is not laid out by term here, so their base levels are not
   // offered either.
@@ -1165,7 +1201,12 @@ function mlogit(session, text, ctx) {
       `baseoutcome(${options.baseoutcome}) is not an outcome`,
       198,
     );
-  if (outcomes.length < 2) throw new StataError("outcome does not vary", 2000);
+  // mlogit has cleared e() by then, and says so after a blank line.
+  if (outcomes.length < 2) {
+    forgetEstimates(session);
+    ctx.out("");
+    throw new StataError("too few categories", 148);
+  }
   const k = f.x[0].length,
     others = outcomes.map((_, j) => j).filter((j) => j !== base),
     which = f.y.map((v) => others.indexOf(outcomes.indexOf(v))),
@@ -1742,7 +1783,9 @@ function nbreg(session, text, ctx) {
     asked =
       (numericVarlist(session, parsed.anything), requested(session, parsed)),
     constant = options.constant !== false,
-    f = frame(session, parsed, constant, constant, false, asked),
+    f = notAllZero(
+      twoOrMore(frame(session, parsed, constant, constant, false, asked)),
+    ),
     n = f.y.length,
     weight = (i) => (f.w ? f.w[i] : 1);
   if (f.y.some((v) => v < 0 || !Number.isInteger(v)))

@@ -20,6 +20,7 @@ import {
   design,
   equationOf,
   estimates,
+  forgetEstimates,
   invertSymmetric,
   lincom as lincomT,
   waldTest,
@@ -36,7 +37,12 @@ import {
 import { splitAtComma } from "./syntax.js";
 import { MISSING, isMissing } from "./values.js";
 import { evaluateAll } from "./expression.js";
-import { poissonStart } from "./likelihood.js";
+import {
+  iterationLine,
+  maximizeNR,
+  poissonStart,
+  quadSum,
+} from "./likelihood.js";
 import { clusterMeat, clusterNote, noCluster, readVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
@@ -371,8 +377,8 @@ function maximumLikelihood(kind) {
       )
         error.hint =
           kind === "poisson"
-            ? "xtpoisson takes exposure() and offset(); here, leave the option out or fit the panel model."
-            : "Leave out offset(), or enter the offset variable as a regressor to see its coefficient.";
+            ? "poisson does not yet take exposure() or offset() here (xtpoisson does, for panel data). Fit this model in Stata, or leave the option out."
+            : `${kind} does not yet take offset() here. Fit this model in Stata, or leave the option out.`;
       throw error;
     }
     const options = parsed.options;
@@ -437,16 +443,25 @@ function maximumLikelihood(kind) {
         throw new StataError("negative weights encountered", 402);
     }
     if (!n) throw new StataError("no observations", 2000);
+    // poisson refuses outcomes that are all zero, before it counts them.
+    if (kind === "poisson" && sample.every((i) => dependent.data[i] === 0))
+      throw new StataError(
+        `${dependent.name} is zero for all observations`,
+        498,
+      );
     // One observation fits nothing, whatever its outcome or weight.
     if (n < 2) throw new StataError("insufficient observations", 2001);
     let y = sample.map((i) => dependent.data[i]);
     if (family.binary) {
       const outcome = y.map((v) => Number(v !== 0));
-      if (outcome.every((v) => v === outcome[0]))
+      if (outcome.every((v) => v === outcome[0])) {
+        // logit and probit have cleared e() by then.
+        forgetEstimates(session);
         throw new StataError(
           "outcome does not vary; remember:\n                                  0 = negative outcome,\n        all other nonmissing values = positive outcome",
           2000,
         );
+      }
       // Copied in place: spreading every observation into splice overflowed
       // the call stack at about 130,000 observations.
       outcome.forEach((v, i) => {
@@ -502,17 +517,22 @@ function maximumLikelihood(kind) {
           ? Math.log(mean / (1 - mean))
           : invnormal(mean)
         : Math.log(mean),
-      logLikelihood = (b) =>
-        x.reduce(
-          (total, row, i) =>
-            total +
-            weightAt(i) *
-              family.ll(
-                y[i],
-                row.reduce((t, v, k) => t + v * b[k], 0),
-              ),
-          0,
+      // Summed in quad precision, as Stata sums it: where the fit has
+      // nearly converged, whether a step forward raises the likelihood is
+      // decided in the last digits.
+      logLikelihood = (b) => {
+        const sum = quadSum();
+        x.forEach((row, i) =>
+          sum.add(
+            family.ll(
+              y[i],
+              row.reduce((t, v, k) => t + v * b[k], 0),
+            ),
+            weightAt(i),
+          ),
         );
+        return sum.value;
+      };
     let b = new Array(size).fill(0);
     if (constant) b[size - 1] = start;
     // Sampling weights make the variance robust unless poisson was asked
@@ -556,8 +576,28 @@ function maximumLikelihood(kind) {
       );
       ll = logLikelihood(b);
     }
-    log.push(ll);
-    for (let iteration = 1; iteration <= 100; iteration++) {
+    // What Stata notes beside an iteration, as "backed up".
+    let stepNotes = [];
+    if (family.binary) {
+      // Stata's logit and probit step as ml's Newton-Raphson steps: a step
+      // that raises the likelihood is carried on along its direction while
+      // it goes on raising it, and convergence asks for a small scaled
+      // gradient too. The iteration log is then Stata's, line for line.
+      const fitted = maximizeNR((theta, todo) => {
+        b = theta;
+        const value = logLikelihood(theta);
+        if (!todo) return { value };
+        const { gradient, hessian } = derivatives();
+        return { value, gradient, information: hessian };
+      }, b);
+      if (!fitted.converged)
+        throw new StataError("convergence not achieved", 430);
+      b = fitted.theta;
+      ll = fitted.ll;
+      log.push(...fitted.log);
+      stepNotes = fitted.notes;
+    } else log.push(ll);
+    for (let iteration = 1; !family.binary && iteration <= 100; iteration++) {
       const { gradient, hessian } = derivatives();
       information = invertSymmetric(hessian);
       if (!information)
@@ -767,9 +807,7 @@ function maximumLikelihood(kind) {
     }
     if (logged) {
       log.forEach((value, k) =>
-        ctx.out(
-          `Iteration ${k}:  ${word} = ${g(value, "%10.0g").padStart(10)}`,
-        ),
+        ctx.out(iterationLine(k, word, value, stepNotes[k])),
       );
       ctx.out("");
     }
@@ -952,6 +990,9 @@ function ivColumns(listed, rows) {
       notes.push(`note: ${bareName(c.name)} omitted because of collinearity.`);
     }
   }
+  // The notes on the exogenous regressors, which Stata prints before it
+  // looks at the outcome and the instruments.
+  notes.exogenous = notes.slice();
   const repeated = new Set(
       listed.exogenous.filter((c) => !c.term.variable).map((c) => key(c.term)),
     ),
@@ -970,6 +1011,36 @@ function ivColumns(listed, rows) {
     }
   }
   return notes;
+}
+
+/**
+ * Whether the constant and the columns fit the outcome exactly over the
+ * rows, as one observation always is.
+ */
+function fitsExactly(rows, columns, outcome) {
+  const basis = [];
+  const residual = (values) => {
+    let rest = values;
+    for (const q of basis) {
+      const weight = rest.reduce((t, v, k) => t + v * q.vector[k], 0) / q.norm;
+      rest = rest.map((v, k) => v - weight * q.vector[k]);
+    }
+    return rest;
+  };
+  for (const values of [
+    rows.map(() => 1),
+    ...columns.map((c) => rows.map((i) => c.value(i))),
+  ]) {
+    const original = values.reduce((t, v) => t + v * v, 0),
+      rest = residual(values),
+      norm = rest.reduce((t, v) => t + v * v, 0);
+    if (original > 0 && norm > 1e-9 * original)
+      basis.push({ vector: rest, norm });
+  }
+  const y = rows.map((i) => outcome[i]),
+    original = y.reduce((t, v) => t + v * v, 0),
+    rest = residual(y);
+  return rest.reduce((t, v) => t + v * v, 0) <= 1e-13 * original;
 }
 
 /** Whether a command's weight is typed as [weight=exp] or [w=exp]. */
@@ -1107,6 +1178,10 @@ function ivregress(session, text, ctx) {
       481,
     );
   if (!rows.length) throw new StataError("no observations", 2000);
+  // LIML and GMM need two observations; 2SLS goes on to find the outcome
+  // collinear with the constant.
+  if (estimator !== "2sls" && rows.length < 2)
+    throw new StataError("insufficient observations", 2001);
   if (wtype) {
     if (rawWeights.some((v) => v < 0) && wtype !== "iweight")
       throw new StataError("negative weights encountered", 402);
@@ -1128,6 +1203,19 @@ function ivregress(session, text, ctx) {
     // ivregress.ado shows the sum in %12.4e.
     if (wtype === "aweight" || wtype === "pweight")
       ctx.out(`(sum of wgt is ${applyFormat(weightSum, "%12.4e")})`);
+  }
+  // An outcome that the regressors kept fit exactly stops the fit, after
+  // the notes on the regressors, as Stata's _rmcoll stops it.
+  const kept = [...endogenousColumns, ...exogenousColumns];
+  if (fitsExactly(rows, kept, column(depName))) {
+    for (const c of listed.endogenous)
+      if (c.collinear)
+        ctx.out(`note: ${c.name} omitted because of collinearity.`);
+    notes.exogenous.forEach(ctx.out);
+    throw new StataError(
+      `${depName} collinear with ${[...kept.map((c) => c.name), "_cons"].join(" ")}`,
+      459,
+    );
   }
   const dep = depName,
     y = rows.map((i) => column(dep)[i]),
@@ -2297,6 +2385,15 @@ function estimatesCommand(session, text, ctx) {
     name = rest.replace(/,.*$/, "").trim();
   if (/^sto(re?)?$/.test(action)) {
     if (!/^[A-Za-z_]\w*$/.test(name)) throw new StataError("invalid name", 198);
+    // Results posted without a model, as mean, proportion and anova post
+    // them, cannot be kept yet; Stata keeps them.
+    const posted = session.results.e?.cmd;
+    if (!session.estimates && typeof posted === "string" && posted)
+      throw new StataError(
+        `estimates store after ${posted} is not available in the browser yet`,
+        198,
+        "Store the results of an estimation command such as regress or logit, or keep what you need with scalar or matrix.",
+      );
     const model = estimates(session),
       data = session.data,
       marker = `_est_${name}`,

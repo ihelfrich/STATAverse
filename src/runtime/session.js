@@ -7,12 +7,7 @@ import { Dataset } from "./store.js";
 import { splitCommands, parseBlocks } from "./dofile.js";
 import { expandMacros, isMacroName, macroWords } from "./macros.js";
 import { compileExpression } from "./expression.js";
-import {
-  applySyntax,
-  clauses,
-  loneEquals,
-  splitAtComma,
-} from "./syntax.js";
+import { applySyntax, clauses, loneEquals, splitAtComma } from "./syntax.js";
 import { parseNumlist } from "./numlist.js";
 import { expandVarlist } from "./varlist.js";
 import { applyFormat, parseFormat, stringOf } from "./format.js";
@@ -478,8 +473,13 @@ export class Session {
       results: this.results,
       state: this.state,
       rc: () => this.rc,
-      // e(sample): 1 in the observations the active estimates used.
-      esample: (i) => this.data.esample?.[i] ?? 0,
+      // e(sample): 1 in the observations the active estimates used, as the
+      // data mark them (restore brings back the marks preserved); with no
+      // estimates at all, 0.
+      esample: (i) =>
+        this.estimates || Object.keys(this.results.e ?? {}).length
+          ? (this.data.esample?.[i] ?? 0)
+          : 0,
       matrix: matrixAccess(this),
       coefficient: (kind, name) => {
         const model = this.estimates;
@@ -1021,8 +1021,7 @@ export class Session {
         if (!model) {
           if (this.data.esampleOf !== this.results.e)
             this.data.esample = this.data.esampleOf = null;
-        }
-        else if (this.data.esampleOf !== model)
+        } else if (this.data.esampleOf !== model)
           markSample(this, model, model.sample);
       }
       // Stata's estat ic, ovtest, imtest, hettest and vif, and lincom, hold

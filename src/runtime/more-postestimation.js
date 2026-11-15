@@ -12,6 +12,7 @@ import {
   fit,
   invertSymmetric,
   quadratic,
+  weightsNotYet,
 } from "./estimation.js";
 import { count } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
@@ -27,10 +28,10 @@ function newey(session, text, ctx) {
   if (session.panel.id)
     throw new StataError("newey on panel data is not available yet", 198);
   const parsed = session.parse(
-      "anything [if] [in] , LAG(integer) [Level(cilevel) noCONStant | FORCE]",
+      "anything [if] [in] [aweight] , LAG(integer) [Level(cilevel) noCONStant | FORCE]",
       text,
     ),
-    lag = parsed.options.lag,
+    lag = (weightsNotYet(parsed, "newey"), parsed.options.lag),
     model = fit(
       session,
       { ...parsed, options: { ...parsed.options, vce: undefined } },
