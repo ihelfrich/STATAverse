@@ -4,6 +4,7 @@
 // no other page reads, and the files the student adds in this browser's
 // IndexedDB.
 import { COMMANDS } from "./runtime/commands.js";
+import { readableBytes } from "./runtime/values.js";
 import { LIBRARY } from "./console-datasets.js";
 import { createConsoleSession, missingFile } from "./console-session.js";
 import { EXAMPLES } from "./console-examples.js";
@@ -1326,8 +1327,7 @@ function quietNotes(record) {
 }
 // A byte that is not UTF-8 is shown as U+FFFD, as the session shows it in
 // what a run returns at its end.
-const readable1 = (line) =>
-  line.replace(/(?<![\uD800-\uDBFF])[\uDC80-\uDCFF]/g, "\uFFFD");
+const readable1 = (line) => readableBytes(line);
 const readable = (record) => ({
   ...record,
   lines: record.lines.map(readable1),

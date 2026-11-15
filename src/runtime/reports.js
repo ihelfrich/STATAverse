@@ -12,7 +12,7 @@ import {
 } from "./format.js";
 import { evaluateAll } from "./expression.js";
 import { chi2tail } from "./distributions.js";
-import { operatorGroups } from "./varlist.js";
+import { operatorGroups, tildeAsStar } from "./varlist.js";
 import { expandTabs } from "./echo.js";
 import {
   assumedWeights,
@@ -316,7 +316,7 @@ function parseNamingVariables(session, declaration, text) {
       !session.data.names.length
     )
       throw new StataError("no variables defined", 111);
-    throw error;
+    throw tildeAsStar(error);
   }
 }
 export function summarize(session, text, ctx) {

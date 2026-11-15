@@ -26809,6 +26809,34 @@ capture noisily reshape wide x, i(t) j(t)
 === recheck-files-merge-notes-chars
 clear
 input id x
+=== expr-value-label-dereference
+clear
+set obs 4
+gen g = _n
+label define gl 1 "low" 2 "mid" 3 "high" 4 "a b"
+label define e2 .a "dk" 1 "one"
+label values g gl
+count if g == "mid":gl
+display ("high":gl)
+display 1 + "high":gl
+display ("a b":gl) + ("mid" : gl)
+display ("nope":gl)
+display ("mid":nolab)
+display ("MID":gl)
+display 0+"dk":e2
+gen y = "mid":gl + 1
+gen w = "zz":gl
+count if inlist(g, "low":gl, "high":gl)
+replace g = "low":gl if g == "high":gl
+capture noisily display "high":gl
+capture noisily display 0+"mid":
+capture noisily display strlen("mid":gl)
+assert g != "none":gl
+keep if g >= "mid":gl
+list, nolabel
+=== expr-value-label-use-if
+clear
+input edu y
 1 10
 2 20
 3 30
@@ -27830,3 +27858,317 @@ label define yn 1 "yes"
 label save yn using ./r2fls, replace
 do r2fls.do
 label list yn
+label define edulbl 1 "HS" 2 "College" 3 "Grad"
+label values edu edulbl
+save labdref, replace
+use if edu == "College":edulbl using labdref, clear
+count
+use labdref, clear
+keep if edu != "College":edulbl
+list
+=== expr-regex-stata-syntax
+display regexm("x", "*")
+display regexs(0)
+display regexm("GA 30303", "[0-9]{5}") " " regexm("a{2}", "a{2}")
+display regexm("GA 30303", "\d+") " " regexm("ad", "\d") " " regexm("a b", "a\sb") " " regexm("abc", "\w+")
+display regexm("a1b22", "[[:digit:]]+") " " regexm("a]", "[[:alpha:]]") " [" regexs(0) "]"
+display regexm("aaa", "a+?")
+display regexs(0)
+display regexm("x(y)", "\(y\)") " " regexm("a.b", "a.b") " " regexm("axb", "a\.b")
+display regexr("2020-01-02", "([0-9]+)-([0-9]+)", "\2/\1")
+display regexm("ab", "^(a|b)+" + char(36)) " " regexm("ab", "(a|ab)") " [" regexs(1) "]"
+display regexm("café", "^caf.$") " " regexm("café", "^caf..") " " regexm("über", "^.ber")
+display regexm("café", "(caf)(.*)") " [" regexs(2) "] " strlen(regexs(2))
+display regexm("ABC", "(?i)abc")
+display "D " regexm("x", "x**") " E " regexm("x", "(a*)*")
+display regexm("x", "[b-a]") regexm("x", "[abc") regexm("x", "(abc") regexm("x", "abc)") regexm("x", "abc\") regexm("a", "((((((((((a))))))))))")
+display regexm("aaa", "(a*)(a*)") " [" regexs(1) "][" regexs(2) "]"
+display regexm("abab", "(ab)*") " [" regexs(0) "][" regexs(1) "]"
+display regexm("ac", "a(b)?c") " [" regexs(1) "]"
+display regexm("ab", "(a)(b)") " [" regexs(3) "] " regexs(1.7)
+display regexm("]", "[]a]") " " regexm("-", "[a-]") " " regexm("b", "[^]a]") " " regexm("b", "[a-c-e]") " " regexm("-", "[a-c-e]")
+display regexm("\", "[\d]") " " regexm("ab", "a\b") " " regexm("an", "a\n") " " regexm("AB", "ab")
+display regexr("abc", "x*", "Q") " " regexr("abc", "x*" + char(36), "Q") " " regexr("abcb", "b", "Q") " " regexr("abc", "b", "[&]")
+display regexr("abc", "(b", "Q")
+display regexm("abc", "(a)") regexr("xbx", "(b)", "Q") " [" regexs(1) "]"
+display regexm("abc", "(a)") ustrregexm("xbx", "(b)") " [" regexs(1) "]"
+clear
+set obs 3
+gen s = "a" + string(_n) + "-" + string(10*_n)
+gen m = regexm(s, "x**")
+gen t = regexs(1)
+gen n = regexs(1) if regexm(s, "-([0-9]+)" + char(36))
+count if regexm(s, "(?i)A")
+replace s = regexr(s, "[", "z")
+list
+=== expr-unicode-functions
+display "[" usubinstr("a.b.c", ".", "-", .) "] [" usubinstr("café café", "é", "e", 1) "] [" usubinstr("a.b.c", ".", "-", -1) "]"
+display "[" ustrtoname("x y") "] [" ustrtoname("1abc") "] [" ustrtoname("1abc", 0) "] [" ustrtoname("x😀y") "] [" ustrtoname("x²") "]"
+display "[" ustrtoname("ééééééééééééééééééééééééééééééééééééééé") "] [" strtoname("ééééééééééééééééééééééééééééééééééééééé") "]"
+display "[" strtoname("x😀y") "] [" strtoname("e" + uchar(769) + "x") "] [" ustrtoname("e" + uchar(769) + "x") "]"
+display indexnot("ééa", "é") " " indexnot("aéb", "a") " " indexnot("abc", "")
+display ustrtitle("ﬁrst ﬂow") " " ustrtitle("ǆemal") " " ustrtitle("ßa")
+display mindouble() == c(mindouble) " " mindouble()
+display nchi2den(3, 2, 1.5) " " nchi2tail(3, 2, 1.5) " " invnchi2tail(3, 2, .3)
+display invnF(2, 10, 3, .5) " " invnt(10, 1, .5) " " invnF(3, 7, 2, 0)
+display nchi2den(3, 2, 0) " " nchi2den(2, 2, 0) " " nchi2den(1, 2, 0) " " nchi2tail(3, 2, 0)
+display dgammapdx(2, 1.5) " " dgammapdxdx(2, 1.5) " " dgammapdadx(2, 1.5) " " dgammapdadx(0.5, 0.2)
+display _caller() " " has_eprop(b)
+matrix A = (1, 0 \ 2, 0)
+matrix B = (1, 0.5 \ 2, 4)
+matrix C = (1, 2, 3)
+display diag0cnt(A) " " diag0cnt(B) " " mreldif(A, B) " " mreldif(B, A) " " diag0cnt(C) " " mreldif(A, C)
+=== expr-name-errors
+clear
+set obs 3
+gen x1 = _n
+gen x2 = _n
+gen x3 = _n^2
+capture noisily gen y = max(aa, bb)
+capture noisily gen y = max(aa, min(bb, cc))
+capture noisily gen y = max(aa, foo(1))
+capture noisily gen y = max(foo(1), aa)
+capture noisily gen y = cond(aa, bb, cc)
+capture noisily gen y = max(aa, 1+)
+capture noisily gen y = max(aa, x1) + bb
+capture noisily summarize x1 if x2 == 1 & ,
+capture noisily summarize x1 if x2 == 1 + 2 & , detail
+capture noisily summarize x1 if (x2 == 1) & ,
+capture noisily summarize x1 if x2 >= ,
+capture noisily summarize x1 if x2 + 1.5 + ,
+capture noisily gen y = x1 * ,
+capture noisily display 1 + 2 & ,
+capture noisily display (x2 == 1 + 2 & )
+capture noisily display (1 + x2 & & 2)
+capture noisily display (x2 > )
+capture noisily sort -x1
+capture noisily sort +x1
+capture noisily sort @x
+capture noisily sort .x
+capture noisily sort 1x
+capture noisily sort x1-
+capture noisily summarize x1 - x3
+capture noisily summarize x1 -x3
+capture noisily summarize x3 - x1
+capture noisily summarize x1 -- x3
+capture noisily summarize q~3
+capture noisily summarize x~
+capture noisily summarize q~3*
+capture noisily drop q~3
+capture noisily list q~3
+=== expr-label-dereference-codes
+clear
+input g
+1
+2
+3
+.a
+end
+label define gl 1 "low" 2 "mid" 3 "high" .a "na" 4 "mid"
+label values g gl
+count if g == "na":gl
+display ("na":gl)
+display 0 + "na":gl
+gen y = "na":gl
+list
+label define h 4 "dup" 2 "dup"
+display 0 + "dup":h
+label define gl 0 "mid", add
+count if g == "mid":gl
+display ("mid":gl)
+label define k .b "x" .a "x" 7 "z" .c "z"
+display ("x":k) " " ("z":k)
+=== expr-label-dereference-errors
+clear
+set obs 3
+gen g = _n
+gen str3 s = "a"
+label define gl 1 "low" 2 "mid" 3 "high"
+display g["high":gl]
+display g[ "high":gl ]
+display g["mid":gl + 1]
+capture noisily count if s == "a":gl
+capture noisily display ("a" + "b":gl)
+capture noisily display "a" + "b":gl
+capture noisily display "a" + "mid" : gl
+matrix M = (1,2,3)
+capture noisily display M[1, "mid":gl]
+capture noisily display M["mid":gl, 1]
+display M[1, ("mid":gl)]
+capture noisily count if g == "a":gl & zz
+capture noisily count if zz & g == "a":gl
+capture noisily gen y = max(g == "a":gl, zz)
+capture noisily gen y = max(zz, g == "a":gl)
+capture noisily gen y = max("q", g == "a":gl)
+capture noisily count if g == "high":gl[1
+capture noisily count if g == "high":gl[1]
+capture noisily count if g == "a":gl & 1 +
+=== expr-arguments-last-first
+clear
+set obs 3
+gen x = _n
+gen str3 s = "a"
+capture noisily gen y = foo(bb)
+capture noisily gen y = max(aa, foo(bb))
+capture noisily gen y = max(aa,,bb)
+capture noisily gen y = max(x, , aa)
+capture noisily gen y = max(aa, x, )
+capture noisily gen y = max("a" + 1, aa)
+capture noisily gen y = max(aa, "a" + 1)
+capture noisily gen y = max(1 +, aa)
+capture noisily gen y = max(aa, min(1 +, bb))
+capture noisily gen y = substr(s, 1 +, aa)
+capture noisily gen y = max(s + 1, aa)
+capture noisily gen y = max(1 & , aa)
+capture noisily gen y = max(.z_, aa)
+capture noisily gen y = max(x, aa, .z_)
+capture noisily gen y = max(strlen(1), aa)
+capture noisily gen y = cond(x>1, "a", aa)
+capture noisily gen y = cond(x>1, "a", 2) + aa
+capture noisily gen y = max(aa, bb, x[)
+capture noisily gen y = max(x[, aa)
+capture noisily gen y = max(x[1), aa)
+capture noisily gen y = (x[1)]
+capture noisily gen y = zz + (1
+capture noisily gen y = aa + 1 +
+capture noisily gen y = aa + .z_
+capture noisily gen y = .z_ + aa
+=== expr-operator-before-comma
+clear
+set obs 3
+gen x1 = _n
+gen x2 = mod(_n,2)
+gen str3 s = "a"
+capture noisily count if x1 > 5 & x1 < 7.5 & ,
+capture noisily count if x2 == .a & ,
+capture noisily count if x1 >= 1.5 & x2 == . & ,
+capture noisily count if x1 == 1e3 & ,
+capture noisily count if x2 == .a | ,
+capture noisily count if x2 == 1.5 | ,
+capture noisily count if x1 * 1.5 * ,
+capture noisily count if x1 + 1.5 + ,
+capture noisily count if x1 / 1.5 / ,
+capture noisily count if x1 > 1.5 > ,
+capture noisily count if x1 + 1e3 * ,
+capture noisily count if x1[1] + ,
+capture noisily count if x1[_n - 1] * ,
+matrix M = (1,2\3,4)
+capture noisily display M[1,1] + ,
+capture noisily display (1e3 + )
+capture noisily display (1.5e3 + )
+capture noisily display (1.5e3 & )
+capture noisily display (.a * )
+capture noisily display (1.5 ^ )
+capture noisily list x1 if x2 == .a | , clean
+capture noisily assert 1 == 1 & , fast
+capture noisily assert x1 == 1.5 & ,
+assert s == "a" & ,
+capture noisily gen y = x1 * if x2 == 1
+capture noisily gen y = x1 + in 1
+capture noisily gen y = x1 == if x2 == 1
+capture noisily gen y = (x1 * if x2 == 1)
+capture noisily replace x1 = x1 * if x2 == 1
+capture noisily count if x1 * if x2 == 1
+list x1* if x2 == 1, clean
+summarize x1 if s == "a" & , detail
+list x1 if s == "a" | , clean
+list x1 if s == "b" & , clean
+capture noisily count if s == "a" & ,
+capture noisily count if x1 == 1 ,
+capture noisily count ,
+display ("a" + )
+display ("a" * )
+display ("a" < )
+display ("a" + "b" + )
+capture noisily display ("a" == )
+capture noisily display (1 + "a" + )
+gen z = ("a" + )
+list z, clean
+=== expr-regex-long-strings
+clear
+set obs 1
+gen strL s = "x" + 40000*"a"
+count if regexm(s, ".*x$")
+count if regexm(s, ".*x")
+display strlen(regexs(0))
+replace s = 5000*"abcdefgh"
+count if regexm(s, "[a-z ]*[0-9]$")
+count if regexm(s, "[a-z ]*[0-9]")
+count if regexm(s, "(a|b)+ c")
+count if regexm(s, "^[a-h]*$")
+replace s = 3000*"a" + "x" + 3000*"a"
+count if regexm(s, ".*x.*b")
+count if regexm(s, "a*xa*$")
+display strlen(regexs(0))
+=== expr-regex-quietly
+clear
+set obs 2
+gen s = "abc"
+gen x = _n
+quietly gen q = regexm(s, "(")
+quietly gen z = regexm(s, "(") + .
+quietly replace x = regexm(s, "(")
+quietly summarize x if regexm(s, "(")
+quietly di regexm("a", "(")
+quietly di "x" regexm("a", "(") "y"
+quietly di "x" _n regexm("a", "(") _n "y"
+quietly local m = regexm("a", "(")
+capture quietly gen q4 = regexm(s, "(")
+quietly gen r = regexs(1)
+quietly replace s = regexs(1)
+quietly di regexm("abc", "b") regexs(5)
+quietly di "x" regexs(5) "y"
+quietly gen q5 = regexs(5)
+quietly {
+  gen q2 = regexm(s, "(")
+  gen q3 = 1
+}
+=== expr-regex-byte-pieces
+clear
+set obs 1
+gen s = "é"
+display regexm(s, "^(.)(.)$")
+display (regexs(1) + regexs(2)) == "é"
+gen a = regexs(1)
+gen b = regexs(2)
+gen c = a + b
+display strlen(a) " " strlen(c) " " (c == "é") " " ustrlen(c)
+display regexr("naïve", "a.", "A") + "|"
+display strtoname("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀")
+display substr("é", 1, 1) + substr("é", 2, 1) == "é"
+=== expr-gammap-derivatives-eprop
+display dgammapda(2, 1.5) " " dgammapdada(2, 1.5)
+display dgammapda(1, 1) " " dgammapdada(1, 1)
+display dgammapda(10, 9) " " dgammapdada(10, 9)
+display dgammapda(50, 45) " " dgammapdada(50, 45)
+display dgammapda(3, .5) " " dgammapdada(3, .5)
+display dgammapda(.01, 20) " " dgammapdada(.01, 20)
+display dgammapda(200, 210) " " dgammapdada(200, 210)
+display dgammapda(5, 0) " " dgammapdada(5, -1) " " dgammapda(0, 2) " " dgammapdada(-1, 2)
+capture noisily display dgammapda(2)
+capture noisily display dgammapda("a", 1)
+clear
+set seed 1
+set obs 20
+gen x = runiform()
+gen y = x + runiform()
+quietly regress y x
+display has_eprop(b) has_eprop("V") has_eprop() has_eprop(1) has_eprop(1+2) has_eprop(b V) has_eprop(.a) has_eprop(nosuch)
+=== expr-varlist-ranges-spaced
+clear
+input x1 x2 x3
+1 5 9
+2 5 8
+1 7 7
+2 3 6
+end
+gsort x1 - x2
+list, clean noobs
+gsort - x1 + x3
+list, clean noobs
+capture noisily gsort x1 - - x2
+capture noisily gsort x1 - -x2
+gen y = x1 + 2*x2 - x3
+regress y x1 - x2
+collapse (mean) x1 - x3
+list

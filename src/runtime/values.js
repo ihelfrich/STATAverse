@@ -183,13 +183,20 @@ export const byteLength = (text) =>
   (/[\uDC80-\uDCFF]/.test(text) ? 2 * (text.match(ESCAPED)?.length ?? 0) : 0);
 
 /**
- * How Stata shows text in its output: a null byte as \0. Bytes that are not
- * UTF-8 are shown as they are by Stata; here, where the page shows Unicode,
- * as the replacement character.
+ * Text with each run of bytes that are not UTF-8 shown as a UTF-8 reader
+ * shows it, where Stata prints the bytes themselves: one replacement
+ * character for each piece of a character, so the first two bytes of an
+ * emoji are one.
  */
+export const readableBytes = (text) =>
+  text.replace(/(?:(?<![\uD800-\uDBFF])[\uDC80-\uDCFF])+/g, (run) =>
+    decoder.decode(Uint8Array.from(run, (c) => c.charCodeAt(0) - 0xdc00)),
+  );
+
+/** How Stata shows text in its output: a null byte as \0. */
 export const shownText = (text) =>
   /[\0\uDC80-\uDCFF]/.test(text)
-    ? text.replace(/\0/g, "\\0").replace(ESCAPED, "\uFFFD")
+    ? readableBytes(text.replace(/\0/g, "\\0"))
     : text;
 
 // Columns of the Results window. Stata's udstrlen() gives every character

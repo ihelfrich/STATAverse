@@ -24,6 +24,37 @@ export function resolveVariable(word, names) {
   throw new StataError(`${word} ambiguous abbreviation`, 111);
 }
 
+/**
+ * The words of a varlist, a range written with blanks around or beside
+ * its hyphen taken as one word, as Stata reads x1 - x3 and x1 -x3.
+ */
+function varlistWords(text) {
+  const words = [];
+  for (const word of text.trim().split(/\s+/).filter(Boolean)) {
+    const last = words.at(-1);
+    if (last !== undefined && (word.startsWith("-") || last.endsWith("-")))
+      words[words.length - 1] = last + word;
+    else words.push(word);
+  }
+  return words;
+}
+
+/** The text that cannot be a name in word, as Stata names it. */
+function invalidName(word) {
+  // A word that begins with a digit or a period is named whole: 1x, .a;
+  // otherwise the first character that cannot be in a name: - in -x1, @
+  // in x1@b.
+  if (/^[\d.]/.test(word)) return word;
+  // A comparison of two characters is one symbol to Stata: == invalid name.
+  const comparison = /^(?:==|!=|~=|>=|<=)/.exec(word);
+  if (comparison) return comparison[0];
+  const stray =
+    /^(?:[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~]*)?([^\w\u0080-\u{10FFFF}*?~])/u.exec(
+      word,
+    );
+  return stray ? stray[1] : word;
+}
+
 export function expandVarlist(text, names) {
   const out = [];
   // With no variables in memory a name or a range is Stata's "no variables
@@ -34,7 +65,7 @@ export function expandVarlist(text, names) {
       if (/[*?~]/.test(word) && !/[#().]/.test(word)) throw notFound(word);
       throw new StataError("no variables defined", 111);
     }
-  for (const word of text.trim().split(/\s+/).filter(Boolean)) {
+  for (const word of varlistWords(text)) {
     if (word === "_all") out.push(...names);
     // A brace ends Stata's reading of names: sum x { finds no name there.
     else if (word.startsWith("{"))
@@ -43,24 +74,34 @@ export function expandVarlist(text, names) {
     // Stata's recoding syntax.
     else if (/[()]/.test(word) && !word.includes(".") && !word.includes("#"))
       throw new StataError("coding operators not allowed", 198);
-    else if (/^[\p{L}\p{Nd}_]*\.[\p{L}_#(]/u.test(word) || /[#()]/.test(word))
+    else if (/^[\p{L}\p{Nd}_]+\.[\p{L}_#(]/u.test(word) || /[#()]/.test(word))
       throw new StataError(
         "factor-variable and time-series operators not allowed",
         101,
       );
-    else if (!/^[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~-]*$/u.test(word)) {
-      // x] or x@: the character that cannot be in a name is named.
-      const stray = /^[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~-]*(.)/u.exec(word);
-      throw new StataError(`${stray ? stray[1] : word} invalid name`, 198);
-    } else if (word.includes("-")) {
+    // ~ (one variable) cannot be mixed with * or ? (any number of them).
+    else if (/~/.test(word) && /[*?]/.test(word))
+      throw new StataError(
+        `${word}:  may not combine ~ and *-or-? notation`,
+        198,
+      );
+    else if (word.includes("-")) {
       const ends = word.split("-");
-      if (ends.length !== 2 || !ends[0] || !ends[1])
-        throw new StataError(`${word} invalid name`, 198);
+      // x1 - at the end, a range with nothing after its hyphen.
+      if (ends.length === 2 && ends[0] && !ends[1] && !/^[\d.]/.test(word))
+        throw new StataError("nothing found where name expected", 198);
+      for (const end of ends.filter(Boolean))
+        if (!/^[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~]*$/u.test(end))
+          throw new StataError(`${invalidName(end)} invalid name`, 198);
+      if (ends.length !== 2 || !ends[0])
+        throw new StataError("- invalid name", 198);
       const first = names.indexOf(resolveVariable(ends[0], names)),
         last = names.indexOf(resolveVariable(ends[1], names));
-      if (last < first) throw notFound(word);
+      if (last < first) throw new StataError("variables out of order", 111);
       out.push(...names.slice(first, last + 1));
-    } else if (/[*?~]/.test(word)) {
+    } else if (!/^[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~]*$/u.test(word))
+      throw new StataError(`${invalidName(word)} invalid name`, 198);
+    else if (/[*?~]/.test(word)) {
       const matches = names.filter((name) => pattern(word).test(name));
       if (!matches.length) throw notFound(word);
       if (word.includes("~") && matches.length > 1)
@@ -69,6 +110,24 @@ export function expandVarlist(text, names) {
     } else out.push(resolveVariable(word, names));
   }
   return out;
+}
+
+/**
+ * The commands that read factor variables and time-series operators in
+ * their varlist (summarize, list, regress) name a ~ abbreviation with * in
+ * its place: summarize q~3 is variable q*3 not found. Returns the error
+ * with that wording.
+ */
+export function tildeAsStar(error) {
+  if (
+    error instanceof StataError &&
+    error.code === 111 &&
+    /^(variable \S*~\S* not found|\S*~\S* ambiguous abbreviation)$/.test(
+      error.message,
+    )
+  )
+    error.message = error.message.replace(/~/g, "*");
+  return error;
 }
 
 /**

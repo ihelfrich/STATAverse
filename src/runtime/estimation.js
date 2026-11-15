@@ -285,6 +285,9 @@ function baseLevel(spec, levels, variable, sample) {
   // for a factor on its own, and in an interaction no cell is then a base.
   return spec.value;
 }
+/** A varlist with blanks beside a range's hyphen taken out: x1 - x3. */
+const rangesJoined = (text) => String(text).replace(/\s*-\s*/g, "-");
+
 /**
  * poisson, nbreg, qreg, glm and cloglog read their variables with syntax
  * varlist(numeric fv), which refuses a string variable by name; Stata 19
@@ -293,7 +296,7 @@ function baseLevel(spec, levels, variable, sample) {
  * factor (i.s) is left to design(), which refuses it as a factor.
  */
 export function numericVarlist(session, text) {
-  for (const token of String(text).trim().split(/\s+/))
+  for (const token of rangesJoined(text).trim().split(/\s+/))
     for (const part of token.split("#")) {
       const m = /^(?:c\.)?([A-Za-z_*?~][\w*?~-]*)$/.exec(part);
       if (!m) continue;
@@ -316,7 +319,9 @@ export function numericVarlist(session, text) {
 export function design(session, text, rows, constant = true, levelRows) {
   // Words split at blanks outside parentheses, so that L(1 2).x is one.
   const tokens =
-    text.trim().match(/(?:[^\s(]|\((?:[^()]|\([^()]*\))*\))+/g) ?? [];
+    rangesJoined(text)
+      .trim()
+      .match(/(?:[^\s(]|\((?:[^()]|\([^()]*\))*\))+/g) ?? [];
   if (!tokens.length) throw new StataError("varlist required", 100);
   // A string variable as a factor is an error as Stata's fvexpand makes
   // it; used as a number it is missing in every observation, so the

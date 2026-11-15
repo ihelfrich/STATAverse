@@ -322,7 +322,10 @@ function use(session, text, ctx) {
   const data = load(session, name);
   if (data.label)
     fold(`(${data.label})`, session.settings.linesize ?? 80).forEach(ctx.out);
-  const cleared = new Dataset({ defaultType: session.data.defaultType });
+  const cleared = new Dataset({ defaultType: session.data.defaultType }),
+    // Stata's use reads the if before it has any value labels, those in
+    // memory or the file's: "text":lblname there is never found.
+    fileLabels = data.valueLabels;
   session.data = data;
   try {
     if (form.using !== undefined && form.anything) {
@@ -342,7 +345,14 @@ function use(session, text, ctx) {
         .slice(start)
         .replace(/(?<![A-Za-z_0-9.])using\s+("[^"]*"|`"[^"]*"'|\S+)/, ""),
       parsed = session.parse("[if] [in]", qualifiers);
-    if (parsed.if || parsed.in) data.reorder(session.rows(parsed, null));
+    if (parsed.if || parsed.in) {
+      data.valueLabels = new Map();
+      try {
+        data.reorder(session.rows(parsed, null));
+      } finally {
+        data.valueLabels = fileLabels;
+      }
+    }
   } catch (error) {
     session.data = cleared;
     throw error;
