@@ -15,6 +15,7 @@ import {
   percentile,
   perGroup,
   tabulate,
+  wrapLine,
 } from "./reports.js";
 import { Dataset } from "./store.js";
 import { clauses, splitAtComma } from "./syntax.js";
@@ -956,48 +957,119 @@ const varianceLines = (ctx, rows) => {
   });
 };
 
+/**
+ * ranksum's two groups, with ranksum.ado's own messages: no observations,
+ * one group, or more than two.
+ */
+function rankGroups(session, parsed, variable) {
+  const by = session.data.get(parsed.options.by[0]),
+    rows = session
+      .rows(parsed, null)
+      .filter(
+        (i) =>
+          !isMissing(variable.data[i]) &&
+          (typeof by.data[i] === "string"
+            ? by.data[i] !== ""
+            : !isMissing(by.data[i])),
+      ),
+    levels = [...new Set(rows.map((i) => by.data[i]))].sort((a, b) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    );
+  if (!rows.length) throw new StataError("no observations", 2000);
+  if (levels.length === 1)
+    throw new StataError("1 group found, 2 required", 499);
+  if (levels.length > 2)
+    throw new StataError("more than 2 groups found, only 2 allowed", 499);
+  return {
+    by,
+    levels,
+    labels: levels.map((level) => labelled(session, by, level)),
+    groups: levels.map((level) => rows.filter((i) => by.data[i] === level)),
+    rows,
+  };
+}
+const abbreviate8 = (name) => abbrev(name, 8);
+// ranksum computes the exact p-value by default up to 200 observations and
+// with the option exact up to 1,000 (ranksum.ado's NEXACT and MAXEX).
+const NEXACT = 200,
+  MAXEX = 1000;
 function ranksum(session, text, ctx) {
   const parsed = session.parse(
-      "varname [if] [in] , BY(varlist) [| EXact POrder]",
+      "varname [if] [in] , BY(varlist) [PORDER NOEXACT EXACT]",
       text,
     ),
-    variable = numericVariable(session, parsed.varlist[0]),
-    two = twoGroups(session, parsed, variable),
+    options = parsed.options;
+  if (options.exact && options.noexact)
+    throw new StataError(
+      "only one of options exact or noexact is allowed",
+      198,
+    );
+  const variable = numericVariable(session, parsed.varlist[0]),
+    two = rankGroups(session, parsed, variable),
     all = ranks(two.rows.map((i) => variable.data[i])),
     position = new Map(two.rows.map((i, k) => [i, k])),
     n = two.rows.length,
-    [n1, n2] = two.groups.map((group) => group.length),
+    exact = options.exact || (n <= NEXACT && !options.noexact);
+  if (options.exact && n > MAXEX)
+    throw new StataError(
+      `number of observations must be <= ${applyFormat(MAXEX, "%5.0fc").trim()} for exact option`,
+      459,
+    );
+  if (exact && n > NEXACT)
+    throw new StataError(
+      "option exact is not available in the browser for more than 200 observations",
+      198,
+      "Stata computes the exact p-value for up to 1,000 observations; here it is computed for up to 200. Without exact, ranksum reports the normal approximation.",
+    );
+  const [n1, n2] = two.groups.map((group) => group.length),
     sum1 = two.groups[0].reduce((t, i) => t + all[position.get(i)], 0),
     expected1 = (n1 * (n + 1)) / 2,
     unadjusted = (n1 * n2 * (n + 1)) / 12,
     adjusted = (n1 * n2 * moments(all).variance) / n,
     z = (sum1 - expected1) / Math.sqrt(adjusted),
     p = 2 * normal(-Math.abs(z)),
+    // ranksum.ado's ditablin: %7.0g, %10.0g and %10.0g at columns 17, 26
+    // and 38.
     row = (label, obs, rank, expect) =>
-      `${label.padStart(12)} |${count(obs).padStart(9)}${g(rank).padStart(12)}${g(expect).padStart(12)}`,
+      `${padDisplay(leading(label, 12), 12)} |${applyFormat(obs, "%7.0g").padStart(9)}${applyFormat(rank, "%10.0g").padStart(12)}${applyFormat(expect, "%10.0g").padStart(12)}`,
     rule = "-------------+---------------------------------",
-    name = two.by.name;
+    name = two.by.name,
+    // The variances are shown with two decimals while they are small.
+    varianceFormat = unadjusted < 1e7 ? "%10.2f" : "%10.0g",
+    zText = applyFormat(z, "%7.3f").trim(),
+    width = Math.max(zText.length, 6),
+    aligned = (value) => applyFormat(value, "%8.4f").trim().padStart(width),
+    xab = abbreviate8(variable.name),
+    byab = abbreviate8(name);
   ctx.out("");
   ctx.out("Two-sample Wilcoxon rank-sum (Mann–Whitney) test");
   ctx.out("");
-  ctx.out(`${name.padStart(12)} |      Obs    Rank sum    Expected`);
+  ctx.out(
+    `${abbrev(name, 12).padStart(12)} |      Obs    Rank sum    Expected`,
+  );
   ctx.out(rule);
   ctx.out(row(two.labels[0], n1, sum1, expected1));
   ctx.out(row(two.labels[1], n2, (n * (n + 1)) / 2 - sum1, (n2 * (n + 1)) / 2));
   ctx.out(rule);
   ctx.out(row("Combined", n, (n * (n + 1)) / 2, (n * (n + 1)) / 2));
   ctx.out("");
-  varianceLines(ctx, [
-    ["Unadjusted variance", unadjusted],
-    ["Adjustment for ties", adjusted - unadjusted],
-    ["Adjusted variance", adjusted],
-  ]);
-  ctx.out("");
+  ctx.out(`Unadjusted variance  ${applyFormat(unadjusted, varianceFormat)}`);
   ctx.out(
-    `H0: ${variable.name}(${name}==${two.labels[0]}) = ${variable.name}(${name}==${two.labels[1]})`,
+    `Adjustment for ties  ${applyFormat(adjusted - unadjusted, varianceFormat)}`,
   );
-  ctx.out(`         z = ${applyFormat(z, "%6.3f")}`);
-  ctx.out(`Prob > |z| = ${four(p)}`);
+  ctx.out("                     ----------");
+  ctx.out(`Adjusted variance    ${applyFormat(adjusted, varianceFormat)}`);
+  ctx.out("");
+  // A line longer than the linesize continues after "> ", as Stata's do.
+  const long = (line) =>
+    wrapLine(line, session.settings.linesize ?? 80).forEach((part) =>
+      ctx.out(part),
+    );
+  long(
+    `H0: ${xab}(${byab}==${two.labels[0]}) = ${xab}(${byab}==${two.labels[1]})`,
+  );
+  ctx.out(`         z = ${zText.padStart(width)}`);
+  ctx.out(`Prob > |z| = ${aligned(p)}`);
   session.results.r = {
     N: n,
     N_1: n1,
@@ -1009,19 +1081,33 @@ function ranksum(session, text, ctx) {
     z,
     p,
     p_l: normal(z),
-    p_u: 1 - normal(z),
+    p_u: normal(-z),
   };
-  if (n <= 200) {
+  if (exact) {
     // Ranks are whole or half numbers; doubled, they are integers.
     const doubled = all.map((r) => Math.round(2 * r)),
-      exact = exactTails(subsetSums(doubled, n1), Math.round(2 * sum1)),
-      pExact = Math.min(1, 2 * Math.min(exact.lower, exact.upper));
-    ctx.out(`Exact prob = ${four(pExact)}`);
+      tails = exactTails(subsetSums(doubled, n1), Math.round(2 * sum1)),
+      pExact = Math.min(1, 2 * Math.min(tails.lower, tails.upper));
+    ctx.out(`Exact prob = ${aligned(pExact)}`);
     Object.assign(session.results.r, {
       p_exact: pExact,
-      p_l_exact: exact.lower,
-      p_u_exact: exact.upper,
+      p_l_exact: tails.lower,
+      p_u_exact: tails.upper,
     });
+  } else if (!options.noexact && n > NEXACT && n <= MAXEX) {
+    ctx.out("");
+    ctx.out(
+      `Note: Exact p-value is not computed by default for sample sizes > ${NEXACT}.`,
+    );
+    ctx.out("      Use option exact to compute it.");
+  }
+  if (options.porder) {
+    const porder = (sum1 - (n1 * (n1 + 1)) / 2) / (n1 * n2);
+    session.results.r.porder = porder;
+    ctx.out("");
+    long(
+      `P{${xab}(${byab}==${two.labels[0]}) > ${xab}(${byab}==${two.labels[1]})} = ${applyFormat(porder, "%4.3f")}`,
+    );
   }
   ctx.out("");
 }
@@ -1857,27 +1943,54 @@ function oneway(session, text, ctx) {
     session.results.r = {};
     return;
   }
-  const stats = f.groups.map((rows) => moments(values(f.variable, rows))),
+  const y = (i) => f.variable.data[i],
+    stats = f.groups.map((rows) => moments(values(f.variable, rows))),
     all = moments(values(f.variable, f.rows)),
     n = all.n,
     k = f.levels.length,
-    between = stats.reduce((t, m) => t + m.n * (m.mean - all.mean) ** 2, 0),
-    total = all.variance * (n - 1),
-    within = total - between,
+    dfBetween = k - 1,
     dfWithin = n - k,
-    F = between / (k - 1) / (within / dfWithin),
-    pooled = within / dfWithin,
-    usable = stats.filter((m) => m.n > 1),
-    correction =
-      1 +
-      (usable.reduce((t, m) => t + 1 / (m.n - 1), 0) - 1 / dfWithin) /
-        (3 * (k - 1)),
-    bartlett =
-      (dfWithin * Math.log(pooled) -
-        usable.reduce((t, m) => t + (m.n - 1) * Math.log(m.variance), 0)) /
-      correction,
+    // Each sum of squares from its own deviations.
+    within = f.groups.reduce(
+      (t, rows, g) =>
+        t + rows.reduce((u, i) => u + (y(i) - stats[g].mean) ** 2, 0),
+      0,
+    ),
+    between = stats.reduce((t, m) => t + m.n * (m.mean - all.mean) ** 2, 0),
+    total = f.rows.reduce((t, i) => t + (y(i) - all.mean) ** 2, 0),
+    msBetween = dfBetween > 0 ? between / dfBetween : MISSING,
+    pooled = dfWithin > 0 ? within / dfWithin : MISSING,
+    F =
+      dfBetween > 0 && dfWithin > 0 && within > 0
+        ? msBetween / pooled
+        : MISSING,
+    pF = isMissing(F) ? MISSING : Ftail(dfBetween, dfWithin, F),
+    msTotal = n > 1 ? total / (n - 1) : MISSING,
     wide = (value) => g(value, "%11.0g"),
+    df = (value) => String(value).padStart(7),
     rule = "-".repeat(72);
+  // Bartlett's test uses the cells with more than one observation and a
+  // positive variance, and needs two of them.
+  const usable = stats.filter((m) => m.n > 1 && m.variance > 0),
+    singles = stats.filter((m) => m.n === 1).length,
+    flat = stats.filter((m) => m.n > 1 && !(m.variance > 0)).length;
+  let bartlett = 0,
+    dfBartlett = 0;
+  if (usable.length > 1) {
+    const kept = usable.length,
+      dfKept = usable.reduce((t, m) => t + m.n - 1, 0),
+      pooledKept =
+        usable.reduce((t, m) => t + (m.n - 1) * m.variance, 0) / dfKept,
+      correction =
+        1 +
+        (usable.reduce((t, m) => t + 1 / (m.n - 1), 0) - 1 / dfKept) /
+          (3 * (kept - 1));
+    bartlett =
+      (dfKept * Math.log(pooledKept) -
+        usable.reduce((t, m) => t + (m.n - 1) * Math.log(m.variance), 0)) /
+      correction;
+    dfBartlett = kept - 1;
+  }
   if (parsed.options.tabulate) {
     const condition = [
       parsed.if ? `if ${parsed.if}` : "",
@@ -1896,30 +2009,51 @@ function oneway(session, text, ctx) {
     "    Source              SS         df      MS            F     Prob > F",
   );
   ctx.out(rule);
+  // The test is left blank when it cannot be formed.
   ctx.out(
-    `Between groups${wide(between).padStart(16)}${count(k - 1).padStart(7)}${wide(between / (k - 1)).padStart(13)}${applyFormat(F, "%10.2f")}${applyFormat(Ftail(k - 1, dfWithin, F), "%11.4f")}`,
+    `Between groups${wide(between).padStart(16)}${df(dfBetween)}${wide(msBetween).padStart(13)}${isMissing(F) ? "" : `${applyFormat(F, "%10.2f")}${applyFormat(pF, "%11.4f")}`}`,
   );
   ctx.out(
-    ` Within groups${wide(within).padStart(16)}${count(dfWithin).padStart(7)}${wide(pooled).padStart(13)}`,
+    ` Within groups${wide(within).padStart(16)}${df(dfWithin)}${wide(pooled).padStart(13)}`,
   );
   ctx.out(rule);
   ctx.out(
-    `    Total     ${wide(total).padStart(16)}${count(n - 1).padStart(7)}${wide(all.variance).padStart(13)}`,
+    `    Total     ${wide(total).padStart(16)}${df(n - 1)}${wide(msTotal).padStart(13)}`,
   );
-  ctx.out("");
-  ctx.out(
-    `Bartlett's equal-variances test: chi2(${k - 1}) = ${applyFormat(bartlett, "%8.4f")}    Prob>chi2 = ${applyFormat(chi2tail(k - 1, bartlett), "%5.3f")}`,
-  );
+  if (usable.length > 1) {
+    ctx.out("");
+    ctx.out(
+      `Bartlett's equal-variances test: chi2(${dfBartlett}) = ${applyFormat(bartlett, "%8.4f")}    Prob>chi2 = ${applyFormat(chi2tail(dfBartlett, bartlett), "%5.3f")}`,
+    );
+    if (singles || flat) {
+      ctx.out("");
+      ctx.out(
+        "note: Bartlett's test performed on cells with positive variance:",
+      );
+      if (singles)
+        ctx.out(`      ${singles} single-observation cells not used`);
+      if (flat) ctx.out(`      ${flat} multiple-observation cells not used`);
+    }
+  }
   ctx.out("");
   session.results.r = {
     N: n,
     mss: between,
-    df_m: k - 1,
+    df_m: dfBetween,
     rss: within,
     df_r: dfWithin,
     F,
     chi2bart: bartlett,
-    df_bart: k - 1,
+    df_bart: dfBartlett,
+    "matrix:ANOVA": {
+      rowNames: ["Between groups", "Within groups", "Total"],
+      colNames: ["SS", "df", "MS", "F", "p"],
+      values: [
+        [between, dfBetween, msBetween, F, pF],
+        [within, dfWithin, pooled, MISSING, MISSING],
+        [total, n - 1, msTotal, MISSING, MISSING],
+      ],
+    },
   };
 }
 
@@ -1948,7 +2082,9 @@ function kwallis(session, text, ctx) {
     first = Math.max(f.by.name.length, ...labels.map((l) => l.length)),
     obs = f.groups.map((rows) => count(rows.length)),
     second = Math.max(3, ...obs.map((o) => o.length)),
-    sumsText = sums.map((s) => applyFormat(s, "%8.2f").trim()),
+    // kwallis.ado lists the rank sums in %9.2f, which turns to %9.2e
+    // when a sum has more than six digits before the point.
+    sumsText = sums.map((s) => applyFormat(s, "%9.2f").trim()),
     third = Math.max(8, ...sumsText.map((s) => s.length)),
     inner = first + second + third + 8;
   ctx.out("");
@@ -1968,12 +2104,18 @@ function kwallis(session, text, ctx) {
   );
   ctx.out(`  +${"-".repeat(inner)}+`);
   ctx.out("");
-  ctx.out(`  chi2(${df}) = ${applyFormat(chi2, "%6.3f")}`);
-  ctx.out(`     Prob = ${four(chi2tail(df, chi2))}`);
-  ctx.out("");
-  ctx.out(`  chi2(${df}) with ties = ${applyFormat(adjusted, "%6.3f")}`);
-  ctx.out(`               Prob = ${four(chi2tail(df, adjusted))}`);
-  ctx.out("");
+  // kwallis.ado right-aligns each probability, shown as at least .0001,
+  // under its statistic, and Prob under the end of the label.
+  const block = (label, statistic) => {
+    const shown = applyFormat(statistic, "%9.3f").trim(),
+      width = Math.max(shown.length, 6),
+      p = applyFormat(Math.max(chi2tail(df, statistic), 0.0001), "%10.4f");
+    ctx.out(`${label} = ${shown.padStart(width)}`);
+    ctx.out(`${"Prob".padStart(label.length)} = ${p.trim().padStart(width)}`);
+    ctx.out("");
+  };
+  block(`  chi2(${df})`, chi2);
+  block(`  chi2(${df}) with ties`, adjusted);
   session.results.r = {
     p_adj: chi2tail(df, adjusted),
     p: chi2tail(df, chi2),

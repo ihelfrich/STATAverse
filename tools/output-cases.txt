@@ -21685,3 +21685,171 @@ capture noisily scalar t = 1]
 display _rc
 capture noisily scalar t = (1
 display _rc
+=== pass8-data-list-no-variables
+clear
+set obs 3
+list
+list in 1
+list, noobs clean
+list in 2/3, separator(1) abbreviate(4)
+summarize
+capture noisily list x
+display _rc
+capture noisily list _all
+display _rc
+capture noisily summarize _all
+display _rc
+=== pass8-data-reshape-nonnumeric-suffix
+clear
+input id income
+1 10
+2 20
+end
+capture noisily reshape long inc, i(id) j(year)
+display _rc
+describe, short
+list
+clear
+set obs 4
+generate id = _n
+generate incA = _n
+generate incB = 2*_n
+capture noisily reshape long inc, i(id)
+display _rc
+describe, short
+clear
+set obs 3
+generate id = _n
+generate x_1 = _n
+generate y_b = _n
+capture noisily reshape long x_ y_, i(id) j(k)
+display _rc
+list
+clear
+set obs 3
+generate id = _n
+generate income = _n
+generate inc1 = 5
+generate inc2 = 6
+reshape long inc, i(id) j(year)
+list
+=== pass8-data-rnormal-stream
+clear
+set obs 8
+set seed 12345
+generate double u = runiform()
+set seed 12345
+generate double x = rnormal()
+generate double m = rnormal(10, 2)
+generate double v = runiform()
+generate double a = rnormal(5, 0)
+generate double c = rnormal(5, -1)
+generate double d = runiform(3, 1)
+generate double e = runiform(2, 4)
+format u x m v e %18.0g
+list u x m v
+list a c d e
+set seed 7
+set obs 10000
+generate n = rnormal()
+generate w = runiform()
+summarize n w
+=== pass8-data-nonparametric-layout
+clear
+set seed 4242
+set obs 9718
+generate female = runiform() < .5
+generate region = 1 + floor(runiform()*4)
+generate age = 18 + floor(runiform()*47)
+generate educ = 8 + floor(runiform()*10)
+generate wage = round(exp(2 + .05*educ + .3*female + .5*rnormal()), .5)
+set linesize 79
+ranksum wage, by(female)
+kwallis wage, by(region)
+spearman wage age
+oneway wage educ, tabulate
+oneway wage region
+ranksum wage in 1/600, by(female)
+ranksum wage in 1/600, by(female) noexact porder
+ranksum wage in 1/40, by(female) porder
+capture noisily ranksum wage, by(female) exact
+capture noisily ranksum wage in 1/600, by(female) exact noexact
+capture noisily ranksum wage, by(region)
+spearman wage age in 1/40
+set linesize 200
+=== pass8-data-nonparametric-edges
+clear
+set seed 99
+set obs 300
+generate g = 1 + floor(runiform()*3)
+generate y = round(10*g + 3*rnormal(), 1)
+generate b = g == 1
+set linesize 79
+kwallis y, by(g)
+ranksum y, by(b)
+generate str5 s = cond(b, "alpha", "beta")
+ranksum y in 1/40, by(s)
+clear
+input g y
+1 5
+2 3
+2 4
+3 7
+3 7
+3 7
+4 1
+4 2
+4 4
+5 6
+5 9
+end
+oneway y g
+oneway y g, tabulate
+oneway y g if g != 2 & g != 4
+oneway y g if g == 1 | g == 3
+oneway y g if g == 3
+oneway y g if g == 2 | g == 4
+matrix list r(ANOVA)
+set linesize 200
+=== pass8-data-weight-notes
+clear
+set seed 7
+set obs 50
+generate x = rnormal()
+generate y = 1 + 2*x + rnormal()
+generate xx = 1 + mod(_n,7)
+generate w2 = runiform()*3
+generate g = mod(_n,3)
+generate h = mod(_n,2)
+generate r = round(x, .5)
+set linesize 79
+summarize y [weight=xx]
+summarize y [w=xx], detail
+summarize y r [aweight=w2], detail
+summarize r [aw=xx], detail
+summarize r [fw=xx], detail
+summarize y [aw=xx] in 1/3, detail
+summarize y [aw=xx] in 1, detail
+summarize y [aw=xx] if x > 10, detail
+bysort h: summarize y [w=xx], detail
+tabulate g [weight=xx]
+tabulate g h [w=xx]
+tabulate g [weight=xx], summarize(y)
+tab1 g h [weight=xx]
+tab2 g h [w=xx]
+tabstat y [weight=xx]
+tabstat y [w=xx], by(g)
+set linesize 200
+=== pass8-data-ranksum-long-labels
+set linesize 79
+clear
+set seed 3
+set obs 30
+generate treatment_indicator = runiform() < .5
+generate outcome_measure_long = round(10*rnormal(), 1)
+label define tl 0 "Control group (untreated)" 1 "Treated participants"
+label values treatment_indicator tl
+ranksum outcome_measure_long, by(treatment_indicator) porder
+kwallis outcome_measure_long, by(treatment_indicator)
+spearman outcome_measure_long treatment_indicator
+set linesize 200

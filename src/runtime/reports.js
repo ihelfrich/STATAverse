@@ -273,8 +273,27 @@ function noteWeights(text, parsed, ctx) {
   )
     ctx.out(assumedWeights(parsed.weight.type));
 }
+/**
+ * list and summarize parse their varlist as Stata's syntax does, except
+ * that a varlist (_all included) with no variables in memory is "no
+ * variables defined", r(111), as these commands say it.
+ */
+function parseNamingVariables(session, declaration, text) {
+  try {
+    return session.parse(declaration, text);
+  } catch (error) {
+    if (
+      error instanceof StataError &&
+      error.code === 102 &&
+      !session.data.names.length
+    )
+      throw new StataError("no variables defined", 111);
+    throw error;
+  }
+}
 export function summarize(session, text, ctx) {
-  const parsed = session.parse(
+  const parsed = parseNamingVariables(
+    session,
     "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) Format]",
     text,
   );
@@ -290,16 +309,6 @@ export function summarize(session, text, ctx) {
   const weighted = weightedRows(session, parsed, scope(session, parsed, ctx)),
     rows = weighted.rows,
     analytic = weighted.weights && !parsed.options.detail;
-  if (parsed.options.detail && parsed.options.meanonly)
-    throw new StataError(
-      "only one of meanonly or detail may be specified",
-      198,
-    );
-  if (weighted.weights && parsed.options.detail)
-    throw new StataError(
-      "summarize, detail with aweights is not available yet",
-      198,
-    );
   // With no variables in memory Stata prints nothing at all.
   if (!parsed.varlist.length) return;
   let last = null;
@@ -317,7 +326,7 @@ export function summarize(session, text, ctx) {
   parsed.varlist.forEach((name, k) => {
     const variable = session.data.get(name),
       values = isStringType(variable.type) ? [] : present(variable.data, rows),
-      m = analytic
+      m = weighted.weights
         ? weightedMoments(
             variable,
             rows,
@@ -325,22 +334,36 @@ export function summarize(session, text, ctx) {
             parsed.weight.type === "iweight",
           )
         : moments(values);
-    last = { values, m };
-    const formats = summaryFormats(variable, parsed.options.format),
-      level = (value, width) => statistic(value, formats.level, width),
-      spread = (value, width) => statistic(value, formats.spread, width);
-    if (parsed.options.detail)
+    if (parsed.options.detail) {
+      // An analytic weight weights the percentiles and the moments; a
+      // frequency weight arrives as repeated observations, whose
+      // percentiles Stata finds by the same rule.
+      const shape = distribution(
+        isStringType(variable.type)
+          ? []
+          : rows.filter((i) => !isMissing(variable.data[i])),
+        variable.data,
+        weighted.weights,
+        m.mean,
+        !!parsed.weight,
+      );
+      last = { m, shape };
       return detail(
         ctx,
         variable,
-        values,
         m,
-        formats,
+        shape,
+        summaryFormats(variable, parsed.options.format),
         // The smallest and largest are observations, not weighted copies.
         isStringType(variable.type)
           ? []
           : present(variable.data, [...new Set(rows)]),
       );
+    }
+    last = { m };
+    const formats = summaryFormats(variable, parsed.options.format),
+      level = (value, width) => statistic(value, formats.level, width),
+      spread = (value, width) => statistic(value, formats.spread, width);
     if (k && parsed.options.separator && k % parsed.options.separator === 0)
       ctx.out(analytic ? SUMMARY_RULE + "--------" : SUMMARY_RULE);
     const label = padDisplay(abbreviateAmong(name, 12, session.data.names), 12);
@@ -357,7 +380,7 @@ export function summarize(session, text, ctx) {
   // One blank line closes the table, or the last detailed block.
   ctx.out("");
   if (!last) return;
-  const { m, values } = last;
+  const { m, shape } = last;
   session.results.r = m.n
     ? {
         N: m.n,
@@ -371,10 +394,6 @@ export function summarize(session, text, ctx) {
       }
     : { N: 0, sum_w: 0, sum: 0 };
   if (parsed.options.detail && m.n) {
-    const sorted = [...values].sort((a, b) => a - b),
-      central = (power) =>
-        values.reduce((t, v) => t + (v - m.mean) ** power, 0) / m.n,
-      m2 = central(2);
     // With detail, Stata stores the moments before the sum and the
     // extremes, and return list shows them in that order.
     const { N, sum_w, mean, Var, sd, min, max, sum } = session.results.r;
@@ -384,25 +403,68 @@ export function summarize(session, text, ctx) {
       mean,
       Var,
       sd,
-      skewness: m2 ? central(3) / m2 ** 1.5 : MISSING,
-      kurtosis: m2 ? central(4) / m2 ** 2 : MISSING,
+      skewness: shape.skewness,
+      kurtosis: shape.kurtosis,
       sum,
       min,
       max,
       ...Object.fromEntries(
         [1, 5, 10, 25, 50, 75, 90, 95, 99].map((p) => [
           "p" + p,
-          percentile(sorted, p),
+          shape.percentile(p),
         ]),
       ),
     };
   }
 }
-function detail(ctx, variable, values, m, formats, observed = values) {
-  const sorted = [...values].sort((a, b) => a - b),
-    ends = [...observed].sort((a, b) => a - b),
+/**
+ * The percentiles, skewness and kurtosis summarize, detail shows, of the
+ * values of the given rows, weighted when weights are given (analytic
+ * weights, indexed by row; frequency weights arrive as repeated rows).
+ *
+ * A percentile is the first value whose cumulated weight passes p percent
+ * of the total, or the mean of it and the next when the cumulated weight
+ * meets that point. With weights of any kind, frequency weights included,
+ * Stata takes "meets" to within 1e-7 of the total weight: found by
+ * experiment, with weights of 1 on 100,001 observations the 1st percentile
+ * (at 1000.01) is the mean of the 1000th and 1001st values, where without
+ * weights it is the 1001st.
+ */
+function distribution(rows, data, weights, mean, weightedAtAll) {
+  const pairs = rows.map((i) => [data[i], weights ? weights[i] : 1]),
+    n = pairs.length,
+    W = weights ? accurateSum(pairs, (pair) => pair[1]) : n,
+    // The moments are summed in the order of the observations.
+    central = (power) =>
+      pairs.reduce((t, [v, w]) => t + w * (v - mean) ** power, 0) / W,
+    m2 = n ? central(2) : 0,
+    skewness = m2 ? central(3) / m2 ** 1.5 : MISSING,
+    kurtosis = m2 ? central(4) / m2 ** 2 : MISSING;
+  pairs.sort((a, b) => a[0] - b[0]);
+  const sorted = pairs.map(([v]) => v);
+  return {
+    skewness,
+    kurtosis,
+    percentile(p) {
+      if (!n) return MISSING;
+      if (!weightedAtAll) return percentile(sorted, p);
+      const target = (W * p) / 100,
+        tolerance = 1e-7 * W;
+      let cumulated = 0;
+      for (let k = 0; k < n; k++) {
+        cumulated += pairs[k][1];
+        if (Math.abs(cumulated - target) <= tolerance)
+          return k + 1 < n ? (sorted[k] + sorted[k + 1]) / 2 : sorted[k];
+        if (cumulated > target) return sorted[k];
+      }
+      return sorted[n - 1];
+    },
+  };
+}
+function detail(ctx, variable, m, shape, formats, observed) {
+  const ends = [...observed].sort((a, b) => a - b),
     title = variable.label || variable.name,
-    p = (q) => statistic(percentile(sorted, q), formats.level, 13),
+    p = (q) => statistic(shape.percentile(q), formats.level, 13),
     // The four smallest and four largest; fewer than four leaves gaps.
     end = (k) =>
       statistic(
@@ -412,10 +474,7 @@ function detail(ctx, variable, values, m, formats, observed = values) {
       ),
     side = (label, value) => "       " + label.padEnd(11) + value.padStart(12),
     level = (value) => statistic(value, formats.level, 12),
-    spread = (value) => statistic(value, formats.spread, 12),
-    central = (power) =>
-      values.reduce((t, v) => t + (v - m.mean) ** power, 0) / m.n,
-    m2 = m.n ? central(2) : 0;
+    spread = (value) => statistic(value, formats.spread, 12);
   ctx.out("");
   ctx.out(" ".repeat(Math.max(0, Math.floor((61 - title.length) / 2))) + title);
   ctx.out("-".repeat(61));
@@ -427,18 +486,16 @@ function detail(ctx, variable, values, m, formats, observed = values) {
   ctx.out(` 1%${p(1)}${end(0)}`);
   ctx.out(` 5%${p(5)}${end(1)}`);
   ctx.out(`10%${p(10)}${end(2)}${side("Obs", count(m.n))}`);
-  ctx.out(`25%${p(25)}${end(3)}${side("Sum of wgt.", count(m.n))}`);
+  ctx.out(
+    `25%${p(25)}${end(3)}${side("Sum of wgt.", applyFormat(m.sumW ?? m.n, "%11.0gc").trim())}`,
+  );
   ctx.out("");
   ctx.out(`50%${p(50)}${" ".repeat(15)}${side("Mean", level(m.mean))}`);
   ctx.out(`${"Largest".padStart(31)}${side("Std. dev.", spread(m.sd))}`);
   ctx.out(`75%${p(75)}${end(-4)}`);
   ctx.out(`90%${p(90)}${end(-3)}${side("Variance", spread(m.variance))}`);
-  ctx.out(
-    `95%${p(95)}${end(-2)}${side("Skewness", spread(m2 ? central(3) / m2 ** 1.5 : MISSING))}`,
-  );
-  ctx.out(
-    `99%${p(99)}${end(-1)}${side("Kurtosis", spread(m2 ? central(4) / m2 ** 2 : MISSING))}`,
-  );
+  ctx.out(`95%${p(95)}${end(-2)}${side("Skewness", spread(shape.skewness))}`);
+  ctx.out(`99%${p(99)}${end(-1)}${side("Kurtosis", spread(shape.kurtosis))}`);
 }
 
 // Screen columns, as Stata's udstrlen() counts them, come from format.js.
@@ -1592,7 +1649,8 @@ export function list(session, text, ctx) {
       198,
       "header(#), which repeats the headings every # observations, is not available; list shows them once.",
     );
-  const parsed = session.parse(
+  const parsed = parseNamingVariables(
+      session,
       "[varlist] [if] [in] [, CLEAN NOObs noLabel SEParator(integer 5) ABbreviate(integer 8) SEPBY(varlist) Divider noHeader STRing(integer 0) Table Display noCompress LINEsize(integer 0) | FAst FOOTer MEan SUm N LABVar(string) CONStant NOTrim ABSolute NODotz SUBVARname FVall DS OBS]",
       text,
     ),
@@ -1929,6 +1987,16 @@ function tableQualifiers(text) {
 const refusal = (error) =>
   Boolean(error.hint) ||
   /\bnot available\b|\bavailable here\b/.test(error.message);
+/**
+ * tab1 and tab2 read [w=exp] themselves, as a frequency weight, the first
+ * kind their syntax allows: Stata says so once, before the first table, and
+ * passes the weight on to each table as an fweight.
+ */
+function assumeFrequency(text, rest, ctx) {
+  if (!genericWeight(text)) return rest;
+  ctx.out(assumedWeights("fweight"));
+  return rest.replace(/\[\s*w(?:e(?:i(?:g(?:ht?)?)?)?)?\s*=/, "[fweight=");
+}
 /** tab1: a one-way table for each variable. */
 export function tab1(session, text, ctx) {
   const q = tableQualifiers(text),
@@ -1936,6 +2004,7 @@ export function tab1(session, text, ctx) {
   if (!names.length) throw new StataError("varlist required", 100);
   // tab1.ado's own syntax: its errors stop tab1.
   session.parse("varlist [if] [in] [fweight aweight iweight] [, *]", text);
+  const rest = assumeFrequency(text, q.rest, ctx);
   // tab1.ado runs each table under capture noisily, then leaves its loop
   // inside a capture block: a table that fails prints its message and ends
   // the run, and tab1 itself still succeeds; the captures leave _rc behind.
@@ -1950,7 +2019,7 @@ export function tab1(session, text, ctx) {
       session.settings.linesize ?? 80,
     ).forEach((line) => ctx.out(line));
     try {
-      tabulate(session, `${name} ${q.rest}`, ctx);
+      tabulate(session, `${name} ${rest}`, ctx);
       session.rc = 0;
     } catch (error) {
       if (!(error instanceof StataError) || refusal(error)) throw error;
@@ -1988,6 +2057,7 @@ export function tab2(session, text, ctx) {
     names = session.varlist(q.varlist);
   if (names.length < 2)
     throw new StataError("too few variables specified", 102);
+  const rest = assumeFrequency(text, q.rest, ctx);
   ctx.out("");
   for (let a = 0; a < (firstonly ? 1 : names.length); a++)
     for (let b = a + 1; b < names.length; b++) {
@@ -1999,7 +2069,7 @@ export function tab2(session, text, ctx) {
       // and tab2 itself succeeds: tab2.ado leaves its capture block before
       // it records the code.
       try {
-        tabulate(session, `${names[a]} ${names[b]} ${q.rest}`, ctx);
+        tabulate(session, `${names[a]} ${names[b]} ${rest}`, ctx);
       } catch (error) {
         if (!(error instanceof StataError) || refusal(error)) throw error;
         ctx.out(error.message);

@@ -639,7 +639,8 @@ function spearman(session, text, ctx) {
     ),
     p = significance(rho, n);
   ctx.out("");
-  ctx.out(` Number of obs = ${count(n).padStart(7)}`);
+  // spearman_17.ado shows the count in %7.0f, without commas.
+  ctx.out(` Number of obs = ${applyFormat(n, "%7.0f")}`);
   ctx.out(`Spearman's rho = ${applyFormat(rho, "%12.4f")}`);
   ctx.out("");
   ctx.out(`Test of H0: ${a.name} and ${b.name} are independent`);

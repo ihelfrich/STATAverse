@@ -332,16 +332,20 @@ export const FUNCTIONS = {
   invchi2tail: { args: [N, N], returns: N, fn: invchi2tail },
   invchi2: { args: [N, N], returns: N, fn: (df, p) => invchi2tail(df, 1 - p) },
 
-  // Random numbers. runiform() follows Stata's stream; the others are built
-  // on it and differ from Stata's draws.
+  // Random numbers. runiform() and rnormal() follow Stata's stream; the
+  // others are built on runiform() and differ from Stata's draws.
   runiform: {
     args: [N, N],
     min: 0,
     returns: N,
     state: true,
+    // runiform(a, b) needs a < b, both nonmissing; otherwise it is missing
+    // and, as in Stata, takes no draw from the stream.
     fn: (state, a, b) => {
+      if (a !== undefined && !(b !== undefined && a < b && !isMissing(b)))
+        return MISSING;
       const u = (state.rng ??= new Generator(state.seed)).uniform();
-      return a === undefined ? u : b === undefined ? MISSING : a + (b - a) * u;
+      return a === undefined ? u : a + (b - a) * u;
     },
   },
   rnormal: {
@@ -349,10 +353,14 @@ export const FUNCTIONS = {
     min: 0,
     returns: N,
     state: true,
+    // As in Stata, a missing argument or a negative sd gives missing and
+    // an sd of zero gives the mean, neither taking a draw from the stream.
     fn: (state, mean = 0, sd = 1) =>
-      sd < 0
+      isMissing(mean) || isMissing(sd) || sd < 0
         ? MISSING
-        : mean + sd * (state.rng ??= new Generator(state.seed)).normal(),
+        : sd === 0
+          ? mean
+          : mean + sd * (state.rng ??= new Generator(state.seed)).normal(),
   },
   runiformint: {
     args: [N, N],

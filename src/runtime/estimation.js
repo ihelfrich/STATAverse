@@ -20,7 +20,12 @@ import {
   perGroup,
   weightedRows,
 } from "./reports.js";
-import { optionItems, splitAtComma } from "./syntax.js";
+import {
+  assumedWeights,
+  genericWeight,
+  optionItems,
+  splitAtComma,
+} from "./syntax.js";
 import { resolveVariable } from "./varlist.js";
 import { parseNumlist } from "./numlist.js";
 import {
@@ -3852,6 +3857,9 @@ function tabstat(session, text, ctx) {
     o = parsed.options,
     total = o.total !== false,
     by = o.by ? session.data.get(session.varlist(o.by)[0]) : null;
+  // [w=exp] is an analytic weight here, and Stata says so first.
+  if (parsed.weight && genericWeight(text))
+    ctx.out(assumedWeights(parsed.weight.type));
   if (!total && !by) {
     ctx.out("nothing to display");
     return;

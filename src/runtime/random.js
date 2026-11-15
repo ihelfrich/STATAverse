@@ -17,10 +17,11 @@
 // for the cell (64u) and one for the place within the piece; a wedge then
 // takes pairs of uniforms by Knuth's steps M4 to M6, and the tail pairs by
 // M7 and M8, until one is accepted. The cell tables below are the doubles
-// Stata computes for itself at startup. They were read from 3,000,000 draws
-// of rnormal() in Stata 19 MP and agree with every one of a further 1,000,000;
-// thresholds are known to about 1e-16, which can matter only for a uniform
-// that close to one of them. docs/numerical-contract.md has the rest.
+// Stata uses, recovered from its draws: with them, 1,500,000 draws of
+// rnormal() under each of five seeds, interleaved with runiform() and
+// rnormal(m, s), agree with Stata 19 MP's to the last bit. A threshold is
+// known to about 1e-16, which can matter only for a uniform that close to
+// one of them. docs/numerical-contract.md has the rest.
 //
 // CUT is each cell's probability of keeping its own piece: a rectangle (cells
 // 0 to 31: rectangle max(c - 1, 0)), a wedge (cells 32 to 62: wedge c - 32) or
