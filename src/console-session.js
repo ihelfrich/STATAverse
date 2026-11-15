@@ -10,10 +10,28 @@ import { readDta, writeDta } from "./console-dta.js";
 import { binaryKind, checkForeign } from "./runtime/foreign.js";
 import { applyFormat } from "./runtime/format.js";
 import { isMissing, parseNumber } from "./runtime/values.js";
+import { echoOf } from "./runtime/echo.js";
+import { parseBlocks, splitCommands } from "./runtime/dofile.js";
+import { createLogs, isLogMark } from "./console-log.js";
+
+/**
+ * What ends a run that is put back after Stop at the point where Stop
+ * found it. It is not a StataError, so capture does not catch it and every
+ * do-file and program it passes through ends as Break ends them.
+ */
+class Break extends Error {}
 
 const library = Object.fromEntries(
-  Object.entries(LIBRARY).map(([id, entry]) => [id, entry.data]),
-);
+    Object.entries(LIBRARY).map(([id, entry]) => [id, entry.data]),
+  ),
+  // Each dataset's data label: its title, as the .dta in a project zip has
+  // it (Stata keeps 80 characters).
+  labels = Object.fromEntries(
+    Object.entries(LIBRARY).map(([id, entry]) => [
+      id,
+      (entry.title ?? "").slice(0, 80),
+    ]),
+  );
 
 /**
  * Whether added bytes are text: no NUL in the text they decode to, and no
@@ -70,11 +88,21 @@ export function createConsoleSession() {
       ]),
     ),
   });
+  // log using writes a file in the session's folder, as save does.
+  const logs = createLogs({
+    has: (name) => !!session.files?.has(name),
+    text: (name) => session.files.get(name)?.text ?? "",
+    write: (name, text) => (session.files ??= new Map()).set(name, { text }),
+    linesize: () => session.settings.linesize ?? 79,
+    logtype: () => session.settings.logtype,
+  });
   const reset = (dataset = "") => {
+    logs.clear();
     session = new Session();
     stamp++;
     interactive = session.frame();
     session.library = library;
+    session.libraryLabels = labels;
     // Results as Stata's log shows them: a loop echoed once with its lines
     // numbered, do-files run by do shown with their commands.
     session.foldLoops = true;
@@ -82,8 +110,10 @@ export function createConsoleSession() {
     for (const [id, data] of Object.entries(library))
       addTextFile(session, LIBRARY[id].file, toCSV(data));
     for (const [name, file] of added) put(name, file);
-    if (dataset && library[dataset])
+    if (dataset && library[dataset]) {
       session.data = Dataset.fromRows(library[dataset]);
+      session.data.label = labels[dataset];
+    }
     return { memory: memory() };
   };
   reset();
@@ -255,6 +285,10 @@ export function createConsoleSession() {
           format,
           label,
           valueLabel: valueLabel ?? "",
+          // The label's numbers and texts, so that the editor takes a text.
+          codes: valueLabel
+            ? [...(data.valueLabels.get(valueLabel) ?? [])].slice(0, 2000)
+            : [],
         })),
         rows: rows.slice(start, start + count).map((i) => ({
           obs: i + 1,
@@ -271,21 +305,93 @@ export function createConsoleSession() {
     /**
      * Runs commands as Stata's Command window does: locals set by one are
      * there for the next. A do-file ({ doFile: true }) has locals of its own,
-     * as it has in Stata. `progress`, when given, hears now and then which
-     * line has run and how many commands, so that a long run shows where
-     * it is.
+     * as it has in Stata, and the data it preserves are put back when it
+     * ends. `progress`, when given, hears now and then which line has run
+     * and how many commands, so that a long run shows where it is.
+     *
+     * A run given `stopAfter` (a count of commands) is a run put back after
+     * Stop: it ends as Break would have ended it once that many commands
+     * had finished, which is as far as the page had heard the stopped run
+     * go, and ends with the record Stop showed, --Break-- and r(1).
      */
-    run(source, { doFile = false, progress = null } = {}) {
+    run(
+      source,
+      {
+        doFile = false,
+        progress = null,
+        stream = null,
+        stopAfter = -1,
+        endless = false,
+      } = {},
+    ) {
       stamp++;
       let commands = 0,
         last = 0;
       session.opened = null;
+      // The commands of the run, one at a time. Before each, what the ones
+      // before it printed goes to `stream`, so that a run ended by Stop
+      // keeps what it printed; and while one runs, what its inner commands
+      // have printed so far, with how many commands have finished.
+      let top = null,
+        sent = 0,
+        pending = [],
+        told = 0,
+        logged = 0,
+        stopping = null,
+        // The top-level command running now: how it is shown, where its
+        // records begin, and all that it has printed (for a run put back).
+        current = null;
+      const stop = () => {
+        if (stopAfter >= 0 && commands >= stopAfter) throw new Break();
+      };
+      logs.start();
+      session.log = (text, ctx) => logs.command(text, ctx);
+      const lines = source.replace(/\r\n?/g, "\n").split("\n");
+      session.runNodes = function (nodes, frame, output) {
+        if (top)
+          return Session.prototype.runNodes.call(this, nodes, frame, output);
+        top = output;
+        for (let k = 0; k < nodes.length; k++) {
+          const node = nodes[k];
+          logs.take(top, logged, top.length);
+          logs.settle();
+          logged = top.length;
+          const shown =
+            node.kind === "block" || node.kind === "program"
+              ? echoOf(
+                  lines,
+                  node.line,
+                  node.end || node.line,
+                  node.kind === "program" ? 1 : 2,
+                )
+              : { command: node.text ?? "", echo: [] };
+          current = { ...shown, line: node.line, from: top.length, lines: [] };
+          if (stream) {
+            stream({
+              records: top.slice(sent),
+              node: k,
+              line: node.line,
+              command: shown.command,
+              echo: shown.echo,
+              count: commands,
+            });
+            sent = top.length;
+            pending = [];
+          }
+          stop();
+          Session.prototype.runNodes.call(this, [node], frame, output);
+        }
+      };
       // The error a command stopped at, for what the Console says of it.
       session.dispatch = function (...args) {
+        // A run put back after Stop ends before the first command that had
+        // not finished, wherever it stands.
+        stop();
         try {
           return Session.prototype.dispatch.apply(this, args);
         } catch (error) {
           this.failure = error;
+          stopping = error;
           throw error;
         }
       };
@@ -294,6 +400,9 @@ export function createConsoleSession() {
         const entry = args[0].at(-1),
           failure = this.failure;
         this.failure = null;
+        // A log command's lines end here, even when capture or quietly kept
+        // them out of Results.
+        entry.lines.push(...logs.ends());
         // browse and edit say what the data browser is to show.
         if (this.opened) {
           if (!args[3]) entry.opened = this.opened;
@@ -303,21 +412,101 @@ export function createConsoleSession() {
         if (args[3] && failure?.code === args[3] && failure.allowed)
           entry.allowed = failure.allowed;
         commands++;
+        // In the worker, where Stop can end any run, a run is not cut short
+        // after a fixed number of commands: a long loop runs to its end.
+        if (endless) this.steps = 0;
+        if (stream) {
+          // What the command running now has printed, its last lines.
+          pending.push(...entry.lines.filter((line) => !isLogMark(line)));
+          if (pending.length > 2000) pending = pending.slice(-1000);
+        }
+        if (stopAfter >= 0 && current) current.lines.push(...entry.lines);
         const now = Date.now();
-        if (!progress || now - last < 120) return;
-        last = now;
-        progress({ line: args[5] ?? this.line ?? 0, commands });
+        if (stream && now - told >= 150) {
+          told = now;
+          stream({ partial: pending.slice(-1000), count: commands });
+        }
+        if (progress && now - last >= 120) {
+          last = now;
+          progress({ line: args[5] ?? this.line ?? 0, commands });
+        }
       };
       let ran;
       try {
-        ran = session.run(source, doFile ? undefined : interactive);
+        ran = session.run(source, doFile ? undefined : interactive, {
+          doFile,
+        });
+      } catch (error) {
+        if (!(error instanceof Break)) throw error;
+        // Put back to where Stop found it: the command running then is
+        // shown with what it had printed, then --Break-- and r(1), as Stop
+        // showed it, and as the log keeps it.
+        const output = top ?? [];
+        output.splice(current?.from ?? output.length);
+        output.push({
+          command: current?.command ?? "",
+          echo: current?.echo ?? [],
+          lines: [...(current?.lines ?? []), "--Break--", "r(1);"],
+          rc: 1,
+          fault: 2,
+          ...(doFile && current?.line ? { line: current.line } : {}),
+        });
+        ran = { output, rc: 1 };
       } finally {
+        delete session.runNodes;
+        delete session.log;
         delete session.record;
         delete session.dispatch;
         session.failure = null;
         stamp++;
       }
       const { output, rc } = ran;
+      // A block left open, or a } with no {, stops the run before any
+      // command does: it is reported under the line it is about, as every
+      // other error is, not in the status line alone.
+      if (rc && !output.some((block) => block.rc)) {
+        const commands = splitCommands(source);
+        try {
+          parseBlocks(commands);
+        } catch (error) {
+          if (error instanceof StataError) {
+            const at = faultOf(commands, error.message);
+            output.push({
+              command:
+                at?.text ?? lines.find((line) => line.trim())?.trim() ?? "",
+              lines: [...(error.message ? [error.message] : []), `r(${rc});`],
+              rc,
+              fault: error.message ? 2 : 1,
+              ...(doFile && at ? { line: at.line } : {}),
+            });
+          }
+        }
+      }
+      // How many of the last lines of the record that stopped the run are
+      // its error, so that only they are shown as one; what the command or
+      // loop printed before it is shown as ordinary output.
+      const stopped = output.findLast((block) => block.rc);
+      if (stopped && stopped.fault === undefined) {
+        // The message's own lines, as logit's "outcome does not vary;
+        // remember:" and the two lines under it, when the record ends so.
+        const said =
+            stopping instanceof StataError &&
+            stopping.code === stopped.rc &&
+            stopping.message
+              ? stopping.message.split("\n")
+              : null,
+          before = stopped.lines.slice(0, -1);
+        stopped.fault =
+          stopped.lines.at(-1) !== `r(${stopped.rc});`
+            ? 0
+            : said && before.slice(-said.length).join("\n") === said.join("\n")
+              ? said.length + 1
+              : stopping instanceof StataError && stopping.code === stopped.rc
+                ? stopping.message
+                  ? 2
+                  : 1
+                : Math.min(2, stopped.lines.length);
+      }
       // A string variable where a number was needed: what its text is, so
       // that the Console's hint offers a command that works on it.
       for (const block of output)
@@ -329,6 +518,8 @@ export function createConsoleSession() {
         block.lines = block.lines.map((line) =>
           line.replace(/(?<![\uD800-\uDBFF])[\uDC80-\uDCFF]/g, "\uFFFD"),
         );
+      logs.take(output, logged, output.length);
+      logs.settle();
       // Graphs written by graph export, for the page to turn into files.
       const made = session.exported ?? [];
       session.exported = [];
@@ -419,6 +610,29 @@ function stringContents(session, block) {
     };
   }
   return contents;
+}
+
+/**
+ * The command a block error is about: the { left open, the } with no {, or
+ * the program with no end.
+ */
+function faultOf(commands, message) {
+  const open = [];
+  for (const command of commands) {
+    if (
+      /^pr(o(g(r(am?)?)?)?)?\s+/.test(command.text) &&
+      !/^pr\w*\s+(drop|dir|list)\b/.test(command.text)
+    )
+      open.push(command);
+    else if (/\{$/.test(command.text)) open.push(command);
+    else if (command.text === "}" || command.text === "end") {
+      if (!open.length) return command;
+      open.pop();
+    }
+  }
+  if (/^program /.test(message))
+    return open.find((command) => /^pr/.test(command.text)) ?? open.at(-1);
+  return open.at(-1) ?? commands.at(-1);
 }
 
 /**

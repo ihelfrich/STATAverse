@@ -12,7 +12,7 @@ import {
   resolveCommand,
   swap,
 } from "../src/console-hints.js";
-import { HELP, helpUrl } from "../src/console-help.js";
+import { HELP, LANGUAGE, helpUrl } from "../src/console-help.js";
 import { editText, replaceValue } from "../src/console-browse.js";
 import { createConsoleSession } from "../src/console-session.js";
 
@@ -287,7 +287,10 @@ test("commandParts and resolveCommand read a line as the session does", () => {
 
 test("every help entry is a registered command, with Stata's help linked", () => {
   for (const [name, [summary, syntax]] of Object.entries(HELP)) {
-    assert.ok(names.includes(name), `${name} is not registered`);
+    assert.ok(
+      names.includes(name) || LANGUAGE.some((word) => word.name === name),
+      `${name} is not registered`,
+    );
     assert.ok(summary.endsWith("."), name);
     assert.ok(syntax.length, name);
   }

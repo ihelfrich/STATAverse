@@ -703,8 +703,12 @@ function assignmentSlips(text, creating) {
   if (creating && m && /^_[nN]$/.test(m[1]))
     throw new StataError(`${m[1]} invalid varname`, 198);
 }
+/** The if clause of a command, before it is parsed. */
+const ifClause = (text) =>
+  clauses(splitAtComma(text)[0]).find((found) => found.kind === "if")?.text;
 function generate(session, text, ctx) {
   assignmentSlips(text, true);
+  equalsByLeft(session, ifClause(text), "invalid syntax", 198);
   const parsed = session.parse(
       "newvarname =exp [if] [in] [, Before(string) After(string)]",
       text,
@@ -757,6 +761,7 @@ function generate(session, text, ctx) {
 
 function replace(session, text, ctx) {
   assignmentSlips(text, false);
+  equalsByLeft(session, ifClause(text), "invalid syntax", 198);
   const parsed = session.parse("varname =exp [if] [in] [, noPromote]", text),
     name = parsed.varlist[0],
     variable = session.data.get(name),
@@ -870,14 +875,25 @@ function replace(session, text, ctx) {
 const noEqualsInIf = (run) => (session, text, ctx) => {
   const [head] = splitAtComma(text),
     clause = clauses(head, false).find((found) => found.kind === "if");
-  if (clause && loneEquals(clause.text)?.open === -1)
-    throw new StataError(
-      "=exp not allowed",
-      101,
-      "A single = assigns; to compare two values, write ==.",
-    );
+  equalsByLeft(session, clause?.text, "=exp not allowed", 101);
   return run(session, text, ctx);
 };
+/**
+ * A lone = at the top of an if expression, judged by what stands on its
+ * left, as Stata judges it in list, count, drop, keep, generate and
+ * replace: a string there is a type mismatch; a number is the command's
+ * own error.
+ */
+function equalsByLeft(session, condition, message, code) {
+  const lone = condition && loneEquals(condition);
+  if (lone?.open !== -1) return;
+  const string = session.equalsStrings(condition, lone).left;
+  throw new StataError(
+    string ? "type mismatch" : message,
+    string ? 109 : code,
+    "A single = assigns; to compare two values, write ==.",
+  );
+}
 function dropKeep(keep) {
   return (session, text, ctx) => {
     const data = session.data;
@@ -1109,6 +1125,9 @@ function setCommand(session, text, ctx) {
   } else if (what === "type") {
     if (!["float", "double"].includes(rest[0])) throw invalid();
     session.data.defaultType = rest[0];
+  } else if (what === "logtype" && /^(text|smcl)$/.test(rest[0] ?? "")) {
+    // The type log using gives a log when neither text nor smcl is named.
+    session.settings.logtype = rest[0];
   } else if (/^l(e(v(el?)?)?)?$/.test(what)) {
     const level = Number(rest[0]);
     if (!(level >= 10 && level <= 99.99)) throw invalid();
@@ -1990,13 +2009,54 @@ function assertCommand(session, text, ctx) {
   // With no observations Stata still evaluates the expression once.
   if (!session.data.n && session.scalar(parsed.anything) === 0)
     throw new StataError("assertion is false", 9);
+  // Stata counts the contradictions unless one observation was checked,
+  // or the expression, with no if or in, is the same in every observation
+  // (assert 0, assert _N > 100, assert x[1] == 2).
   if (failed)
     throw new StataError(
-      failed === checked && checked === session.data.n
+      checked === 1 ||
+        (!parsed.if &&
+          !parsed.in &&
+          !variesByObservation(session, parsed.anything))
         ? "assertion is false"
         : `${count(failed)} contradiction${failed === 1 ? "" : "s"} in ${count(checked)} observation${checked === 1 ? "" : "s"}\nassertion is false`,
       9,
     );
+}
+// The random-number functions, which differ from one observation to the next.
+const RANDOM_FUNCTION =
+  /^r(?:beta|binomial|cauchy|chi2|exponential|gamma|hypergeometric|igaussian|laplace|logistic|nbinomial|normal|poisson|t|uniform|uniformint|weibull|weibullph)$/;
+/**
+ * Whether an expression can differ between observations: it names a
+ * variable without a subscript, _n, or a random-number function.
+ */
+function variesByObservation(session, text) {
+  // x[1] is one value; x[_n] or x[_n-1] differs as x does.
+  const bare = text
+    .replace(/"[^"]*"/g, '""')
+    .replace(/[A-Za-z_]\w*\s*\[([^\]]*)\]/g, (whole, at) =>
+      /\b_n\b/.test(at) ? "_n" : "0",
+    );
+  for (const m of bare.matchAll(/(?<![\w.$])([A-Za-z_]\w*)(\s*\()?/g)) {
+    const [, word, call] = m;
+    if (call) {
+      if (RANDOM_FUNCTION.test(word)) return true;
+      continue;
+    }
+    if (word === "_n") return true;
+    if (session.data.names.some((name) => name.startsWith(word))) return true;
+  }
+  return false;
+}
+/** Puts back data that preserve kept. */
+export function restoreSaved(session, saved) {
+  session.data.restore(saved);
+  // Stata reads the value labels back in the reverse of the order they
+  // were defined in, and label list shows them in that order.
+  session.data.valueLabels = new Map([...session.data.valueLabels].reverse());
+  for (const key of ["notes", "chars"])
+    if (saved[key]) session.data[key] = structuredClone(saved[key]);
+    else delete session.data[key];
 }
 // Stata's list of names: "a", "a and b", "a, b, and c".
 function nameList(names) {
@@ -2098,6 +2158,27 @@ const EGEN = {
 const EGEN_MISSING =
   /^(any|anyvalue|diff|ends|fill|kurt|mad|mdev|mode|mtr|pc|rowmedian|rowpctile|skew)$/;
 function egen(session, text, ctx) {
+  // Words after the function's ) that are not if, in or options, as in
+  // egen m = mean(x) by(g) without its comma: egen.ado reads them as a
+  // varlist, which it does not take.
+  const call =
+    /^(?:(?:byte|int|long|float|double|str\d*)\s+)?[A-Za-z_]\w*\s*=\s*\w+\s*\(/.exec(
+      text.trim(),
+    );
+  if (call) {
+    const body = text.trim();
+    let depth = 1,
+      quote = false,
+      at = call[0].length;
+    for (; at < body.length && depth; at++) {
+      if (body[at] === '"') quote = !quote;
+      else if (!quote && body[at] === "(") depth++;
+      else if (!quote && body[at] === ")") depth--;
+    }
+    const after = body.slice(at).trim();
+    if (!depth && after && !/^(if\b|in\b|,)/.test(after))
+      throw new StataError("varlist not allowed", 101);
+  }
   const m =
     /^((?:byte|int|long|float|double|str\d*)\s+)?([A-Za-z_]\w*)\s*=\s*(\w+)\s*\(([\s\S]*?)\)\s*((?:if|in|,)[\s\S]*)?$/.exec(
       text.trim(),
@@ -2768,15 +2849,26 @@ function collapse(session, text, ctx) {
   rebuilt(session, result);
 }
 
-function sysuse(session, text) {
+function sysuse(session, text, ctx) {
+  // sysuse dir lists the datasets as Stata lists its own: in columns of
+  // sixteen characters, down each column first.
+  if (/^\s*dir\s*(,\s*all\s*)?$/.test(text)) {
+    const files = Object.keys(session.library ?? {})
+        .sort()
+        .map((id) => `${id}.dta`),
+      rows = Math.ceil(files.length / 4);
+    for (let r = 0; r < rows; r++) {
+      const row = [];
+      for (let c = 0; c < 4 && r + c * rows < files.length; c++)
+        row.push(files[r + c * rows].padEnd(16));
+      ctx.out(`  ${row.join("")}`.trimEnd());
+    }
+    return;
+  }
   const parsed = session.parse("[anything] [, clear]", text),
     name = parsed.anything.replace(/^"|"$/g, "").replace(/\.dta$/, ""),
     library = session.library ?? {};
-  if (!name || name === "dir")
-    throw new StataError(
-      `sysuse loads this site's teaching datasets: ${Object.keys(library).join(", ") || "none are installed"}. Stata's own example datasets belong to StataCorp and are not included.`,
-      601,
-    );
+  if (!name) throw new StataError("invalid file specification", 198);
   if (!library[name])
     throw new StataError(
       `file ${name}.dta not found. This site's datasets are: ${Object.keys(library).join(", ") || "none"}.`,
@@ -2788,6 +2880,12 @@ function sysuse(session, text) {
       4,
     );
   session.data = session.data.constructor.fromRows(library[name]);
+  // Its data label, which Stata shows when it loads a dataset that has one.
+  const label = session.libraryLabels?.[name] ?? "";
+  if (label) {
+    session.data.label = label;
+    fold(`(${label})`, session.settings.linesize ?? 80).forEach(ctx.out);
+  }
   // A site dataset is as it was read: unchanged, with its name.
   settle(session.data, `${name}.dta`);
 }
@@ -3168,7 +3266,10 @@ export const COMMANDS = [
   command("clear", 5, clear),
   command("sysuse", 6, sysuse),
   command("preserve", 8, (session) => {
-    if (session.preserved.length)
+    // Each do-file and program may preserve the data once; what it
+    // preserved is put back when it ends.
+    const depth = session.scopeDepth ?? 0;
+    if (session.preserved.some((saved) => (saved.depth ?? 0) === depth))
       throw new StataError("already preserved", 621);
     // The file's name and whether the data had changed come back too.
     const data = session.data;
@@ -3180,6 +3281,7 @@ export const COMMANDS = [
       dirty: Boolean(data.dirty),
       notes: data.notes && structuredClone(data.notes),
       chars: data.chars && structuredClone(data.chars),
+      depth,
     });
   }),
   command("restore", 7, (session, text) => {
@@ -3187,14 +3289,7 @@ export const COMMANDS = [
     if (!session.preserved.length)
       throw new StataError("nothing to restore", 622);
     if (/\bnot\b/.test(options)) return void session.preserved.pop();
-    const saved = session.preserved.at(-1);
-    session.data.restore(saved);
-    // Stata reads the value labels back in the reverse of the order they
-    // were defined in, and label list shows them in that order.
-    session.data.valueLabels = new Map([...session.data.valueLabels].reverse());
-    for (const key of ["notes", "chars"])
-      if (saved[key]) session.data[key] = structuredClone(saved[key]);
-      else delete session.data[key];
+    restoreSaved(session, session.preserved.at(-1));
     if (!/\bpreserve\b/.test(options)) session.preserved.pop();
   }),
   command("version", 4, (session, text) => {

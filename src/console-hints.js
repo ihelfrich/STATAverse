@@ -271,6 +271,84 @@ function closing(command) {
   return `${command.trimEnd()})`;
 }
 
+/**
+ * Where an if condition has a single =, outside quotes and brackets: its
+ * index in the command, or -1.
+ */
+function loneIf(command) {
+  const start = /(?:^|\s)if\s/.exec(command);
+  if (!start) return -1;
+  let quote = false,
+    depth = 0;
+  for (let i = start.index + start[0].length; i < command.length; i++) {
+    const c = command[i];
+    if (c === '"') quote = !quote;
+    if (quote) continue;
+    if (c === "(" || c === "[") depth++;
+    else if (c === ")" || c === "]") depth = Math.max(0, depth - 1);
+    else if (c === ",") break;
+    else if (
+      c === "=" &&
+      !depth &&
+      !/[=!~<>]/.test(command[i - 1] ?? "") &&
+      command[i + 1] !== "="
+    )
+      return i;
+  }
+  return -1;
+}
+
+// Options students write before the comma. The function of egen and the
+// at() of a time-series operator are not options, so only these are read.
+const EARLY =
+  /\b(by|dydx|eyex|dyex|eydx|at|over|vce|absorb|cluster|level|group|time|select|ar|ma|lags)\s*\(/;
+
+/**
+ * An option written before the comma, as in margins dydx(x): { option,
+ * fix }, or null. `word` is the command as typed.
+ */
+function earlyOption(command, word) {
+  if (
+    !/^(margins?|egen|reg\w*|logit|probit|logistic|xt\w+|ivreg\w*|arima|didregress|heckman|mixed|areg|newey|poisson|nbreg)$/.test(
+      word,
+    )
+  )
+    return null;
+  // The part before any comma, outside brackets and quotes.
+  let quote = false,
+    depth = 0,
+    comma = command.length;
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i];
+    if (c === '"') quote = !quote;
+    if (quote) continue;
+    if (c === "(") depth++;
+    else if (c === ")") depth = Math.max(0, depth - 1);
+    else if (c === "," && !depth) {
+      comma = i;
+      break;
+    }
+  }
+  const head = command.slice(0, comma),
+    // egen's own function, as mean() in egen m = mean(x), is not one.
+    after =
+      word === "egen"
+        ? head.replace(/=\s*\w+\([^)]*\)/, (all) => " ".repeat(all.length))
+        : head,
+    found = EARLY.exec(after);
+  if (!found) return null;
+  const at = found.index,
+    rest = command.slice(comma + 1).trim();
+  return {
+    option: found[1],
+    // by (region) is written by(region), as options are.
+    fix: `${head.slice(0, at).trimEnd()}, ${head
+      .slice(at)
+      .trim()
+      .replace(/^(\w+)\s+\(/, "$1(")}${rest ? ` ${rest}` : ""}`,
+  };
+}
+
 /** What is missing, from "… required", r(100). */
 function required(name, message) {
   const what = /^(.+?) required/m.exec(message)?.[1] ?? "";
@@ -350,6 +428,66 @@ function advise(record, { commands = [], variables = [] }) {
       fix: close.length ? swap(record.command, typed, close[0]) : "",
     };
   }
+  // The cap on a run that is not in the background worker, where Stop
+  // could not end it.
+  if (/than the browser allows$/m.test(message))
+    return {
+      text: "This browser is running the do-file on the page itself, not in the background, so a run is stopped after 200,000 commands to keep the page from freezing. Run the loop in shorter parts; where the page runs in the background, a long loop runs to its end and Stop ends it.",
+      help: "forvalues",
+      suggest: [],
+    };
+  // A time-series command or operator before the data are declared.
+  if (rc === 111 && /^(time|panel) variable not set/m.test(message)) {
+    const panel = /^panel/m.test(message);
+    return {
+      text: panel
+        ? "The data have not been declared a panel. Declare them first with xtset, naming the panel and the time variable: xtset id year."
+        : "The data have no time variable yet. Declare it first with tsset, naming the variable that counts the periods: tsset year (or xtset id year for panel data).",
+      help: panel ? "xtset" : "tsset",
+      suggest: [panel ? "xtset" : "tsset"],
+    };
+  }
+  // An option written before its comma, as in margins dydx(x) or egen m =
+  // mean(x) by(g): what follows the command is read as variables.
+  const early = earlyOption(record.command, word);
+  if (early && [101, 111, 132, 198].includes(rc))
+    return {
+      text: `${early.option}() is an option of ${name}, and options come after a comma: ${early.fix}.`,
+      help,
+      suggest: [],
+      fix: early.fix,
+    };
+  // A loop's commands written on the line of its {.
+  if (/^(foreach|forv\w*|while)\b[^{]*\{\s*\S/.test(record.command))
+    return {
+      text: "A loop's { ends its line: put each command of the loop on a line of its own, and the closing } on a line of its own.",
+      help: /^foreach/.test(record.command)
+        ? "foreach"
+        : /^while/.test(record.command)
+          ? "while"
+          : "forvalues",
+      suggest: [],
+    };
+  // A } that closes nothing, and a block that is never closed.
+  if (record.command.trim() === "}")
+    return {
+      text: "This } closes no loop or block that is open. Take it out, or open the block first with foreach, forvalues, while or program.",
+      help: "foreach",
+      suggest: [],
+    };
+  if (
+    rc === 612 ||
+    /^(\{ without a matching \}|unexpected end of file|program \S+ has no end)/m.test(
+      message,
+    )
+  )
+    return {
+      text: /program/.test(message)
+        ? "The program is never ended: put end on a line of its own after its last command."
+        : "The block opened with { is never closed: put } on a line of its own after its last command.",
+      help: /program/.test(message) ? "program" : "foreach",
+      suggest: [],
+    };
   // A name that is not in memory. Stata says "variable x not found" in a
   // varlist and "x not found" in an expression.
   if (rc === 111 && !variables.length)
@@ -360,12 +498,43 @@ function advise(record, { commands = [], variables = [] }) {
     };
   const missing = /^(?:variable )?([A-Za-z_]\w*) not found$/m.exec(message);
   if (rc === 111 && missing) {
-    const close = nearest(
-      missing[1],
-      variables.map((v) => v.name),
-    );
+    const typed = missing[1];
+    // A word compared with a string variable is a value, to be quoted:
+    // if region == North means if region == "North".
+    const compared = new RegExp(
+      `(?:^|[^\\w.])([A-Za-z_]\\w*)\\s*(?:==|!=|~=|<=|>=|<|>)\\s*${typed}(?![\\w"])|(?:^|[^\\w"])${typed}\\s*(?:==|!=|~=|<=|>=|<|>)\\s*([A-Za-z_]\\w*)(?![\\w(])`,
+    ).exec(record.command);
+    const against = compared ? (compared[1] ?? compared[2]) : "",
+      textual = variables.find(
+        (v) => v.name === against && /^str/.test(v.type ?? ""),
+      );
+    if (textual)
+      return {
+        text: `${textual.name} holds text, so a value compared with it goes in quotes: "${typed}". Without them, ${typed} is read as the name of a variable.`,
+        help,
+        suggest: [],
+        fix: record.command.replace(
+          new RegExp(`(^|[^\\w"])${typed}(?![\\w"])`),
+          `$1"${typed}"`,
+        ),
+      };
+    // A name already in a list of variables is not offered in its place,
+    // as wage for wages in regress wage wages. In an expression it may be,
+    // as income in replace income = incme + 1.
+    const inCommand = new Set(
+        /^variable /m.test(message)
+          ? record.command
+              .split(",")[0]
+              .split(/[^A-Za-z0-9_]+/)
+              .filter((word) => word && word !== typed)
+          : [],
+      ),
+      close = nearest(
+        typed,
+        variables.map((v) => v.name),
+      ).filter((name) => !inCommand.has(name));
     const sameButCase = close.find(
-      (name) => name.toLowerCase() === missing[1].toLowerCase(),
+      (name) => name.toLowerCase() === typed.toLowerCase(),
     );
     return {
       text: sameButCase
@@ -375,7 +544,7 @@ function advise(record, { commands = [], variables = [] }) {
           : RC_HINTS[111],
       help,
       suggest: close,
-      fix: close.length ? swap(record.command, missing[1], close[0]) : "",
+      fix: close.length ? swap(record.command, typed, close[0]) : "",
     };
   }
   const ambiguous = /^(\S+) ambiguous abbreviation$/m.exec(message);
@@ -386,6 +555,28 @@ function advise(record, { commands = [], variables = [] }) {
     return {
       text: `More than one variable begins with ${ambiguous[1]}${starting.length ? `: ${both(starting.slice(0, 4))}${starting.length > 4 ? " and others" : ""}` : ""}. Write more of the name.`,
       help,
+      suggest: [],
+    };
+  }
+  // if x = 1 in place of if x == 1. Stata says =exp not allowed, or type
+  // mismatch when a string follows the =, or invalid syntax.
+  const single = [101, 109, 198].includes(rc) ? loneIf(record.command) : -1;
+  if (single >= 0)
+    return {
+      text: "A single = assigns. To compare two values, write ==, as in if group == 1.",
+      help,
+      fix: `${record.command.slice(0, single).trimEnd()} == ${record.command.slice(single + 1).trimStart()}`,
+      suggest: [],
+    };
+  // logit, probit and the like with an outcome that is not 0 and 1.
+  if (rc === 2000 && /^outcome does not vary/m.test(message)) {
+    const outcome = namedVariables(
+      rest.split(/\bif\b|\bin\b|,/)[0],
+      variables,
+    )[0];
+    return {
+      text: `${name} needs an outcome that is 0 for some observations and not 0 for others; it counts every value other than 0 as 1${outcome ? `, so ${outcome} is the same outcome in every observation used` : ""}. Use a variable that is 0 or 1, made for instance with generate high = ${outcome ?? "y"} > c if !missing(${outcome ?? "y"}), for a cutoff c.`,
+      help: help || "logit",
       suggest: [],
     };
   }
@@ -409,20 +600,6 @@ function advise(record, { commands = [], variables = [] }) {
     );
     if (strings.length) return stringAdvice(strings, record.strings ?? {});
   }
-  // if x = 1 in place of if x == 1.
-  if (
-    (rc === 198 || (rc === 101 && /=exp not allowed/.test(message))) &&
-    /\bif\b[^=]*[^=<>!~]=(?!=)/.test(record.command)
-  )
-    return {
-      text: "A single = assigns. To compare two values, write ==, as in if group == 1.",
-      help,
-      fix: record.command.replace(
-        /(\bif\b[^=]*[^=<>!~\s])\s*=(?!=)\s*/,
-        "$1 == ",
-      ),
-      suggest: [],
-    };
   if (rc === 101) return { text: notTaken(name, message), help, suggest: [] };
   if (rc === 100)
     return {

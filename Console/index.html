@@ -108,6 +108,7 @@
                 <button type="button" id="console-tab-delete">
                   Delete this file
                 </button>
+                <button type="button" id="console-tab-restore" hidden></button>
               </div>
               <div class="console-menu-group" data-for="map" hidden>
                 <h3>Map</h3>
@@ -406,7 +407,8 @@
           </div>
           <ul id="console-datasets" aria-labelledby="data-title"></ul>
           <p class="console-files">
-            Files in this session: <span id="console-files">none</span>
+            Files in this session, with those save, export and log using make
+            (select one to save a copy): <span id="console-files">none</span>
           </p>
         </details>
         <details class="console-drawer" id="drawer-commands">
@@ -441,9 +443,12 @@
           <div class="console-about">
             <p>
               Each command here is compared with installed Stata before it is
-              kept. It is still a preview: survey and survival commands, Excel
-              files and community packages are not here. For guided lessons, use
-              <a href="../Learn/">Practice</a>.
+              kept. It is still a preview: the Commands list shows what runs
+              here, including survey (<code>svy:</code>), survival
+              (<code>stset</code>, <code>stcox</code>, <code>streg</code>) and
+              Excel files (<code>import excel</code>,
+              <code>export excel</code>). Community packages from SSC are not
+              here. For guided lessons, use <a href="../Learn/">Practice</a>.
             </p>
             <p>
               <code>sysuse</code> loads this site's teaching datasets. Stata's
@@ -455,12 +460,16 @@
               and added files are kept in this browser between visits, on this
               device only; the data in memory is not. Remove takes an added file
               out, and clearing this site's data in the browser removes them
-              all.
+              all. Files that <code>save</code>, <code>export</code> and
+              <code>log using</code> write are listed in the Data drawer, where
+              each can be saved to your computer.
             </p>
             <p>
               Ctrl or ⌘ + Enter runs the do-file. Add Shift to run only the
-              selected lines. Ctrl or ⌘ + . stops a run, as Break does in Stata.
-              Up and Down at the command line recall earlier commands.
+              selected lines. Ctrl or ⌘ + . stops a run, as Break does in Stata:
+              what it printed stays, and the data are as they were before the
+              command that was stopped. Up and Down at the command line recall
+              earlier commands.
             </p>
           </div>
         </details>

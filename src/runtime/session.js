@@ -7,7 +7,13 @@ import { Dataset } from "./store.js";
 import { splitCommands, parseBlocks } from "./dofile.js";
 import { expandMacros, isMacroName, macroWords } from "./macros.js";
 import { compileExpression } from "./expression.js";
-import { applySyntax, clauses, loneEquals, splitAtComma } from "./syntax.js";
+import {
+  applySyntax,
+  clauses,
+  equalsOperands,
+  loneEquals,
+  splitAtComma,
+} from "./syntax.js";
 import { numlistText, parseNumlist } from "./numlist.js";
 import { expandVarlist } from "./varlist.js";
 import { applyFormat, parseFormat, stringOf } from "./format.js";
@@ -23,7 +29,7 @@ import {
   truncateBytes,
 } from "./values.js";
 import { greatest } from "./extremes.js";
-import { COMMANDS, extendedFunction } from "./commands.js";
+import { COMMANDS, extendedFunction, restoreSaved } from "./commands.js";
 import { changed, fold, markChanged } from "./data-commands.js";
 import { abbreviateName } from "./data-utilities.js";
 import { timeSeriesOperator } from "./panel.js";
@@ -46,6 +52,27 @@ const OLD_ESTAT = {
   bgodfrey: "bgodfrey",
   archlm: "archlm",
 };
+// Commands that take time-series operators in their varlists in Stata, and
+// so say first that no time variable is set; mean refuses them with its
+// own message. A term such as L.y, D2.y or L(1/2).y before the comma.
+const SERIES_TERM = /(?:^|[\s(])(?:[LFDS]\d*|[LFDS]\([^()]*\))+\.[A-Za-z_]/i;
+const TAKES_SERIES = new Set([
+  "summarize",
+  "list",
+  "correlate",
+  "pwcorr",
+  "scatter",
+]);
+function seriesGuard(session, name, body) {
+  if (name !== "mean" && !TAKES_SERIES.has(name)) return;
+  const head = splitAtComma(body)[0].replace(/"[^"]*"/g, '""'),
+    // Only the varlist: an if or in clause may use L.y as an expression.
+    list = head.split(/\s(?:if|in)\s/)[0];
+  if (!SERIES_TERM.test(list)) return;
+  if (name === "mean")
+    throw new StataError("time-series operators not allowed", 101);
+  if (!session.panel?.time) throw new StataError("time variable not set", 111);
+}
 // Commands that never change the data, after which there is no need to see
 // whether they have (a check that reads every value).
 const READ_ONLY = new Set([
@@ -714,28 +741,34 @@ export class Session {
             198,
             "A single = assigns; to compare two values, write ==.",
           );
-        // With a string anywhere in it, a literal or a string variable,
-        // Stata calls the expression a type mismatch instead.
-        const stringy =
-          /"/.test(text) ||
-          (text.match(/[\p{L}_][\w\u0080-\u{10FFFF}]*/gu) ?? []).some(
-            (word) => {
-              try {
-                const [name] = this.varlist(word);
-                return isStringType(this.data.get(name).type);
-              } catch {
-                return false;
-              }
-            },
-          );
+        // A string on either side is a type mismatch, as Stata finds it
+        // in summarize wage if region = "North" or if x = region.
+        const sides = lone ? this.equalsStrings(text, lone) : {};
         throw new StataError(
-          stringy ? "type mismatch" : "invalid syntax",
-          stringy ? 109 : 198,
+          sides.left || sides.right ? "type mismatch" : "invalid syntax",
+          sides.left || sides.right ? 109 : 198,
           "A single = assigns; to compare two values, write ==.",
         );
       }
       throw error;
     }
+  }
+  /**
+   * Whether each side of a lone = in an expression is a string: { left,
+   * right }. A side that cannot be compiled on its own is not one.
+   */
+  equalsStrings(text, lone) {
+    const sides = equalsOperands(text, lone),
+      string = (part) => {
+        try {
+          return (
+            !!part && compileExpression(part, this.scope()).type !== "numeric"
+          );
+        } catch {
+          return false;
+        }
+      };
+    return { left: string(sides.left), right: string(sides.right) };
   }
   /** The value of an expression outside any observation. */
   scalar(text) {
@@ -822,7 +855,12 @@ export class Session {
    * unless it is given the frame of an earlier run, as commands typed one
    * after another in Stata's Command window share theirs.
    */
-  run(source, frame = this.frame()) {
+  run(source, frame = this.frame(), { doFile = false } = {}) {
+    // Run as a do-file ({ doFile: true }, as the Console's editor runs
+    // one), the data it preserves are put back when it ends. Commands
+    // typed one after another keep them until restore, as Stata's Command
+    // window does; callers that run a lesson's commands one at a time
+    // rely on that.
     const output = [];
     this.steps = 0;
     this.line = 0;
@@ -833,6 +871,7 @@ export class Session {
     // The do-file's own lines, for echoing the loops it runs.
     this.sourceLines = source.replace(/\r\n?/g, "\n").split("\n");
     let rc = 0;
+    if (doFile) this.enterScope();
     try {
       this.runNodes(parseBlocks(splitCommands(source)), frame, output);
     } catch (error) {
@@ -840,8 +879,23 @@ export class Session {
       else if (error instanceof Signal) rc = 0;
       else if (error instanceof StataError) rc = error.code;
       else throw error;
+    } finally {
+      if (doFile) this.leaveScope();
     }
     return { output, rc, locals: frame.locals };
+  }
+  /** A do-file or program begins: what it preserves is its own. */
+  enterScope() {
+    this.scopeDepth = (this.scopeDepth ?? 0) + 1;
+  }
+  /** A do-file or program ends, however it ends: its preserved data return. */
+  leaveScope() {
+    const depth = this.scopeDepth ?? 0;
+    this.scopeDepth = Math.max(0, depth - 1);
+    let saved;
+    while (this.preserved.length && (this.preserved.at(-1).depth ?? 0) >= depth)
+      saved = this.preserved.pop();
+    if (saved) restoreSaved(this, saved);
   }
   frame() {
     return { locals: new Map(), lastIf: null, returns: null };
@@ -910,43 +964,36 @@ export class Session {
         throw error;
       }
       if (node.kind === "program") {
-        // Stata echoes a definition, its lines numbered from 1, and a
-        // second definition of the same name stops with r(110) at its
-        // first line.
-        const defined = this.programs.has(node.name);
-        if (defined) {
+        // In the Console, as in Stata's log, a definition is shown with its
+        // lines numbered from 1, its end the last of them.
+        const shown =
+          this.foldLoops && !this.inProgram && !this.folding
+            ? echoOf(
+                this.sourceLines ?? [],
+                node.line,
+                node.end || node.line,
+                1,
+              )
+            : null;
+        if (this.programs.has(node.name)) {
           const error = new StataError(
             `program ${node.name} already defined`,
             110,
           );
-          error.recorded = true;
-          this.record(output, node.text, [error.message, "r(110);"], 110);
+          if (shown) {
+            this.record(output, shown.command, [error.message, "r(110);"], 110);
+            error.recorded = true;
+          }
           throw error;
-        }
-        if (
-          this.foldLoops &&
-          !this.inProgram &&
-          !this.doDepth &&
-          !(this.quietDepth > 0) &&
-          this.sourceLines &&
-          node.end
-        ) {
-          this.record(output, node.text, [], 0);
-          output.at(-1).echo = echoOf(
-            this.sourceLines,
-            node.line,
-            node.end,
-          ).echo.map((line) =>
-            line.replace(
-              /^\s*(\d+)\./,
-              (all, n) => `${String(n - 1).padStart(3)}.`,
-            ),
-          );
         }
         this.programs.set(node.name, {
           body: parseBlocks(node.body),
           options: node.options,
         });
+        if (shown) {
+          this.record(output, shown.command, [], 0);
+          output.at(-1).echo = shown.echo;
+        }
       } else if (node.kind === "input") this.input(node, frame, output);
       else if (node.kind === "block") this.block(node, frame, output);
       else this.runLine(node.text, frame, output);
@@ -1314,6 +1361,7 @@ export class Session {
       };
     const command = findCommand(word);
     if (command) {
+      seriesGuard(this, command.name, body);
       // With no observations there are no groups, and by runs nothing:
       // even generate creates no variable.
       if (flags.by && !flags.by.groups.length && command.byable) return;
@@ -1975,10 +2023,12 @@ export class Session {
     const inner = [],
       rclass = /\brclass\b/.test(program.options);
     this.inProgram = (this.inProgram ?? 0) + 1;
+    this.enterScope();
     try {
       this.runNodes(program.body, frame, inner);
     } catch (error) {
       this.inProgram -= 1;
+      this.leaveScope();
       // The line that failed reported the error; the program's caller
       // reports it again, so it is shown once, as Stata shows it.
       const failed =
@@ -2003,6 +2053,7 @@ export class Session {
       return;
     }
     this.inProgram -= 1;
+    this.leaveScope();
     for (const record of inner) record.lines.forEach(ctx.out);
     if (rclass) this.results.r = posted(frame.returns.r);
   }

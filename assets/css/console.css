@@ -306,6 +306,9 @@
   white-space: pre;
   color: inherit;
   background: transparent;
+  /* Hints and help cards are as wide as Results shows, not as its widest
+     table, so that on a phone their text wraps and their buttons are seen. */
+  container-type: inline-size;
 }
 #console-output:empty::before {
   content: "Results appear here.";
@@ -491,6 +494,20 @@
 .console-files label {
   display: block;
   margin-bottom: 4px;
+}
+.console-file-link {
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  min-height: 24px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.console-file-link:hover {
+  color: var(--green);
 }
 
 /* ----- what runs here ----- */
@@ -1124,10 +1141,11 @@
 }
 #console-datasets {
   list-style: none;
-  margin: 0;
+  /* Inset as the rest of the drawer is, off its border. */
+  margin: 0 14px 12px;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr));
   gap: 12px;
 }
 #console-datasets li {
@@ -1623,7 +1641,7 @@ body.is-dropping::after {
   right: 0;
   top: calc(100% + 6px);
   z-index: 12;
-  width: 264px;
+  width: min(264px, calc(100vw - 16px));
   max-height: min(74vh, 560px);
   overflow: auto;
   background: #fff;
@@ -1788,7 +1806,7 @@ body.is-dropping::after {
 }
 #console-datasets {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
   gap: 0 24px;
 }
 #console-datasets li {
@@ -2200,7 +2218,9 @@ body.is-dropping::after {
 .console-hint {
   display: block;
   white-space: normal;
-  max-width: 76ch;
+  max-width: min(76ch, calc(100cqi - 12px));
+  position: sticky;
+  left: 0;
   margin: 6px 0 2px;
   padding: 7px 10px;
   border-left: 3px solid #d08a2e;
@@ -2219,11 +2239,17 @@ body.is-dropping::after {
   background: #2a2208;
   color: #ffe8b0;
 }
+/* The lines of a block typed at the command line, before its }. */
+.console-pending {
+  display: block;
+  margin-top: 6px;
+  opacity: 0.75;
+}
 .console-help-card {
   display: grid;
   gap: 4px;
   white-space: normal;
-  max-width: 76ch;
+  max-width: min(76ch, calc(100cqi - 12px));
   margin: 4px 0;
   padding: 8px 10px;
   border: 1px solid var(--pane-edge);
@@ -2530,4 +2556,17 @@ th[aria-sort="descending"] .browse-sort::after {
   z-index: 2;
   background: var(--paper);
   box-shadow: 0 -26px 0 var(--paper);
+}
+/* At the narrowest phones the site's links wrap, so that the page does not
+   scroll sideways. */
+@media (max-width: 420px) {
+  .console-page .app-header nav {
+    flex-wrap: wrap;
+    height: auto;
+    gap: 2px 18px;
+    padding-bottom: 8px;
+  }
+  .console-page .app-header nav a {
+    padding: 8px 0 6px;
+  }
 }

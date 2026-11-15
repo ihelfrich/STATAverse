@@ -43,12 +43,15 @@ function scan(line, state) {
   return { code, continues: state.comment > 0 };
 }
 
-/** The lines Stata echoes for a loop, from its source lines. */
-export function echoOf(lines, start, end) {
+/**
+ * The lines Stata echoes for a loop, from its source lines; a program's
+ * lines are numbered from 1 (`first`), a loop's from 2.
+ */
+export function echoOf(lines, start, end, first = 2) {
   const state = { comment: 0, started: false },
     echo = [];
   let command = "",
-    number = 2,
+    number = first,
     logical = "",
     afterEmpty = false,
     continued = false;

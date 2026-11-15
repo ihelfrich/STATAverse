@@ -431,7 +431,8 @@ test("a long run shows how far it has got, and Ctrl or ⌘ + . stops it", async 
   await expect(page.locator("#console-output")).toContainText("--Break--");
   await expect(progress).toBeHidden();
   await expect(page.locator("#console-status")).toContainText(
-    "The session was cleared",
+    "as they do after Break in Stata",
+    { timeout: 30000 },
   );
   // A short run does not flash the progress line.
   await type(page, "display 1");

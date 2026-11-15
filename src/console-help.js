@@ -5,10 +5,6 @@
 // entry here still has its link.
 
 export const HELP = {
-  _pctile: [
-    "Puts percentiles of a variable in r(r1), r(r2), ….",
-    "_pctile varname, percentiles(numlist)",
-  ],
   about: ["Says what this runtime is.", "about"],
   ac: ["Graphs the autocorrelations of a time series.", "ac varname"],
   anova: ["Analysis of variance and covariance.", "anova y a b a#b"],
@@ -24,6 +20,10 @@ export const HELP = {
     "Names the arguments a program was given, as locals.",
     "args first second",
   ],
+  arima: [
+    "ARIMA, ARMAX and seasonal models of a time series, by maximum likelihood.",
+    "arima y, ar(1) ma(1)",
+  ],
   assert: [
     "Stops with an error when a condition is false in any observation.",
     "assert x >= 0 if x < .",
@@ -35,11 +35,23 @@ export const HELP = {
     "Bootstrap standard errors for a command's results.",
     "bootstrap r(mean), reps(200): summarize x",
   ],
-  bs: ["Short for bootstrap.", "bs, reps(200): regress y x"],
-  bsample: ["Replaces the data with a bootstrap sample.", "bsample"],
   browse: [
     "Opens the data browser on the data in memory.",
     "browse [varlist] [if] [in]",
+  ],
+  bs: ["Short for bootstrap.", "bs, reps(200): regress y x"],
+  bsample: ["Replaces the data with a bootstrap sample.", "bsample"],
+  by: [
+    "Repeats a command for each group of data sorted by it (a prefix).",
+    "by group: summarize x",
+  ],
+  bysort: [
+    "Sorts the data, then repeats a command for each group (a prefix).",
+    "bysort group: summarize x",
+  ],
+  capture: [
+    "Runs a command and carries on if it fails; _rc holds its return code (a prefix).",
+    "capture drop newvar",
   ],
   cd: ["Changes the working folder (there is one folder here).", "cd"],
   centile: [
@@ -58,6 +70,10 @@ export const HELP = {
   clear: [
     "Removes the data (and with all, everything else) from memory.",
     "clear",
+  ],
+  clogit: [
+    "Conditional (fixed-effects) logistic regression for matched groups.",
+    "clogit y x1 x2, group(id)",
   ],
   cloglog: [
     "Complementary log-log regression for a 0/1 outcome.",
@@ -89,6 +105,10 @@ export const HELP = {
     "Skips to the next pass of a loop, or leaves it with break.",
     "continue [, break]",
   ],
+  contract: [
+    "Replaces the data with the frequency of each combination of values.",
+    "contract x y",
+  ],
   contrast: [
     "Contrasts and ANOVA-style tests after a model.",
     "contrast group",
@@ -119,7 +139,12 @@ export const HELP = {
     "Turns text that holds numbers into numeric variables.",
     'destring x, replace ignore(",")',
   ],
+  dfbeta: ["Makes DFBETA influence statistics after regress.", "dfbeta"],
   dfuller: ["Augmented Dickey-Fuller unit-root test.", "dfuller x, lags(2)"],
+  didregress: [
+    "Difference-in-differences regression: the treatment effect on the treated.",
+    "didregress (y x) (treated), group(id) time(year)",
+  ],
   dir: ["Lists the files in the session.", "dir"],
   display: [
     "Shows text, or the value of an expression.",
@@ -175,13 +200,25 @@ export const HELP = {
     "Searches Stata's documentation (not included here).",
     "findit topic",
   ],
+  foreach: [
+    "Repeats commands for each item of a list: words, variables or numbers (a loop).",
+    "foreach v of varlist x y z {",
+  ],
   format: ["Sets how a variable is displayed.", "format x %9.2f"],
+  forvalues: [
+    "Repeats commands for each number of a range (a loop).",
+    "forvalues i = 1/10 {",
+  ],
   generate: [
     "Makes a new variable from an expression.",
     "generate z = x / 100",
   ],
-  global: ["Defines a global macro.", "global controls age educ"],
+  gettoken: [
+    "Takes the first word off a string, in a program.",
+    "gettoken first rest : list",
+  ],
   glm: ["Generalized linear models.", "glm y x, family(binomial) link(logit)"],
+  global: ["Defines a global macro.", "global controls age educ"],
   graph: [
     "Graph commands: bar, box, combine, export and others.",
     "graph bar (mean) y, over(group)",
@@ -190,6 +227,10 @@ export const HELP = {
   hausman: [
     "Hausman specification test between two stored models.",
     "hausman fe re",
+  ],
+  heckman: [
+    "Heckman selection model, by maximum likelihood or in two steps.",
+    "heckman y x, select(s = z x)",
   ],
   help: ["Shows this help for a command.", "help regress"],
   histogram: ["Histogram of a variable.", "histogram x, frequency"],
@@ -234,6 +275,10 @@ export const HELP = {
     "Keeps variables, or observations that meet a condition.",
     "keep x y  |  keep if x > 0",
   ],
+  ktau: [
+    "Kendall's rank correlation (tau-a and tau-b) and its test.",
+    "ktau x y",
+  ],
   kwallis: [
     "Kruskal-Wallis test of equal distributions across groups.",
     "kwallis x, by(group)",
@@ -254,7 +299,10 @@ export const HELP = {
   line: ["Line graph.", "line y year"],
   list: ["Lists values of variables.", "list x y in 1/10"],
   local: ["Defines a local macro.", "local n = _N"],
-  log: ["Opens or closes a log file.", "log using results.log"],
+  log: [
+    "Opens or closes a log of the session; the Data drawer offers the file to save.",
+    "log using results.log, text replace",
+  ],
   logistic: ["Logistic regression reporting odds ratios.", "logistic y x1 x2"],
   logit: ["Logistic regression for a 0/1 outcome.", "logit y x1 x2"],
   lookfor: [
@@ -279,12 +327,25 @@ export const HELP = {
     "Means with standard errors and confidence intervals.",
     "mean x, over(group)",
   ],
+  melogit: [
+    "Multilevel mixed-effects logistic regression (random effects).",
+    "melogit y x || school:",
+  ],
+  mepoisson: [
+    "Multilevel mixed-effects Poisson regression (random effects).",
+    "mepoisson y x || school:",
+  ],
   merge: [
     "Joins a dataset on disk to the data in memory by key variables.",
     "merge 1:1 id using filename",
   ],
   misstable: ["Tables of missing values.", "misstable summarize"],
+  mixed: [
+    "Multilevel mixed-effects linear regression: random intercepts and slopes.",
+    "mixed y x || school: x",
+  ],
   mkdir: ["Makes a folder (there is one folder here).", "mkdir name"],
+  mkmat: ["Makes a matrix from variables.", "mkmat x y, matrix(X)"],
   mlogit: ["Multinomial logistic regression.", "mlogit y x1 x2"],
   more: ["Pauses output in Stata; does nothing here.", "more"],
   mvdecode: ["Turns given numbers into missing values.", "mvdecode x, mv(-99)"],
@@ -302,6 +363,10 @@ export const HELP = {
     "Nonlinear combination of coefficients after a model.",
     "nlcom _b[x1] / _b[x2]",
   ],
+  noisily: [
+    "Shows a command's output inside quietly (a prefix).",
+    "noisily display r(mean)",
+  ],
   notes: ["Adds or lists notes on the data.", "notes: text"],
   numlabel: ["Puts the numbers in front of value labels.", "numlabel, add"],
   ologit: ["Ordered logistic regression.", "ologit y x1 x2"],
@@ -317,12 +382,20 @@ export const HELP = {
   ],
   pac: ["Graphs the partial autocorrelations of a time series.", "pac x"],
   pause: ["Pauses a do-file in Stata; does nothing here.", "pause"],
+  _pctile: [
+    "Puts percentiles of a variable in r(r1), r(r2), ….",
+    "_pctile varname, percentiles(numlist)",
+  ],
   pctile: [
     "Makes a variable holding percentiles.",
     "pctile p = x, nquantiles(4)",
   ],
   pnorm: ["Standardized normal probability plot.", "pnorm x"],
   poisson: ["Poisson regression for counts.", "poisson y x1 x2"],
+  pperron: [
+    "Phillips-Perron unit-root test of a time series.",
+    "pperron y, lags(2)",
+  ],
   prais: ["Prais-Winsten regression for AR(1) errors.", "prais y x"],
   predict: [
     "Fitted values, residuals and other predictions after a model.",
@@ -350,7 +423,15 @@ export const HELP = {
   qnorm: ["Quantiles of a variable against the normal.", "qnorm x"],
   qreg: ["Quantile (median) regression.", "qreg y x, quantile(0.5)"],
   query: ["Shows the session's settings.", "query"],
+  quietly: [
+    "Runs a command without showing its output (a prefix).",
+    "quietly regress y x",
+  ],
   ranksum: ["Wilcoxon rank-sum (Mann-Whitney) test.", "ranksum x, by(group)"],
+  ratio: [
+    "Estimates the ratio of two means, with its standard error.",
+    "ratio (r: y/x)",
+  ],
   recast: ["Changes a variable's storage type.", "recast double x"],
   recode: [
     "Changes values of variables by rules.",
@@ -377,7 +458,11 @@ export const HELP = {
     "save mydata, replace",
   ],
   scalar: ["Defines a scalar.", "scalar s = r(mean)"],
-  scatter: ["Scatter plot.", "scatter y x"],
+  scatter: ["Scatter plot, a twoway graph.", "scatter y x"],
+  sdtest: [
+    "Tests whether two standard deviations (variances) are equal.",
+    "sdtest x, by(group)",
+  ],
   search: [
     "Searches Stata's documentation (not included here).",
     "search topic",
@@ -391,11 +476,19 @@ export const HELP = {
     "set seed 12345",
   ],
   set_defaults: ["Puts settings back to their defaults.", "set_defaults _all"],
+  sfrancia: [
+    "Shapiro-Francia test that a variable is normally distributed.",
+    "sfrancia x",
+  ],
   signrank: ["Wilcoxon matched-pairs signed-rank test.", "signrank x = y"],
   signtest: ["Sign test of matched pairs.", "signtest x = y"],
   simulate: [
     "Runs a command many times and keeps its results.",
     "simulate m = r(mean), reps(100): myprog",
+  ],
+  sktest: [
+    "Skewness and kurtosis test that a variable is normally distributed.",
+    "sktest x",
   ],
   sleep: ["Waits; does nothing here.", "sleep 1000"],
   sort: ["Sorts the observations.", "sort group year"],
@@ -407,6 +500,30 @@ export const HELP = {
     "ssc install name",
   ],
   stack: ["Stacks variables into fewer variables.", "stack a b c d, into(x y)"],
+  stcox: [
+    "Cox proportional-hazards model of survival-time data.",
+    "stcox x1 x2",
+  ],
+  stdescribe: [
+    "Describes survival-time data declared with stset.",
+    "stdescribe",
+  ],
+  streg: [
+    "Parametric survival models: exponential, Weibull, Gompertz and others.",
+    "streg x, distribution(weibull)",
+  ],
+  sts: [
+    "Kaplan-Meier survivor function of survival-time data: graph, list or log-rank test.",
+    "sts graph, by(group)",
+  ],
+  stset: [
+    "Declares the data survival-time (duration) data: time and failure.",
+    "stset time, failure(died)",
+  ],
+  stsum: [
+    "Summarizes survival-time data: time at risk, incidence rate and median survival.",
+    "stsum",
+  ],
   summarize: [
     "Means, standard deviations, minimum and maximum.",
     "summarize x y, detail",
@@ -414,6 +531,10 @@ export const HELP = {
   svy: ["Runs an estimator with the survey design of svyset.", "svy: mean x"],
   svydescribe: ["Describes the survey design.", "svydescribe"],
   svyset: ["Declares the survey design.", "svyset psu [pweight=w], strata(s)"],
+  swilk: [
+    "Shapiro-Wilk test that a variable is normally distributed.",
+    "swilk x",
+  ],
   syntax: ["Parses a program's arguments.", "syntax varlist [if] [in]"],
   sysuse: [
     "Loads one of this site's teaching datasets.",
@@ -434,6 +555,10 @@ export const HELP = {
     "One-way or two-way frequency table.",
     "tabulate group passed, row chi2",
   ],
+  teffects: [
+    "Treatment effects from observational data: regression adjustment, IPW, matching.",
+    "teffects ra (y x) (treated)",
+  ],
   tempfile: ["Names a temporary file.", "tempfile kept"],
   tempname: ["Names a temporary scalar or matrix.", "tempname b"],
   tempvar: ["Names a temporary variable.", "tempvar t"],
@@ -448,8 +573,16 @@ export const HELP = {
   ],
   timer: ["Times parts of a do-file.", "timer on 1"],
   tobit: ["Tobit regression for a censored outcome.", "tobit y x, ll(0)"],
+  tokenize: [
+    "Splits a string into the numbered locals 1, 2, 3 and so on.",
+    "tokenize `list'",
+  ],
   tostring: ["Turns numeric variables into strings.", "tostring x, replace"],
   total: ["Totals with standard errors.", "total x"],
+  tsappend: [
+    "Adds periods at the end of time-series data.",
+    "tsappend, add(4)",
+  ],
   tsline: ["Line graph of a time series.", "tsline x"],
   tsset: ["Declares the data a time series.", "tsset year"],
   tssmooth: ["Smooths a time series.", "tssmooth ma s = x, window(2 1 2)"],
@@ -458,6 +591,15 @@ export const HELP = {
   twoway: ["Two-way graphs, overlaid.", "twoway (scatter y x) (lfit y x)"],
   unab: ["Expands a variable list into a local.", "unab vars : x*"],
   use: ["Loads a Stata .dta file you added.", "use mydata, clear"],
+  var: [
+    "Vector autoregression of several time series.",
+    "var y1 y2, lags(1/2)",
+  ],
+  vargranger: ["Granger causality tests after var.", "vargranger"],
+  varsoc: [
+    "Lag-order selection statistics for a vector autoregression.",
+    "varsoc y1 y2, maxlag(4)",
+  ],
   version: [
     "Sets the version of Stata the do-file was written for.",
     "version 17",
@@ -466,8 +608,36 @@ export const HELP = {
     "Says where a command's file is; there are none here.",
     "which regress",
   ],
+  while: [
+    "Repeats commands while a condition is true (a loop).",
+    "while `i' <= 10 {",
+  ],
+  xi: [
+    "Makes indicator variables for categories, the older form of i. (a prefix).",
+    "xi: regress y i.group",
+  ],
   xtdescribe: ["Describes the pattern of panel data.", "xtdescribe"],
+  xtdidregress: [
+    "Difference-in-differences regression for panel data.",
+    "xtdidregress (y x) (treated), group(id) time(year)",
+  ],
   xtile: ["Makes a variable of quantile groups.", "xtile q = x, nquantiles(4)"],
+  xtlogit: [
+    "Panel logistic regression: random, fixed or population-averaged effects.",
+    "xtlogit y x, re",
+  ],
+  xtmixed: [
+    "The older name of mixed, multilevel linear regression.",
+    "xtmixed y x || school:",
+  ],
+  xtpoisson: [
+    "Panel Poisson regression: random, fixed or population-averaged effects.",
+    "xtpoisson y x, fe",
+  ],
+  xtprobit: [
+    "Panel probit regression: random or population-averaged effects.",
+    "xtprobit y x, re",
+  ],
   xtreg: [
     "Fixed-, between- and random-effects panel regression.",
     "xtreg y x, fe",
@@ -482,6 +652,20 @@ export const HELP = {
     "xttest0",
   ],
 };
+
+// Words of the language that run here without being registered commands:
+// the loops and the prefixes. help and the Commands list know them, with
+// the shortest abbreviation Stata takes.
+export const LANGUAGE = [
+  { name: "by", minimum: 2 },
+  { name: "bysort", minimum: 3 },
+  { name: "capture", minimum: 3 },
+  { name: "foreach", minimum: 7 },
+  { name: "forvalues", minimum: 4 },
+  { name: "noisily", minimum: 1 },
+  { name: "quietly", minimum: 3 },
+  { name: "while", minimum: 5 },
+];
 
 /** Stata's own help for a command, on stata.com. */
 export function helpUrl(name) {

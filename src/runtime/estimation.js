@@ -139,8 +139,8 @@ function seriesVariables(session, word) {
   const m = SERIES_OPERATOR.exec(word);
   if (!m) return null;
   const panel = session.panel;
-  if (!panel?.time)
-    throw new StataError("time variable not set, use tsset varname ...", 111);
+  // An operated term without tsset: Stata's message here has no "use".
+  if (!panel?.time) throw new StataError("time variable not set", 111);
   requireTimeOrder(session);
   // Each operator with the orders it takes, refused as Stata refuses a
   // misplaced numlist or a negative difference.
@@ -305,6 +305,8 @@ export function design(session, text, rows, constant = true, levelRows) {
     }
     return variable;
   };
+  if (SERIES_OPERATOR.test(tokens[0]) && !session.panel?.time)
+    throw new StataError("time variable not set", 111);
   if (SERIES_OPERATOR.test(tokens[0]))
     throw new StataError(
       `${tokens[0]}: time-series operators on the dependent variable are not available in the browser yet`,

@@ -43,11 +43,14 @@ test("a file added during a run waits for it, and the run's results arrive", asy
   // The run's own reply is not lost: its output arrives, then the file.
   await expect(output).toContainText("loop finished", { timeout: 60000 });
   await expect(status).toContainText("Added labels.csv.", { timeout: 20000 });
-  await expect(output).toContainText(
+  // The run made data, and adding a file does not touch memory, as adding
+  // one to the folder does not in Stata: it is loaded when asked for.
+  await expect(status).toContainText("The data in memory are unchanged");
+  await expect(output).not.toContainText(
     '. import delimited using "labels.csv", clear',
   );
   await expect(page.locator("#console-memory")).toContainText(
-    "20 observations, 3 variables",
+    "100,000 observations, 1 variable",
   );
 
   // While a run goes, the student's own Load and Remove buttons wait.

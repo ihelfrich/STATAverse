@@ -3,6 +3,7 @@
 // an average over the estimation sample of a function of x'b, so its
 // gradient with respect to b is an average too.
 import { StataError } from "./errors.js";
+import { clauses, splitAtComma } from "./syntax.js";
 import { applyFormat } from "./format.js";
 import { invttail, ttail } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
@@ -440,8 +441,26 @@ export function marginsTable(
     );
 }
 
+/**
+ * Every name in margins' list is looked up first, as Stata does: an option
+ * written before the comma, as in margins age dydx(age), is a variable
+ * dydx that is not found.
+ */
+function namesInMarginlist(session, text) {
+  const head = splitAtComma(text)[0],
+    end = clauses(head, false)[0]?.at ?? head.length;
+  for (const word of head.slice(0, end).trim().split(/\s+/).filter(Boolean))
+    for (const part of word.split("#")) {
+      if (/@/.test(part)) continue;
+      const name = /^[A-Za-z_]\w*/.exec(
+        part.replace(/^(?:[A-Za-z]+\d*|[A-Za-z]+\([^()]*\))\./, ""),
+      )?.[0];
+      if (name) session.varlist(name);
+    }
+}
 function margins(session, text, ctx) {
   const model = estimates(session);
+  namesInMarginlist(session, text);
   if (["ologit", "oprobit", "mlogit"].includes(model.kind))
     return outcomeMargins(session, model, text, ctx);
   // A model may name its own predictions, as xtlogit's pr and pu0 are,

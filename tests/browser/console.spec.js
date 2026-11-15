@@ -109,7 +109,7 @@ for (const fallback of [false, true])
     expect(scan.violations.map((v) => v.id)).toEqual([]);
   });
 
-test("a long do-file can be stopped, which clears the session", async ({
+test("a long do-file can be stopped, which keeps every command that finished, as Break does", async ({
   page,
 }) => {
   await page.goto("/Console/");
@@ -117,19 +117,30 @@ test("a long do-file can be stopped, which clears the session", async ({
   await page
     .locator("#console-source")
     .fill(
-      "clear\nset obs 200000\nforvalues i = 1/3000 {\n  generate double v`i' = sqrt(_n) * `i'\n}",
+      "clear\nset obs 200000\ngenerate id = _n\nforvalues i = 1/3000 {\n  generate double v`i' = sqrt(_n) * `i'\n}",
     );
   await page.locator("#console-run").click();
   await expect(page.locator("#console-status")).toHaveText("Running…");
   const stop = page.locator("#console-stop");
   await expect(stop).toBeVisible();
+  // Stopped once the loop is running, as the progress line says.
+  await expect(page.locator("#console-progress-text")).toContainText(
+    /line [45] of 6/,
+    { timeout: 20000 },
+  );
   await stop.click();
   await expect(page.locator("#console-output")).toContainText("--Break--");
   await expect(page.locator("#console-status")).toContainText(
-    "The session was cleared",
+    "Stopped on line 4 (--Break--). The commands that had finished",
+    { timeout: 30000 },
   );
-  await expect(page.locator("#console-memory")).toHaveText(
-    "No data in memory.",
+  // clear, set obs, generate and the loop's finished generates took
+  // effect, as Break leaves them in Stata.
+  await expect(page.locator("#console-memory")).toContainText(
+    /200,000 observations, \d+ variables\./,
+  );
+  await expect(page.locator("#console-memory")).not.toContainText(
+    "1 variable.",
   );
   await expect(stop).toBeHidden();
   // The new session works.
