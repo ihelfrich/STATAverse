@@ -14,6 +14,7 @@ import { echoOf, fileEcho } from "./runtime/echo.js";
 import { parseBlocks, splitCommands } from "./runtime/dofile.js";
 import { createLogs, isLogMark } from "./console-log.js";
 import { changed } from "./runtime/data-commands.js";
+import { plainText } from "./runtime/files.js";
 
 /**
  * What ends a run that is put back after Stop at the point where Stop
@@ -94,7 +95,7 @@ export function createConsoleSession() {
   // log using writes a file in the session's folder, as save does.
   const logs = createLogs({
     has: (name) => !!session.files?.has(name),
-    text: (name) => session.files.get(name)?.text ?? "",
+    text: (name) => plainText(session.files.get(name)) ?? "",
     write: (name, text) => (session.files ??= new Map()).set(name, { text }),
     linesize: () => session.settings.linesize ?? 79,
     logtype: () => session.settings.logtype,

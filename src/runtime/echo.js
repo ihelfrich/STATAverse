@@ -48,6 +48,16 @@ export const expandTabs = (line) =>
   });
 
 /**
+ * The text of a do-file as Stata reads it: each line's tabs are the spaces
+ * to its next tab stop, so that "a<tab>b" in a command is a string of
+ * spaces, as recorded from Stata 19.
+ */
+export const tabsOut = (source) =>
+  source.includes("\t")
+    ? source.replace(/\r\n?/g, "\n").split("\n").map(expandTabs).join("\n")
+    : source;
+
+/**
  * What one physical line holds once comments are taken out, and whether the
  * command goes on to the next line (/// or an open block comment).
  */

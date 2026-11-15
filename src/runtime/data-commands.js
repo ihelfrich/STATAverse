@@ -9,7 +9,7 @@ import { count, list } from "./reports.js";
 import { applySyntax, splitAtComma } from "./syntax.js";
 import { Dataset, defineCharacteristic } from "./store.js";
 import { expandVarlist } from "./varlist.js";
-import { findFile, folderName } from "./files.js";
+import { fileMessage, findFile, folderName } from "./files.js";
 import { oldMerge } from "./merge-old.js";
 import {
   MAX_STRING_WIDTH,
@@ -268,7 +268,7 @@ function save(session, text, ctx) {
   ctx.out(
     hanging(
       session,
-      `file ${name} saved${/\.dta$/i.test(name) ? "" : " as .dta format"}`,
+      `file ${name} saved${/\.dta$/.test(name) ? "" : " as .dta format"}`,
     ),
   );
 }
@@ -304,23 +304,22 @@ function use(session, text, ctx) {
     ),
     name = fileName(form.using ?? form.anything),
     stored = files(session).get(findFile(files(session), name));
-  if (stored && notDataset(name, stored)) {
-    // Stata lets the data in memory go before it reads the file, so a file
-    // that is not a dataset leaves none.
-    if (changed(session) && !form.options.clear)
-      throw new StataError(
-        "no; dataset in memory has changed since last saved",
-        4,
-      );
-    session.data = new Dataset({ defaultType: session.data.defaultType });
-    throw notDataset(name, stored);
-  }
-  const data = load(session, name);
+  // Changed data are kept unless clear says otherwise, before the file is
+  // looked for.
   if (changed(session) && !form.options.clear)
     throw new StataError(
       "no; dataset in memory has changed since last saved",
       4,
     );
+  if (stored && notDataset(name, stored)) {
+    // Stata lets the data in memory go before it reads the whole file, so
+    // a file that is not a dataset leaves none; use varlist using reads
+    // the file's description first and keeps them.
+    if (!(form.using !== undefined && form.anything))
+      session.data = new Dataset({ defaultType: session.data.defaultType });
+    throw notDataset(name, stored);
+  }
+  const data = load(session, name);
   if (data.label)
     fold(`(${data.label})`, session.settings.linesize ?? 80).forEach(ctx.out);
   const cleared = new Dataset({ defaultType: session.data.defaultType });
@@ -451,31 +450,47 @@ export function reconcile(session, command, data, other, names, options, ctx) {
  * cross and joinby do: those of _dta and of each variable named in kept that
  * the data now have. A characteristic the data already define keeps their
  * text; notes come after the data's own, a note the data already hold for
- * the same owner left out, unless nonotes. Stata adds them one by one, so
- * each becomes the newest: the other characteristics first, then each note
- * and the count note0.
+ * the same owner left out (copies within the using file are each kept),
+ * unless nonotes. Stata adds them one by one, so each becomes the newest:
+ * the other characteristics first, then each note and the count note0.
  */
-export function bringCharacteristics(data, other, kept, { notes = true } = {}) {
+export function bringCharacteristics(
+  data,
+  other,
+  kept,
+  { notes = true, fileOrder = false } = {},
+) {
   const wanted = new Set(kept);
   for (const [owner, theirs] of other.chars ?? new Map()) {
     if (owner !== "_dta" && !(wanted.has(owner) && data.has(owner))) continue;
-    for (const [name, text] of theirs)
+    // Read from the file as it was saved, the oldest first, so that they
+    // are listed as the using data list them; merge, cross and joinby read
+    // a copy of the using data that they saved again, the newest first.
+    for (const [name, text] of fileOrder ? [...theirs].reverse() : theirs)
       if (!/^note\d+$/.test(name) && !data.chars?.get(owner)?.has(name))
         defineCharacteristic(data, owner, name, text);
     if (!notes) continue;
     const last = Number(theirs.get("note0"));
-    for (let k = 1; k <= (Number.isInteger(last) ? last : 0); k++) {
+    if (!(Number.isInteger(last) && last > 0)) continue;
+    // A note is left out when the data held it before this file came in;
+    // copies of a note within the using file are each brought in.
+    const held = new Set(
+      [...(data.chars?.get(owner) ?? new Map())]
+        .filter(([name]) => /^note[1-9]\d*$/.test(name))
+        .map(([, value]) => value),
+    );
+    let count = Number(data.chars?.get(owner)?.get("note0")) || 0;
+    for (let k = 1; k <= last; k++) {
       const text = theirs.get(`note${k}`);
-      if (text === undefined) continue;
-      const mine = data.chars?.get(owner) ?? new Map(),
-        held = [...mine].some(
-          ([name, value]) => /^note[1-9]\d*$/.test(name) && value === text,
-        );
-      if (held) continue;
-      const next = (Number(mine.get("note0")) || 0) + 1;
-      defineCharacteristic(data, owner, `note${next}`, text);
-      defineCharacteristic(data, owner, "note0", String(next));
+      if (text === undefined || held.has(text)) continue;
+      count += 1;
+      defineCharacteristic(data, owner, `note${count}`, text);
     }
+    // note0 is defined again, so it is the newest, even when every note was
+    // left out.
+    if (!count) continue;
+    data.chars?.get(owner)?.delete("note0");
+    defineCharacteristic(data, owner, "note0", String(count));
   }
 }
 /**
@@ -501,8 +516,7 @@ function usingFiles(text) {
         ? word.slice(1, -1)
         : word,
   );
-  if (!names.length || names.some((name) => !name))
-    throw invalid("invalid file specification");
+  if (!names.length) throw invalid("invalid file specification");
   return names;
 }
 
@@ -519,6 +533,8 @@ function append(session, text, ctx) {
     // cannot describe, missing or not a dataset, is "not found" by the
     // name as typed.
     others = usingFiles(m[1]).map((name) => {
+      // "" names a file that is not there.
+      if (!name) throw new StataError("file  not found", 601);
       try {
         return load(session, fileName(name));
       } catch (error) {
@@ -591,6 +607,7 @@ function append(session, text, ctx) {
     }
     bringCharacteristics(data, other, kept, {
       notes: parsed.options.notes !== false,
+      fileOrder: true,
     });
   });
   if (marker) {
@@ -643,17 +660,9 @@ function mergeResult(session, word) {
 }
 /** Words laid out as Stata's {p 0 4 2} paragraph. */
 function hanging(session, text) {
-  const width = (session.settings.linesize ?? 80) - 2,
-    lines = [];
-  let line = "";
-  for (const word of text.split(" ")) {
-    if (line.trim() && line.length + 1 + word.length > width) {
-      lines.push(line);
-      line = "    " + word;
-    } else line += (line.trim() ? " " : "") + word;
-  }
-  lines.push(line);
-  return lines.join("\n");
+  // SMCL's {p 0 4 2}: wrapped at the linesize less two, the later lines
+  // indented four columns.
+  return fileMessage(text, (session.settings.linesize ?? 80) - 2, 4);
 }
 /**
  * merge's and joinby's refusal of a key variable that is a string in one
@@ -705,7 +714,7 @@ function merge(session, text, ctx) {
     (whole, before, name) => `${before}using "${name}"`,
   );
   const parsed = session.parse(
-      `${sequential ? "" : "varlist "}using/ [, KEEPUSing(string) GENerate(name) noGENerate KEEP(string) ASSERT(string) NOREPort UPDATE REPLACE FORCE noLabel noNOTEs | SORTED]`,
+      `${sequential ? "" : "varlist "}using/ [, KEEPUSing(string) GENerate(name) noGENerate KEEP(string) ASSERT(string) NOREPort UPDATE REPLACE FORCE noLabel noNOTEs SORTED]`,
       rest,
     ),
     data = session.data,
@@ -740,13 +749,28 @@ function merge(session, text, ctx) {
     );
   if (!noMarker && data.has(marker))
     throw new StataError(`variable ${marker} already defined`, 110);
-  // Stata sorts the master data on the key before it reads the using data.
+  // Stata sorts the master data on the key before it reads the using data;
+  // with sorted, both must already be sorted on it.
+  const presorted = !sequential && !!parsed.options.sorted,
+    sortedOn = (by) => keys.every((key, k) => by?.[k] === key);
+  if (presorted && !sortedOn(data.sortedBy))
+    throw new StataError("master data not sorted", 5);
   if (!sequential) data.sort(keys);
   const other = load(session, fileName(parsed.using));
   for (const key of keys) {
-    if (!other.has(key)) throw new StataError(`variable ${key} not found`, 111);
+    if (!other.has(key))
+      throw new StataError(
+        `variable ${key} not found${presorted ? " in using data" : ""}`,
+        111,
+      );
     keyTypes(session, key, data, other);
   }
+  // A using file not sorted on the key is sorted and saved again, the
+  // master data being preserved meanwhile, which lists their
+  // characteristics in the opposite order.
+  const usingSorted = sequential || sortedOn(other.sortedBy);
+  if (presorted && !usingSorted)
+    throw new StataError("using data not sorted", 5);
   // A key may be str# but not strL, in either dataset.
   for (const key of keys) {
     const mine = data.get(key).type === "strL",
@@ -921,9 +945,12 @@ function merge(session, text, ctx) {
       valueLabel: theirs.valueLabel,
     });
   }
-  result.chars = redefinedCharacteristics(data);
+  result.chars = usingSorted
+    ? data.chars && structuredClone(data.chars)
+    : redefinedCharacteristics(data);
   bringCharacteristics(result, other, wanted, {
     notes: parsed.options.notes !== false,
+    fileOrder: usingSorted,
   });
   if (!noMarker) {
     result.generate(
@@ -2846,19 +2873,67 @@ function recode(session, text, ctx) {
 
 const quiet = () => {};
 
+const ROOT = "/stataverse";
+
+/** The working directory: /stataverse, or a folder mkdir made in it. */
+export const workingFolder = (session) =>
+  session.cwd ? `${ROOT}/${session.cwd}` : ROOT;
+
+// A path that starts outside the session's folder: /, \, ~ or a drive.
+const elsewhere = (typed) =>
+  typed !== ROOT &&
+  !typed.startsWith(`${ROOT}/`) &&
+  /^([/\\~]|[A-Za-z]:)/.test(typed);
+
 /**
- * cd: the session has one folder, /stataverse, so cd changes to it and
- * shows it, as Stata shows the folder it changes to, and to no other: a
- * folder on the student's computer is not there, and Stata's message says
- * it cannot change to it.
+ * The folder a path names, relative to /stataverse ("" for /stataverse
+ * itself), each folder on the way being one mkdir made (all but the last
+ * when last is false); null for any other, such as a folder on the
+ * student's computer or one above /stataverse.
  */
-function cd(session, text, ctx) {
+function madeFolder(session, typed, { last = true } = {}) {
+  if (elsewhere(typed)) return null;
+  const made = session.folders ?? new Set(),
+    absolute = typed === ROOT || typed.startsWith(`${ROOT}/`),
+    parts = absolute || !session.cwd ? [] : session.cwd.split("/"),
+    steps = (absolute ? typed.slice(ROOT.length) : typed)
+      .split("/")
+      .filter((part) => part && part !== ".");
+  for (const [k, part] of steps.entries()) {
+    if (part === "..") {
+      if (!parts.length) return null;
+      parts.pop();
+      continue;
+    }
+    parts.push(part);
+    if ((last || k < steps.length - 1) && !made.has(parts.join("/")))
+      return null;
+  }
+  return parts.join("/");
+}
+
+/** A file or folder name as typed: one word, or one in quotes. */
+function pathWord(text) {
   const typed = text.trim(),
     m = /^(?:`"([^"]*)"'|"([^"]*)"|([^\s",]+))$/.exec(typed);
   if (typed && !m) throw invalid();
-  const folder = m ? (m[1] ?? m[2] ?? m[3]) : "";
-  if (["", ".", "./", "/stataverse", "/stataverse/"].includes(folder)) {
-    ctx.out("/stataverse");
+  return m ? (m[1] ?? m[2] ?? m[3]) : "";
+}
+
+/**
+ * cd: the session's folder is /stataverse, and cd changes to it, to a
+ * folder mkdir made in it and back with .., showing the folder as Stata
+ * shows the one it changes to. Its files stay in the one folder whichever
+ * folder cd names. A folder on the student's computer is not there, and
+ * Stata's message says it cannot change to it.
+ */
+function cd(session, text, ctx) {
+  const folder = pathWord(text),
+    // cd alone changes to the home folder, which is /stataverse here.
+    target = folder ? madeFolder(session, folder) : "";
+  if (target !== null) {
+    session.cwd = target;
+    ctx.out(workingFolder(session));
     return;
   }
   throw new StataError(
@@ -2866,6 +2941,31 @@ function cd(session, text, ctx) {
     170,
     "In the browser every file is in one folder, /stataverse: the files added in Data. Leave the cd line out, and name files without a folder.",
   );
+}
+
+/**
+ * mkdir: a folder in the session's folder, remembered so that cd can
+ * change to it. As in Stata, the folder must not be there already and the
+ * one it is made in must be. A folder elsewhere, on the student's computer,
+ * is accepted so that do-files written for Stata keep running.
+ */
+function mkdir(session, text) {
+  const [head, optionText] = splitAtComma(text);
+  for (const option of (optionText ?? "").trim().split(/\s+/).filter(Boolean))
+    if (!/^pub(l(ic?)?)?$/.test(option))
+      throw new StataError(`option ${option} not allowed`, 198);
+  const typed = pathWord(head);
+  if (!typed) throw invalid();
+  if (elsewhere(typed)) return;
+  const folder = madeFolder(session, typed, { last: false });
+  if (
+    folder === null ||
+    folder === "" ||
+    (session.folders ?? new Set()).has(folder) ||
+    files(session).has(folder)
+  )
+    throw new StataError(`could not create directory ${typed}`, 693);
+  (session.folders ??= new Set()).add(folder);
 }
 
 /**
@@ -2935,10 +3035,8 @@ export const DATA_COMMANDS = [
   { name: "encode", minimum: 2, run: encode },
   { name: "decode", minimum: 3, run: decode },
   { name: "recode", minimum: 6, run: recode },
-  // A browser session has one folder; mkdir is accepted so that do-files
-  // written for Stata keep running. The Console keeps a log (session.log)
-  // the student can download.
-  { name: "mkdir", minimum: 5, run: quiet },
+  // The Console keeps a log (session.log) the student can download.
+  { name: "mkdir", minimum: 5, run: mkdir },
   { name: "cd", minimum: 2, run: cd },
   {
     name: "log",
@@ -2949,7 +3047,7 @@ export const DATA_COMMANDS = [
   {
     name: "pwd",
     minimum: 3,
-    run: (session, text, ctx) => ctx.out("/stataverse"),
+    run: (session, text, ctx) => ctx.out(workingFolder(session)),
   },
   { name: "more", minimum: 4, run: quiet },
   { name: "pause", minimum: 5, run: quiet },

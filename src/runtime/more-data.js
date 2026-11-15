@@ -12,9 +12,9 @@ import {
 } from "./data-commands.js";
 import { INSPECT_COMMANDS } from "./data-inspect.js";
 import { parseBlocks, splitCommands } from "./dofile.js";
-import { fileEcho } from "./echo.js";
+import { fileEcho, tabsOut } from "./echo.js";
 import { splitAtComma } from "./syntax.js";
-import { findFile } from "./files.js";
+import { findFile, plainText } from "./files.js";
 import { MISSING, isStringType } from "./values.js";
 
 const RANK = ["byte", "int", "long", "float", "double"];
@@ -108,7 +108,7 @@ function doFile(mode) {
       start = output.length,
       { sourceLines, loopDepth, inProgram, folding } = session,
       quietDepth = session.quietDepth ?? 0;
-    session.sourceLines = stored.text.replace(/\r\n?/g, "\n").split("\n");
+    session.sourceLines = plainText(stored).replace(/\r\n?/g, "\n").split("\n");
     session.loopDepth = 0;
     // A do-file run from a program or a loop is a file of its own: its
     // loops are echoed and its exit ends it, as at the top of a file.
@@ -124,7 +124,7 @@ function doFile(mode) {
     // its lines as the caller's own.
     if (mode !== "include") session.enterScope();
     try {
-      const nodes = parseBlocks(splitCommands(stored.text)),
+      const nodes = parseBlocks(splitCommands(tabsOut(plainText(stored)))),
         lines = session.sourceLines,
         file = leads || nested ? fileEcho(lines) : null;
       for (const node of nodes) {

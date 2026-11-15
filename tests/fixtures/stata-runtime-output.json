@@ -184878,6 +184878,3616 @@
       ]
     },
     {
+      "id": "recheck-files-merge-notes-chars",
+      "source": "clear\ninput id x\n1 10\n2 20\n3 30\nend\nchar x[unit] kg\nchar _dta[foo] master\nnotes x: master note\nnotes x: shared note\nnotes: master dta note\nsave rfnm, replace\nclear\ninput id x y\n1 11 5\n2 21 6\n4 41 7\nend\nchar x[unit] lb\nchar x[other] u\nchar y[unit] cm\nchar _dta[foo] using\nchar _dta[bar] using\nnotes x: using note\nnotes x: shared note\nnotes y: y note\nnotes: using dta note\nnotes id: id using note\nsave rfnu, replace\nuse rfnm, clear\nchar list\nmerge 1:1 id using rfnu, nogenerate\nnotes\nchar list\ndescribe id x y\nuse rfnm, clear\nmerge 1:1 id using rfnu, nogenerate nonotes\nnotes\nchar list\nuse rfnm, clear\nmerge 1:1 id using rfnu, nogenerate keepusing(x)\nchar list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x",
+          "lines": [
+            "            id          x",
+            "  1. 1 10",
+            "  2. 2 20",
+            "  3. 3 30",
+            "  4. end"
+          ]
+        },
+        { "command": "char x[unit] kg", "lines": [] },
+        { "command": "char _dta[foo] master", "lines": [] },
+        { "command": "notes x: master note", "lines": [] },
+        { "command": "notes x: shared note", "lines": [] },
+        { "command": "notes: master dta note", "lines": [] },
+        {
+          "command": "save rfnm, replace",
+          "lines": ["(file rfnm.dta not found)", "file rfnm.dta saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x y",
+          "lines": [
+            "            id          x          y",
+            "  1. 1 11 5",
+            "  2. 2 21 6",
+            "  3. 4 41 7",
+            "  4. end"
+          ]
+        },
+        { "command": "char x[unit] lb", "lines": [] },
+        { "command": "char x[other] u", "lines": [] },
+        { "command": "char y[unit] cm", "lines": [] },
+        { "command": "char _dta[foo] using", "lines": [] },
+        { "command": "char _dta[bar] using", "lines": [] },
+        { "command": "notes x: using note", "lines": [] },
+        { "command": "notes x: shared note", "lines": [] },
+        { "command": "notes y: y note", "lines": [] },
+        { "command": "notes: using dta note", "lines": [] },
+        { "command": "notes id: id using note", "lines": [] },
+        {
+          "command": "save rfnu, replace",
+          "lines": ["(file rfnu.dta not found)", "file rfnu.dta saved"]
+        },
+        { "command": "use rfnm, clear", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[foo]:                  master",
+            "  _dta[note0]:                1",
+            "  _dta[note1]:                master dta note",
+            "  x[unit]:                    kg",
+            "  x[note1]:                   master note",
+            "  x[note0]:                   2",
+            "  x[note2]:                   shared note"
+          ]
+        },
+        {
+          "command": "merge 1:1 id using rfnu, nogenerate",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         1",
+            "        from using                          1",
+            "",
+            "    Matched                                 2",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  master dta note",
+            "  2.  using dta note",
+            "",
+            "id:",
+            "  1.  id using note",
+            "",
+            "x:",
+            "  1.  master note",
+            "  2.  shared note",
+            "  3.  using note",
+            "",
+            "y:",
+            "  1.  y note"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                2",
+            "  _dta[note2]:                using dta note",
+            "  _dta[bar]:                  using",
+            "  _dta[note1]:                master dta note",
+            "  _dta[foo]:                  master",
+            "  id[note0]:                  1",
+            "  id[note1]:                  id using note",
+            "  x[note0]:                   3",
+            "  x[note3]:                   using note",
+            "  x[other]:                   u",
+            "  x[note2]:                   shared note",
+            "  x[note1]:                   master note",
+            "  x[unit]:                    kg",
+            "  y[note0]:                   1",
+            "  y[note1]:                   y note",
+            "  y[unit]:                    cm"
+          ]
+        },
+        {
+          "command": "describe id x y",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "id              float   %9.0g               *",
+            "x               float   %9.0g               *",
+            "y               float   %9.0g               *"
+          ]
+        },
+        { "command": "use rfnm, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using rfnu, nogenerate nonotes",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         1",
+            "        from using                          1",
+            "",
+            "    Matched                                 2",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  master dta note",
+            "",
+            "x:",
+            "  1.  master note",
+            "  2.  shared note"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[bar]:                  using",
+            "  _dta[note1]:                master dta note",
+            "  _dta[note0]:                1",
+            "  _dta[foo]:                  master",
+            "  x[other]:                   u",
+            "  x[note2]:                   shared note",
+            "  x[note0]:                   2",
+            "  x[note1]:                   master note",
+            "  x[unit]:                    kg",
+            "  y[unit]:                    cm"
+          ]
+        },
+        { "command": "use rfnm, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using rfnu, nogenerate keepusing(x)",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         1",
+            "        from using                          1",
+            "",
+            "    Matched                                 2",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                2",
+            "  _dta[note2]:                using dta note",
+            "  _dta[bar]:                  using",
+            "  _dta[note1]:                master dta note",
+            "  _dta[foo]:                  master",
+            "  id[note0]:                  1",
+            "  id[note1]:                  id using note",
+            "  x[note0]:                   3",
+            "  x[note3]:                   using note",
+            "  x[other]:                   u",
+            "  x[note2]:                   shared note",
+            "  x[note1]:                   master note",
+            "  x[unit]:                    kg"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files-append-cross-joinby-notes",
+      "source": "clear\ninput id x z\n1 10 0\n2 20 0\nend\nchar x[unit] kg\nchar z[a] 1\nnotes x: master note\nnotes: master dta note\nsave rfam, replace\nclear\ninput id x y\n1 11 5\n3 31 7\nend\nchar x[unit] lb\nchar x[other] u\nchar y[unit] cm\nnotes x: using note\nnotes x: master note\nnotes y: y note\nnotes: using dta note\nsave rfau, replace\nuse rfam, clear\nappend using rfau\nnotes\nchar list\nuse rfam, clear\nappend using rfau rfau, generate(src)\nnotes\nuse rfam, clear\nappend using rfau, nonotes\nnotes\nchar list\nuse rfam, clear\ndrop x\ncross using rfau\nnotes\nchar list\nuse rfam, clear\njoinby id using rfau, unmatched(both)\nnotes\nchar list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x z",
+          "lines": [
+            "            id          x          z",
+            "  1. 1 10 0",
+            "  2. 2 20 0",
+            "  3. end"
+          ]
+        },
+        { "command": "char x[unit] kg", "lines": [] },
+        { "command": "char z[a] 1", "lines": [] },
+        { "command": "notes x: master note", "lines": [] },
+        { "command": "notes: master dta note", "lines": [] },
+        {
+          "command": "save rfam, replace",
+          "lines": ["(file rfam.dta not found)", "file rfam.dta saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x y",
+          "lines": [
+            "            id          x          y",
+            "  1. 1 11 5",
+            "  2. 3 31 7",
+            "  3. end"
+          ]
+        },
+        { "command": "char x[unit] lb", "lines": [] },
+        { "command": "char x[other] u", "lines": [] },
+        { "command": "char y[unit] cm", "lines": [] },
+        { "command": "notes x: using note", "lines": [] },
+        { "command": "notes x: master note", "lines": [] },
+        { "command": "notes y: y note", "lines": [] },
+        { "command": "notes: using dta note", "lines": [] },
+        {
+          "command": "save rfau, replace",
+          "lines": ["(file rfau.dta not found)", "file rfau.dta saved"]
+        },
+        { "command": "use rfam, clear", "lines": [] },
+        { "command": "append using rfau", "lines": [] },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  master dta note",
+            "  2.  using dta note",
+            "",
+            "x:",
+            "  1.  master note",
+            "  2.  using note",
+            "",
+            "y:",
+            "  1.  y note"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                2",
+            "  _dta[note2]:                using dta note",
+            "  _dta[note1]:                master dta note",
+            "  x[note0]:                   2",
+            "  x[note2]:                   using note",
+            "  x[other]:                   u",
+            "  x[unit]:                    kg",
+            "  x[note1]:                   master note",
+            "  z[a]:                       1",
+            "  y[note0]:                   1",
+            "  y[note1]:                   y note",
+            "  y[unit]:                    cm"
+          ]
+        },
+        { "command": "use rfam, clear", "lines": [] },
+        { "command": "append using rfau rfau, generate(src)", "lines": [] },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  master dta note",
+            "  2.  using dta note",
+            "",
+            "x:",
+            "  1.  master note",
+            "  2.  using note",
+            "",
+            "y:",
+            "  1.  y note"
+          ]
+        },
+        { "command": "use rfam, clear", "lines": [] },
+        { "command": "append using rfau, nonotes", "lines": [] },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  master dta note",
+            "",
+            "x:",
+            "  1.  master note"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                1",
+            "  _dta[note1]:                master dta note",
+            "  x[other]:                   u",
+            "  x[unit]:                    kg",
+            "  x[note0]:                   1",
+            "  x[note1]:                   master note",
+            "  z[a]:                       1",
+            "  y[unit]:                    cm"
+          ]
+        },
+        { "command": "use rfam, clear", "lines": [] },
+        { "command": "drop x", "lines": [] },
+        { "command": "cross using rfau", "lines": [] },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  master dta note",
+            "  2.  using dta note",
+            "",
+            "x:",
+            "  1.  using note",
+            "  2.  master note",
+            "",
+            "y:",
+            "  1.  y note"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                2",
+            "  _dta[note2]:                using dta note",
+            "  _dta[note1]:                master dta note",
+            "  z[a]:                       1",
+            "  x[note0]:                   2",
+            "  x[note2]:                   master note",
+            "  x[note1]:                   using note",
+            "  x[other]:                   u",
+            "  x[unit]:                    lb",
+            "  y[note0]:                   1",
+            "  y[note1]:                   y note",
+            "  y[unit]:                    cm"
+          ]
+        },
+        { "command": "use rfam, clear", "lines": [] },
+        { "command": "joinby id using rfau, unmatched(both)", "lines": [] },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  master dta note",
+            "  2.  using dta note",
+            "",
+            "x:",
+            "  1.  master note",
+            "  2.  using note",
+            "",
+            "y:",
+            "  1.  y note"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                2",
+            "  _dta[note2]:                using dta note",
+            "  _dta[note1]:                master dta note",
+            "  x[note0]:                   2",
+            "  x[note2]:                   using note",
+            "  x[other]:                   u",
+            "  x[note1]:                   master note",
+            "  x[unit]:                    kg",
+            "  z[a]:                       1",
+            "  y[note0]:                   1",
+            "  y[note1]:                   y note",
+            "  y[unit]:                    cm"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files-char-order-save-use",
+      "source": "clear\nset obs 1\ngenerate z = 1\nchar z[a] 1\nchar z[b] 2\nnotes z: first\nnotes z: second\nchar _dta[q] 3\nchar list\nsave rfco, replace\nuse rfco, clear\nchar list\nsave rfco, replace\nuse rfco, clear\nchar list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "generate z = 1", "lines": [] },
+        { "command": "char z[a] 1", "lines": [] },
+        { "command": "char z[b] 2", "lines": [] },
+        { "command": "notes z: first", "lines": [] },
+        { "command": "notes z: second", "lines": [] },
+        { "command": "char _dta[q] 3", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[q]:                    3",
+            "  z[note2]:                   second",
+            "  z[note0]:                   2",
+            "  z[note1]:                   first",
+            "  z[b]:                       2",
+            "  z[a]:                       1"
+          ]
+        },
+        {
+          "command": "save rfco, replace",
+          "lines": ["(file rfco.dta not found)", "file rfco.dta saved"]
+        },
+        { "command": "use rfco, clear", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[q]:                    3",
+            "  z[a]:                       1",
+            "  z[b]:                       2",
+            "  z[note1]:                   first",
+            "  z[note0]:                   2",
+            "  z[note2]:                   second"
+          ]
+        },
+        { "command": "save rfco, replace", "lines": ["file rfco.dta saved"] },
+        { "command": "use rfco, clear", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[q]:                    3",
+            "  z[note2]:                   second",
+            "  z[note0]:                   2",
+            "  z[note1]:                   first",
+            "  z[b]:                       2",
+            "  z[a]:                       1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files-merge-messages",
+      "source": "set linesize 79\nclear\ninput id str3 s x\n1 \"a\" 5\n2 \"b\" 6\nend\nsave rfmm, replace\nclear\ninput str2 id xa xb\n\"1\" 3 4\nend\nsave rfms, replace\nclear\ninput id xa xb\n1 3 4\nend\nsave rfmn, replace\nuse rfmm, clear\ncapture noisily merge 1:1 id using rfms\ndisplay _rc\ncapture noisily merge 1:1 id using rfmn, keepusing(nothere)\ndisplay _rc\ncapture noisily merge 1:1 id using rfmn, keepusing(x)\ndisplay _rc\ncapture noisily merge 1:1 id using rfmn, keepusing(xa q*)\ndisplay _rc\ncapture noisily merge 1:1 id using rfmn, keepusing(x*)\ndisplay _rc\ncapture noisily append using rfnosuch\ndisplay _rc\ncapture noisily append using \"rf no such.dta\"\ndisplay _rc\ncapture noisily append using rfmn rfnosuch2\ndisplay _rc\ndisplay _N\nuse rfms, clear\ncapture noisily merge 1:1 id using rfmm\ndisplay _rc\ncapture noisily joinby id using rfmm\ndisplay _rc\ndisplay _N\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id str3 s x",
+          "lines": [
+            "            id          s          x",
+            "  1. 1 \"a\" 5",
+            "  2. 2 \"b\" 6",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "save rfmm, replace",
+          "lines": ["(file rfmm.dta not found)", "file rfmm.dta saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str2 id xa xb",
+          "lines": [
+            "            id         xa         xb",
+            "  1. \"1\" 3 4",
+            "  2. end"
+          ]
+        },
+        {
+          "command": "save rfms, replace",
+          "lines": ["(file rfms.dta not found)", "file rfms.dta saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id xa xb",
+          "lines": [
+            "            id         xa         xb",
+            "  1. 1 3 4",
+            "  2. end"
+          ]
+        },
+        {
+          "command": "save rfmn, replace",
+          "lines": ["(file rfmn.dta not found)", "file rfmn.dta saved"]
+        },
+        { "command": "use rfmm, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using rfms",
+          "lines": [
+            "key variable id is float in master but str2 in using data",
+            "    Each key variable (on which observations are matched) must be of the same",
+            "    generic type in the master and using datasets.  Same generic type means",
+            "    both numeric or both string."
+          ]
+        },
+        { "command": "display _rc", "lines": ["106"] },
+        {
+          "command": "capture noisily merge 1:1 id using rfmn, keepusing(nothere)",
+          "lines": [
+            "variable nothere not found",
+            "    You specified the keep(varlist) option.  The above error was the result",
+            "    of parsing the list of variables you supplied against the using data."
+          ]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily merge 1:1 id using rfmn, keepusing(x)",
+          "lines": [
+            "x ambiguous abbreviation",
+            "    You specified the keep(varlist) option.  The above error was the result",
+            "    of parsing the list of variables you supplied against the using data."
+          ]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily merge 1:1 id using rfmn, keepusing(xa q*)",
+          "lines": [
+            "variable q* not found",
+            "    You specified the keep(varlist) option.  The above error was the result",
+            "    of parsing the list of variables you supplied against the using data."
+          ]
+        },
+        { "command": "display _rc", "lines": ["111"] },
+        {
+          "command": "capture noisily merge 1:1 id using rfmn, keepusing(x*)",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             1",
+            "        from master                         1  (_merge==1)",
+            "        from using                          0  (_merge==2)",
+            "",
+            "    Matched                                 1  (_merge==3)",
+            "    -----------------------------------------"
+          ]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily append using rfnosuch",
+          "lines": ["file rfnosuch not found"]
+        },
+        { "command": "display _rc", "lines": ["601"] },
+        {
+          "command": "capture noisily append using \"rf no such.dta\"",
+          "lines": ["file rf no such.dta not found"]
+        },
+        { "command": "display _rc", "lines": ["601"] },
+        {
+          "command": "capture noisily append using rfmn rfnosuch2",
+          "lines": ["file rfnosuch2 not found"]
+        },
+        { "command": "display _rc", "lines": ["601"] },
+        { "command": "display _N", "lines": ["2"] },
+        { "command": "use rfms, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using rfmm",
+          "lines": [
+            "key variable id is str2 in master but float in using data",
+            "    Each key variable (on which observations are matched) must be of the same",
+            "    generic type in the master and using datasets.  Same generic type means",
+            "    both numeric or both string."
+          ]
+        },
+        { "command": "display _rc", "lines": ["106"] },
+        {
+          "command": "capture noisily joinby id using rfmm",
+          "lines": [
+            "key variable id is str2 in master but float in using data",
+            "    Each key variable (on which observations are matched) must be of the same",
+            "    generic type in the master and using datasets.  Same generic type means",
+            "    both numeric or both string."
+          ]
+        },
+        { "command": "display _rc", "lines": ["106"] },
+        { "command": "display _N", "lines": ["1"] },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "recheck-files-not-stata-format",
+      "source": "clear\nset obs 2\ngenerate id = _n\ngenerate v = 10 * _n\nexport delimited using rfnsf.csv, replace\nsave rfnsf, replace\ncapture noisily merge 1:1 id using rfnsf.csv\ndisplay _rc \" \" _N\ncapture noisily append using rfnsf.csv\ndisplay _rc \" \" _N\ncapture noisily describe using rfnsf.csv\ndisplay _rc\ncapture noisily use rfnsf.csv\ndisplay _rc \" \" _N\ncapture noisily use rfnsf.csv, clear\ndisplay _rc \" \" _N\ncapture noisily use rfnosuch, clear\ndisplay _rc \" \" _N\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        { "command": "generate v = 10 * _n", "lines": [] },
+        {
+          "command": "export delimited using rfnsf.csv, replace",
+          "lines": ["(file rfnsf.csv not found)", "file rfnsf.csv saved"]
+        },
+        {
+          "command": "save rfnsf, replace",
+          "lines": ["(file rfnsf.dta not found)", "file rfnsf.dta saved"]
+        },
+        {
+          "command": "capture noisily merge 1:1 id using rfnsf.csv",
+          "lines": ["file rfnsf.csv not Stata format"]
+        },
+        { "command": "display _rc \" \" _N", "lines": ["610 2"] },
+        {
+          "command": "capture noisily append using rfnsf.csv",
+          "lines": ["file rfnsf.csv not found"]
+        },
+        { "command": "display _rc \" \" _N", "lines": ["601 2"] },
+        {
+          "command": "capture noisily describe using rfnsf.csv",
+          "lines": ["file rfnsf.csv not Stata format"]
+        },
+        { "command": "display _rc", "lines": ["610"] },
+        {
+          "command": "capture noisily use rfnsf.csv",
+          "lines": ["file rfnsf.csv not Stata format"]
+        },
+        { "command": "display _rc \" \" _N", "lines": ["610 0"] },
+        {
+          "command": "capture noisily use rfnsf.csv, clear",
+          "lines": ["file rfnsf.csv not Stata format"]
+        },
+        { "command": "display _rc \" \" _N", "lines": ["610 0"] },
+        {
+          "command": "capture noisily use rfnosuch, clear",
+          "lines": ["file rfnosuch.dta not found"]
+        },
+        { "command": "display _rc \" \" _N", "lines": ["601 0"] }
+      ]
+    },
+    {
+      "id": "recheck-files-dot-slash",
+      "source": "clear\nset obs 3\ngenerate id = _n\nsave \"./rfdot\", replace\nexport delimited using ./rfdot.csv, replace\nuse ./rfdot, clear\ndescribe using ./rfdot, simple\nimport delimited using ./rfdot.csv, clear\nuse \"./rfdot.dta\", clear\nmerge 1:1 id using ./rfdot, nogenerate\nappend using ./rfdot\ncount\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "save \"./rfdot\", replace",
+          "lines": ["(file ./rfdot.dta not found)", "file ./rfdot.dta saved"]
+        },
+        {
+          "command": "export delimited using ./rfdot.csv, replace",
+          "lines": ["(file ./rfdot.csv not found)", "file ./rfdot.csv saved"]
+        },
+        { "command": "use ./rfdot, clear", "lines": [] },
+        { "command": "describe using ./rfdot, simple", "lines": ["id"] },
+        {
+          "command": "import delimited using ./rfdot.csv, clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-1)",
+            "(1 var, 3 obs)"
+          ]
+        },
+        { "command": "use \"./rfdot.dta\", clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using ./rfdot, nogenerate",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 3",
+            "    -----------------------------------------"
+          ]
+        },
+        { "command": "append using ./rfdot", "lines": [] },
+        { "command": "count", "lines": ["  6"] }
+      ]
+    },
+    {
+      "id": "recheck-files-save-other-extension",
+      "source": "set linesize 79\nclear\nset obs 2\ngenerate x = _n\nsave rfother.dat\nuse rfother.dat, clear\ncapture noisily save rfother.dat\nsave rfother.dat, replace\nsave rfdtaname.dta\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        {
+          "command": "save rfother.dat",
+          "lines": ["file rfother.dat saved as .dta format"]
+        },
+        { "command": "use rfother.dat, clear", "lines": [] },
+        {
+          "command": "capture noisily save rfother.dat",
+          "lines": ["file rfother.dat already exists"]
+        },
+        {
+          "command": "save rfother.dat, replace",
+          "lines": ["file rfother.dat saved as .dta format"]
+        },
+        {
+          "command": "save rfdtaname.dta",
+          "lines": ["file rfdtaname.dta saved"]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "recheck-files-nobind",
+      "source": "clear\ninput id str20 note\n1 `\"say \"hi\"\"'\n2 `\"\"\"'\n3 `\"a,b\"'\nend\nexport delimited using rfnob.csv, replace quote\nimport delimited using rfnob.csv, bindquotes(nobind) clear\nlist\nimport delimited using rfnob.csv, bindquotes(nobind) stripquotes(no) clear\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id str20 note",
+          "lines": [
+            "            id                  note",
+            "  1. 1 `\"say \"hi\"\"'",
+            "  2. 2 `\"\"\"'",
+            "  3. 3 `\"a,b\"'",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using rfnob.csv, replace quote",
+          "lines": ["(file rfnob.csv not found)", "file rfnob.csv saved"]
+        },
+        {
+          "command": "import delimited using rfnob.csv, bindquotes(nobind) clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "(3 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------------------+",
+            "     | id        note   v3 |",
+            "     |---------------------|",
+            "  1. |  1   \"say \"hi\"      |",
+            "  2. |  2           \"      |",
+            "  3. |  3          \"a   b\" |",
+            "     +---------------------+"
+          ]
+        },
+        {
+          "command": "import delimited using rfnob.csv, bindquotes(nobind) stripquotes(no) clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "(3 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------------+",
+            "     | id           note   v3 |",
+            "     |------------------------|",
+            "  1. |  1   \"say \"\"hi\"\"\"      |",
+            "  2. |  2           \"\"\"\"      |",
+            "  3. |  3             \"a   b\" |",
+            "     +------------------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files-ds-utf8",
+      "source": "clear\nset obs 1\ngenerate a = 1\ngenerate b = 1\ngenerate école = 1\ngenerate c = 1\nds\ngenerate ééééé = 1\nds\nds, skip(1)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "generate a = 1", "lines": [] },
+        { "command": "generate b = 1", "lines": [] },
+        { "command": "generate école = 1", "lines": [] },
+        { "command": "generate c = 1", "lines": [] },
+        { "command": "ds", "lines": ["a       b       école   c"] },
+        { "command": "generate ééééé = 1", "lines": [] },
+        {
+          "command": "ds",
+          "lines": ["a           b           école       c           ééééé"]
+        },
+        {
+          "command": "ds, skip(1)",
+          "lines": ["a          b          école      c          ééééé"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files-numericcols-text",
+      "source": "clear\ninput str6 p str6 q str6 r str6 s str6 t str6 u str6 v\n\"1\" \"1\" \"1\" \"1\" \"1\" \"1.5\" \"300\"\n\"x\" \"ab\" \"abc\" \"abcdef\" \"NA\" \"x\" \"abcdef\"\n\"\" \"1.5\" \"100000\" \"\" \"300\" \"ab\" \"1.5\"\nend\nexport delimited using rfnum.csv, novarnames replace\nimport delimited using rfnum.csv, numericcols(_all) clear\ndescribe\nlist\nimport delimited using rfnum.csv, numericcols(_all) varnames(nonames) clear\ndescribe\nimport delimited using rfnum.csv, numericcols(2 3) clear\ndescribe\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str6 p str6 q str6 r str6 s str6 t str6 u str6 v",
+          "lines": [
+            "             p          q          r          s          t          u          v",
+            "  1. \"1\" \"1\" \"1\" \"1\" \"1\" \"1.5\" \"300\"",
+            "  2. \"x\" \"ab\" \"abc\" \"abcdef\" \"NA\" \"x\" \"abcdef\"",
+            "  3. \"\" \"1.5\" \"100000\" \"\" \"300\" \"ab\" \"1.5\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using rfnum.csv, novarnames replace",
+          "lines": ["(file rfnum.csv not found)", "file rfnum.csv saved"]
+        },
+        {
+          "command": "import delimited using rfnum.csv, numericcols(_all) clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "(7 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             3",
+            "    Variables:             7",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              byte    %8.0g",
+            "v2              double  %12.0g",
+            "v3              long    %8.0g",
+            "v4              byte    %8.0g",
+            "v5              long    %12.0g",
+            "v6              float   %9.0g",
+            "v7              float   %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------------------------------+",
+            "     | v1    v2       v3   v4    v5    v6    v7 |",
+            "     |------------------------------------------|",
+            "  1. |  1     1        1    1     1   1.5   300 |",
+            "  2. |  .     .        .    .     .     .     . |",
+            "  3. |  .   1.5   100000    .   300     .   1.5 |",
+            "     +------------------------------------------+"
+          ]
+        },
+        {
+          "command": "import delimited using rfnum.csv, numericcols(_all) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "(7 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             3",
+            "    Variables:             7",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              byte    %8.0g",
+            "v2              double  %12.0g",
+            "v3              long    %8.0g",
+            "v4              byte    %8.0g",
+            "v5              long    %12.0g",
+            "v6              float   %9.0g",
+            "v7              float   %8.0g",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "import delimited using rfnum.csv, numericcols(2 3) clear",
+          "lines": [
+            "(encoding automatically selected: ISO-8859-2)",
+            "(7 vars, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe",
+          "lines": [
+            "Contains data",
+            " Observations:             3",
+            "    Variables:             7",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              str1    %9s",
+            "v2              double  %12.0g",
+            "v3              long    %8.0g",
+            "v4              str6    %9s",
+            "v5              str3    %9s",
+            "v6              str3    %9s",
+            "v7              str6    %9s",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files-charset-29-bytes",
+      "source": "clear\ninput Alpha Beta str1 Gamma\n1 2 \"x\"\n3 4 \"y\"\nend\nexport delimited using rfsemi.csv, delimiter(\";\") replace\nimport delimited using rfsemi.csv, clear\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input Alpha Beta str1 Gamma",
+          "lines": [
+            "         Alpha       Beta      Gamma",
+            "  1. 1 2 \"x\"",
+            "  2. 3 4 \"y\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "export delimited using rfsemi.csv, delimiter(\";\") replace",
+          "lines": ["(file rfsemi.csv not found)", "file rfsemi.csv saved"]
+        },
+        {
+          "command": "import delimited using rfsemi.csv, clear",
+          "lines": [
+            "(encoding automatically selected: UTF-16LE)",
+            "(1 var, 0 obs)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files-list-tab",
+      "source": "clear\nset obs 2\ngenerate s = \"id\" + char(9) + \"name\"\nreplace s = \"a\" + char(9) + \"b\" + char(9) + \"c\" in 2\nlist\nlist, clean noobs\nlist, table divider\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate s = \"id\" + char(9) + \"name\"", "lines": [] },
+        {
+          "command": "replace s = \"a\" + char(9) + \"b\" + char(9) + \"c\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +---------+",
+            "     |       s |",
+            "     |---------|",
+            "  1. | id       name |",
+            "  2. |   a      b       c |",
+            "     +---------+"
+          ]
+        },
+        {
+          "command": "list, clean noobs",
+          "lines": ["          s", "    id  name", "      a b       c"]
+        },
+        {
+          "command": "list, table divider",
+          "lines": [
+            "     +---------+",
+            "     |       s |",
+            "     |---------|",
+            "  1. | id       name |",
+            "  2. |   a      b       c |",
+            "     +---------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files-cd",
+      "source": "capture noisily cd \"/Users/student/Dropbox/ECON400\"\ndisplay _rc\ncapture noisily cd C:\\Users\\me\\Documents\ncapture noisily cd a b\ndisplay _rc\n",
+      "commands": [
+        {
+          "command": "capture noisily cd \"/Users/student/Dropbox/ECON400\"",
+          "lines": ["unable to change to /Users/student/Dropbox/ECON400"]
+        },
+        { "command": "display _rc", "lines": ["170"] },
+        {
+          "command": "capture noisily cd C:\\Users\\me\\Documents",
+          "lines": ["unable to change to C:\\Users\\me\\Documents"]
+        },
+        { "command": "capture noisily cd a b", "lines": ["invalid syntax"] },
+        { "command": "display _rc", "lines": ["198"] }
+      ]
+    },
+    {
+      "id": "recheck-files2-merge-repeated-notes",
+      "source": "* using: shared var x with chars, var z, notes incl. duplicates\nclear\ninput id x z\n1 10 5\n2 20 6\n3 30 7\nend\nchar x[unit] grams\nchar x[src] using\nchar z[unit] m\nchar id[keyc] usingkey\nnotes x: shared note\nnotes x: using x note\nnotes x: using x note\nnotes z: z note\nnotes: using dta\nnotes: common dta\nchar _dta[who] usingdta\nsave r2fmu, replace\n* master\nclear\ninput id x w\n1 1 0\n2 2 0\n4 4 1\nend\nchar x[unit] kg\nchar w[unit] cm\nchar id[keyc] masterkey\nnotes x: shared note\nnotes x: second master\nnotes x: third master\nnotes drop x in 2\nnotes: common dta\nchar _dta[who] masterdta\nsave r2fmm, replace\nmerge 1:1 id using r2fmu\nchar list\nnotes\ncount\n* update replace\nuse r2fmm, clear\nmerge 1:1 id using r2fmu, update replace nogen\nchar list x[]\nnotes x\n* keepusing excludes z\nuse r2fmm, clear\nmerge 1:1 id using r2fmu, keepusing(x) nogen\nchar list\n* nonotes\nuse r2fmm, clear\nmerge 1:1 id using r2fmu, nonotes nogen\nnotes\nchar list _dta[]\n* m:1\nuse r2fmm, clear\nmerge m:1 id using r2fmu, nogen\nnotes\n",
+      "commands": [
+        {
+          "command": "* using: shared var x with chars, var z, notes incl. duplicates",
+          "lines": []
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x z",
+          "lines": [
+            "            id          x          z",
+            "  1. 1 10 5",
+            "  2. 2 20 6",
+            "  3. 3 30 7",
+            "  4. end"
+          ]
+        },
+        { "command": "char x[unit] grams", "lines": [] },
+        { "command": "char x[src] using", "lines": [] },
+        { "command": "char z[unit] m", "lines": [] },
+        { "command": "char id[keyc] usingkey", "lines": [] },
+        { "command": "notes x: shared note", "lines": [] },
+        { "command": "notes x: using x note", "lines": [] },
+        { "command": "notes x: using x note", "lines": [] },
+        { "command": "notes z: z note", "lines": [] },
+        { "command": "notes: using dta", "lines": [] },
+        { "command": "notes: common dta", "lines": [] },
+        { "command": "char _dta[who] usingdta", "lines": [] },
+        {
+          "command": "save r2fmu, replace",
+          "lines": ["(file r2fmu.dta not found)", "file r2fmu.dta saved"]
+        },
+        { "command": "* master", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x w",
+          "lines": [
+            "            id          x          w",
+            "  1. 1 1 0",
+            "  2. 2 2 0",
+            "  3. 4 4 1",
+            "  4. end"
+          ]
+        },
+        { "command": "char x[unit] kg", "lines": [] },
+        { "command": "char w[unit] cm", "lines": [] },
+        { "command": "char id[keyc] masterkey", "lines": [] },
+        { "command": "notes x: shared note", "lines": [] },
+        { "command": "notes x: second master", "lines": [] },
+        { "command": "notes x: third master", "lines": [] },
+        { "command": "notes drop x in 2", "lines": ["  (1 note dropped)"] },
+        { "command": "notes: common dta", "lines": [] },
+        { "command": "char _dta[who] masterdta", "lines": [] },
+        {
+          "command": "save r2fmm, replace",
+          "lines": ["(file r2fmm.dta not found)", "file r2fmm.dta saved"]
+        },
+        {
+          "command": "merge 1:1 id using r2fmu",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         1  (_merge==1)",
+            "        from using                          1  (_merge==2)",
+            "",
+            "    Matched                                 2  (_merge==3)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                2",
+            "  _dta[note2]:                using dta",
+            "  _dta[note1]:                common dta",
+            "  _dta[who]:                  masterdta",
+            "  id[keyc]:                   masterkey",
+            "  x[note0]:                   5",
+            "  x[note5]:                   using x note",
+            "  x[note4]:                   using x note",
+            "  x[src]:                     using",
+            "  x[unit]:                    kg",
+            "  x[note1]:                   shared note",
+            "  x[note3]:                   third master",
+            "  w[unit]:                    cm",
+            "  z[note0]:                   1",
+            "  z[note1]:                   z note",
+            "  z[unit]:                    m"
+          ]
+        },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  common dta",
+            "  2.  using dta",
+            "",
+            "x:",
+            "  1.  shared note",
+            "  3.  third master",
+            "  4.  using x note",
+            "  5.  using x note",
+            "",
+            "z:",
+            "  1.  z note"
+          ]
+        },
+        { "command": "count", "lines": ["  4"] },
+        { "command": "* update replace", "lines": [] },
+        { "command": "use r2fmm, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using r2fmu, update replace nogen",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         1",
+            "        from using                          1",
+            "",
+            "    Matched                                 2",
+            "        not updated                         0",
+            "        missing updated                     0",
+            "        nonmissing conflict                 2",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "char list x[]",
+          "lines": [
+            "  x[note0]:                   5",
+            "  x[note5]:                   using x note",
+            "  x[note4]:                   using x note",
+            "  x[src]:                     using",
+            "  x[note3]:                   third master",
+            "  x[note1]:                   shared note",
+            "  x[unit]:                    kg"
+          ]
+        },
+        {
+          "command": "notes x",
+          "lines": [
+            "x:",
+            "  1.  shared note",
+            "  3.  third master",
+            "  4.  using x note",
+            "  5.  using x note"
+          ]
+        },
+        { "command": "* keepusing excludes z", "lines": [] },
+        { "command": "use r2fmm, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using r2fmu, keepusing(x) nogen",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         1",
+            "        from using                          1",
+            "",
+            "    Matched                                 2",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                2",
+            "  _dta[note2]:                using dta",
+            "  _dta[who]:                  masterdta",
+            "  _dta[note1]:                common dta",
+            "  id[keyc]:                   masterkey",
+            "  x[note0]:                   5",
+            "  x[note5]:                   using x note",
+            "  x[note4]:                   using x note",
+            "  x[src]:                     using",
+            "  x[note3]:                   third master",
+            "  x[note1]:                   shared note",
+            "  x[unit]:                    kg",
+            "  w[unit]:                    cm"
+          ]
+        },
+        { "command": "* nonotes", "lines": [] },
+        { "command": "use r2fmm, clear", "lines": [] },
+        {
+          "command": "merge 1:1 id using r2fmu, nonotes nogen",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         1",
+            "        from using                          1",
+            "",
+            "    Matched                                 2",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  common dta",
+            "",
+            "x:",
+            "  1.  shared note",
+            "  3.  third master"
+          ]
+        },
+        {
+          "command": "char list _dta[]",
+          "lines": [
+            "  _dta[who]:                  masterdta",
+            "  _dta[note1]:                common dta",
+            "  _dta[note0]:                1"
+          ]
+        },
+        { "command": "* m:1", "lines": [] },
+        { "command": "use r2fmm, clear", "lines": [] },
+        {
+          "command": "merge m:1 id using r2fmu, nogen",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         1",
+            "        from using                          1",
+            "",
+            "    Matched                                 2",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  common dta",
+            "  2.  using dta",
+            "",
+            "x:",
+            "  1.  shared note",
+            "  3.  third master",
+            "  4.  using x note",
+            "  5.  using x note",
+            "",
+            "z:",
+            "  1.  z note"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files2-append-repeated-notes",
+      "source": "clear\ninput id x\n1 10\n2 20\nend\nchar x[unit] grams\nnotes x: dup\nnotes x: dup\nnotes: d1\nsave r2fau1, replace\nclear\ninput id x\n3 30\nend\nchar x[unit] lb\nchar x[extra] e2\nnotes x: dup\nnotes x: other\nnotes: d1\nnotes: d2\nsave r2fau2, replace\nclear\ninput id x\n5 50\nend\nnotes x: mine\nsave r2fam, replace\nappend using r2fau1 r2fau2\nchar list\nnotes\nuse r2fam, clear\nappend using r2fau1\nappend using r2fau2\nnotes\nuse r2fam, clear\nappend using r2fau1 r2fau2, nonotes\nchar list\nuse r2fam, clear\nappend using r2fau1, keep(id)\nchar list\nuse r2fam, clear\ncross using r2fau1\nnotes\nuse r2fam, clear\nreplace id = 1\njoinby id using r2fau1\nnotes\nchar list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x",
+          "lines": [
+            "            id          x",
+            "  1. 1 10",
+            "  2. 2 20",
+            "  3. end"
+          ]
+        },
+        { "command": "char x[unit] grams", "lines": [] },
+        { "command": "notes x: dup", "lines": [] },
+        { "command": "notes x: dup", "lines": [] },
+        { "command": "notes: d1", "lines": [] },
+        {
+          "command": "save r2fau1, replace",
+          "lines": ["(file r2fau1.dta not found)", "file r2fau1.dta saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x",
+          "lines": ["            id          x", "  1. 3 30", "  2. end"]
+        },
+        { "command": "char x[unit] lb", "lines": [] },
+        { "command": "char x[extra] e2", "lines": [] },
+        { "command": "notes x: dup", "lines": [] },
+        { "command": "notes x: other", "lines": [] },
+        { "command": "notes: d1", "lines": [] },
+        { "command": "notes: d2", "lines": [] },
+        {
+          "command": "save r2fau2, replace",
+          "lines": ["(file r2fau2.dta not found)", "file r2fau2.dta saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x",
+          "lines": ["            id          x", "  1. 5 50", "  2. end"]
+        },
+        { "command": "notes x: mine", "lines": [] },
+        {
+          "command": "save r2fam, replace",
+          "lines": ["(file r2fam.dta not found)", "file r2fam.dta saved"]
+        },
+        { "command": "append using r2fau1 r2fau2", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                2",
+            "  _dta[note2]:                d2",
+            "  _dta[note1]:                d1",
+            "  x[note0]:                   4",
+            "  x[note4]:                   other",
+            "  x[extra]:                   e2",
+            "  x[note3]:                   dup",
+            "  x[note2]:                   dup",
+            "  x[unit]:                    grams",
+            "  x[note1]:                   mine"
+          ]
+        },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  d1",
+            "  2.  d2",
+            "",
+            "x:",
+            "  1.  mine",
+            "  2.  dup",
+            "  3.  dup",
+            "  4.  other"
+          ]
+        },
+        { "command": "use r2fam, clear", "lines": [] },
+        { "command": "append using r2fau1", "lines": [] },
+        { "command": "append using r2fau2", "lines": [] },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  d1",
+            "  2.  d2",
+            "",
+            "x:",
+            "  1.  mine",
+            "  2.  dup",
+            "  3.  dup",
+            "  4.  other"
+          ]
+        },
+        { "command": "use r2fam, clear", "lines": [] },
+        { "command": "append using r2fau1 r2fau2, nonotes", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  x[extra]:                   e2",
+            "  x[unit]:                    grams",
+            "  x[note0]:                   1",
+            "  x[note1]:                   mine"
+          ]
+        },
+        { "command": "use r2fam, clear", "lines": [] },
+        { "command": "append using r2fau1, keep(id)", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                1",
+            "  _dta[note1]:                d1",
+            "  x[note0]:                   1",
+            "  x[note1]:                   mine"
+          ]
+        },
+        { "command": "use r2fam, clear", "lines": [] },
+        { "command": "cross using r2fau1", "lines": [] },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  d1",
+            "",
+            "x:",
+            "  1.  mine",
+            "  2.  dup",
+            "  3.  dup"
+          ]
+        },
+        { "command": "use r2fam, clear", "lines": [] },
+        { "command": "replace id = 1", "lines": ["(1 real change made)"] },
+        { "command": "joinby id using r2fau1", "lines": [] },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  d1",
+            "",
+            "x:",
+            "  1.  mine",
+            "  2.  dup",
+            "  3.  dup"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                1",
+            "  _dta[note1]:                d1",
+            "  x[note0]:                   3",
+            "  x[note3]:                   dup",
+            "  x[note2]:                   dup",
+            "  x[unit]:                    grams",
+            "  x[note1]:                   mine"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files2-append-loop-notes",
+      "source": "clear\ninput id x\n1 10\n2 20\nend\nchar x[unit] grams\nnotes x: dup\nnotes x: dup\nnotes: d1\nsave r2fbu1, replace\nclear\ninput id x\n3 30\nend\nchar x[unit] lb\nchar x[extra] e2\nnotes x: dup\nnotes x: other\nnotes: d1\nnotes: d2\nsave r2fbu2, replace\nclear\ninput id x\n5 50\nend\nnotes x: mine\nsave r2fbm, replace\nclear\nappend using r2fbu1\nnotes\nchar list\nclear\nforeach f in r2fbu1 r2fbu2 r2fbm {\nappend using `f'\n}\nnotes\nchar list\nlabel data \"x\"\nsave r2fball, replace\nuse r2fball, clear\nchar list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x",
+          "lines": [
+            "            id          x",
+            "  1. 1 10",
+            "  2. 2 20",
+            "  3. end"
+          ]
+        },
+        { "command": "char x[unit] grams", "lines": [] },
+        { "command": "notes x: dup", "lines": [] },
+        { "command": "notes x: dup", "lines": [] },
+        { "command": "notes: d1", "lines": [] },
+        {
+          "command": "save r2fbu1, replace",
+          "lines": ["(file r2fbu1.dta not found)", "file r2fbu1.dta saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x",
+          "lines": ["            id          x", "  1. 3 30", "  2. end"]
+        },
+        { "command": "char x[unit] lb", "lines": [] },
+        { "command": "char x[extra] e2", "lines": [] },
+        { "command": "notes x: dup", "lines": [] },
+        { "command": "notes x: other", "lines": [] },
+        { "command": "notes: d1", "lines": [] },
+        { "command": "notes: d2", "lines": [] },
+        {
+          "command": "save r2fbu2, replace",
+          "lines": ["(file r2fbu2.dta not found)", "file r2fbu2.dta saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x",
+          "lines": ["            id          x", "  1. 5 50", "  2. end"]
+        },
+        { "command": "notes x: mine", "lines": [] },
+        {
+          "command": "save r2fbm, replace",
+          "lines": ["(file r2fbm.dta not found)", "file r2fbm.dta saved"]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "append using r2fbu1", "lines": [] },
+        {
+          "command": "notes",
+          "lines": ["_dta:", "  1.  d1", "", "x:", "  1.  dup", "  2.  dup"]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                1",
+            "  _dta[note1]:                d1",
+            "  x[note0]:                   2",
+            "  x[note2]:                   dup",
+            "  x[note1]:                   dup",
+            "  x[unit]:                    grams"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "foreach f in r2fbu1 r2fbu2 r2fbm {",
+          "lines": ["  2. append using `f'", "  3. }"]
+        },
+        {
+          "command": "notes",
+          "lines": [
+            "_dta:",
+            "  1.  d1",
+            "  2.  d2",
+            "",
+            "x:",
+            "  1.  dup",
+            "  2.  dup",
+            "  3.  other",
+            "  4.  mine"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                2",
+            "  _dta[note2]:                d2",
+            "  _dta[note1]:                d1",
+            "  x[note0]:                   4",
+            "  x[note4]:                   mine",
+            "  x[note3]:                   other",
+            "  x[extra]:                   e2",
+            "  x[note2]:                   dup",
+            "  x[note1]:                   dup",
+            "  x[unit]:                    grams"
+          ]
+        },
+        { "command": "label data \"x\"", "lines": [] },
+        {
+          "command": "save r2fball, replace",
+          "lines": ["(file r2fball.dta not found)", "file r2fball.dta saved"]
+        },
+        { "command": "use r2fball, clear", "lines": ["(x)"] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note1]:                d1",
+            "  _dta[note2]:                d2",
+            "  _dta[note0]:                2",
+            "  x[unit]:                    grams",
+            "  x[note1]:                   dup",
+            "  x[note2]:                   dup",
+            "  x[extra]:                   e2",
+            "  x[note3]:                   other",
+            "  x[note4]:                   mine",
+            "  x[note0]:                   4"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files2-char-order-preserve",
+      "source": "clear\nset obs 2\ngen x = _n\ngen y = 2\nchar x[a] one\nchar x[b] two\nchar x[c] three\nchar _dta[p] P\nchar _dta[q] Q\nnotes x: first\nnotes: dta note\nchar list\nsave r2fc1, replace\nuse r2fc1, clear\nchar list\nsave r2fc2, replace\nuse r2fc2, clear\nchar list\npreserve\nchar x[d] four\nrestore\nchar list\nchar x[b] changed\nchar list x[]\nsave r2fc3, replace\nuse r2fc3, clear\nchar list x[]\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "gen x = _n", "lines": [] },
+        { "command": "gen y = 2", "lines": [] },
+        { "command": "char x[a] one", "lines": [] },
+        { "command": "char x[b] two", "lines": [] },
+        { "command": "char x[c] three", "lines": [] },
+        { "command": "char _dta[p] P", "lines": [] },
+        { "command": "char _dta[q] Q", "lines": [] },
+        { "command": "notes x: first", "lines": [] },
+        { "command": "notes: dta note", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note1]:                dta note",
+            "  _dta[note0]:                1",
+            "  _dta[q]:                    Q",
+            "  _dta[p]:                    P",
+            "  x[note1]:                   first",
+            "  x[note0]:                   1",
+            "  x[c]:                       three",
+            "  x[b]:                       two",
+            "  x[a]:                       one"
+          ]
+        },
+        {
+          "command": "save r2fc1, replace",
+          "lines": ["(file r2fc1.dta not found)", "file r2fc1.dta saved"]
+        },
+        { "command": "use r2fc1, clear", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[p]:                    P",
+            "  _dta[q]:                    Q",
+            "  _dta[note0]:                1",
+            "  _dta[note1]:                dta note",
+            "  x[a]:                       one",
+            "  x[b]:                       two",
+            "  x[c]:                       three",
+            "  x[note0]:                   1",
+            "  x[note1]:                   first"
+          ]
+        },
+        {
+          "command": "save r2fc2, replace",
+          "lines": ["(file r2fc2.dta not found)", "file r2fc2.dta saved"]
+        },
+        { "command": "use r2fc2, clear", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note1]:                dta note",
+            "  _dta[note0]:                1",
+            "  _dta[q]:                    Q",
+            "  _dta[p]:                    P",
+            "  x[note1]:                   first",
+            "  x[note0]:                   1",
+            "  x[c]:                       three",
+            "  x[b]:                       two",
+            "  x[a]:                       one"
+          ]
+        },
+        { "command": "preserve", "lines": [] },
+        { "command": "char x[d] four", "lines": [] },
+        { "command": "restore", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[p]:                    P",
+            "  _dta[q]:                    Q",
+            "  _dta[note0]:                1",
+            "  _dta[note1]:                dta note",
+            "  x[a]:                       one",
+            "  x[b]:                       two",
+            "  x[c]:                       three",
+            "  x[note0]:                   1",
+            "  x[note1]:                   first"
+          ]
+        },
+        { "command": "char x[b] changed", "lines": [] },
+        {
+          "command": "char list x[]",
+          "lines": [
+            "  x[b]:                       changed",
+            "  x[a]:                       one",
+            "  x[c]:                       three",
+            "  x[note0]:                   1",
+            "  x[note1]:                   first"
+          ]
+        },
+        {
+          "command": "save r2fc3, replace",
+          "lines": ["(file r2fc3.dta not found)", "file r2fc3.dta saved"]
+        },
+        { "command": "use r2fc3, clear", "lines": [] },
+        {
+          "command": "char list x[]",
+          "lines": [
+            "  x[note1]:                   first",
+            "  x[note0]:                   1",
+            "  x[c]:                       three",
+            "  x[a]:                       one",
+            "  x[b]:                       changed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files2-char-order-merge",
+      "source": "clear\nset obs 2\ngen id = _n\nsave r2fplain, replace\ngen x = 1\nchar x[a] one\nchar x[b] two\nchar _dta[p] P\nchar _dta[q] Q\nmerge 1:1 id using r2fplain, nogen\nchar list\nnotes x: n1\nnotes: d1\nmerge 1:1 id using r2fplain, nogen\nchar list\nchar x[a] one\nchar x[b] two\nnotes x: n1\nsave r2fwith, replace\nuse r2fplain, clear\ngen x = 2\nmerge 1:1 id using r2fwith, nogen\nchar list\nmerge 1:1 id using r2fwith, nogen\nchar list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "gen id = _n", "lines": [] },
+        {
+          "command": "save r2fplain, replace",
+          "lines": ["(file r2fplain.dta not found)", "file r2fplain.dta saved"]
+        },
+        { "command": "gen x = 1", "lines": [] },
+        { "command": "char x[a] one", "lines": [] },
+        { "command": "char x[b] two", "lines": [] },
+        { "command": "char _dta[p] P", "lines": [] },
+        { "command": "char _dta[q] Q", "lines": [] },
+        {
+          "command": "merge 1:1 id using r2fplain, nogen",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 2",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[p]:                    P",
+            "  _dta[q]:                    Q",
+            "  x[a]:                       one",
+            "  x[b]:                       two"
+          ]
+        },
+        { "command": "notes x: n1", "lines": [] },
+        { "command": "notes: d1", "lines": [] },
+        {
+          "command": "merge 1:1 id using r2fplain, nogen",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 2",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[q]:                    Q",
+            "  _dta[p]:                    P",
+            "  _dta[note0]:                1",
+            "  _dta[note1]:                d1",
+            "  x[b]:                       two",
+            "  x[a]:                       one",
+            "  x[note0]:                   1",
+            "  x[note1]:                   n1"
+          ]
+        },
+        { "command": "char x[a] one", "lines": [] },
+        { "command": "char x[b] two", "lines": [] },
+        { "command": "notes x: n1", "lines": [] },
+        {
+          "command": "save r2fwith, replace",
+          "lines": ["(file r2fwith.dta not found)", "file r2fwith.dta saved"]
+        },
+        { "command": "use r2fplain, clear", "lines": [] },
+        { "command": "gen x = 2", "lines": [] },
+        {
+          "command": "merge 1:1 id using r2fwith, nogen",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 2",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                1",
+            "  _dta[note1]:                d1",
+            "  _dta[p]:                    P",
+            "  _dta[q]:                    Q",
+            "  x[note0]:                   2",
+            "  x[note2]:                   n1",
+            "  x[note1]:                   n1",
+            "  x[a]:                       one",
+            "  x[b]:                       two"
+          ]
+        },
+        {
+          "command": "merge 1:1 id using r2fwith, nogen",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 2",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                1",
+            "  _dta[note1]:                d1",
+            "  _dta[p]:                    P",
+            "  _dta[q]:                    Q",
+            "  x[note0]:                   2",
+            "  x[note2]:                   n1",
+            "  x[note1]:                   n1",
+            "  x[a]:                       one",
+            "  x[b]:                       two"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files2-char-order-combine",
+      "source": "clear\nset obs 2\ngen id = _n\ngen x = _n\nchar _dta[u1] C\nchar _dta[s] Utext\nchar _dta[u2] D\nchar x[ux] UX\nchar x[sx] USX\nnotes: shared\nnotes: unew\nnotes: unew\nnotes x: xs\nnotes x: xu\nsave r2fxu, replace\nuse r2fxu, clear\nchar list\nclear\nset obs 2\ngen id = _n\nchar _dta[m1] A\nchar _dta[s] Mtext\nchar _dta[m2] B\nnotes: mnote\nnotes: shared\ngen x = 5\nchar x[mx] MX\nchar x[sx] MSX\nnotes x: xs\nchar list\nsave r2fxm, replace\nmerge 1:1 id using r2fxu, nogen\nchar list\nuse r2fxm, clear\nappend using r2fxu\nchar list\nuse r2fxm, clear\njoinby id using r2fxu\nchar list\nuse r2fxm, clear\ndrop id x\ncross using r2fxu\nchar list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "gen id = _n", "lines": [] },
+        { "command": "gen x = _n", "lines": [] },
+        { "command": "char _dta[u1] C", "lines": [] },
+        { "command": "char _dta[s] Utext", "lines": [] },
+        { "command": "char _dta[u2] D", "lines": [] },
+        { "command": "char x[ux] UX", "lines": [] },
+        { "command": "char x[sx] USX", "lines": [] },
+        { "command": "notes: shared", "lines": [] },
+        { "command": "notes: unew", "lines": [] },
+        { "command": "notes: unew", "lines": [] },
+        { "command": "notes x: xs", "lines": [] },
+        { "command": "notes x: xu", "lines": [] },
+        {
+          "command": "save r2fxu, replace",
+          "lines": ["(file r2fxu.dta not found)", "file r2fxu.dta saved"]
+        },
+        { "command": "use r2fxu, clear", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[u1]:                   C",
+            "  _dta[s]:                    Utext",
+            "  _dta[u2]:                   D",
+            "  _dta[note1]:                shared",
+            "  _dta[note2]:                unew",
+            "  _dta[note0]:                3",
+            "  _dta[note3]:                unew",
+            "  x[ux]:                      UX",
+            "  x[sx]:                      USX",
+            "  x[note1]:                   xs",
+            "  x[note0]:                   2",
+            "  x[note2]:                   xu"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "gen id = _n", "lines": [] },
+        { "command": "char _dta[m1] A", "lines": [] },
+        { "command": "char _dta[s] Mtext", "lines": [] },
+        { "command": "char _dta[m2] B", "lines": [] },
+        { "command": "notes: mnote", "lines": [] },
+        { "command": "notes: shared", "lines": [] },
+        { "command": "gen x = 5", "lines": [] },
+        { "command": "char x[mx] MX", "lines": [] },
+        { "command": "char x[sx] MSX", "lines": [] },
+        { "command": "notes x: xs", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note2]:                shared",
+            "  _dta[note0]:                2",
+            "  _dta[note1]:                mnote",
+            "  _dta[m2]:                   B",
+            "  _dta[s]:                    Mtext",
+            "  _dta[m1]:                   A",
+            "  x[note1]:                   xs",
+            "  x[note0]:                   1",
+            "  x[sx]:                      MSX",
+            "  x[mx]:                      MX"
+          ]
+        },
+        {
+          "command": "save r2fxm, replace",
+          "lines": ["(file r2fxm.dta not found)", "file r2fxm.dta saved"]
+        },
+        {
+          "command": "merge 1:1 id using r2fxu, nogen",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 2",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                4",
+            "  _dta[note4]:                unew",
+            "  _dta[note3]:                unew",
+            "  _dta[u2]:                   D",
+            "  _dta[u1]:                   C",
+            "  _dta[m1]:                   A",
+            "  _dta[s]:                    Mtext",
+            "  _dta[m2]:                   B",
+            "  _dta[note1]:                mnote",
+            "  _dta[note2]:                shared",
+            "  x[note0]:                   2",
+            "  x[note2]:                   xu",
+            "  x[ux]:                      UX",
+            "  x[mx]:                      MX",
+            "  x[sx]:                      MSX",
+            "  x[note1]:                   xs"
+          ]
+        },
+        { "command": "use r2fxm, clear", "lines": [] },
+        { "command": "append using r2fxu", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                4",
+            "  _dta[note4]:                unew",
+            "  _dta[note3]:                unew",
+            "  _dta[u1]:                   C",
+            "  _dta[u2]:                   D",
+            "  _dta[m1]:                   A",
+            "  _dta[s]:                    Mtext",
+            "  _dta[m2]:                   B",
+            "  _dta[note1]:                mnote",
+            "  _dta[note2]:                shared",
+            "  x[note0]:                   2",
+            "  x[note2]:                   xu",
+            "  x[ux]:                      UX",
+            "  x[mx]:                      MX",
+            "  x[sx]:                      MSX",
+            "  x[note1]:                   xs"
+          ]
+        },
+        { "command": "use r2fxm, clear", "lines": [] },
+        { "command": "joinby id using r2fxu", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                4",
+            "  _dta[note4]:                unew",
+            "  _dta[note3]:                unew",
+            "  _dta[u2]:                   D",
+            "  _dta[u1]:                   C",
+            "  _dta[note2]:                shared",
+            "  _dta[note1]:                mnote",
+            "  _dta[m2]:                   B",
+            "  _dta[s]:                    Mtext",
+            "  _dta[m1]:                   A",
+            "  x[note0]:                   2",
+            "  x[note2]:                   xu",
+            "  x[ux]:                      UX",
+            "  x[note1]:                   xs",
+            "  x[sx]:                      MSX",
+            "  x[mx]:                      MX"
+          ]
+        },
+        { "command": "use r2fxm, clear", "lines": [] },
+        { "command": "drop id x", "lines": [] },
+        { "command": "cross using r2fxu", "lines": [] },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[note0]:                3",
+            "  _dta[note3]:                unew",
+            "  _dta[note2]:                unew",
+            "  _dta[note1]:                shared",
+            "  _dta[u2]:                   D",
+            "  _dta[s]:                    Utext",
+            "  _dta[u1]:                   C",
+            "  x[note0]:                   2",
+            "  x[note2]:                   xu",
+            "  x[note1]:                   xs",
+            "  x[sx]:                      USX",
+            "  x[ux]:                      UX"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files2-merge-sorted",
+      "source": "clear\ninput id y\n3 30\n1 10\n2 20\n4 40\nend\nsave r2fsuu, replace\nsort id\nchar _dta[u1] C\nchar _dta[u2] D\nsave r2fsus, replace\nclear\ninput id x\n1 1\n2 2\n3 3\n5 5\nend\nchar _dta[m1] A\nchar _dta[m2] B\ncapture noisily merge 1:1 id using r2fsus, sorted\ndi _rc\nsort id\ncapture noisily merge 1:1 id using r2fsuu, sorted\ndi _rc\nmerge 1:1 id using r2fsus, sorted\ndescribe, short\nlist\nchar list\nclear\ninput id x\n1 1\n1 2\n3 3\n5 5\nend\nsort id\nmerge m:1 id using r2fsus, sorted keep(match) nogen\nlist\nsort id\ncapture noisily merge 1:1 id using r2fsus, sorted\ndi _rc\nclear\ninput id x\n1 1\n2 2\n3 3\nend\nsort id x\nmerge 1:1 id using r2fsus, sorted nogen\nlist\nclear\ninput id x\n1 1\n2 2\n3 3\nend\nsort x id\ncapture noisily merge 1:1 id using r2fsus, sorted nogen\ndi _rc\nclear\ninput str3 s x\n\"a\" 1\nend\nsort s\ncapture noisily merge 1:1 s using r2fsus, sorted nogen\ndi _rc\nmerge 1:1 _n using r2fsus, sorted nogen\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id y",
+          "lines": [
+            "            id          y",
+            "  1. 3 30",
+            "  2. 1 10",
+            "  3. 2 20",
+            "  4. 4 40",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "save r2fsuu, replace",
+          "lines": ["(file r2fsuu.dta not found)", "file r2fsuu.dta saved"]
+        },
+        { "command": "sort id", "lines": [] },
+        { "command": "char _dta[u1] C", "lines": [] },
+        { "command": "char _dta[u2] D", "lines": [] },
+        {
+          "command": "save r2fsus, replace",
+          "lines": ["(file r2fsus.dta not found)", "file r2fsus.dta saved"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x",
+          "lines": [
+            "            id          x",
+            "  1. 1 1",
+            "  2. 2 2",
+            "  3. 3 3",
+            "  4. 5 5",
+            "  5. end"
+          ]
+        },
+        { "command": "char _dta[m1] A", "lines": [] },
+        { "command": "char _dta[m2] B", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using r2fsus, sorted",
+          "lines": ["master data not sorted"]
+        },
+        { "command": "di _rc", "lines": ["5"] },
+        { "command": "sort id", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using r2fsuu, sorted",
+          "lines": ["using data not sorted"]
+        },
+        { "command": "di _rc", "lines": ["5"] },
+        {
+          "command": "merge 1:1 id using r2fsus, sorted",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             2",
+            "        from master                         1  (_merge==1)",
+            "        from using                          1  (_merge==2)",
+            "",
+            "    Matched                                 3  (_merge==3)",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:             5",
+            "    Variables:             4",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------------------------+",
+            "     | id   x    y            _merge |",
+            "     |-------------------------------|",
+            "  1. |  1   1   10       Matched (3) |",
+            "  2. |  2   2   20       Matched (3) |",
+            "  3. |  3   3   30       Matched (3) |",
+            "  4. |  5   5    .   Master only (1) |",
+            "  5. |  4   .   40    Using only (2) |",
+            "     +-------------------------------+"
+          ]
+        },
+        {
+          "command": "char list",
+          "lines": [
+            "  _dta[u1]:                   C",
+            "  _dta[u2]:                   D",
+            "  _dta[m2]:                   B",
+            "  _dta[m1]:                   A"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x",
+          "lines": [
+            "            id          x",
+            "  1. 1 1",
+            "  2. 1 2",
+            "  3. 3 3",
+            "  4. 5 5",
+            "  5. end"
+          ]
+        },
+        { "command": "sort id", "lines": [] },
+        {
+          "command": "merge m:1 id using r2fsus, sorted keep(match) nogen",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             0",
+            "    Matched                                 3",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------+",
+            "     | id   x    y |",
+            "     |-------------|",
+            "  1. |  1   1   10 |",
+            "  2. |  1   2   10 |",
+            "  3. |  3   3   30 |",
+            "     +-------------+"
+          ]
+        },
+        { "command": "sort id", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using r2fsus, sorted",
+          "lines": [
+            "variable id does not uniquely identify observations in the master data"
+          ]
+        },
+        { "command": "di _rc", "lines": ["459"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x",
+          "lines": [
+            "            id          x",
+            "  1. 1 1",
+            "  2. 2 2",
+            "  3. 3 3",
+            "  4. end"
+          ]
+        },
+        { "command": "sort id x", "lines": [] },
+        {
+          "command": "merge 1:1 id using r2fsus, sorted nogen",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             1",
+            "        from master                         0",
+            "        from using                          1",
+            "",
+            "    Matched                                 3",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-------------+",
+            "     | id   x    y |",
+            "     |-------------|",
+            "  1. |  1   1   10 |",
+            "  2. |  2   2   20 |",
+            "  3. |  3   3   30 |",
+            "  4. |  4   .   40 |",
+            "     +-------------+"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input id x",
+          "lines": [
+            "            id          x",
+            "  1. 1 1",
+            "  2. 2 2",
+            "  3. 3 3",
+            "  4. end"
+          ]
+        },
+        { "command": "sort x id", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using r2fsus, sorted nogen",
+          "lines": ["master data not sorted"]
+        },
+        { "command": "di _rc", "lines": ["5"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str3 s x",
+          "lines": ["             s          x", "  1. \"a\" 1", "  2. end"]
+        },
+        { "command": "sort s", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 s using r2fsus, sorted nogen",
+          "lines": ["variable s not found in using data"]
+        },
+        { "command": "di _rc", "lines": ["111"] },
+        {
+          "command": "merge 1:1 _n using r2fsus, sorted nogen",
+          "lines": [
+            "    Result                      Number of obs",
+            "    -----------------------------------------",
+            "    Not matched                             3",
+            "        from master                         0",
+            "        from using                          3",
+            "",
+            "    Matched                                 1",
+            "    -----------------------------------------"
+          ]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------+",
+            "     | s   x   id    y |",
+            "     |-----------------|",
+            "  1. | a   1    1   10 |",
+            "  2. |     .    2   20 |",
+            "  3. |     .    3   30 |",
+            "  4. |     .    4   40 |",
+            "     +-----------------+"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files2-use-varlist-not-dataset",
+      "source": "clear\nset seed 2026\nset obs 10\ngenerate id = _n\ngenerate wage = round(10 + 20 * runiform(), .01)\nsave r2fpeople, replace\nexport delimited using r2fextra.csv, replace\nuse r2fpeople, clear\ncapture noisily use r2fextra.csv\ndi _N\nuse r2fpeople, clear\nreplace wage = 1 in 1\ncapture noisily use r2fextra.csv\ndi _N\ncapture noisily use r2fextra.csv, clear\ndi _N\nuse r2fpeople, clear\ncapture noisily use id using r2fextra.csv, clear\ndi _N\nuse r2fpeople, clear\ncapture noisily use in 1/3 using r2fextra.csv\ndi _N\nuse r2fpeople, clear\ncapture noisily merge 1:1 id using r2fextra.csv\ndi _N\ncapture noisily describe using r2fextra.csv\nuse r2fpeople, clear\ncapture noisily append using r2fpeople r2fextra.csv\ndi _N\ncapture noisily append using \"r2fextra.csv\"\ncapture noisily cross using r2fextra.csv\ncapture noisily joinby id using r2fextra.csv\nuse r2fpeople, clear\ncapture noisily use if id > 2 using r2fextra.csv, clear\ndi _N\nuse r2fpeople, clear\ncapture noisily use id wage using r2fextra.csv\ndi _N\nuse r2fpeople, clear\ncapture noisily use id if id>2 using r2fextra.csv, clear\ndi _N\nuse r2fpeople, clear\ncapture noisily use using r2fextra.csv, clear\ndi _N\nuse r2fpeople, clear\nreplace wage = 1 in 1\ncapture noisily use id using r2fextra.csv\ndi _rc\ndi _N\ncapture noisily use id using nosuch.dta\ndi _rc\ndi _N\ncapture noisily use id using r2fpeople, clear\ndi _N\nuse r2fpeople, clear\nreplace wage = 1 in 1\ncapture noisily use nosuch.dta\ndi _rc\ncapture noisily use in 1/2 using nosuch.dta\ndi _rc\ncapture noisily use if id>2 using nosuch.dta\ndi _rc\ncapture noisily use id using nosuch.dta, clear\ndi _rc\ndi _N\ncapture noisily use id using r2fpeople, clear\ndi _N\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2026", "lines": [] },
+        {
+          "command": "set obs 10",
+          "lines": ["Number of observations (_N) was 0, now 10."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "generate wage = round(10 + 20 * runiform(), .01)",
+          "lines": []
+        },
+        {
+          "command": "save r2fpeople, replace",
+          "lines": [
+            "(file r2fpeople.dta not found)",
+            "file r2fpeople.dta saved"
+          ]
+        },
+        {
+          "command": "export delimited using r2fextra.csv, replace",
+          "lines": ["(file r2fextra.csv not found)", "file r2fextra.csv saved"]
+        },
+        { "command": "use r2fpeople, clear", "lines": [] },
+        {
+          "command": "capture noisily use r2fextra.csv",
+          "lines": ["file r2fextra.csv not Stata format"]
+        },
+        { "command": "di _N", "lines": ["0"] },
+        { "command": "use r2fpeople, clear", "lines": [] },
+        {
+          "command": "replace wage = 1 in 1",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "capture noisily use r2fextra.csv",
+          "lines": ["no; dataset in memory has changed since last saved"]
+        },
+        { "command": "di _N", "lines": ["10"] },
+        {
+          "command": "capture noisily use r2fextra.csv, clear",
+          "lines": ["file r2fextra.csv not Stata format"]
+        },
+        { "command": "di _N", "lines": ["0"] },
+        { "command": "use r2fpeople, clear", "lines": [] },
+        {
+          "command": "capture noisily use id using r2fextra.csv, clear",
+          "lines": ["file r2fextra.csv not Stata format"]
+        },
+        { "command": "di _N", "lines": ["10"] },
+        { "command": "use r2fpeople, clear", "lines": [] },
+        {
+          "command": "capture noisily use in 1/3 using r2fextra.csv",
+          "lines": ["file r2fextra.csv not Stata format"]
+        },
+        { "command": "di _N", "lines": ["0"] },
+        { "command": "use r2fpeople, clear", "lines": [] },
+        {
+          "command": "capture noisily merge 1:1 id using r2fextra.csv",
+          "lines": ["file r2fextra.csv not Stata format"]
+        },
+        { "command": "di _N", "lines": ["10"] },
+        {
+          "command": "capture noisily describe using r2fextra.csv",
+          "lines": ["file r2fextra.csv not Stata format"]
+        },
+        { "command": "use r2fpeople, clear", "lines": [] },
+        {
+          "command": "capture noisily append using r2fpeople r2fextra.csv",
+          "lines": ["file r2fextra.csv not found"]
+        },
+        { "command": "di _N", "lines": ["10"] },
+        {
+          "command": "capture noisily append using \"r2fextra.csv\"",
+          "lines": ["file r2fextra.csv not found"]
+        },
+        {
+          "command": "capture noisily cross using r2fextra.csv",
+          "lines": ["file r2fextra.csv not Stata format"]
+        },
+        {
+          "command": "capture noisily joinby id using r2fextra.csv",
+          "lines": ["file r2fextra.csv not Stata format"]
+        },
+        { "command": "use r2fpeople, clear", "lines": [] },
+        {
+          "command": "capture noisily use if id > 2 using r2fextra.csv, clear",
+          "lines": ["file r2fextra.csv not Stata format"]
+        },
+        { "command": "di _N", "lines": ["0"] },
+        { "command": "use r2fpeople, clear", "lines": [] },
+        {
+          "command": "capture noisily use id wage using r2fextra.csv",
+          "lines": ["file r2fextra.csv not Stata format"]
+        },
+        { "command": "di _N", "lines": ["10"] },
+        { "command": "use r2fpeople, clear", "lines": [] },
+        {
+          "command": "capture noisily use id if id>2 using r2fextra.csv, clear",
+          "lines": ["file r2fextra.csv not Stata format"]
+        },
+        { "command": "di _N", "lines": ["10"] },
+        { "command": "use r2fpeople, clear", "lines": [] },
+        {
+          "command": "capture noisily use using r2fextra.csv, clear",
+          "lines": ["file r2fextra.csv not Stata format"]
+        },
+        { "command": "di _N", "lines": ["0"] },
+        { "command": "use r2fpeople, clear", "lines": [] },
+        {
+          "command": "replace wage = 1 in 1",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "capture noisily use id using r2fextra.csv",
+          "lines": ["no; dataset in memory has changed since last saved"]
+        },
+        { "command": "di _rc", "lines": ["4"] },
+        { "command": "di _N", "lines": ["10"] },
+        {
+          "command": "capture noisily use id using nosuch.dta",
+          "lines": ["no; dataset in memory has changed since last saved"]
+        },
+        { "command": "di _rc", "lines": ["4"] },
+        { "command": "di _N", "lines": ["10"] },
+        {
+          "command": "capture noisily use id using r2fpeople, clear",
+          "lines": []
+        },
+        { "command": "di _N", "lines": ["10"] },
+        { "command": "use r2fpeople, clear", "lines": [] },
+        {
+          "command": "replace wage = 1 in 1",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "capture noisily use nosuch.dta",
+          "lines": ["no; dataset in memory has changed since last saved"]
+        },
+        { "command": "di _rc", "lines": ["4"] },
+        {
+          "command": "capture noisily use in 1/2 using nosuch.dta",
+          "lines": ["no; dataset in memory has changed since last saved"]
+        },
+        { "command": "di _rc", "lines": ["4"] },
+        {
+          "command": "capture noisily use if id>2 using nosuch.dta",
+          "lines": ["no; dataset in memory has changed since last saved"]
+        },
+        { "command": "di _rc", "lines": ["4"] },
+        {
+          "command": "capture noisily use id using nosuch.dta, clear",
+          "lines": ["file nosuch.dta not found"]
+        },
+        { "command": "di _rc", "lines": ["601"] },
+        { "command": "di _N", "lines": ["10"] },
+        {
+          "command": "capture noisily use id using r2fpeople, clear",
+          "lines": []
+        },
+        { "command": "di _N", "lines": ["10"] }
+      ]
+    },
+    {
+      "id": "recheck-files2-append-empty-name",
+      "source": "clear\nset seed 2026\nset obs 10\ngenerate id = _n\ngenerate wage = round(10 + 20 * runiform(), .01)\nsave r2fpe2, replace\nexport delimited using r2fex2.csv, replace\nuse r2fpe2, clear\ncapture noisily append using\ndisplay _rc\ncapture noisily append using \"\"\ndisplay _rc\ncapture noisily append using `\"\"'\ndisplay _rc\ndisplay _N\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2026", "lines": [] },
+        {
+          "command": "set obs 10",
+          "lines": ["Number of observations (_N) was 0, now 10."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "generate wage = round(10 + 20 * runiform(), .01)",
+          "lines": []
+        },
+        {
+          "command": "save r2fpe2, replace",
+          "lines": ["(file r2fpe2.dta not found)", "file r2fpe2.dta saved"]
+        },
+        {
+          "command": "export delimited using r2fex2.csv, replace",
+          "lines": ["(file r2fex2.csv not found)", "file r2fex2.csv saved"]
+        },
+        { "command": "use r2fpe2, clear", "lines": [] },
+        {
+          "command": "capture noisily append using",
+          "lines": ["invalid file specification"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily append using \"\"",
+          "lines": ["file  not found"]
+        },
+        { "command": "display _rc", "lines": ["601"] },
+        {
+          "command": "capture noisily append using `\"\"'",
+          "lines": ["file  not found"]
+        },
+        { "command": "display _rc", "lines": ["601"] },
+        { "command": "display _N", "lines": ["10"] }
+      ]
+    },
+    {
+      "id": "recheck-files2-save-message-wrap",
+      "source": "set linesize 50\nclear\nset obs 1\ngen x = 1\nsave r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace\nsave r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace\ncapture noisily save r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat\nsave \"r2fa b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i.dta\", replace\nsave r2fUPPER.DTA, replace\nsave r2flow.dta, replace\nsave r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes_and_even_longer_than_two_lines_of_text.dat, replace\nexport delimited using r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace\nexport delimited using r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace\ncapture noisily export delimited using r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv\nset linesize 79\nclear\nset obs 1\ngen x = 1\nsave r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace\nsave r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace\ncapture noisily save r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat\nsave \"r2fbb b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i.dta\", replace\nsave r2fUP2.DTA, replace\nsave r2flw2.dta, replace\nsave r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes_and_even_longer_than_two_lines_of_text.dat, replace\nexport delimited using r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace\nexport delimited using r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace\ncapture noisily export delimited using r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 50", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "gen x = 1", "lines": [] },
+        {
+          "command": "save r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace",
+          "lines": [
+            "(file",
+            "    r2faveryveryverylongfilename_with_lots_of_ch",
+            "    > aracters_to_force_wrapping_yes.dat not",
+            "    found)",
+            "file",
+            "    r2faveryveryverylongfilename_with_lots_of_ch",
+            "    > aracters_to_force_wrapping_yes.dat saved",
+            "    as .dta format"
+          ]
+        },
+        {
+          "command": "save r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace",
+          "lines": [
+            "file",
+            "    r2faveryveryverylongfilename_with_lots_of_ch",
+            "    > aracters_to_force_wrapping_yes.dat saved",
+            "    as .dta format"
+          ]
+        },
+        {
+          "command": "capture noisily save r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat",
+          "lines": [
+            "file",
+            "    r2faveryveryverylongfilename_with_lots_of_ch",
+            "    > aracters_to_force_wrapping_yes.dat already",
+            "    exists"
+          ]
+        },
+        {
+          "command": "save \"r2fa b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i.dta\", replace",
+          "lines": [
+            "(file r2fa b c d e f g h i j k l m n o p q r s t",
+            "    u v w x y z a b c d e f g h i.dta not found)",
+            "file r2fa b c d e f g h i j k l m n o p q r s t",
+            "    u v w x y z a b c d e f g h i.dta saved"
+          ]
+        },
+        {
+          "command": "save r2fUPPER.DTA, replace",
+          "lines": [
+            "(file r2fUPPER.DTA not found)",
+            "file r2fUPPER.DTA saved as .dta format"
+          ]
+        },
+        {
+          "command": "save r2flow.dta, replace",
+          "lines": ["(file r2flow.dta not found)", "file r2flow.dta saved"]
+        },
+        {
+          "command": "save r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes_and_even_longer_than_two_lines_of_text.dat, replace",
+          "lines": [
+            "(file",
+            "    r2faveryveryverylongfilename_with_lots_of_ch",
+            "    > aracters_to_force_wrapping_yes_and_even_lo",
+            "    > nger_than_two_lines_of_text.dat not found)",
+            "file",
+            "    r2faveryveryverylongfilename_with_lots_of_ch",
+            "    > aracters_to_force_wrapping_yes_and_even_lo",
+            "    > nger_than_two_lines_of_text.dat saved as",
+            "    .dta format"
+          ]
+        },
+        {
+          "command": "export delimited using r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace",
+          "lines": [
+            "(file",
+            "    r2faveryveryverylongfilename_with_lots_of_ch",
+            "    > aracters_to_force_wrapping_yes.csv not",
+            "    found)",
+            "file r2faveryveryverylongfilename_with_lots_of_cha",
+            "> racters_to_force_wrapping_yes.csv saved"
+          ]
+        },
+        {
+          "command": "export delimited using r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace",
+          "lines": [
+            "file r2faveryveryverylongfilename_with_lots_of_cha",
+            "> racters_to_force_wrapping_yes.csv saved"
+          ]
+        },
+        {
+          "command": "capture noisily export delimited using r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv",
+          "lines": [
+            "file",
+            "r2faveryveryverylongfilename_with_lots_of_characte",
+            "> rs_to_force_wrapping_yes.csv already exists"
+          ]
+        },
+        { "command": "set linesize 79", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "gen x = 1", "lines": [] },
+        {
+          "command": "save r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace",
+          "lines": [
+            "(file",
+            "    r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_ye",
+            "    > s.dat not found)",
+            "file",
+            "    r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_ye",
+            "    > s.dat saved as .dta format"
+          ]
+        },
+        {
+          "command": "save r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace",
+          "lines": [
+            "file",
+            "    r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_ye",
+            "    > s.dat saved as .dta format"
+          ]
+        },
+        {
+          "command": "capture noisily save r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat",
+          "lines": [
+            "file",
+            "    r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_ye",
+            "    > s.dat already exists"
+          ]
+        },
+        {
+          "command": "save \"r2fbb b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i.dta\", replace",
+          "lines": [
+            "(file r2fbb b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h",
+            "    i.dta not found)",
+            "file r2fbb b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h",
+            "    i.dta saved"
+          ]
+        },
+        {
+          "command": "save r2fUP2.DTA, replace",
+          "lines": [
+            "(file r2fUP2.DTA not found)",
+            "file r2fUP2.DTA saved as .dta format"
+          ]
+        },
+        {
+          "command": "save r2flw2.dta, replace",
+          "lines": ["(file r2flw2.dta not found)", "file r2flw2.dta saved"]
+        },
+        {
+          "command": "save r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes_and_even_longer_than_two_lines_of_text.dat, replace",
+          "lines": [
+            "(file",
+            "    r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_ye",
+            "    > s_and_even_longer_than_two_lines_of_text.dat not found)",
+            "file",
+            "    r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_ye",
+            "    > s_and_even_longer_than_two_lines_of_text.dat saved as .dta format"
+          ]
+        },
+        {
+          "command": "export delimited using r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace",
+          "lines": [
+            "(file",
+            "    r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_ye",
+            "    > s.csv not found)",
+            "file r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes",
+            "> .csv saved"
+          ]
+        },
+        {
+          "command": "export delimited using r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace",
+          "lines": [
+            "file r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes",
+            "> .csv saved"
+          ]
+        },
+        {
+          "command": "capture noisily export delimited using r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv",
+          "lines": [
+            "file",
+            "r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv",
+            "already exists"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "recheck-files2-numericcols-nonames",
+      "source": "clear\ninput str8 v\n\"b\"\n\"1.5\"\n\"x\"\n\"2.25\"\nend\nexport delimited using r2fnc1.csv, novarnames replace\nimport delimited using r2fnc1.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"b\"\n\"1.5\"\nend\nexport delimited using r2fnc2.csv, novarnames replace\nimport delimited using r2fnc2.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"1.5\"\n\"x\"\nend\nexport delimited using r2fnc3.csv, novarnames replace\nimport delimited using r2fnc3.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"x\"\n\"1.5\"\n\"x\"\nend\nexport delimited using r2fnc4.csv, novarnames replace\nimport delimited using r2fnc4.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"b\"\n\"1.5\"\n\"2.25\"\nend\nexport delimited using r2fnc5.csv, novarnames replace\nimport delimited using r2fnc5.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"b\"\n\"x\"\n\"1.5\"\nend\nexport delimited using r2fnc6.csv, novarnames replace\nimport delimited using r2fnc6.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"ab\"\n\"1.5\"\n\"x\"\nend\nexport delimited using r2fnc7.csv, novarnames replace\nimport delimited using r2fnc7.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"1.5\"\n\"x\"\n\"2.25\"\nend\nexport delimited using r2fnc8.csv, novarnames replace\nimport delimited using r2fnc8.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"b\"\n\".5\"\n\"333\"\nend\nexport delimited using r2fnc9.csv, novarnames replace\nimport delimited using r2fnc9.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"b\"\n\"1\"\n\".5\"\n\"1.5\"\nend\nexport delimited using r2fnc10.csv, novarnames replace\nimport delimited using r2fnc10.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"b\"\n\"1.5\"\n\"2.25\"\n\"70000\"\nend\nexport delimited using r2fnc11.csv, novarnames replace\nimport delimited using r2fnc11.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"b\"\n\"1.5\"\n\"22.5\"\n\"1.25\"\nend\nexport delimited using r2fnc12.csv, novarnames replace\nimport delimited using r2fnc12.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"b\"\n\"333\"\n\"1.5\"\n\"2.25\"\nend\nexport delimited using r2fnc13.csv, novarnames replace\nimport delimited using r2fnc13.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"b\"\n\"100000\"\n\"2.25\"\nend\nexport delimited using r2fnc14.csv, novarnames replace\nimport delimited using r2fnc14.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"b\"\n\"1.5\"\n\"1234\"\n\"2.25\"\nend\nexport delimited using r2fnc15.csv, novarnames replace\nimport delimited using r2fnc15.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"5\"\n\"b\"\n\"1.5\"\n\"2.25\"\nend\nexport delimited using r2fnc16.csv, novarnames replace\nimport delimited using r2fnc16.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\nclear\ninput str8 v\n\"b\"\n\"1.5\"\n\"12.25\"\n\"1\"\nend\nexport delimited using r2fnc17.csv, novarnames replace\nimport delimited using r2fnc17.csv, numericcols(1) varnames(nonames) clear\ndescribe v1\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"b\"",
+            "  2. \"1.5\"",
+            "  3. \"x\"",
+            "  4. \"2.25\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc1.csv, novarnames replace",
+          "lines": ["(file r2fnc1.csv not found)", "file r2fnc1.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc1.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 4 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              float   %9.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": ["             v", "  1. \"b\"", "  2. \"1.5\"", "  3. end"]
+        },
+        {
+          "command": "export delimited using r2fnc2.csv, novarnames replace",
+          "lines": ["(file r2fnc2.csv not found)", "file r2fnc2.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc2.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 2 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              double  %12.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": ["             v", "  1. \"1.5\"", "  2. \"x\"", "  3. end"]
+        },
+        {
+          "command": "export delimited using r2fnc3.csv, novarnames replace",
+          "lines": ["(file r2fnc3.csv not found)", "file r2fnc3.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc3.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 2 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              float   %9.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"x\"",
+            "  2. \"1.5\"",
+            "  3. \"x\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc4.csv, novarnames replace",
+          "lines": ["(file r2fnc4.csv not found)", "file r2fnc4.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc4.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              double  %12.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"b\"",
+            "  2. \"1.5\"",
+            "  3. \"2.25\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc5.csv, novarnames replace",
+          "lines": ["(file r2fnc5.csv not found)", "file r2fnc5.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc5.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              float   %9.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"b\"",
+            "  2. \"x\"",
+            "  3. \"1.5\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc6.csv, novarnames replace",
+          "lines": ["(file r2fnc6.csv not found)", "file r2fnc6.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc6.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              double  %12.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"ab\"",
+            "  2. \"1.5\"",
+            "  3. \"x\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc7.csv, novarnames replace",
+          "lines": ["(file r2fnc7.csv not found)", "file r2fnc7.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc7.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              double  %12.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"1.5\"",
+            "  2. \"x\"",
+            "  3. \"2.25\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc8.csv, novarnames replace",
+          "lines": ["(file r2fnc8.csv not found)", "file r2fnc8.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc8.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              float   %9.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"b\"",
+            "  2. \".5\"",
+            "  3. \"333\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc9.csv, novarnames replace",
+          "lines": ["(file r2fnc9.csv not found)", "file r2fnc9.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc9.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              double  %12.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"b\"",
+            "  2. \"1\"",
+            "  3. \".5\"",
+            "  4. \"1.5\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc10.csv, novarnames replace",
+          "lines": ["(file r2fnc10.csv not found)", "file r2fnc10.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc10.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 4 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              double  %12.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"b\"",
+            "  2. \"1.5\"",
+            "  3. \"2.25\"",
+            "  4. \"70000\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc11.csv, novarnames replace",
+          "lines": ["(file r2fnc11.csv not found)", "file r2fnc11.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc11.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 4 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              double  %10.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"b\"",
+            "  2. \"1.5\"",
+            "  3. \"22.5\"",
+            "  4. \"1.25\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc12.csv, novarnames replace",
+          "lines": ["(file r2fnc12.csv not found)", "file r2fnc12.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc12.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 4 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              float   %9.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"b\"",
+            "  2. \"333\"",
+            "  3. \"1.5\"",
+            "  4. \"2.25\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc13.csv, novarnames replace",
+          "lines": ["(file r2fnc13.csv not found)", "file r2fnc13.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc13.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 4 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              float   %9.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"b\"",
+            "  2. \"100000\"",
+            "  3. \"2.25\"",
+            "  4. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc14.csv, novarnames replace",
+          "lines": ["(file r2fnc14.csv not found)", "file r2fnc14.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc14.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 3 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              double  %8.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"b\"",
+            "  2. \"1.5\"",
+            "  3. \"1234\"",
+            "  4. \"2.25\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc15.csv, novarnames replace",
+          "lines": ["(file r2fnc15.csv not found)", "file r2fnc15.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc15.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 4 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              float   %9.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"5\"",
+            "  2. \"b\"",
+            "  3. \"1.5\"",
+            "  4. \"2.25\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc16.csv, novarnames replace",
+          "lines": ["(file r2fnc16.csv not found)", "file r2fnc16.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc16.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 4 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              float   %9.0g"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str8 v",
+          "lines": [
+            "             v",
+            "  1. \"b\"",
+            "  2. \"1.5\"",
+            "  3. \"12.25\"",
+            "  4. \"1\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "export delimited using r2fnc17.csv, novarnames replace",
+          "lines": ["(file r2fnc17.csv not found)", "file r2fnc17.csv saved"]
+        },
+        {
+          "command": "import delimited using r2fnc17.csv, numericcols(1) varnames(nonames) clear",
+          "lines": [
+            "(encoding automatically selected: UTF-8)",
+            "(1 var, 4 obs)"
+          ]
+        },
+        {
+          "command": "describe v1",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "v1              double  %10.0g"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-files2-confirm-file",
+      "source": "clear\nset obs 2\ngenerate id = _n\nsave r2fcp, replace\nexport delimited using r2fcx.csv, replace\ncapture noisily confirm file r2fcp.dta\ndi _rc\ncapture noisily confirm file people\ndi _rc\ncapture noisily confirm file \"r2fcp.dta\"\ndi _rc\ncapture noisily confirm file `\"r2fcp.dta\"'\ndi _rc\ncapture noisily confirm file ./r2fcp.dta\ndi _rc\ncapture noisily confirm file nosuch.dta\ndi _rc\ncapture noisily confirm file R2FCP.DTA\ndi _rc\ncapture noisily confirm file \"no such.dta\"\ndi _rc\ncapture noisily confirm file r2fcp.dta r2fcx.csv\ndi _rc\ncapture noisily confirm file\ndi _rc\ncapture noisily confirm new file x.dta\ndi _rc\ncapture noisily confirm new file r2fcp.dta\ndi _rc\ncapture noisily confirm new file \"r2fcp.dta\"\ndi _rc\ncapture noisily confirm new file\ndi _rc\ncapture noisily confirm new file nofolder/x.dta\ndi _rc\ncapture noisily confirm new file x.dta y.dta\ndi _rc\ncapture noisily confirm fi r2fcp.dta\ndi _rc\ncapture noisily confirm new fi x.dta\ndi _rc\ncapture noisily confirm file r2fcx.csv, x\ndi _rc\ncapture mkdir r2fdd\ncapture noisily confirm file r2fdd\ndi _rc\ncapture noisily confirm new file r2fdd\ndi _rc\nuse r2fcp, clear\nsave r2fnw, replace\ncapture noisily confirm file r2fnw.dta\ndi _rc\ncapture noisily confirm new file r2fnw.dta\ndi _rc\ncapture noisily confirm f r2fcp.dta\ndi _rc\ncapture noisily confirm new f x\ndi _rc\ncapture noisily confirm file \"r2fcp.dta\"x\ndi _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "save r2fcp, replace",
+          "lines": ["(file r2fcp.dta not found)", "file r2fcp.dta saved"]
+        },
+        {
+          "command": "export delimited using r2fcx.csv, replace",
+          "lines": ["(file r2fcx.csv not found)", "file r2fcx.csv saved"]
+        },
+        { "command": "capture noisily confirm file r2fcp.dta", "lines": [] },
+        { "command": "di _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily confirm file people",
+          "lines": ["file people not found"]
+        },
+        { "command": "di _rc", "lines": ["601"] },
+        {
+          "command": "capture noisily confirm file \"r2fcp.dta\"",
+          "lines": []
+        },
+        { "command": "di _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily confirm file `\"r2fcp.dta\"'",
+          "lines": []
+        },
+        { "command": "di _rc", "lines": ["0"] },
+        { "command": "capture noisily confirm file ./r2fcp.dta", "lines": [] },
+        { "command": "di _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily confirm file nosuch.dta",
+          "lines": ["file nosuch.dta not found"]
+        },
+        { "command": "di _rc", "lines": ["601"] },
+        { "command": "capture noisily confirm file R2FCP.DTA", "lines": [] },
+        { "command": "di _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily confirm file \"no such.dta\"",
+          "lines": ["file no such.dta not found"]
+        },
+        { "command": "di _rc", "lines": ["601"] },
+        {
+          "command": "capture noisily confirm file r2fcp.dta r2fcx.csv",
+          "lines": ["'r2fcx.csv' found where nothing expected"]
+        },
+        { "command": "di _rc", "lines": ["7"] },
+        {
+          "command": "capture noisily confirm file",
+          "lines": ["'' found where filename expected"]
+        },
+        { "command": "di _rc", "lines": ["7"] },
+        { "command": "capture noisily confirm new file x.dta", "lines": [] },
+        { "command": "di _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily confirm new file r2fcp.dta",
+          "lines": ["file r2fcp.dta already exists"]
+        },
+        { "command": "di _rc", "lines": ["602"] },
+        {
+          "command": "capture noisily confirm new file \"r2fcp.dta\"",
+          "lines": ["file r2fcp.dta already exists"]
+        },
+        { "command": "di _rc", "lines": ["602"] },
+        {
+          "command": "capture noisily confirm new file",
+          "lines": ["'' found where filename expected"]
+        },
+        { "command": "di _rc", "lines": ["7"] },
+        {
+          "command": "capture noisily confirm new file nofolder/x.dta",
+          "lines": ["file nofolder/x.dta could not be opened"]
+        },
+        { "command": "di _rc", "lines": ["603"] },
+        {
+          "command": "capture noisily confirm new file x.dta y.dta",
+          "lines": ["'y.dta' found where nothing expected"]
+        },
+        { "command": "di _rc", "lines": ["7"] },
+        { "command": "capture noisily confirm fi r2fcp.dta", "lines": [] },
+        { "command": "di _rc", "lines": ["0"] },
+        { "command": "capture noisily confirm new fi x.dta", "lines": [] },
+        { "command": "di _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily confirm file r2fcx.csv, x",
+          "lines": ["',' found where nothing expected"]
+        },
+        { "command": "di _rc", "lines": ["7"] },
+        { "command": "capture mkdir r2fdd", "lines": [] },
+        { "command": "capture noisily confirm file r2fdd", "lines": [] },
+        { "command": "di _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily confirm new file r2fdd",
+          "lines": ["file r2fdd already exists"]
+        },
+        { "command": "di _rc", "lines": ["602"] },
+        { "command": "use r2fcp, clear", "lines": [] },
+        {
+          "command": "save r2fnw, replace",
+          "lines": ["(file r2fnw.dta not found)", "file r2fnw.dta saved"]
+        },
+        { "command": "capture noisily confirm file r2fnw.dta", "lines": [] },
+        { "command": "di _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily confirm new file r2fnw.dta",
+          "lines": ["file r2fnw.dta already exists"]
+        },
+        { "command": "di _rc", "lines": ["602"] },
+        { "command": "capture noisily confirm f r2fcp.dta", "lines": [] },
+        { "command": "di _rc", "lines": ["0"] },
+        { "command": "capture noisily confirm new f x", "lines": [] },
+        { "command": "di _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily confirm file \"r2fcp.dta\"x",
+          "lines": ["'x' found where nothing expected"]
+        },
+        { "command": "di _rc", "lines": ["7"] }
+      ]
+    },
+    {
+      "id": "recheck-files2-mkdir-cd",
+      "source": "capture noisily mkdir r2fs1\ndisplay _rc\ncapture noisily mkdir r2fs1\ndisplay _rc\ncapture noisily mkdir \"r2fs2\", public\ndisplay _rc\ncapture noisily mkdir r2fs1/r2fin\ndisplay _rc\ncapture noisily mkdir r2fnope/r2fin\ndisplay _rc\ncapture cd r2fs1/\ndisplay _rc\ncapture cd r2fin\ndisplay _rc\ncapture cd ../..\ndisplay _rc\ncapture cd \"./r2fs1/r2fin\"\ndisplay _rc\ncapture cd ..\ncapture noisily cd r2fs1\ndisplay _rc\ncapture cd ..\ncapture cd r2fs2/../r2fs1\ndisplay _rc\ncapture cd ..\ncapture noisily cd r2fnosuch\ndisplay _rc\ncapture noisily mkdir\ndisplay _rc\ncapture noisily mkdir r2fs3, nosuch\ndisplay _rc\nclear\nset obs 1\ngenerate x = 1\ncapture mkdir r2fout\ncapture cd r2fout\nsave r2fincd, replace\ncapture cd ..\n",
+      "commands": [
+        { "command": "capture noisily mkdir r2fs1", "lines": [] },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily mkdir r2fs1",
+          "lines": ["could not create directory r2fs1"]
+        },
+        { "command": "display _rc", "lines": ["693"] },
+        { "command": "capture noisily mkdir \"r2fs2\", public", "lines": [] },
+        { "command": "display _rc", "lines": ["0"] },
+        { "command": "capture noisily mkdir r2fs1/r2fin", "lines": [] },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily mkdir r2fnope/r2fin",
+          "lines": ["could not create directory r2fnope/r2fin"]
+        },
+        { "command": "display _rc", "lines": ["693"] },
+        { "command": "capture cd r2fs1/", "lines": [] },
+        { "command": "display _rc", "lines": ["0"] },
+        { "command": "capture cd r2fin", "lines": [] },
+        { "command": "display _rc", "lines": ["0"] },
+        { "command": "capture cd ../..", "lines": [] },
+        { "command": "display _rc", "lines": ["0"] },
+        { "command": "capture cd \"./r2fs1/r2fin\"", "lines": [] },
+        { "command": "display _rc", "lines": ["0"] },
+        { "command": "capture cd ..", "lines": [] },
+        {
+          "command": "capture noisily cd r2fs1",
+          "lines": ["unable to change to r2fs1"]
+        },
+        { "command": "display _rc", "lines": ["170"] },
+        { "command": "capture cd ..", "lines": [] },
+        { "command": "capture cd r2fs2/../r2fs1", "lines": [] },
+        { "command": "display _rc", "lines": ["0"] },
+        { "command": "capture cd ..", "lines": [] },
+        {
+          "command": "capture noisily cd r2fnosuch",
+          "lines": ["unable to change to r2fnosuch"]
+        },
+        { "command": "display _rc", "lines": ["170"] },
+        { "command": "capture noisily mkdir", "lines": ["invalid syntax"] },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily mkdir r2fs3, nosuch",
+          "lines": ["option nosuch not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "generate x = 1", "lines": [] },
+        { "command": "capture mkdir r2fout", "lines": [] },
+        { "command": "capture cd r2fout", "lines": [] },
+        {
+          "command": "save r2fincd, replace",
+          "lines": ["(file r2fincd.dta not found)", "file r2fincd.dta saved"]
+        },
+        { "command": "capture cd ..", "lines": [] }
+      ]
+    },
+    {
+      "id": "recheck-files2-tabs",
+      "source": "clear\nset obs 3\ngen str30 s = \"a\" + char(9) + \"b\"\nreplace s = \"abcdefghi\" + char(9) + \"x\" + char(9) + \"y\" in 2\nreplace s = char(9) + \"lead\" in 3\ngen x = _n\ngen str3 t = \"q\" + char(9)\nlist\nlist, clean\nlist, noobs sep(0)\nlist s, string(5)\nlist in 2, display\nlist, table divider\nlabel variable s \"lab\"\nlist s x, abbreviate(2)\ntab s\ndisplay s[1]\nclear\nset obs 2\ngen str30 s = \"a\" + char(9) + \"b\"\nreplace s = \"zz\" in 2\ngen x = _n\nlevelsof s\ntable s\nlabel define l 1 \"one\ttwo\" 2 \"z\"\nlabel values x l\nlist x\ntab x\nlabel variable x \"v\tl\"\ndescribe x\nclear\nset obs 1\ngen str20 s = \"a\tb\"\ndi length(s[1])\ndi strpos(s[1], char(9))\nlocal m \"x\ty\"\ndi length(\"`m'\")\n\tdi \"ok\"\nlabel define l 1 \"one\ttwo\"\ndi length(\"`: label l 1'\")\nlabel variable s \"v\tl\"\ndi length(\"`: variable label s'\")\nnotes s: n\tt\nnotes\nchar s[c] u\tv\nlocal z : char s[c]\ndi length(\"`z'\")\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "gen str30 s = \"a\" + char(9) + \"b\"", "lines": [] },
+        {
+          "command": "replace s = \"abcdefghi\" + char(9) + \"x\" + char(9) + \"y\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "replace s = char(9) + \"lead\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "gen x = _n", "lines": [] },
+        { "command": "gen str3 t = \"q\" + char(9)", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +------------------------+",
+            "     |             s   x    t |",
+            "     |------------------------|",
+            "  1. |           a      b   1   q        |",
+            "  2. | abcdefghi        x       y   2   q        |",
+            "  3. |          lead   3   q     |",
+            "     +------------------------+"
+          ]
+        },
+        {
+          "command": "list, clean",
+          "lines": [
+            "                   s   x    t",
+            "  1.             a      b   1   q",
+            "  2.   abcdefghi        x       y   2   q",
+            "  3.            lead   3   q"
+          ]
+        },
+        {
+          "command": "list, noobs sep(0)",
+          "lines": [
+            "  +------------------------+",
+            "  |             s   x    t |",
+            "  |------------------------|",
+            "  |           a b   1   q        |",
+            "  | abcdefghi   x       y   2   q        |",
+            "  |             lead   3   q     |",
+            "  +------------------------+"
+          ]
+        },
+        {
+          "command": "list s, string(5)",
+          "lines": [
+            "     +---------+",
+            "     | s       |",
+            "     |---------|",
+            "  1. | a        b     |",
+            "  2. | abcde.. |",
+            "  3. |  lead   |",
+            "     +---------+"
+          ]
+        },
+        {
+          "command": "list in 2, display",
+          "lines": [
+            "     +------------------------+",
+            "  2. |             s | x |  t |",
+            "     | abcdefghi        x       y | 2 | q        |",
+            "     +------------------------+"
+          ]
+        },
+        {
+          "command": "list, table divider",
+          "lines": [
+            "     +------------------------+",
+            "     |             s | x |  t |",
+            "     |---------------+---+----|",
+            "  1. |           a      b | 1 | q        |",
+            "  2. | abcdefghi        x       y | 2 | q        |",
+            "  3. |          lead | 3 | q     |",
+            "     +------------------------+"
+          ]
+        },
+        { "command": "label variable s \"lab\"", "lines": [] },
+        {
+          "command": "list s x, abbreviate(2)",
+          "lines": [
+            "     +-------------------+",
+            "     |             s   x |",
+            "     |-------------------|",
+            "  1. |           a      b   1 |",
+            "  2. | abcdefghi        x       y   2 |",
+            "  3. |          lead   3 |",
+            "     +-------------------+"
+          ]
+        },
+        {
+          "command": "tab s",
+          "lines": [
+            "                           lab |      Freq.     Percent        Cum.",
+            "-------------------------------+-----------------------------------",
+            "                                lead |          1       33.33       33.33",
+            "                           a    b |          1       33.33       66.67",
+            "                 abcdefghi      x       y |          1       33.33      100.00",
+            "-------------------------------+-----------------------------------",
+            "                         Total |          3      100.00"
+          ]
+        },
+        { "command": "display s[1]", "lines": ["a       b"] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "gen str30 s = \"a\" + char(9) + \"b\"", "lines": [] },
+        {
+          "command": "replace s = \"zz\" in 2",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "gen x = _n", "lines": [] },
+        { "command": "levelsof s", "lines": ["`\"a     b\"' `\"zz\"'"] },
+        {
+          "command": "table s",
+          "lines": [
+            "--------------------",
+            "        |  Frequency",
+            "--------+-----------",
+            "s       |",
+            "  a     b   |          1",
+            "  zz    |          1",
+            "  Total |          2",
+            "--------------------"
+          ]
+        },
+        { "command": "label define l 1 \"one   two\" 2 \"z\"", "lines": [] },
+        { "command": "label values x l", "lines": [] },
+        {
+          "command": "list x",
+          "lines": [
+            "     +-----------+",
+            "     |         x |",
+            "     |-----------|",
+            "  1. | one   two |",
+            "  2. |         z |",
+            "     +-----------+"
+          ]
+        },
+        {
+          "command": "tab x",
+          "lines": [
+            "          x |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "  one   two |          1       50.00       50.00",
+            "          z |          1       50.00      100.00",
+            "------------+-----------------------------------",
+            "      Total |          2      100.00"
+          ]
+        },
+        { "command": "label variable x \"v     l\"", "lines": [] },
+        {
+          "command": "describe x",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "x               float   %9.0g      l          v l"
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "gen str20 s = \"a        b\"", "lines": [] },
+        { "command": "di length(s[1])", "lines": ["10"] },
+        { "command": "di strpos(s[1], char(9))", "lines": ["0"] },
+        { "command": "local m \"x      y\"", "lines": [] },
+        { "command": "di length(\"`m'\")", "lines": ["8"] },
+        { "command": "di \"ok\"", "lines": ["ok"] },
+        { "command": "label define l 1 \"one   two\"", "lines": [] },
+        { "command": "di length(\"`: label l 1'\")", "lines": ["9"] },
+        { "command": "label variable s \"v     l\"", "lines": [] },
+        { "command": "di length(\"`: variable label s'\")", "lines": ["7"] },
+        { "command": "notes s: n      t", "lines": [] },
+        { "command": "notes", "lines": ["s:", "  1.  n t"] },
+        { "command": "char s[c] u     v", "lines": [] },
+        { "command": "local z : char s[c]", "lines": [] },
+        { "command": "di length(\"`z'\")", "lines": ["7"] }
+      ]
+    },
+    {
+      "id": "recheck-files2-split-unicode-stub",
+      "source": "clear\nset obs 1\ngen str20 s = \"x y z\"\nsplit s, gen(ét)\nds\nsplit s, gen(ab)\ngen ét9 = 1\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "gen str20 s = \"x y z\"", "lines": [] },
+        {
+          "command": "split s, gen(ét)",
+          "lines": ["variables created as string:", "ét1   ét2   ét3"]
+        },
+        { "command": "ds", "lines": ["s     ét1   ét2   ét3"] },
+        {
+          "command": "split s, gen(ab)",
+          "lines": ["variables created as string:", "ab1  ab2  ab3"]
+        },
+        { "command": "gen ét9 = 1", "lines": [] }
+      ]
+    },
+    {
+      "id": "recheck-files2-dot-slash-excel",
+      "source": "clear\nset seed 2026\nset obs 10\ngenerate id = _n\ngenerate wage = round(10 + 20 * runiform(), .01)\nsave r2fxp, replace\nexport delimited using r2fxe.csv, replace\nuse r2fxp, clear\nexport excel using ./r2ft.xlsx, firstrow(variables) replace\nimport excel using r2ft.xlsx, firstrow clear\ndescribe, short\nexport excel using r2ft2.xlsx, firstrow(variables) replace\nimport excel using ./r2ft2.xlsx, firstrow clear\ndescribe, short\nputexcel set ./r2fpe.xlsx, replace\nputexcel A1 = \"hi\"\nimport excel r2fpe.xlsx, clear\nlist\nlabel define yn 1 \"yes\"\nlabel save yn using ./r2fls, replace\ndo r2fls.do\nlabel list yn\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 2026", "lines": [] },
+        {
+          "command": "set obs 10",
+          "lines": ["Number of observations (_N) was 0, now 10."]
+        },
+        { "command": "generate id = _n", "lines": [] },
+        {
+          "command": "generate wage = round(10 + 20 * runiform(), .01)",
+          "lines": []
+        },
+        {
+          "command": "save r2fxp, replace",
+          "lines": ["(file r2fxp.dta not found)", "file r2fxp.dta saved"]
+        },
+        {
+          "command": "export delimited using r2fxe.csv, replace",
+          "lines": ["(file r2fxe.csv not found)", "file r2fxe.csv saved"]
+        },
+        { "command": "use r2fxp, clear", "lines": [] },
+        {
+          "command": "export excel using ./r2ft.xlsx, firstrow(variables) replace",
+          "lines": ["file ./r2ft.xlsx saved"]
+        },
+        {
+          "command": "import excel using r2ft.xlsx, firstrow clear",
+          "lines": ["(2 vars, 10 obs)"]
+        },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:            10",
+            "    Variables:             2",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "export excel using r2ft2.xlsx, firstrow(variables) replace",
+          "lines": ["file r2ft2.xlsx saved"]
+        },
+        {
+          "command": "import excel using ./r2ft2.xlsx, firstrow clear",
+          "lines": ["(2 vars, 10 obs)"]
+        },
+        {
+          "command": "describe, short",
+          "lines": [
+            "Contains data",
+            " Observations:            10",
+            "    Variables:             2",
+            "Sorted by:",
+            "     Note: Dataset has changed since last saved."
+          ]
+        },
+        {
+          "command": "putexcel set ./r2fpe.xlsx, replace",
+          "lines": [
+            "note: file will be replaced when the first putexcel command is issued."
+          ]
+        },
+        {
+          "command": "putexcel A1 = \"hi\"",
+          "lines": ["file ./r2fpe.xlsx saved"]
+        },
+        {
+          "command": "import excel r2fpe.xlsx, clear",
+          "lines": ["(1 var, 1 obs)"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +----+",
+            "     |  A |",
+            "     |----|",
+            "  1. | hi |",
+            "     +----+"
+          ]
+        },
+        { "command": "label define yn 1 \"yes\"", "lines": [] },
+        {
+          "command": "label save yn using ./r2fls, replace",
+          "lines": ["(file ./r2fls.do not found)", "file ./r2fls.do saved"]
+        },
+        { "command": "do r2fls.do", "lines": [] },
+        { "command": "label define yn 1 `\"yes\"', modify", "lines": [] }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
