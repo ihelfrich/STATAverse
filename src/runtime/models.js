@@ -4,10 +4,16 @@
 // post-estimation commands here read only that object.
 import { least, greatest } from "./extremes.js";
 import { firstStage, ivDiagnostic, sweptColumns } from "./more-estimators.js";
-import { estimatesStats, estimatesTable, lrtest } from "./comparisons.js";
+import {
+  estimatesDir,
+  estimatesStats,
+  estimatesTable,
+  informationCriteria,
+  lrtest,
+} from "./comparisons.js";
 import { regressDiagnostic } from "./diagnostics.js";
 import { StataError } from "./errors.js";
-import { applyFormat } from "./format.js";
+import { abbreviateAmong, applyFormat } from "./format.js";
 import { chi2tail } from "./distributions.js";
 import { invnormal, normal } from "./functions.js";
 import { count } from "./reports.js";
@@ -20,6 +26,7 @@ import {
   design,
   equationOf,
   estimates,
+  forgetEstimates,
   invertSymmetric,
   lincom as lincomT,
   waldTest,
@@ -29,13 +36,21 @@ import {
   tableWidth,
   abbreviate,
   baseLevelsAsked,
+  numericVarlist,
   test as testT,
   unitConstraint,
 } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
+import { isOperated, tsTerms } from "./timeseries.js";
+import { unchangedBy } from "./data-commands.js";
 import { MISSING, isMissing } from "./values.js";
 import { evaluateAll } from "./expression.js";
-import { poissonStart } from "./likelihood.js";
+import {
+  iterationLine,
+  maximizeNR,
+  poissonStart,
+  quadSum,
+} from "./likelihood.js";
 import { clusterMeat, clusterNote, noCluster, readVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
@@ -350,11 +365,53 @@ export function recheckCollinearity(columns, sample, constant) {
 function maximumLikelihood(kind) {
   const family = FAMILIES[kind];
   return (session, text, ctx) => {
-    const parsed = session.parse(
-        `anything [if] [in] [fweight pweight iweight] [, noCONStant Robust VCE(string) CLuster(string) Level(cilevel) noLOg OR IRr BASElevels ALLBASElevels${family.binary ? " | ASIS" : ""}]`,
+    // Stata's exposure() and offset() are named, so that they are refused
+    // as not yet here rather than as options poisson does not have.
+    const later = [
+      ...(family.binary ? ["ASIS"] : []),
+      ...(kind === "poisson" ? ["Exposure(string)"] : []),
+      "OFFset(string)",
+    ];
+    let parsed;
+    try {
+      // logit and probit take ml's maximize options.
+      const maximize = family.binary
+        ? "ITERate(integer -1) TOLerance(real 1e-6) LTOLerance(real 1e-7) NRTOLerance(real 1e-5) DIFficult noCOEF "
+        : "";
+      parsed = session.parse(
+        `anything [if] [in] [fweight pweight iweight] [, noCONStant Robust VCE(string) CLuster(string) Level(cilevel) noLOg OR IRr BASElevels ALLBASElevels ${maximize}| ${later.join(" ")}]`,
         text,
-      ),
-      options = parsed.options;
+      );
+    } catch (error) {
+      const refused =
+        error instanceof StataError &&
+        /^option (exposure|offset) is not available/.exec(error.message);
+      if (refused) {
+        // A variable that does not exist is reported first, as Stata does.
+        const written = new RegExp(
+          `\\b${refused[1] === "exposure" ? "e(?:x(?:p(?:o(?:s(?:u(?:re?)?)?)?)?)?)?" : "off(?:s(?:et?)?)?"}\\(\\s*([^)]*?)\\s*\\)`,
+        ).exec(splitAtComma(text)[1] ?? "")?.[1];
+        if (written !== undefined)
+          try {
+            session.varlist(written);
+          } catch (missing) {
+            if (missing instanceof StataError)
+              throw new StataError(
+                `${missing.message}\n(error in option ${refused[1]}())`,
+                missing.code,
+              );
+            throw missing;
+          }
+      }
+      if (refused)
+        error.hint =
+          kind === "poisson"
+            ? "poisson does not yet take exposure() or offset() here (xtpoisson does, for panel data). Fit this model in Stata, or leave the option out."
+            : `${kind} does not yet take offset() here. Fit this model in Stata, or leave the option out.`;
+      throw error;
+    }
+    const options = parsed.options;
+    if (kind === "poisson") numericVarlist(session, parsed.anything);
     // Stata resamples observations, which a weight would stand in for.
     if (
       parsed.weight &&
@@ -415,14 +472,30 @@ function maximumLikelihood(kind) {
         throw new StataError("negative weights encountered", 402);
     }
     if (!n) throw new StataError("no observations", 2000);
+    // poisson refuses outcomes that are all zero once it counts two
+    // observations, a frequency weight counting as that many; one
+    // observation otherwise fits nothing, whatever its outcome or weight.
+    const zero =
+        kind === "poisson" && sample.every((i) => dependent.data[i] === 0),
+      counted =
+        wtype === "fweight" ? sample.reduce((t, i) => t + weightOf[i], 0) : n;
+    if (zero && counted >= 2)
+      throw new StataError(
+        `${dependent.name} is zero for all observations`,
+        498,
+      );
+    if (n < 2) throw new StataError("insufficient observations", 2001);
     let y = sample.map((i) => dependent.data[i]);
     if (family.binary) {
       const outcome = y.map((v) => Number(v !== 0));
-      if (outcome.every((v) => v === outcome[0]))
+      if (outcome.every((v) => v === outcome[0])) {
+        // logit and probit have cleared e() by then.
+        forgetEstimates(session);
         throw new StataError(
           "outcome does not vary; remember:\n                                  0 = negative outcome,\n        all other nonmissing values = positive outcome",
           2000,
         );
+      }
       // Copied in place: spreading every observation into splice overflowed
       // the call stack at about 130,000 observations.
       outcome.forEach((v, i) => {
@@ -478,17 +551,22 @@ function maximumLikelihood(kind) {
           ? Math.log(mean / (1 - mean))
           : invnormal(mean)
         : Math.log(mean),
-      logLikelihood = (b) =>
-        x.reduce(
-          (total, row, i) =>
-            total +
-            weightAt(i) *
-              family.ll(
-                y[i],
-                row.reduce((t, v, k) => t + v * b[k], 0),
-              ),
-          0,
+      // Summed in quad precision, as Stata sums it: where the fit has
+      // nearly converged, whether a step forward raises the likelihood is
+      // decided in the last digits.
+      logLikelihood = (b) => {
+        const sum = quadSum();
+        x.forEach((row, i) =>
+          sum.add(
+            family.ll(
+              y[i],
+              row.reduce((t, v, k) => t + v * b[k], 0),
+            ),
+            weightAt(i),
+          ),
         );
+        return sum.value;
+      };
     let b = new Array(size).fill(0);
     if (constant) b[size - 1] = start;
     // Sampling weights make the variance robust unless poisson was asked
@@ -532,8 +610,42 @@ function maximumLikelihood(kind) {
       );
       ll = logLikelihood(b);
     }
-    log.push(ll);
-    for (let iteration = 1; iteration <= 100; iteration++) {
+    // What Stata notes beside an iteration, as "backed up".
+    let stepNotes = [],
+      converged = true;
+    if (family.binary) {
+      // Stata's logit and probit step as ml's Newton-Raphson steps: a step
+      // that raises the likelihood is carried on along its direction while
+      // it goes on raising it, and convergence asks for a small scaled
+      // gradient too. The iteration log is then Stata's, line for line.
+      // iterate() stops the search where it is, with a warning; a search
+      // that runs out of its 300 steps unasked stops the command.
+      const limit = options.iterate >= 0 ? options.iterate : 300,
+        fitted = maximizeNR(
+          (theta, todo) => {
+            b = theta;
+            const value = logLikelihood(theta);
+            if (!todo) return { value };
+            const { gradient, hessian } = derivatives();
+            return { value, gradient, information: hessian };
+          },
+          b,
+          limit,
+          {
+            tolerance: options.tolerance,
+            ltolerance: options.ltolerance,
+            nrtolerance: options.nrtolerance,
+          },
+        );
+      if (!fitted.converged && !(options.iterate >= 0))
+        throw new StataError("convergence not achieved", 430);
+      converged = fitted.converged;
+      b = fitted.theta;
+      ll = fitted.ll;
+      log.push(...fitted.log);
+      stepNotes = fitted.notes;
+    } else log.push(ll);
+    for (let iteration = 1; !family.binary && iteration <= 100; iteration++) {
       const { gradient, hessian } = derivatives();
       information = invertSymmetric(hessian);
       if (!information)
@@ -706,7 +818,7 @@ function maximumLikelihood(kind) {
       rank,
       k: names.length,
       ic: log.length - 1,
-      converged: 1,
+      converged: Number(converged),
       cmd: kind,
       depvar: model.depvar,
       vce: model.vce,
@@ -739,16 +851,20 @@ function maximumLikelihood(kind) {
       if (logged) ctx.out("");
       perfect.notes.forEach(ctx.out);
       notes();
-      if (!logged) ctx.out("");
+      if (!logged) {
+        if (!converged) ctx.out("convergence not achieved");
+        ctx.out("");
+      }
     }
     if (logged) {
       log.forEach((value, k) =>
-        ctx.out(
-          `Iteration ${k}:  ${word} = ${g(value, "%10.0g").padStart(10)}`,
-        ),
+        ctx.out(iterationLine(k, word, value, stepNotes[k])),
       );
+      if (!converged) ctx.out("convergence not achieved");
       ctx.out("");
     }
+    // nocoef shows the log alone.
+    if (options.coef === false) return;
     ctx.out(`${family.title.padEnd(left)}${side("Number of obs", shown[0])}`);
     ctx.out(
       `${"".padEnd(left)}${side(`${wald ? "Wald" : "LR"} chi2(${model.df_m})`, shown[1])}`,
@@ -774,6 +890,24 @@ function maximumLikelihood(kind) {
           .padStart(66 + tableWidth(session, model, [model.depvar])),
       );
     zTable(session, model, options.level, transform).forEach(ctx.out);
+    // Observations whose fitted index is past what the link can tell from
+    // certainty (beyond 18 in logit, 6 in probit) are noted, as Stata's
+    // logit and probit note them.
+    if (family.binary) {
+      const limit = kind === "probit" ? 6 : 18;
+      let failures = 0,
+        successes = 0;
+      x.forEach((row, i) => {
+        const xb = row.reduce((t, v, k) => t + v * b[k], 0);
+        if (y[i] === 0 && xb < -limit) failures++;
+        else if (y[i] !== 0 && xb > limit) successes++;
+      });
+      if (failures + successes)
+        ctx.out(
+          `Note: ${count(failures)} failure${failures === 1 ? "" : "s"} and ${count(successes)} success${successes === 1 ? "" : "es"} completely determined.`,
+        );
+    }
+    if (!converged) ctx.out("Warning: Convergence not achieved.");
     ctx.out("");
   };
 }
@@ -928,6 +1062,9 @@ function ivColumns(listed, rows) {
       notes.push(`note: ${bareName(c.name)} omitted because of collinearity.`);
     }
   }
+  // The notes on the exogenous regressors, which Stata prints before it
+  // looks at the outcome and the instruments.
+  notes.exogenous = notes.slice();
   const repeated = new Set(
       listed.exogenous.filter((c) => !c.term.variable).map((c) => key(c.term)),
     ),
@@ -948,11 +1085,41 @@ function ivColumns(listed, rows) {
   return notes;
 }
 
+/**
+ * Whether the constant and the columns fit the outcome exactly over the
+ * rows, as one observation always is.
+ */
+function fitsExactly(rows, columns, outcome) {
+  const basis = [];
+  const residual = (values) => {
+    let rest = values;
+    for (const q of basis) {
+      const weight = rest.reduce((t, v, k) => t + v * q.vector[k], 0) / q.norm;
+      rest = rest.map((v, k) => v - weight * q.vector[k]);
+    }
+    return rest;
+  };
+  for (const values of [
+    rows.map(() => 1),
+    ...columns.map((c) => rows.map((i) => c.value(i))),
+  ]) {
+    const original = values.reduce((t, v) => t + v * v, 0),
+      rest = residual(values),
+      norm = rest.reduce((t, v) => t + v * v, 0);
+    if (original > 0 && norm > 1e-9 * original)
+      basis.push({ vector: rest, norm });
+  }
+  const y = rows.map((i) => outcome[i]),
+    original = y.reduce((t, v) => t + v * v, 0),
+    rest = residual(y);
+  return rest.reduce((t, v) => t + v * v, 0) <= 1e-13 * original;
+}
+
 /** Whether a command's weight is typed as [weight=exp] or [w=exp]. */
 export const bareWeight = (text) =>
   /(?:^|\s)\[\s*w(?:e(?:i(?:g(?:ht?)?)?)?)?\s*=/.test(splitAtComma(text)[0]);
 
-function ivregress(session, text, ctx) {
+export function ivregress(session, text, ctx) {
   // A weight, [pweight=w], may stand anywhere after the varlist; it is
   // taken out before the varlist is read and handed to the parser.
   let weightClause = "";
@@ -1083,6 +1250,10 @@ function ivregress(session, text, ctx) {
       481,
     );
   if (!rows.length) throw new StataError("no observations", 2000);
+  // LIML and GMM need two observations; 2SLS goes on to find the outcome
+  // collinear with the constant.
+  if (estimator !== "2sls" && rows.length < 2)
+    throw new StataError("insufficient observations", 2001);
   if (wtype) {
     if (rawWeights.some((v) => v < 0) && wtype !== "iweight")
       throw new StataError("negative weights encountered", 402);
@@ -1104,6 +1275,19 @@ function ivregress(session, text, ctx) {
     // ivregress.ado shows the sum in %12.4e.
     if (wtype === "aweight" || wtype === "pweight")
       ctx.out(`(sum of wgt is ${applyFormat(weightSum, "%12.4e")})`);
+  }
+  // An outcome that the regressors kept fit exactly stops the fit, after
+  // the notes on the regressors, as Stata's _rmcoll stops it.
+  const kept = [...endogenousColumns, ...exogenousColumns];
+  if (fitsExactly(rows, kept, column(depName))) {
+    for (const c of listed.endogenous)
+      if (c.collinear)
+        ctx.out(`note: ${c.name} omitted because of collinearity.`);
+    notes.exogenous.forEach(ctx.out);
+    throw new StataError(
+      `${depName} collinear with ${[...kept.map((c) => c.name), "_cons"].join(" ")}`,
+      459,
+    );
   }
   const dep = depName,
     y = rows.map((i) => column(dep)[i]),
@@ -1477,6 +1661,13 @@ function testparmTerms(session, head) {
     },
     terms = [];
   for (const token of head.match(/(?:[^\s(]|\([^)]*\))+/g) ?? []) {
+    // Time-series operators name the coefficients Stata names: L(1/3).x
+    // is L.x, L2.x and L3.x, and l(0/1).x is x and L.x.
+    if (isOperated(token) && !token.includes("#")) {
+      for (const term of tsTerms(session, token))
+        terms.push([{ variable: term.name, factor: false, level: null }]);
+      continue;
+    }
     if (token.includes("##")) {
       let expanded = [];
       for (const part of token.split("##")) {
@@ -1632,6 +1823,19 @@ function testparm(session, text, ctx) {
 }
 function predict(session, text, ctx) {
   const model = estimates(session);
+  if (model.noPredict)
+    throw new StataError(`predict is not allowed after ${model.command}`, 301);
+  // A prefix's results from a command that is not an estimator (bootstrap
+  // r(mean): summarize) have no fit to predict from.
+  const e = session.results.e ?? {};
+  if (!model.columns && e.prefix && e.cmdname)
+    throw new StataError(
+      `predict is not allowed after ${e.prefix}:${e.cmdname}`,
+      301,
+    );
+  // Models with predictions of their own, such as xtlogit's pu0 and
+  // clogit's pc1, bring them.
+  if (model.predictor) return model.predictor(session, text, ctx);
   if (["ologit", "oprobit", "mlogit"].includes(model.kind))
     return outcomePredict(session, model, text, ctx);
   // nbreg, glm and cloglog predict a mean by default, as the family models
@@ -1659,10 +1863,27 @@ function predict(session, text, ctx) {
   const [key, describe, label] = family.predict,
     mean = family.mean ?? linkOf(model)[0],
     pearson = model.kind === "logit",
+    // The statistics of covariate patterns: after logit all of Stata's,
+    // after probit the deviance residual alone.
+    patternStats = pearson
+      ? " Residuals DEViance Hat RSTandard DX2 DDeviance DBeta NUMber"
+      : model.kind === "probit"
+        ? " DEViance"
+        : "",
     parsed = session.parse(
-      `newvarname [if] [in] [, XB ${{ pr: "Pr", n: "N", mu: "MU" }[key]} STDP${pearson ? " Residuals" : ""}${family.binary ? " ASIF | RULEs" : ""}]`,
+      `newvarname [if] [in] [, XB ${{ pr: "Pr", n: "N", mu: "MU" }[key]} STDP${patternStats}${family.binary ? " ASIF | RULEs" : ""}]`,
       text,
     ),
+    statistic = [
+      "residuals",
+      "deviance",
+      "hat",
+      "rstandard",
+      "dx2",
+      "ddeviance",
+      "dbeta",
+      "number",
+    ].find((name) => parsed.options[name]),
     // Observations a perfect-prediction rule set aside are missing unless
     // asif asks for the prediction regardless. Stata compares in float.
     rules = parsed.options.asif ? [] : (model.rules ?? []),
@@ -1674,11 +1895,12 @@ function predict(session, text, ctx) {
     data = session.data,
     values = new Array(data.n).fill(MISSING);
   if (
-    !wantXb &&
-    !parsed.options[key] &&
-    !parsed.options.stdp &&
-    !parsed.options.residuals
+    [wantXb, parsed.options[key], parsed.options.stdp, statistic].filter(
+      Boolean,
+    ).length > 1
   )
+    throw new StataError("only one statistic may be specified", 198);
+  if (!wantXb && !parsed.options[key] && !parsed.options.stdp && !statistic)
     ctx.out(`(option ${key} assumed; ${describe(model)})`);
   // Pearson residuals after logit are taken over covariate patterns: the
   // observations of the estimation sample that share every regressor.
@@ -1687,7 +1909,7 @@ function predict(session, text, ctx) {
       model.names
         .map((name, k) => (name === "_cons" ? 1 : model.columns[k].value(i)))
         .join(" ");
-  if (parsed.options.residuals) {
+  if (statistic) {
     // Covariate patterns count observations, which sampling and
     // importance weights do not stand for.
     if (model.wtype === "pweight" || model.wtype === "iweight")
@@ -1696,13 +1918,61 @@ function predict(session, text, ctx) {
     // A frequency-weighted observation counts that many times.
     (model.sample ?? []).forEach((i, r) => {
       const key2 = patternOf(i),
-        entry = patterns.get(key2) ?? { m: 0, y: 0 },
+        entry = patterns.get(key2) ?? { m: 0, y: 0, first: i },
         weight = model.weights?.[r] ?? 1;
       entry.m += weight;
       entry.y += weight * Number(outcome[i] !== 0);
       patterns.set(key2, entry);
     });
+    // number counts the patterns in the order of the regressors' values,
+    // the first variable of the model slowest.
+    if (statistic === "number") {
+      const variables = [];
+      for (const c of model.columns ?? [])
+        for (const v of c?.term?.variables ?? [
+          c?.term?.variable ?? c?.term?.factor,
+        ])
+          if (v && !variables.includes(v)) variables.push(v);
+      [...patterns.values()]
+        .sort((a, b) => {
+          for (const v of variables) {
+            const d = v.data[a.first] - v.data[b.first];
+            if (d) return d;
+          }
+          return 0;
+        })
+        .forEach((entry, k) => (entry.number = k + 1));
+    }
   }
+  // Each statistic of a covariate pattern, as Stata's logistic
+  // postestimation defines them (Hosmer and Lemeshow): m observations, y
+  // successes, fitted probability p; the leverage takes the variance of
+  // the linear prediction.
+  const patternStatistic = (name, { m, y, number }, p, row) => {
+    if (name === "number") return number;
+    const pearson = (y - m * p) / Math.sqrt(m * p * (1 - p)),
+      part = (count, share) =>
+        count > 0 ? count * Math.log(count / (m * share)) : 0,
+      deviance =
+        Math.sign(y - m * p) * Math.sqrt(2 * (part(y, p) + part(m - y, 1 - p))),
+      hat = m * p * (1 - p) * quadratic(row, model.V);
+    switch (name) {
+      case "residuals":
+        return pearson;
+      case "deviance":
+        return deviance;
+      case "hat":
+        return hat;
+      case "rstandard":
+        return pearson / Math.sqrt(1 - hat);
+      case "dx2":
+        return pearson ** 2 / (1 - hat);
+      case "ddeviance":
+        return deviance ** 2 / (1 - hat);
+      default:
+        return (pearson ** 2 * hat) / (1 - hat) ** 2;
+    }
+  };
   session.select(parsed, null, (i) => {
     if (
       model.columns.some((c) =>
@@ -1717,11 +1987,9 @@ function predict(session, text, ctx) {
         name === "_cons" ? 1 : model.columns[k].value(i),
       ),
       xb = row.reduce((t, v, k) => t + v * model.b[k], 0);
-    if (parsed.options.residuals) {
-      const entry = patterns.get(patternOf(i)),
-        p = mean(xb);
-      if (entry)
-        values[i] = (entry.y - entry.m * p) / Math.sqrt(entry.m * p * (1 - p));
+    if (statistic) {
+      const entry = patterns.get(patternOf(i));
+      if (entry) values[i] = patternStatistic(statistic, entry, mean(xb), row);
       return;
     }
     values[i] = parsed.options.stdp
@@ -1741,16 +2009,31 @@ function predict(session, text, ctx) {
       : "Linear prediction"
     : parsed.options.stdp
       ? "S.E. of the prediction"
-      : parsed.options.residuals
-        ? "Pearson residual"
+      : statistic
+        ? PATTERN_LABELS[statistic]
         : key === "pr"
           ? `Pr(${model.depvar})`
           : label;
+  // After logit and probit, Stata's xb and stdp say "values" even for one,
+  // and write the count without a thousands separator.
+  const linear = family.binary && (wantXb || parsed.options.stdp),
+    plural = made.missing !== 1 || linear;
   if (made.missing)
     ctx.out(
-      `(${count(made.missing)} missing value${made.missing === 1 ? "" : "s"} generated)`,
+      `(${linear ? String(made.missing) : count(made.missing)} missing value${plural ? "s" : ""} generated)`,
     );
 }
+
+const PATTERN_LABELS = {
+  residuals: "Pearson residual",
+  deviance: "deviance residual",
+  hat: "leverage",
+  rstandard: "standardized Pearson residual",
+  dx2: "H-L dX^2",
+  ddeviance: "H-L dD",
+  dbeta: "Pregibon's dbeta",
+  number: "covariate pattern",
+};
 
 // ----- estat and estimates -----
 /**
@@ -1859,55 +2142,76 @@ function hosmerLemeshow(p, y, weightAt, observations, group) {
   );
 }
 
+// The estat subcommands Stata takes after these models that the browser
+// lacks. Any other word, estat icc after xtlogit or regress among them, is
+// one Stata calls not valid there.
+const ESTAT_LACKING = {
+  regress: [
+    "dwatson",
+    "durbinalt",
+    "bgodfrey",
+    "archlm",
+    "szroeter",
+    "esize",
+    "sbcusum",
+    "sbknown",
+    "sbsingle",
+    "moran",
+  ],
+  anova: ["esize"],
+  ivregress: ["sbknown", "sbsingle"],
+  newey: ["sbknown", "sbsingle"],
+  prais: ["sbknown", "sbsingle"],
+  arima: ["aroots", "acplot"],
+};
+// The shortest abbreviation Stata's *_estat takes for each; the sb tests
+// must be spelled out.
+const ESTAT_SHORTEST = { archlm: 6, aroots: 6, acplot: 6 };
+function lackingEstat(model, what) {
+  return (ESTAT_LACKING[model.command] ?? []).find((name) =>
+    /^sb/.test(name)
+      ? what === name
+      : what.length >= (ESTAT_SHORTEST[name] ?? 3) && name.startsWith(what),
+  );
+}
+
 function estat(session, text, ctx) {
   const model = estimates(session),
     what = text.trim().split(/[\s,]/)[0];
   if (what === "ic") {
-    const ll0 =
-        model.command === "regress"
-          ? -0.5 *
-            model.N *
-            (Math.log(2 * Math.PI) + Math.log(model.tss / model.N) + 1)
-          : (model.ll_0 ?? MISSING),
-      k = model.rank,
-      aic = -2 * model.ll + 2 * k,
-      bic = -2 * model.ll + k * Math.log(model.N);
     if (model.ll === undefined || model.command === "newey")
       throw new StataError(
         "likelihood information not found in last estimation results",
         321,
       );
-    ctx.out("");
-    ctx.out(
-      "Akaike's information criterion and Bayesian information criterion",
+    // The active results are named as they were last stored or restored,
+    // and . when they are not stored, with the options of estimates stats.
+    informationCriteria(
+      session,
+      [
+        {
+          label: model.storedName ?? ".",
+          model,
+          e: session.results.e,
+        },
+      ],
+      text.trim().slice(what.length).replace(/^\s*,/, ""),
+      ctx,
     );
-    ctx.out("");
-    ctx.out("-".repeat(77));
-    ctx.out(
-      "       Model |          N   ll(null)  ll(model)      df        AIC        BIC",
-    );
-    ctx.out(
-      "-------------+---------------------------------------------------------------",
-    );
-    ctx.out(
-      `${".".padStart(12)} |${applyFormat(model.N, "%10.0fc").padStart(11)}${g(ll0).padStart(11)}${g(model.ll).padStart(11)}${String(k).padStart(8)}${g(aic).padStart(11)}${g(bic).padStart(11)}`,
-    );
-    ctx.out("-".repeat(77));
-    ctx.out("Note: BIC uses N = number of observations. See [R] IC note.");
-    ctx.out("");
-    session.results.r = {
-      "matrix:S": {
-        rowNames: ["."],
-        colNames: ["N", "ll0", "ll", "df", "AIC", "BIC"],
-        values: [[model.N, ll0, model.ll, k, aic, bic]],
-      },
-    };
   } else if (what === "vif") {
     if (model.command !== "regress")
-      throw new StataError("estat vif is only available after regress", 301);
+      throw new StataError(`estat ${what} not valid`, 321);
+    // Each variable's spread over the estimation sample, where a lag has
+    // the rows its operator leaves.
     const s2 = model.rss / model.dfResidual,
-      rows = session.rows({}, null),
+      rows = model.sample,
       vifs = [];
+    if (!rows.length) {
+      ctx.out("");
+      ctx.out("    Variable |       VIF       1/VIF  ");
+      ctx.out("-------------+----------------------");
+      throw new StataError("no observations", 2000);
+    }
     model.names.forEach((name, k) => {
       if (name === "_cons" || !model.estimable[k]) return;
       const values = rows
@@ -1917,11 +2221,41 @@ function estat(session, text, ctx) {
         ss = values.reduce((t, v) => t + (v - mean) ** 2, 0);
       vifs.push([name, (model.V[k][k] * ss) / s2]);
     });
+    // Once observations of the sample are dropped, e(V) no longer gives
+    // them: vif.ado regresses each regressor on the others over the
+    // observations of e(sample) left, and VIF is 1/(1 - R2), which is
+    // SST_k times the kth diagonal of the inverse of the centred, weighted
+    // cross products.
+    if (model.reducedSample) {
+      const used = model.names
+          .map((name, k) => k)
+          .filter((k) => model.names[k] !== "_cons" && model.estimable[k]),
+        w = model.weights ?? rows.map(() => 1),
+        total = w.reduce((t, v) => t + v, 0),
+        x = used.map((k) => {
+          const values = rows.map(model.columns[k].value),
+            m = values.reduce((t, v, r) => t + w[r] * v, 0) / total;
+          return values.map((v) => v - m);
+        }),
+        A = x.map((a) =>
+          x.map((b) => a.reduce((t, v, r) => t + w[r] * v * b[r], 0)),
+        ),
+        inverse = invertSymmetric(A);
+      if (inverse)
+        used.forEach((k, j) => (vifs[j][1] = A[j][j] * inverse[j][j]));
+    }
     // vif.ado sorts by VIF, largest first, unless the model has factor
     // variables. It keeps each VIF in a float variable.
-    if (!model.columns.some((c) => c?.term?.components?.some((p) => p.factor)))
-      vifs.sort((a, b) => b[1] - a[1]);
+    const factors = model.columns.some(
+      (c) =>
+        c?.term?.components?.some((p) => p.factor) || /#/.test(c?.name ?? ""),
+    );
+    // vif.ado sorts the float values, largest first, ties by name.
     vifs.forEach((v) => (v[1] = Math.fround(v[1])));
+    if (!factors)
+      vifs.sort(
+        (a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0),
+      );
     // r(vif_#) and r(name_#), numbered in the order shown; return list
     // shows the last set first, as vif.ado sets them.
     session.results.r = Object.fromEntries(
@@ -1935,10 +2269,61 @@ function estat(session, text, ctx) {
     ctx.out("");
     ctx.out("    Variable |       VIF       1/VIF  ");
     ctx.out("-------------+----------------------");
-    for (const [name, vif] of vifs)
-      ctx.out(
-        `${name.padStart(12)} |${applyFormat(vif, "%10.2f")}${applyFormat(1 / vif, "%12.6f")}`,
-      );
+    const cell = (vif) =>
+      `${applyFormat(vif, "%10.2f")}${applyFormat(1 / vif, "%12.6f")}`;
+    if (factors) {
+      // With factor variables the rows are laid out as the coefficient
+      // table lays them out, without its blank rows, base levels and
+      // constant.
+      const byIndex = new Map();
+      model.names.forEach((name, k) => {
+        const found = vifs.find((v) => v[0] === name);
+        if (found && model.estimable[k]) byIndex.set(k, found[1]);
+      });
+      // vif names levels by their values, not their value labels.
+      const labels = session.data.valueLabels;
+      session.data.valueLabels = new Map();
+      let lines;
+      try {
+        lines = termRows(
+          session,
+          model,
+          (k) => (byIndex.has(k) ? cell(byIndex.get(k)) : "\0"),
+          12,
+        );
+      } finally {
+        session.data.valueLabels = labels;
+      }
+      lines
+        .filter(
+          (line) =>
+            !/^\s*\|$/.test(line) && !/\((base|omitted|empty)\)|\0/.test(line),
+        )
+        .forEach((line) => ctx.out(line));
+    } else {
+      // A time-series operated variable is a row under its variable's
+      // name, labelled L1., D1., or --. for the variable itself, when it
+      // has an operator or its neighbour is of the same variable.
+      const series = vifs.map(([name]) => {
+        const m = /^((?:[LFDS]\d*)+)\.([A-Za-z_]\w*)$/.exec(name);
+        return m
+          ? {
+              base: m[2],
+              label: /^[LFDS]$/.test(m[1]) ? `${m[1]}1.` : `${m[1]}.`,
+            }
+          : { base: name, label: "--.", plain: true };
+      });
+      vifs.forEach(([name, vif], k) => {
+        const { base, label, plain } = series[k];
+        if (k && series[k - 1].base === base)
+          return ctx.out(`${label.padStart(12)} |${cell(vif)}`);
+        if (!plain || series[k + 1]?.base === base) {
+          ctx.out(`${base.padStart(12)} |`);
+          return ctx.out(`${label.padStart(12)} |${cell(vif)}`);
+        }
+        ctx.out(`${name.padStart(12)} |${cell(vif)}`);
+      });
+    }
     ctx.out("-------------+----------------------");
     ctx.out(
       `${"Mean VIF".padStart(12)} |${applyFormat(vifs.reduce((t, v) => t + v[1], 0) / vifs.length, "%10.2f")}`,
@@ -1982,10 +2367,7 @@ function estat(session, text, ctx) {
     session.results.r = { chi2_d: deviance, chi2_p: pearson, df };
   } else if (what === "gof" || /^clas/.test(what)) {
     if (!model.family?.binary)
-      throw new StataError(
-        `estat ${what} is only available after logit and probit`,
-        321,
-      );
+      throw new StataError(`estat ${what} not valid`, 321);
     // Stata refuses the classification table after sampling and
     // importance weights, and the goodness-of-fit test after sampling
     // weights; after importance weights each observation counts as its
@@ -2192,11 +2574,25 @@ function estat(session, text, ctx) {
     };
   } else if (ivDiagnostic(session, model, what, ctx)) {
     // Printed by the diagnostic.
-  } else if (!regressDiagnostic(session, model, what, text, ctx))
-    throw new StataError(`estat ${what} is not available yet`, 321);
+  } else if (!regressDiagnostic(session, model, what, text, ctx)) {
+    // A subcommand Stata has here that the browser lacks is refused as
+    // unimplemented; any other word is one Stata calls not valid.
+    const lacking = lackingEstat(model, what);
+    if (lacking)
+      throw new StataError(
+        `estat ${lacking} after ${model.command} is not available in the browser yet`,
+        198,
+        "estat ic, estat vce and estat summarize are available after every model.",
+      );
+    throw new StataError(`estat ${what} not valid`, 321);
+  }
 }
 
 function estimatesCommand(session, text, ctx) {
+  return unchangedBy(session, () => estimatesAction(session, text, ctx));
+}
+
+function estimatesAction(session, text, ctx) {
   const m = /^\s*(\w+)\s*([\s\S]*)$/.exec(text),
     stored = (session.storedEstimates ??= new Map());
   if (!m) throw new StataError("invalid syntax", 198);
@@ -2204,45 +2600,152 @@ function estimatesCommand(session, text, ctx) {
     name = rest.replace(/,.*$/, "").trim();
   if (/^sto(re?)?$/.test(action)) {
     if (!/^[A-Za-z_]\w*$/.test(name)) throw new StataError("invalid name", 198);
+    // Results posted without a model, as mean, proportion and anova post
+    // them, cannot be kept yet; Stata keeps them.
+    const posted = session.results.e?.cmd;
+    if (!session.estimates && typeof posted === "string" && posted)
+      throw new StataError(
+        `estimates store after ${posted} is not available in the browser yet`,
+        198,
+        "Store the results of an estimation command such as regress or logit, or keep what you need with scalar or matrix.",
+      );
+    // estimates store takes title() and nocopy, which changes nothing here.
+    let title = null;
+    for (const option of splitAtComma(rest)[1]?.match(
+      /[A-Za-z_]\w*(\((?:[^()]|\([^()]*\))*\))?/g,
+    ) ?? []) {
+      const word = /^\w+/.exec(option)[0],
+        inside = /^\w+\(([\s\S]*)\)$/.exec(option)?.[1];
+      if (/^t(i(t(le?)?)?)?$/.test(word) && inside !== undefined)
+        title = inside.trim().replace(/^"(.*)"$/, "$1");
+      else if (!(word === "nocopy" && inside === undefined))
+        throw new StataError(
+          `option ${word}${inside === undefined ? "" : "()"} not allowed`,
+          198,
+        );
+    }
     const model = estimates(session),
       data = session.data,
       marker = `_est_${name}`,
-      inSample = new Set(model.sample),
+      // The sample as the data carry it now, after any sort since the fit;
+      // none when the data are not the fit's (read in since).
+      marks = data.esampleOf === model ? data.esample : null,
       order = [...data.sortedBy];
-    stored.set(name, { model, e: { ...session.results.e } });
+    stored.set(name, { model, e: { ...session.results.e }, title });
+    // The active results are known by the name they were last stored or
+    // restored under, which estimates replay heads them with.
+    model.storedName = name;
     // Stata marks the estimation sample in a variable named after the store.
     if (data.has(marker)) data.drop([marker]);
+    if (!marks) {
+      data.sortedBy = order;
+      return;
+    }
     data.generate(
       marker,
-      Array.from({ length: data.n }, (_, i) => Number(inSample.has(i))),
+      Array.from({ length: data.n }, (_, i) => marks[i] ?? 0),
       { type: "byte" },
     );
     data.get(marker).label = "esample() from estimates store";
+    // The variable this store made, which a dataset read from a file, even
+    // one saved with it, does not have.
+    data.get(marker).estimatesOf = model;
     data.sortedBy = order;
   } else if (/^res(t(o(re?)?)?)?$/.test(action)) {
     const entry = stored.get(name);
     if (!entry)
       throw new StataError(`estimation result ${name} not found`, 111);
     session.estimates = entry.model;
+    entry.model.storedName = name;
+    // e(sample) is the sample the store marked, wherever the data have
+    // moved it since; with that variable gone, the active fit keeps the
+    // sample the data mark, and any other has none. Data read in afresh
+    // (use) carry no store's sample, as in Stata.
+    const kept = `_est_${name}`,
+      data = session.data,
+      variable = data.has(kept) ? data.get(kept) : null;
+    if (variable?.estimatesOf === entry.model)
+      data.esample = Uint8Array.from(variable.data, (v) => (v === 1 ? 1 : 0));
+    else if (!(data.esampleOf === entry.model && data.esample))
+      data.esample = null;
+    data.esampleOf = entry.model;
     session.results.e = { ...entry.e };
     // estimates restore is r-class: r() holds only the name restored.
     session.results.r = { names: name };
     ctx.out(`(results ${name} are active now)`);
-  } else if (action === "dir") {
-    if (!stored.size) return;
-    ctx.out("");
-    ctx.out("-".repeat(66));
-    ctx.out("             |           Dependent  Number of        ");
-    ctx.out("        Name | Command    variable     param.  Title ");
-    ctx.out(
-      "-------------+----------------------------------------------------",
-    );
-    for (const [key, { model }] of stored)
+  } else if (/^rep(l(ay?)?)?$/.test(action)) {
+    // Each fit as it was shown, under a heading that names it; display
+    // options such as level() show it as the estimator typed alone would.
+    const rule = "-".repeat(session.settings.linesize ?? 79),
+      options = splitAtComma(rest)[1]?.trim() ?? "",
+      names = !name
+        ? [null]
+        : name === "_all" || name === "*"
+          ? [...stored.keys()]
+          : name.split(/\s+/);
+    for (const key of names)
+      if (key !== null && !stored.has(key))
+        throw new StataError(`estimation result ${key} not found`, 111);
+    for (const key of names) {
+      const model = key === null ? session.estimates : stored.get(key)?.model;
+      if (!model?.shownFit)
+        throw new StataError("last estimates not found", 301);
+      let lines = model.shownFit.lines;
+      if (options) {
+        lines = [];
+        session.replayModel(model, options, {
+          ...ctx,
+          out: (line) => lines.push(line),
+        });
+      }
+      lines = [...lines];
+      while (lines.length && !lines[0].trim()) lines.shift();
+      while (lines.length && !lines.at(-1).trim()) lines.pop();
+      ctx.out("");
+      ctx.out(rule);
       ctx.out(
-        `${key.padStart(12)} | ${model.command.padEnd(7)}${model.depvar.padStart(12)}${String(model.rank).padStart(11)}  ${model.title ?? "Linear regression"}`,
+        key !== null
+          ? `Model ${key}`
+          : model.storedName
+            ? `Model ${model.storedName}`
+            : "active results",
       );
-    ctx.out("-".repeat(66));
-  } else if (/^tab(le?)?$/.test(action)) estimatesTable(session, rest, ctx);
+      ctx.out(rule);
+      ctx.out("");
+      lines.forEach((line) => ctx.out(line));
+    }
+  } else if (/^des(c(r(i(be?)?)?)?)?$/.test(action)) {
+    if (/\busing\b/.test(name))
+      throw new StataError(
+        "estimates describe using is not available in the browser yet",
+        198,
+        "Describe the active results, or results kept with estimates store.",
+      );
+    if (name && !/^[A-Za-z_.]\w*$/.test(name))
+      throw new StataError("invalid name", 198);
+    const entry =
+      name && name !== "."
+        ? stored.get(name)
+        : session.estimates
+          ? { model: session.estimates, e: session.results.e }
+          : null;
+    if (!entry)
+      throw name && name !== "."
+        ? new StataError(`estimation result ${name} not found`, 111)
+        : new StataError("last estimates not found", 301);
+    const { model, e } = entry,
+      cmdline =
+        e?.cmdline ??
+        (model.shownFit
+          ? `${model.shownFit.command} ${model.shownFit.body.trim()}`
+          : (model.command ?? ""));
+    ctx.out("");
+    ctx.out("  Estimation results produced by");
+    ctx.out("");
+    ctx.out(`     . ${cmdline}`);
+    session.results.r = { cmdline, title: "" };
+  } else if (action === "dir") estimatesDir(session, rest, ctx);
+  else if (/^tab(le?)?$/.test(action)) estimatesTable(session, rest, ctx);
   else if (/^stats?$/.test(action)) estimatesStats(session, rest, ctx);
   else if (action === "clear") {
     for (const key of stored.keys())
@@ -2265,11 +2768,14 @@ export const MODEL_COMMANDS = [
     name: "logistic",
     minimum: 8,
     run: (session, text, ctx) => {
-      // logistic is logit reporting odds ratios, without the iteration log.
-      const [head, options] = splitAtComma(text);
+      // logistic is logit reporting odds ratios (coefficients with coef),
+      // without the iteration log.
+      const [head, typed] = splitAtComma(text),
+        options = typed ?? "",
+        coef = /(?:^|\s)coef(?=\s|$)/.test(options);
       maximumLikelihood("logit")(
         session,
-        `${head}, or nolog ${(options ?? "").replace(/\bor\b/, "")}`,
+        `${head}, ${coef ? "" : "or "}nolog ${options.replace(/\bor\b/, "").replace(/(?:^|\s)coef(?=\s|$)/g, " ")}`,
         ctx,
       );
       session.results.e.cmd = "logistic";

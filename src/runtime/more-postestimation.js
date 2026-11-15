@@ -6,37 +6,44 @@ import { Ftail, chi2tail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
 import {
   RULE,
+  abbreviate,
   coefficientHeader,
   coefficientRows,
   estimates,
   fit,
   invertSymmetric,
   quadratic,
+  weightsNotYet,
 } from "./estimation.js";
 import { count } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
-import { isMissing } from "./values.js";
+import { MISSING, isMissing } from "./values.js";
+import { requireTimeOrder } from "./panel.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const SPLIT =
   "-------------+----------------------------------------------------------------";
 
 function newey(session, text, ctx) {
+  // newey's own wording sets tsset off with dashes.
   if (!session.panel?.time)
-    throw new StataError("time variable not set, use tsset varname ...", 111);
-  if (session.panel.id)
-    throw new StataError("newey on panel data is not available yet", 198);
+    throw new StataError("time variable not set, use -tsset varname ...-", 111);
   const parsed = session.parse(
-      "anything [if] [in] , LAG(integer) [Level(cilevel) noCONStant | FORCE]",
+      "anything [if] [in] [aweight] , LAG(integer) [Level(cilevel) noCONStant FORCE]",
       text,
     ),
-    lag = parsed.options.lag,
+    lag = (weightsNotYet(parsed, "newey"), parsed.options.lag),
     model = fit(
       session,
       { ...parsed, options: { ...parsed.options, vce: undefined } },
       null,
     ),
     time = session.data.get(session.panel.time).data,
+    // On panel data the lags of newey.ado's l#. operators stay within a
+    // panel.
+    id = session.panel.id ? session.data.get(session.panel.id).data : null,
+    delta = session.panel.delta ?? 1,
+    key = (i, t) => (id ? `${id[i]} ${t}` : t),
     dependent = session.data.get(model.depvar),
     used = model.names.map((_, k) => k).filter((k) => model.estimable[k]),
     rows = [...model.sample].sort((a, b) => time[a] - time[b]),
@@ -53,27 +60,51 @@ function newey(session, text, ctx) {
     n = rows.length,
     size = used.length,
     meat = Array.from({ length: size }, () => new Array(size).fill(0)),
-    at = new Map(rows.map((i, r) => [time[i], r]));
+    at = new Map(rows.map((i, r) => [key(i, time[i]), r]));
   if (lag < 0) throw new StataError("lag() must be nonnegative", 198);
-  if (
-    !/\bforce\b/.test(splitAtComma(text)[1] ?? "") &&
-    rows.some((i, r) => r && time[i] - time[rows[r - 1]] !== 1)
-  )
-    throw new StataError(`${session.panel.time} is not regularly spaced`, 198);
+  // newey.ado's lags of the residuals are time-series operators, which
+  // need the data sorted by time.
+  if (lag > 0) requireTimeOrder(session);
+  // newey.ado's Checkt: the steps between the sample's times, in time
+  // order over every panel, are all one period, or all one longer step,
+  // or uneven.
+  const steps = rows.slice(1).map((i, r) => (time[i] - time[rows[r]]) / delta);
+  if (steps.length) {
+    const low = Math.min(...steps),
+      high = Math.max(...steps),
+      mean = steps.reduce((a, b) => a + b, 0) / steps.length;
+    if (low === high && mean > 1)
+      throw new StataError(
+        `${session.panel.time} is regularly spaced, but does not have intervals of 1`,
+        198,
+      );
+    if (low !== high && lag > 0 && !parsed.options.force)
+      throw new StataError(
+        `${session.panel.time} is not regularly spaced`,
+        198,
+      );
+  }
+  // newey.ado accumulates each lag's cross products with mat vecaccum,
+  // which finds no observations when no observation of the sample has
+  // one l periods earlier.
+  const paired = new Array(lag + 1).fill(0);
   for (let r = 0; r < n; r++) {
     for (let a = 0; a < size; a++)
       for (let c = 0; c < size; c++)
         meat[a][c] += e[r] * e[r] * x[r][a] * x[r][c];
     for (let l = 1; l <= lag; l++) {
       // The observation l periods earlier, if there is one.
-      const s = at.get(time[rows[r]] - l);
+      const s = at.get(key(rows[r], time[rows[r]] - l * delta));
       if (s === undefined) continue;
+      paired[l]++;
       const weight = (1 - l / (lag + 1)) * e[r] * e[s];
       for (let a = 0; a < size; a++)
         for (let c = 0; c < size; c++)
           meat[a][c] += weight * (x[r][a] * x[s][c] + x[s][a] * x[r][c]);
     }
   }
+  if (paired.some((count, l) => l > 0 && !count))
+    throw new StataError("no observations", 2000);
   const bread = used.map((r) => used.map((c) => model.xtxInverse[r][c])),
     product = (A, B) =>
       A.map((row) =>
@@ -112,6 +143,42 @@ function newey(session, text, ctx) {
     F,
     df_r: dfResidual,
   });
+  // Under bootstrap and jackknife newey keeps its own header, with the
+  // prefix's F test (missing after bootstrap) and table, and no footnote
+  // of incomplete replications. Names with operators or levels take the
+  // prefix's own layout.
+  if (model.names.every((name) => /^[A-Za-z_]\w*$/.test(name)))
+    model.resampled = {
+      noFootnote: true,
+      tested: (fit) =>
+        fit.names
+          .map((name, k) => (name !== "_cons" && fit.estimable[k] ? k : -1))
+          .filter((k) => k >= 0),
+      show(session, ctx, fit, r) {
+        const jackknife = r.df > 0,
+          F = jackknife ? r.test.F : MISSING,
+          shown = (value, format) =>
+            isMissing(value) ? "." : applyFormat(value, format).trim();
+        if (r.header !== false) {
+          ctx.out(
+            `${"Regression with Newey–West standard errors".padEnd(48)}${side("Number of obs", count(n))}`,
+          );
+          ctx.out(
+            `${`Maximum lag = ${lag}`.padEnd(48)}${side(`F(${String(r.test.df).padStart(3)},${(jackknife ? String(r.df) : ".").padStart(10)})`, shown(F, "%9.2f"))}`,
+          );
+          ctx.out(
+            `${"".padEnd(48)}${side("Prob > F", shown(jackknife ? r.test.p : MISSING, "%6.4f"))}`,
+          );
+          ctx.out("");
+        }
+        if (r.table === false) return;
+        r.heads(ctx, 12, fit.depvar, "Coefficient");
+        fit.names.forEach((name, k) =>
+          ctx.out(r.row(`${abbreviate(name, 12).padStart(12)} `, k)),
+        );
+        ctx.out(RULE);
+      },
+    };
   session.estimates = model;
   session.results.e = {
     N: n,
@@ -189,12 +256,16 @@ function expressions(head) {
   const out = [];
   let depth = 0,
     start = -1;
+  let between = false;
   [...text].forEach((c, i) => {
     if (c === "(" && depth++ === 0) start = i + 1;
-    if (c === ")" && --depth === 0) out.push(text.slice(start, i));
+    else if (c === ")" && --depth === 0) out.push(text.slice(start, i));
+    // Something outside every parenthesis, as the / of (a)/(b), makes the
+    // whole one expression.
+    else if (!depth && !/\s/.test(c)) between = true;
   });
   if (depth || !out.length) throw new StataError("invalid syntax", 198);
-  return out;
+  return between ? [text] : out;
 }
 
 function nlcom(session, text, ctx) {
@@ -222,7 +293,7 @@ function nlcom(session, text, ctx) {
   ctx.out("");
   ctx.out(RULE);
   ctx.out(
-    `${model.depvar.padStart(12)} | Coefficient  Std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
+    `${(/\s/.test(model.depvar) ? "" : model.depvar).padStart(12)} | Coefficient  Std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
   );
   ctx.out(SPLIT);
   items.forEach((item, k) => {
@@ -277,78 +348,327 @@ function testnl(session, text, ctx) {
   session.results.r = { p, chi2, df };
 }
 
-function hausman(session, text, ctx) {
-  const [head] = splitAtComma(text),
-    names = head.trim().split(/\s+/).filter(Boolean),
-    stored = session.storedEstimates ?? new Map();
-  if (names.length !== 2)
-    throw new StataError("hausman takes two stored models", 198);
-  const [consistent, efficient] = names.map((name) => {
-      const found = stored.get(name);
-      if (!found)
-        throw new StataError(`estimation result ${name} not found`, 111);
-      return found.model;
-    }),
-    usable = (model, name) => {
-      const k = model.names.indexOf(name);
-      return k >= 0 && model.estimable[k] && !model.columns[k]?.base;
-    },
-    common = consistent.names.filter(
-      (name) =>
-        name !== "_cons" && usable(consistent, name) && usable(efficient, name),
-    );
-  if (!common.length) throw new StataError("no coefficients in common", 498);
-  const at = (model) => common.map((name) => model.names.indexOf(name)),
-    a = at(consistent),
-    b = at(efficient),
-    difference = common.map((_, k) => consistent.b[a[k]] - efficient.b[b[k]]),
-    V = common.map((_, r) =>
-      common.map((_, c) => consistent.V[a[r]][a[c]] - efficient.V[b[r]][b[c]]),
+/**
+ * The eigenvalues and eigenvectors of a symmetric matrix, by Jacobi
+ * rotations; vectors[i][k] is the ith element of the kth vector.
+ */
+function symmetricEigen(matrix) {
+  const n = matrix.length,
+    A = matrix.map((row) => [...row]),
+    vectors = A.map((_, i) => A.map((__, j) => Number(i === j)));
+  for (let sweep = 0; sweep < 100; sweep++) {
+    let off = 0;
+    for (let p = 0; p < n; p++)
+      for (let q = p + 1; q < n; q++) off += A[p][q] ** 2;
+    if (off < 1e-30) break;
+    for (let p = 0; p < n; p++)
+      for (let q = p + 1; q < n; q++) {
+        if (!A[p][q]) continue;
+        const theta = (A[q][q] - A[p][p]) / (2 * A[p][q]),
+          t =
+            Math.sign(theta || 1) /
+            (Math.abs(theta) + Math.sqrt(theta * theta + 1)),
+          c = 1 / Math.sqrt(t * t + 1),
+          s = t * c;
+        for (let k = 0; k < n; k++) {
+          const kp = A[k][p],
+            kq = A[k][q];
+          A[k][p] = c * kp - s * kq;
+          A[k][q] = s * kp + c * kq;
+        }
+        for (let k = 0; k < n; k++) {
+          const pk = A[p][k],
+            qk = A[q][k];
+          A[p][k] = c * pk - s * qk;
+          A[q][k] = s * pk + c * qk;
+        }
+        for (let k = 0; k < n; k++) {
+          const kp = vectors[k][p],
+            kq = vectors[k][q];
+          vectors[k][p] = c * kp - s * kq;
+          vectors[k][q] = s * kp + c * kq;
+        }
+      }
+  }
+  return { values: A.map((row, i) => row[i]), vectors };
+}
+
+/**
+ * The Moore-Penrose inverse of a symmetric matrix and its rank, as
+ * hausman.ado's MatGinv finds them: the singular values (here the absolute
+ * eigenvalues) above max * n * 1e-9 are inverted, the rest set to zero.
+ */
+function generalizedInverse(A) {
+  const n = A.length,
+    { values, vectors } = symmetricEigen(A),
+    largest = Math.max(0, ...values.map(Math.abs)),
+    tolerance = largest * n * 1e-9,
+    kept = values.map((v) => Math.abs(v) > tolerance);
+  return {
+    rank: kept.filter(Boolean).length,
+    // A matrix is positive definite when its smallest eigenvalue is.
+    positive: Math.min(...values) > 0,
+    inverse: A.map((_, r) =>
+      A.map((__, c) =>
+        values.reduce(
+          (t, v, k) => (kept[k] ? t + (vectors[r][k] * vectors[c][k]) / v : t),
+          0,
+        ),
+      ),
     ),
-    inverse = invertSymmetric(V);
+  };
+}
+
+/**
+ * A paragraph of text wrapped as SMCL's {p} wraps it, the first line
+ * indented first and the rest indented rest, keeping the double blank a
+ * sentence ends with.
+ */
+function paragraph(text, width, first = 0, rest = 0) {
+  const lines = [];
+  let line = " ".repeat(first),
+    empty = true;
+  for (const word of text.split(" ")) {
+    if (empty) {
+      if (!word) continue;
+      line += word;
+      empty = false;
+    } else if (line.length + 1 + word.length <= width) line += ` ${word}`;
+    else if (!word) continue;
+    else {
+      lines.push(line);
+      line = " ".repeat(rest) + word;
+    }
+  }
+  if (!empty) lines.push(line);
+  return lines;
+}
+
+/** Text centred in a field, the odd blank on the right, as %~12s puts it. */
+const centred = (text, width) => {
+  const room = Math.max(0, width - text.length),
+    left = Math.floor(room / 2);
+  return " ".repeat(left) + text + " ".repeat(room - left);
+};
+
+function hausman(session, text, ctx) {
+  const [head, typed] = splitAtComma(text),
+    names = head.trim().split(/\s+/).filter(Boolean),
+    stored = session.storedEstimates ?? new Map(),
+    options = {};
+  for (const option of (typed ?? "").match(
+    /[A-Za-z_]\w*\s*(\((?:[^()]|\([^()]*\))*\))?/g,
+  ) ?? []) {
+    const word = /^\w+/.exec(option)[0],
+      inside = /^\w+\s*\(([\s\S]*)\)$/.exec(option)?.[1];
+    if (inside === undefined && /^a(l(l(e(qs?)?)?)?)?$/.test(word))
+      options.alleqs = true;
+    else if (inside === undefined && /^c(o(n(s(t(a(nt?)?)?)?)?)?)?$/.test(word))
+      options.constant = true;
+    else if (inside === undefined && /^sig(m(a(m(o(re?)?)?)?)?)?$/.test(word))
+      options.sigmamore = true;
+    else if (inside === undefined && /^sigmal(e(ss?)?)?$/.test(word))
+      options.sigmaless = true;
+    else if (inside === undefined && word === "force") options.force = true;
+    else if (inside !== undefined && /^sk(i(p(e(qs?)?)?)?)?$/.test(word))
+      options.skipeqs = inside;
+    else if (
+      inside !== undefined &&
+      /^tcon(s(i(s(t(e(nt?)?)?)?)?)?)?$/.test(word)
+    )
+      options.tconsistent = inside.trim();
+    else if (inside !== undefined && /^teff(i(c(i(e(nt?)?)?)?)?)?$/.test(word))
+      options.tefficient = inside.trim();
+    else if (inside !== undefined && word === "df") {
+      const value = Number(inside.trim());
+      if (!inside.trim() || !Number.isFinite(value))
+        throw new StataError("df() invalid -- invalid numlist", 121);
+      if (!Number.isInteger(value))
+        throw new StataError(
+          "df() invalid -- invalid numlist has noninteger elements",
+          126,
+        );
+      if (!(value > 0 && value < 11000))
+        throw new StataError(
+          "df() invalid -- invalid numlist has elements outside of allowed range",
+          125,
+        );
+      options.df = value;
+    } else if (
+      (inside !== undefined && /^eq(u(a(t(i(o(ns?)?)?)?)?)?)?$/.test(word)) ||
+      (inside === undefined && /^(syminv|reveq)$/.test(word))
+    )
+      throw new StataError(
+        `option ${word}${inside === undefined ? "" : "()"} is not available in the browser yet`,
+        198,
+        "hausman here compares the coefficients of the first equation.",
+      );
+    else
+      throw new StataError(
+        `option ${word}${inside === undefined ? "" : "()"} not allowed`,
+        198,
+      );
+  }
+  if (!names.length || names.length > 2)
+    throw new StataError("hausman takes one or two stored models", 198);
+  if (names.length === 1) names.push(".");
+  if (names[0] === names[1])
+    throw new StataError("the two models need to be different", 198);
+  // Each model, the stored ones by name and . the active results.
+  const entries = names.map((name) => {
+    if (name === ".") {
+      if (!session.estimates)
+        throw new StataError("last estimates not found", 301);
+      return { model: session.estimates, e: session.results.e };
+    }
+    const found = stored.get(name);
+    if (!found)
+      throw new StataError(`estimation result ${name} not found`, 111);
+    return found;
+  });
+  for (const { model, e } of entries)
+    if (
+      (model.vce === "cluster" ||
+        model.vce === "robust" ||
+        e?.clustvar ||
+        e?.vce === "robust" ||
+        model.wtype === "pweight") &&
+      !options.force
+    )
+      throw new StataError(
+        "hausman cannot be used with vce(robust), vce(cluster cvar), or p-weighted data",
+        198,
+      );
+  // The coefficients of the first equation with a variance, without the
+  // constant unless asked for (Strik0, Get1steq and Rmcons).
+  const kept = ({ model }) =>
+      model.names
+        .map((name, k) => ({ name, k }))
+        .filter(
+          ({ name, k }) =>
+            !name.startsWith("/") &&
+            !name.includes(":") &&
+            model.V[k][k] !== 0 &&
+            !isMissing(model.V[k][k]) &&
+            (options.constant || name !== "_cons"),
+        ),
+    [first, second] = entries.map(kept),
+    common = first.filter(({ name }) =>
+      second.some((other) => other.name === name),
+    );
+  if (!common.length)
+    throw new StataError(
+      "no coefficients in common; specify equations(matchlist)\nfor problems with different equation names.",
+      498,
+    );
+  const [consistent, efficient] = entries.map((entry) => entry.model),
+    a = common.map(({ k }) => k),
+    b = common.map(({ name }) => second.find((other) => other.name === name).k);
+  // sigmamore puts both variances on the efficient model's sigma, and
+  // sigmaless on the consistent model's.
+  let scale1 = 1,
+    scale2 = 1;
+  if (options.sigmamore || options.sigmaless) {
+    const sigma = ({ e }) =>
+        e?.cmd === "xtreg"
+          ? e.model === "fe" || e.model === "ml"
+            ? e.sigma_e
+            : e.rmse
+          : (e?.sigma ?? e?.rmse),
+      [s1, s2] = entries.map(sigma);
+    if (typeof s1 !== "number" || typeof s2 !== "number")
+      throw new StataError(
+        "Estimators do not save e(sigma) or e(rmse),\nsigma option not allowed",
+        198,
+      );
+    if (options.sigmamore) scale1 = (s2 / s1) ** 2;
+    else scale2 = (s1 / s2) ** 2;
+  }
+  const difference = common.map(
+      (_, k) => consistent.b[a[k]] - efficient.b[b[k]],
+    ),
+    raw = common.map((_, r) =>
+      common.map(
+        (_, c) =>
+          scale1 * consistent.V[a[r]][a[c]] - scale2 * efficient.V[b[r]][b[c]],
+      ),
+    ),
+    V = raw.map((row, r) => row.map((v, c) => (v + raw[c][r]) / 2)),
+    { rank, positive, inverse } = generalizedInverse(V),
+    chi2 = quadratic(difference, inverse),
+    df = options.df ?? rank,
+    p = chi2tail(df, chi2);
+  if (rank !== common.length) {
+    ctx.out("");
+    paragraph(
+      `Note: the rank of the differenced variance matrix (${rank}) does not equal the number of coefficients being tested (${common.length}); be sure this is what you expect, or there may be problems computing the test.  Examine the output of your estimators for anything unexpected and possibly consider scaling your variables so that the coefficients are on a similar scale.`,
+      session.settings.linesize ?? 79,
+      0,
+      8,
+    ).forEach((line) => ctx.out(line));
+  }
+  // The models are named as typed, or by tconsistent() and tefficient();
+  // . the active results, by the name they were stored under.
+  const title = (k) => {
+    const given = k ? options.tefficient : options.tconsistent;
+    if (given !== undefined) return given;
+    const name =
+      names[k] === "." ? (entries[k].model.storedName ?? ".") : names[k];
+    return name === "." ? "." : abbreviate(name, 12);
+  };
   ctx.out("");
   ctx.out("                 ---- Coefficients ----");
   ctx.out(
     "             |      (b)          (B)            (b-B)     sqrt(diag(V_b-V_B))",
   );
   ctx.out(
-    `             |${names[0].padStart(9)}${names[1].padStart(13)}         Difference       Std. err.`,
+    `             |  ${centred(title(0), 12)} ${centred(title(1), 12)}    Difference       Std. err.`,
   );
   ctx.out(SPLIT);
-  common.forEach((name, k) =>
+  common.forEach(({ name }, k) =>
     ctx.out(
-      `${name.padStart(12)} |${g(consistent.b[a[k]]).padStart(12)}${g(efficient.b[b[k]]).padStart(13)}${g(difference[k]).padStart(16)}${(V[k][k] > 0 ? g(Math.sqrt(V[k][k])) : ".").padStart(16)}`,
+      `${abbreviate(name, 12).padStart(12)} |${g(consistent.b[a[k]]).padStart(12)}${g(efficient.b[b[k]]).padStart(13)}${g(difference[k]).padStart(16)}${(V[k][k] >= 0 ? g(Math.sqrt(V[k][k])) : ".").padStart(16)}`,
     ),
   );
   ctx.out(RULE);
+  const command = (k) =>
+    entries[k].e?.cmd2 || entries[k].e?.cmd || entries[k].model.command;
   ctx.out(
-    `b = Consistent under H0 and Ha; obtained from ${consistent.command}.`.padStart(
-      78,
-    ),
+    `b = Consistent under H0 and Ha; obtained from ${command(0)}.`.padStart(78),
   );
   ctx.out(
-    `B = Inconsistent under Ha, efficient under H0; obtained from ${efficient.command}.`.padStart(
+    `B = Inconsistent under Ha, efficient under H0; obtained from ${command(1)}.`.padStart(
       78,
     ),
   );
   ctx.out("");
   ctx.out("Test of H0: Difference in coefficients not systematic");
   ctx.out("");
-  if (!inverse) {
+  const label = `chi2(${g(df)})`;
+  if (chi2 >= 0) {
+    const width = Math.max(11, label.length),
+      shownChi2 = applyFormat(chi2, "%10.2f").trim(),
+      shownP = applyFormat(p, "%10.4f").trim(),
+      numbers = Math.max(shownChi2.length, shownP.length);
+    ctx.out(`${label.padStart(width)} = (b-B)'[(V_b-V_B)^(-1)](b-B)`);
+    ctx.out(`${"".padStart(width)} = ${shownChi2.padStart(numbers)}`);
+    ctx.out(`${"Prob > chi2".padStart(width)} = ${shownP.padStart(numbers)}`);
+    if (!positive) ctx.out("(V_b-V_B is not positive definite)");
+  } else {
+    ctx.out(`${label} = (b-B)'[(V_b-V_B)^(-1)](b-B)`);
     ctx.out(
-      "    V_b-V_B is not positive definite; the test cannot be computed here",
+      `${" ".repeat(label.length)} = ${applyFormat(chi2, "%10.2f").trim()}`,
     );
     ctx.out("");
-    throw new StataError("", 498);
+    paragraph(
+      "Warning: chi2 < 0 ==> model fitted on these data fails to meet the asymptotic assumptions of the Hausman test; see suest for a generalized test.",
+      50,
+      0,
+      9,
+    ).forEach((line) => ctx.out(line));
   }
-  const chi2 = quadratic(difference, inverse),
-    df = common.length,
-    p = chi2tail(df, chi2);
-  ctx.out(`    chi2(${df}) = (b-B)'[(V_b-V_B)^(-1)](b-B)`);
-  ctx.out(`            =${applyFormat(chi2, "%7.2f")}`);
-  ctx.out(`Prob > chi2 = ${applyFormat(p, "%6.4f")}`);
   ctx.out("");
-  session.results.r = { rank: df, chi2, df, p };
+  session.results.r = { rank, chi2, df, p };
 }
 
 /** Least squares of y on the columns given, with no constant added. */
@@ -381,8 +701,6 @@ const durbinWatson = (e) =>
 function prais(session, text, ctx) {
   if (!session.panel?.time)
     throw new StataError("time variable not set, use tsset varname ...", 111);
-  if (session.panel.id)
-    throw new StataError("prais on panel data is not available yet", 198);
   const parsed = session.parse(
       "anything [if] [in] [, CORC TWOstep Level(cilevel) noLOg | Robust VCE(string) RHOtype(string) SSEsearch noCONStant]",
       text,
@@ -393,6 +711,19 @@ function prais(session, text, ctx) {
     dependent = session.data.get(base.depvar),
     used = base.names.map((_, k) => k).filter((k) => base.estimable[k]),
     rows = [...base.sample].sort((a, b) => time[a] - time[b]);
+  // prais.ado works with time-series operators, which need the data
+  // sorted by time.
+  requireTimeOrder(session);
+  // On panel data a sample from one panel is a single series.
+  if (session.panel.id) {
+    const id = session.data.get(session.panel.id).data;
+    if (new Set(rows.map((i) => id[i])).size > 1)
+      throw new StataError(
+        "prais on several panels is not available yet",
+        198,
+        "prais here fits one series: select one panel with if, as in prais y x if id == 1.",
+      );
+  }
   if (rows.some((i, r) => r && time[i] - time[rows[r - 1]] !== 1))
     throw new StataError(
       `${session.panel.time} is not regularly spaced; prais needs a series without gaps here`,
@@ -518,7 +849,7 @@ function prais(session, text, ctx) {
       ctx.out(`Iteration ${j}:  rho = ${applyFormat(value, "%6.4f").trim()}`),
     );
     ctx.out("");
-  }
+  } else ctx.out(""); // nolog leaves the log's blank line, seen under by.
   ctx.out(
     `${options.corc ? "Cochrane–Orcutt" : "Prais–Winsten"} AR(1) regression with ${options.twostep ? "twostep" : "iterated"} estimates`,
   );
@@ -539,165 +870,7 @@ function prais(session, text, ctx) {
   ctx.out("");
 }
 
-// Critical values of the Dickey-Fuller t statistic (Fuller 1996) at sample
-// sizes 25, 50, 100, 250, 500 and infinity, for 1, 5 and 10 percent, as
-// dfuller tabulates and interpolates them.
-const DF_CRITICAL = {
-  noconstant: [
-    [-2.66, -2.62, -2.6, -2.58, -2.58, -2.58],
-    [-1.95, -1.95, -1.95, -1.95, -1.95, -1.95],
-    [-1.6, -1.61, -1.61, -1.62, -1.62, -1.62],
-  ],
-  constant: [
-    [-3.75, -3.58, -3.51, -3.46, -3.44, -3.43],
-    [-3.0, -2.93, -2.89, -2.88, -2.87, -2.86],
-    [-2.63, -2.6, -2.58, -2.57, -2.57, -2.57],
-  ],
-  trend: [
-    [-4.38, -4.15, -4.04, -3.99, -3.98, -3.96],
-    [-3.6, -3.5, -3.45, -3.43, -3.42, -3.41],
-    [-3.24, -3.18, -3.15, -3.13, -3.13, -3.12],
-  ],
-};
-function dfCritical(kind, n) {
-  const steps = [25, 50, 100, 250, 500];
-  return DF_CRITICAL[kind].map((row) => {
-    if (n <= 25) return row[0];
-    if (n > 500) return row[5];
-    const k = steps.findIndex((step) => n <= step);
-    return (
-      row[k - 1] +
-      ((n - steps[k - 1]) / (steps[k] - steps[k - 1])) * (row[k] - row[k - 1])
-    );
-  });
-}
-/** MacKinnon's (1994) approximate p-value for the statistic. */
-function mackinnon(kind, tau) {
-  const surface =
-      kind === "constant"
-        ? tau > -1.61
-          ? {
-              low: -9999,
-              high: 2.74,
-              g: [1.7339, 0.93202, -0.12745, -0.010368],
-            }
-          : { low: -18.83, high: Infinity, g: [2.1659, 1.4412, 0.038269, 0] }
-        : tau > -2.89
-          ? { low: -9999, high: 0.7, g: [2.5261, 0.61654, -0.37956, -0.060285] }
-          : { low: -16.18, high: Infinity, g: [3.2512, 1.6047, 0.049588, 0] },
-    [g0, g1, g2, g3] = surface.g;
-  if (tau < surface.low) return 0;
-  if (tau > surface.high) return 1;
-  return normal(g0 + g1 * tau + g2 * tau ** 2 + g3 * tau ** 3);
-}
-
-function dfuller(session, text, ctx) {
-  if (!session.panel?.time)
-    throw new StataError("time variable not set, use tsset varname ...", 111);
-  if (session.panel.id)
-    throw new StataError("dfuller on panel data is not available yet", 198);
-  const parsed = session.parse(
-      "varname [if] [in] [, Lags(integer 0) TRend noCONStant | DRift REGress]",
-      text,
-    ),
-    options = parsed.options,
-    lags = options.lags,
-    kind = options.trend
-      ? "trend"
-      : options.constant === false
-        ? "noconstant"
-        : "constant",
-    variable = session.data.get(parsed.varlist[0]),
-    time = session.data.get(session.panel.time).data,
-    // Lags reach back before the observations if and in select, as the
-    // time-series operators do; the selection applies to the regression.
-    rows = Array.from({ length: session.data.n }, (_, i) => i)
-      .filter((i) => !isMissing(time[i]))
-      .sort((a, b) => time[a] - time[b]),
-    selected = new Set(session.rows(parsed, null)),
-    y = rows.map((i) => variable.data[i]);
-  if (options.trend && options.constant === false)
-    throw new StataError("trend and noconstant may not be combined", 198);
-  if (
-    y.some((v) => isMissing(v)) ||
-    rows.some((i, r) => r && time[i] - time[rows[r - 1]] !== 1)
-  )
-    throw new StataError("sample may not contain gaps", 498);
-  const difference = y.slice(1).map((v, i) => v - y[i]),
-    // Observation t uses y[t-1] and the differences at t-1 back to t-lags.
-    start = lags + 1,
-    use = Array.from({ length: y.length - start }, (_, i) => i).filter((i) =>
-      selected.has(rows[start + i]),
-    ),
-    n = use.length,
-    pick = (values) => use.map((i) => values[i]);
-  const columns = [pick(y.slice(start - 1, -1))];
-  for (let k = 1; k <= lags; k++)
-    columns.push(pick(difference.slice(start - 1 - k, difference.length - k)));
-  if (kind === "trend") columns.push(use.map((i) => time[rows[start + i]]));
-  if (kind !== "noconstant") columns.push(new Array(n).fill(1));
-  if (n - columns.length < 1)
-    throw new StataError("insufficient observations", 2001);
-  const fitted = leastSquares(columns, pick(difference.slice(start - 1))),
-    s2 = fitted.rss / (n - columns.length),
-    tau = fitted.b[0] / Math.sqrt(s2 * fitted.inverse[0][0]),
-    critical = dfCritical(kind, n),
-    three = (value) => applyFormat(value, "%6.3f").trim();
-  ctx.out("");
-  if (lags) {
-    ctx.out("Augmented Dickey–Fuller test for unit root");
-    ctx.out("");
-    ctx.out(
-      `${`Variable: ${variable.name}`.padEnd(43)}Number of obs  = ${String(n).padStart(2)}`,
-    );
-    ctx.out(`${" ".repeat(43)}Number of lags = ${String(lags).padStart(2)}`);
-  } else {
-    ctx.out(
-      `${"Dickey–Fuller test for unit root".padEnd(43)}Number of obs  = ${String(n).padStart(2)}`,
-    );
-    ctx.out(
-      `${`Variable: ${variable.name}`.padEnd(43)}Number of lags = ${String(lags).padStart(2)}`,
-    );
-  }
-  ctx.out("");
-  ctx.out(
-    `H0: ${
-      kind === "trend"
-        ? "Random walk with or without drift"
-        : kind === "constant"
-          ? "Random walk without drift, d = 0"
-          : "Random walk without drift, a = 0, d = 0"
-    }`,
-  );
-  ctx.out("");
-  ctx.out(`${" ".repeat(39)}Dickey–Fuller`);
-  ctx.out("                   Test      -------- critical value ---------");
-  ctx.out("              statistic           1%           5%          10%");
-  ctx.out("-".repeat(62));
-  ctx.out(
-    ` Z(t)${three(tau).padStart(18)}${critical.map((v) => three(v).padStart(13)).join("")}`,
-  );
-  ctx.out("-".repeat(62));
-  session.results.r = {
-    N: n,
-    lags,
-    Zt: tau,
-    cv_1: critical[0],
-    cv_5: critical[1],
-    cv_10: critical[2],
-  };
-  if (kind !== "noconstant") {
-    const p = mackinnon(kind, tau);
-    ctx.out(
-      `MacKinnon approximate p-value for Z(t) = ${applyFormat(p, "%6.4f")}.`,
-    );
-    session.results.r.p = p;
-  }
-  ctx.out("");
-}
-
 export const MORE_POSTESTIMATION = [
-  { name: "dfuller", minimum: 7, run: dfuller },
   { name: "prais", minimum: 5, run: prais },
   { name: "newey", minimum: 5, run: newey },
   { name: "nlcom", minimum: 5, run: nlcom },

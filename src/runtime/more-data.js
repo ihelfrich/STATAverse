@@ -5,6 +5,8 @@ import { Signal, StataError } from "./errors.js";
 import { fileName, load, strLKey } from "./data-commands.js";
 import { INSPECT_COMMANDS } from "./data-inspect.js";
 import { parseBlocks, splitCommands } from "./dofile.js";
+import { fileEcho } from "./echo.js";
+import { splitAtComma } from "./syntax.js";
 import { findFile } from "./files.js";
 import { MISSING, isStringType } from "./values.js";
 
@@ -34,8 +36,9 @@ function bring(data, source, index) {
 
 function doFile(mode) {
   return (session, text, ctx) => {
-    const m = /^\s*("[^"]*"|\S+)\s*([\s\S]*)$/.exec(text);
-    if (!m) throw new StataError("invalid syntax", 198);
+    const m = /^\s*("[^"]*"|[^\s,]+)\s*([\s\S]*)$/.exec(text);
+    // do with no file names none.
+    if (!m) throw new StataError("invalid file specification", 198);
     const typed = m[1].replace(/^"|"$/g, ""),
       files = session.files ?? new Map(),
       name = findFile(files, typed)
@@ -52,33 +55,103 @@ function doFile(mode) {
       session.doDepth = 0;
       throw new StataError("do-files nested too deep", 197);
     }
+    // do and run take one option, nostop: an error does not stop the file.
+    // What follows the file's name up to the comma are its arguments.
+    const [given, optionText] = splitAtComma(m[2]),
+      option = (optionText ?? "").trim();
+    if (option && (mode === "include" || option !== "nostop")) {
+      session.doDepth -= 1;
+      throw new StataError(
+        mode === "include"
+          ? "invalid syntax"
+          : `option ${option.split(/[\s(]/)[0]}${/^\w+\(/.test(option) ? "()" : ""} not allowed`,
+        198,
+      );
+    }
+    const nostop = option === "nostop";
     // include runs in the caller's frame, so its local macros stay; do
     // and run get their own, with any arguments as `1', `2' and so on.
     const frame = mode === "include" ? ctx.frame : session.frame();
     if (mode !== "include") {
-      const words = m[2].match(/"[^"]*"|\S+/g) ?? [];
+      const words = given.match(/"[^"]*"|\S+/g) ?? [];
       words.forEach((word, k) =>
         frame.locals.set(String(k + 1), word.replace(/^"|"$/g, "")),
       );
-      frame.locals.set("0", m[2].trim());
+      frame.locals.set("0", given.trim());
     }
-    // run shows nothing, and neither does do under quietly or capture.
+    // do under quietly or capture shows nothing. run shows only what
+    // noisily prints, and errors.
     const silent =
-        mode === "run" ||
-        ctx.flags?.quiet ||
-        (ctx.flags?.capture && !ctx.flags?.noisy),
-      output = silent ? [] : ctx.output,
+        ctx.flags?.quiet || (ctx.flags?.capture && !ctx.flags?.noisy),
+      quietRun = mode === "run" && !silent,
+      // Inside a loop shown once, or a program, the file's commands and
+      // what they print become lines of the do command, as Stata's log
+      // shows them there.
+      nested =
+        session.foldLoops &&
+        !silent &&
+        !quietRun &&
+        !!ctx.flags &&
+        !!(session.inProgram || session.folding),
+      output = silent || quietRun || nested ? [] : ctx.output,
       // Shown as Stata's log shows it (the Console): the do command first,
       // then the file's commands, then "end of do-file".
-      leads = session.foldLoops && !silent && !!ctx.flags,
+      leads =
+        session.foldLoops && !silent && !quietRun && !nested && !!ctx.flags,
       start = output.length,
-      { sourceLines, loopDepth } = session;
+      { sourceLines, loopDepth, inProgram, folding } = session,
+      quietDepth = session.quietDepth ?? 0;
     session.sourceLines = stored.text.replace(/\r\n?/g, "\n").split("\n");
     session.loopDepth = 0;
+    // A do-file run from a program or a loop is a file of its own: its
+    // loops are echoed and its exit ends it, as at the top of a file.
+    // An included file's lines are the caller's own.
+    if (mode !== "include") {
+      session.inProgram = 0;
+      session.folding = 0;
+    }
+    if (quietRun) session.quietDepth = quietDepth + 1;
     let failure = null,
       exited = false;
+    // The data a do-file preserves are put back when it ends; include runs
+    // its lines as the caller's own.
+    if (mode !== "include") session.enterScope();
     try {
-      session.runNodes(parseBlocks(splitCommands(stored.text)), frame, output);
+      const nodes = parseBlocks(splitCommands(stored.text)),
+        lines = session.sourceLines,
+        file = leads || nested ? fileEcho(lines) : null;
+      for (const node of nodes) {
+        if (file) output.push(...file.before(node.line));
+        const typed =
+            file && node.kind === "command" ? file.command(node.line) : null,
+          from = output.length;
+        if (file && node.kind !== "command")
+          file.skip(node.unclosed ? lines.length : (node.end ?? node.line));
+        try {
+          session.runNodes([node], frame, output);
+        } catch (error) {
+          // nostop: the error is reported and the next command runs.
+          if (!(nostop && error instanceof StataError && error.recorded))
+            throw error;
+        } finally {
+          // The command's record shows the line as typed.
+          const record = typed && output[from];
+          if (record && record.command === node.text && !record.echo) {
+            record.command = typed.command;
+            record.echo = typed.echo;
+          }
+        }
+      }
+      // The lines after the last command; the file's last line break ends
+      // it. Stata's prompt at the end of an included file follows them (a
+      // do-file's comes with "end of do-file").
+      if (file) {
+        output.push(
+          ...file.before(lines.at(-1) === "" ? lines.length : lines.length + 1),
+        );
+        if (leads && mode === "include")
+          output.push({ command: "", lines: [], rc: 0, comment: true });
+      }
     } catch (error) {
       // exit ends this do-file and returns to the one that ran it.
       if (error instanceof Signal && error.kind === "exit") {
@@ -86,9 +159,42 @@ function doFile(mode) {
         if (error.code) failure = new StataError("", error.code);
       } else failure = error;
     } finally {
+      if (mode !== "include") session.leaveScope();
       session.doDepth -= 1;
       session.sourceLines = sourceLines;
       session.loopDepth = loopDepth;
+      session.inProgram = inProgram;
+      session.folding = folding;
+      session.quietDepth = quietDepth;
+    }
+    // run: what noisily printed, under the run command.
+    if (quietRun)
+      for (const record of output)
+        record.lines.forEach((line) => ctx.out(line));
+    if (nested) {
+      // Each command after a blank line, as the log shows it; a comment
+      // or a blank line of the file directly under the line before.
+      let comment = false;
+      for (const record of output) {
+        if (!comment) ctx.out("");
+        ctx.out(`. ${record.command}`.trimEnd());
+        (record.echo ?? []).forEach((line) => ctx.out(line));
+        record.lines.forEach((line) => ctx.out(line));
+        comment = !!record.comment && !record.lines.length;
+      }
+      if (failure instanceof StataError && !failure.recorded) {
+        if (failure.message) ctx.out(failure.message);
+        ctx.out(`r(${failure.code});`);
+      }
+      // The prompt at the end of the file, unless an error ended it first.
+      if (!comment) ctx.out("");
+      if (!failure && !exited) ctx.out(".");
+      if (mode === "do") ctx.out("end of do-file");
+      // The do command reports the file's error only by its code.
+      if (failure instanceof StataError)
+        failure = Object.assign(new StataError("", failure.code), {
+          hint: failure.hint,
+        });
     }
     if (leads) {
       ctx.flags.leadAt = start;
@@ -101,7 +207,12 @@ function doFile(mode) {
         }
         if (last) failure.recorded = true;
         if (last && mode === "do")
-          last.lines.push("", "end of do-file", `r(${failure.code});`);
+          last.lines.push(
+            "",
+            "end of do-file",
+            // A captured do-file reports no return code after it.
+            ...(ctx.flags?.capture ? [] : [`r(${failure.code});`]),
+          );
       } else if (!failure && mode === "do") {
         if (exited && last) last.lines.push("", "end of do-file");
         else
@@ -123,17 +234,24 @@ function cross(session, text) {
     data = session.data,
     n = data.n,
     m = other.n;
-  if (!n || !m) throw new StataError("no observations", 2000);
+  // A using dataset with no observations stops Stata's cross.ado at a
+  // temporary variable it never made.
+  if (!m) throw new StataError("variable __000001 not found", 111);
   // Each observation first meets the first using observation; its
-  // pairings with the rest follow, observation by observation.
-  const master = Array.from({ length: n }, (_, i) => i),
-    using = master.map(() => 0);
+  // pairings with the rest follow, observation by observation. With no
+  // observations in memory, Stata copies the using data in, the variables
+  // in memory left missing.
+  const master = n
+      ? Array.from({ length: n }, (_, i) => i)
+      : Array.from({ length: m }, () => null),
+    using = n ? master.map(() => 0) : master.map((_, j) => j);
   for (let i = 0; i < n; i++)
     for (let j = 1; j < m; j++) {
       master.push(i);
       using.push(j);
     }
   arrange(data, data.variables, master);
+  data.permuteMarks(master);
   data.n = master.length;
   data.sortedBy = [];
   for (const variable of other.variables)
@@ -220,6 +338,7 @@ function joinby(session, text, ctx) {
         }
   const mine = [...data.variables];
   arrange(data, mine, master);
+  data.permuteMarks(master);
   data.n = master.length;
   // A row that exists only in the using data takes its keys from there.
   for (const key of keys) {
@@ -301,6 +420,8 @@ function stack(session, text, ctx) {
     ctx.out("         Press any key to continue, Ctrl-Break to abort.");
   }
   data.variables = [];
+  data.esample = null;
+  data.rowIds = null;
   data.n = rows.length * sets;
   data.sortedBy = [];
   data.generate(

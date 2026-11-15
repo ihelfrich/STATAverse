@@ -4,9 +4,15 @@
 // installed Stata.
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
-import { abbreviateAmong, applyFormat, parseFormat } from "./format.js";
+import {
+  abbreviateAmong,
+  abbreviateName,
+  applyFormat,
+  parseFormat,
+} from "./format.js";
 import { evaluateAll } from "./expression.js";
 import { chi2tail } from "./distributions.js";
+import { operatorGroups } from "./varlist.js";
 import {
   assumedWeights,
   clauses,
@@ -171,6 +177,8 @@ export function countCommand(session, text, ctx) {
   session.results.r = { N: n };
 }
 
+// The most observations a frequency weight is expanded into.
+export const FREQUENCY_EXPANSION_LIMIT = 20_000_000;
 /**
  * The observations a weighted command uses. A frequency weight repeats the
  * observation (or, with `expand` false, comes back as weights, so that
@@ -187,6 +195,16 @@ export function weightedRows(session, parsed, rows, { expand = true } = {}) {
     if (used.some((i) => !Number.isInteger(all[i])))
       throw new StataError("may not use noninteger frequency weights", 401);
     if (!expand) return { rows: used, weights: all };
+    // Repeating the observations takes a row for each; past this many the
+    // browser would run out of memory, so the command stops cleanly.
+    let total = 0;
+    for (const i of used) total += all[i];
+    if (total > FREQUENCY_EXPANSION_LIMIT)
+      throw new StataError(
+        `frequency weights add up to ${count(total)} observations, more than this command can hold in the browser`,
+        909,
+        "summarize and tabstat take frequency weights of any size",
+      );
     return {
       rows: used.flatMap((i) => new Array(all[i]).fill(i)),
       weights: null,
@@ -195,23 +213,30 @@ export function weightedRows(session, parsed, rows, { expand = true } = {}) {
   return { rows: used, weights: all };
 }
 // The variance divides by n - 1 with analytic weights, which sum to n, and
-// by the sum of the weights less one with importance weights.
-export function weightedMoments(variable, rows, weights, importance = false) {
+// by the sum of the weights less one with importance weights. Frequency
+// weights count observations: n is their sum, and the variance divides by
+// it less one, as if each observation were repeated.
+export function weightedMoments(
+  variable,
+  rows,
+  weights,
+  importance = false,
+  frequency = false,
+) {
   if (isStringType(variable.type)) return moments([]);
   const use = rows.filter((i) => !isMissing(variable.data[i])),
-    n = use.length,
-    sumW = accurateSum(use, (i) => weights[i]);
+    sumW = accurateSum(use, (i) => weights[i]),
+    n = frequency ? sumW : use.length;
   if (!n) return moments([]);
   const sum = accurateSum(use, (i) => weights[i] * variable.data[i]),
     mean = sum / sumW,
+    squares = () =>
+      use.reduce((t, i) => t + weights[i] * (variable.data[i] - mean) ** 2, 0),
     variance =
       n > 1
-        ? (use.reduce(
-            (t, i) => t + weights[i] * (variable.data[i] - mean) ** 2,
-            0,
-          ) /
-            sumW) *
-          (importance ? sumW / (sumW - 1) : n / (n - 1))
+        ? frequency
+          ? squares() / (n - 1)
+          : (squares() / sumW) * (importance ? sumW / (sumW - 1) : n / (n - 1))
         : MISSING,
     values = use.map((i) => variable.data[i]);
   return {
@@ -268,8 +293,34 @@ function noteWeights(text, parsed, ctx) {
   )
     ctx.out(assumedWeights(parsed.weight.type));
 }
+/**
+ * list and summarize parse their varlist as Stata's syntax does, except
+ * that a varlist (_all included) with no variables in memory is "no
+ * variables defined", r(111), as these commands say it.
+ */
+function parseNamingVariables(session, declaration, text) {
+  if (!session.data.names.length) {
+    const varlist = splitAtComma(text)[0]
+      .replace(/(?:^|\s)(?:if|in)(?:\s|$)[\s\S]*$/, "")
+      .replace(/\[[\s\S]*$/, "")
+      .trim();
+    if (varlist) throw new StataError("no variables defined", 111);
+  }
+  try {
+    return session.parse(declaration, text);
+  } catch (error) {
+    if (
+      error instanceof StataError &&
+      error.code === 102 &&
+      !session.data.names.length
+    )
+      throw new StataError("no variables defined", 111);
+    throw error;
+  }
+}
 export function summarize(session, text, ctx) {
-  const parsed = session.parse(
+  const parsed = parseNamingVariables(
+    session,
     "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) Format]",
     text,
   );
@@ -282,19 +333,14 @@ export function summarize(session, text, ctx) {
   if (parsed.weight?.type === "iweight" && parsed.options.detail)
     throw new StataError("iweights not allowed", 101);
   noteWeights(text, parsed, ctx);
-  const weighted = weightedRows(session, parsed, scope(session, parsed, ctx)),
+  // Frequency weights come back as weights, so that a population count of
+  // billions needs no rows of its own.
+  const weighted = weightedRows(session, parsed, scope(session, parsed, ctx), {
+      expand: false,
+    }),
     rows = weighted.rows,
-    analytic = weighted.weights && !parsed.options.detail;
-  if (parsed.options.detail && parsed.options.meanonly)
-    throw new StataError(
-      "only one of meanonly or detail may be specified",
-      198,
-    );
-  if (weighted.weights && parsed.options.detail)
-    throw new StataError(
-      "summarize, detail with aweights is not available yet",
-      198,
-    );
+    frequency = parsed.weight?.type === "fweight",
+    analytic = weighted.weights && !frequency && !parsed.options.detail;
   // With no variables in memory Stata prints nothing at all.
   if (!parsed.varlist.length) return;
   let last = null;
@@ -309,36 +355,66 @@ export function summarize(session, text, ctx) {
     );
     ctx.out(analytic ? SUMMARY_RULE + "--------" : SUMMARY_RULE);
   }
+  // Under time-series operators the rows of one variable are grouped under
+  // its name, as L1., D1. and --., with a blank row around each such group.
+  const listed = parsed.varlist.map((name) => session.data.get(name)),
+    groups = operatorGroups(listed),
+    groupOf = new Map(
+      groups.flatMap((group, at) => group.members.map((k) => [k, at])),
+    );
   parsed.varlist.forEach((name, k) => {
     const variable = session.data.get(name),
       values = isStringType(variable.type) ? [] : present(variable.data, rows),
-      m = analytic
+      m = weighted.weights
         ? weightedMoments(
             variable,
             rows,
             weighted.weights,
             parsed.weight.type === "iweight",
+            frequency,
           )
         : moments(values);
-    last = { values, m };
-    const formats = summaryFormats(variable, parsed.options.format),
-      level = (value, width) => statistic(value, formats.level, width),
-      spread = (value, width) => statistic(value, formats.spread, width);
-    if (parsed.options.detail)
+    if (parsed.options.detail) {
+      // A weight of either kind weights the percentiles and the moments.
+      const shape = distribution(
+        isStringType(variable.type)
+          ? []
+          : rows.filter((i) => !isMissing(variable.data[i])),
+        variable.data,
+        weighted.weights,
+        m.mean,
+        !!parsed.weight,
+      );
+      last = { m, shape };
       return detail(
         ctx,
         variable,
-        values,
         m,
-        formats,
+        shape,
+        summaryFormats(variable, parsed.options.format),
         // The smallest and largest are observations, not weighted copies.
-        isStringType(variable.type)
-          ? []
-          : present(variable.data, [...new Set(rows)]),
+        isStringType(variable.type) ? [] : present(variable.data, rows),
+        frequency,
       );
+    }
+    last = { m };
+    const formats = summaryFormats(variable, parsed.options.format),
+      level = (value, width) => statistic(value, formats.level, width),
+      spread = (value, width) => statistic(value, formats.spread, width);
     if (k && parsed.options.separator && k % parsed.options.separator === 0)
       ctx.out(analytic ? SUMMARY_RULE + "--------" : SUMMARY_RULE);
-    const label = padDisplay(abbreviateAmong(name, 12, session.data.names), 12);
+    const at = groupOf.get(k),
+      group = groups[at],
+      shortened = (text) =>
+        padDisplay(abbreviateAmong(text, 12, session.data.names), 12);
+    if (group.members[0] === k) {
+      if (at && (group.headed || groups[at - 1].headed))
+        ctx.out(`${" ".repeat(12)} |`);
+      if (group.headed) ctx.out(`${shortened(group.base)} |`);
+    }
+    const label = group.headed
+      ? (variable.ts?.label ?? "--.").padStart(12)
+      : shortened(variable.ts?.alone ? variable.ts.name : name);
     ctx.out(
       analytic
         ? m.n
@@ -352,7 +428,7 @@ export function summarize(session, text, ctx) {
   // One blank line closes the table, or the last detailed block.
   ctx.out("");
   if (!last) return;
-  const { m, values } = last;
+  const { m, shape } = last;
   session.results.r = m.n
     ? {
         N: m.n,
@@ -366,27 +442,90 @@ export function summarize(session, text, ctx) {
       }
     : { N: 0, sum_w: 0, sum: 0 };
   if (parsed.options.detail && m.n) {
-    const sorted = [...values].sort((a, b) => a - b),
-      central = (power) =>
-        values.reduce((t, v) => t + (v - m.mean) ** power, 0) / m.n,
-      m2 = central(2);
-    Object.assign(session.results.r, {
-      skewness: m2 ? central(3) / m2 ** 1.5 : MISSING,
-      kurtosis: m2 ? central(4) / m2 ** 2 : MISSING,
+    // With detail, Stata stores the moments before the sum and the
+    // extremes, and return list shows them in that order.
+    const { N, sum_w, mean, Var, sd, min, max, sum } = session.results.r;
+    session.results.r = {
+      N,
+      sum_w,
+      mean,
+      Var,
+      sd,
+      skewness: shape.skewness,
+      kurtosis: shape.kurtosis,
+      sum,
+      min,
+      max,
       ...Object.fromEntries(
         [1, 5, 10, 25, 50, 75, 90, 95, 99].map((p) => [
           "p" + p,
-          percentile(sorted, p),
+          shape.percentile(p),
         ]),
       ),
-    });
+    };
   }
 }
-function detail(ctx, variable, values, m, formats, observed = values) {
-  const sorted = [...values].sort((a, b) => a - b),
-    ends = [...observed].sort((a, b) => a - b),
-    title = variable.label || variable.name,
-    p = (q) => statistic(percentile(sorted, q), formats.level, 13),
+/**
+ * The p-th percentile of [value, weight] pairs sorted by value, whose
+ * weights sum to W, as summarize, detail and tabstat find it with weights
+ * of any kind, frequency weights included. It is the mean of two values: the
+ * first whose cumulated weight comes within 1e-7 of the total weight of p
+ * percent of it, and the first whose cumulated weight passes that point by
+ * more than 1e-7 of the total. Away from a tie both are the same value;
+ * at a tie they are a value and the next. Found by experiment in Stata 19:
+ * with weights of 1 on 100,001 observations the 1st percentile (at
+ * 1000.01) is the mean of the 1000th and 1001st values, where without
+ * weights it is the 1001st; bisection puts the tolerance at 1e-7 of the
+ * total weight whatever the weights; and with weights 1, 1e-8 and 1 on the
+ * values 1, 2 and 3 the median is 2, the mean of 1 and 3, because the
+ * cumulated weights of both 1 and 2 are within the tolerance of the point.
+ */
+export function weightedPercentile(pairs, W, p) {
+  const n = pairs.length,
+    target = (W * p) / 100,
+    tolerance = 1e-7 * W;
+  let lower = -1,
+    cumulated = 0;
+  for (let k = 0; k < n; k++) {
+    cumulated += pairs[k][1];
+    if (lower < 0 && cumulated >= target - tolerance) lower = k;
+    if (cumulated > target + tolerance)
+      return (pairs[lower < 0 ? k : lower][0] + pairs[k][0]) / 2;
+  }
+  return lower < 0 ? pairs[n - 1][0] : (pairs[lower][0] + pairs[n - 1][0]) / 2;
+}
+/**
+ * The percentiles, skewness and kurtosis summarize, detail shows, of the
+ * values of the given rows, weighted when weights are given (indexed by
+ * row; frequency weights among them); without weights a percentile is
+ * Stata's usual one.
+ */
+function distribution(rows, data, weights, mean, weightedAtAll) {
+  const pairs = rows.map((i) => [data[i], weights ? weights[i] : 1]),
+    n = pairs.length,
+    W = weights ? accurateSum(pairs, (pair) => pair[1]) : n,
+    // The moments are summed in the order of the observations.
+    central = (power) =>
+      pairs.reduce((t, [v, w]) => t + w * (v - mean) ** power, 0) / W,
+    m2 = n ? central(2) : 0,
+    skewness = m2 ? central(3) / m2 ** 1.5 : MISSING,
+    kurtosis = m2 ? central(4) / m2 ** 2 : MISSING;
+  pairs.sort((a, b) => a[0] - b[0]);
+  const sorted = pairs.map(([v]) => v);
+  return {
+    skewness,
+    kurtosis,
+    percentile(p) {
+      if (!n) return MISSING;
+      if (!weightedAtAll) return percentile(sorted, p);
+      return weightedPercentile(pairs, W, p);
+    },
+  };
+}
+function detail(ctx, variable, m, shape, formats, observed, frequency) {
+  const ends = [...observed].sort((a, b) => a - b),
+    title = variable.ts?.name ?? (variable.label || variable.name),
+    p = (q) => statistic(shape.percentile(q), formats.level, 13),
     // The four smallest and four largest; fewer than four leaves gaps.
     end = (k) =>
       statistic(
@@ -396,10 +535,7 @@ function detail(ctx, variable, values, m, formats, observed = values) {
       ),
     side = (label, value) => "       " + label.padEnd(11) + value.padStart(12),
     level = (value) => statistic(value, formats.level, 12),
-    spread = (value) => statistic(value, formats.spread, 12),
-    central = (power) =>
-      values.reduce((t, v) => t + (v - m.mean) ** power, 0) / m.n,
-    m2 = m.n ? central(2) : 0;
+    spread = (value) => statistic(value, formats.spread, 12);
   ctx.out("");
   ctx.out(" ".repeat(Math.max(0, Math.floor((61 - title.length) / 2))) + title);
   ctx.out("-".repeat(61));
@@ -411,18 +547,16 @@ function detail(ctx, variable, values, m, formats, observed = values) {
   ctx.out(` 1%${p(1)}${end(0)}`);
   ctx.out(` 5%${p(5)}${end(1)}`);
   ctx.out(`10%${p(10)}${end(2)}${side("Obs", count(m.n))}`);
-  ctx.out(`25%${p(25)}${end(3)}${side("Sum of wgt.", count(m.n))}`);
+  ctx.out(
+    `25%${p(25)}${end(3)}${side("Sum of wgt.", frequency ? count(m.n) : applyFormat(m.sumW ?? m.n, "%11.0gc").trim())}`,
+  );
   ctx.out("");
   ctx.out(`50%${p(50)}${" ".repeat(15)}${side("Mean", level(m.mean))}`);
   ctx.out(`${"Largest".padStart(31)}${side("Std. dev.", spread(m.sd))}`);
   ctx.out(`75%${p(75)}${end(-4)}`);
   ctx.out(`90%${p(90)}${end(-3)}${side("Variance", spread(m.variance))}`);
-  ctx.out(
-    `95%${p(95)}${end(-2)}${side("Skewness", spread(m2 ? central(3) / m2 ** 1.5 : MISSING))}`,
-  );
-  ctx.out(
-    `99%${p(99)}${end(-1)}${side("Kurtosis", spread(m2 ? central(4) / m2 ** 2 : MISSING))}`,
-  );
+  ctx.out(`95%${p(95)}${end(-2)}${side("Skewness", spread(shape.skewness))}`);
+  ctx.out(`99%${p(99)}${end(-1)}${side("Kurtosis", spread(shape.kurtosis))}`);
 }
 
 // Screen columns, as Stata's udstrlen() counts them, come from format.js.
@@ -1576,9 +1710,57 @@ export function list(session, text, ctx) {
       198,
       "header(#), which repeats the headings every # observations, is not available; list shows them once.",
     );
-  const parsed = session.parse(
+  const [head, optionText0] = splitAtComma(text),
+    items = optionItems(optionText0 ?? "");
+  // N is written in capitals; Stata has no option n.
+  const lower = items.find((item) => item.name === "n");
+  if (lower) throw new StataError("option n not allowed", 198);
+  // The footer rows: N, mean and sum, labelled in labvar()'s column. With
+  // no variables there are no rows to add them to, and list prints nothing.
+  const footer = items.find(
+    (item) =>
+      item.name === "N" ||
+      (item.name.length >= 2 && "mean".startsWith(item.name)) ||
+      (item.name.length >= 2 && "sum".startsWith(item.name)) ||
+      (item.name.length >= 4 && "labvar".startsWith(item.name)),
+  );
+  if (footer && session.data.names.length)
+    throw new StataError(
+      `option ${footer.name === "N" ? "N" : ["mean", "sum", "labvar"].find((o) => o.startsWith(footer.name))} is not available in the browser yet`,
+      198,
+      "list's footer rows (N, mean, sum) are not available; summarize gives the count, mean and sum of each variable.",
+    );
+  // list checks sepby()'s variables itself: a name it cannot find is
+  // reported, and then the option.
+  const sepby = items.find(
+    (item) =>
+      item.argument !== undefined &&
+      item.name.length >= 5 &&
+      "sepby".startsWith(item.name),
+  );
+  if (sepby && !/^\s*_all\s*$/.test(sepby.argument))
+    try {
+      if (!session.data.names.length)
+        throw new StataError("no variables defined", 111);
+      session.varlist(sepby.argument);
+    } catch (error) {
+      if (!(error instanceof StataError)) throw error;
+      ctx.out(error.message);
+      throw new StataError("option sepby() incorrectly specified", 198);
+    }
+  // With no variables, sepby(_all) and the footer rows have nothing to act
+  // on, and Stata takes them without a word.
+  const kept = items.filter((item) => item !== sepby && item !== footer),
+    parseText =
+      session.data.names.length || kept.length === items.length
+        ? text
+        : kept.length
+          ? `${head}, ${kept.map((item) => item.word).join(" ")}`
+          : head;
+  const parsed = parseNamingVariables(
+      session,
       "[varlist] [if] [in] [, CLEAN NOObs noLabel SEParator(integer 5) ABbreviate(integer 8) SEPBY(varlist) Divider noHeader STRing(integer 0) Table Display noCompress LINEsize(integer 0) | FAst FOOTer MEan SUm N LABVar(string) CONStant NOTrim ABSolute NODotz SUBVARname FVall DS OBS]",
-      text,
+      parseText,
     ),
     options = parsed.options,
     rows = scope(session, parsed, ctx),
@@ -1620,7 +1802,9 @@ export function list(session, text, ctx) {
   );
   if (lineGiven && (options.linesize < 30 || options.linesize > 255))
     throw new StataError("linesize() must be between 30 and 255", 198);
-  if (!rows.length) return;
+  // With observations but no variables (set obs on an empty dataset), Stata
+  // lists nothing and succeeds.
+  if (!rows.length || !variables.length) return;
   const linesize = options.linesize || session.settings.linesize || 80,
     noobs = options.noobs,
     margin = noobs ? "  " : "     ",
@@ -1672,14 +1856,35 @@ export function list(session, text, ctx) {
       space = Math.max(limit, widest);
     if (v.header !== undefined) column.header = v.header.slice(0, space);
     else {
-      const w = Math.max(space, 5);
-      column.header =
-        v.name.length > w
-          ? `${v.name.slice(0, w - 2)}~${v.name.at(-1)}`
-          : v.name;
+      // Under a time-series operator the heading is the variable's name,
+      // its operators on the line above.
+      const w = Math.max(space, 5),
+        name = v.ts?.variable ?? v.name;
+      column.header = name.length > w ? abbreviateName(name, w) : name;
     }
-    column.width = Math.max(displayWidth(column.header), widest);
+    column.width = Math.max(
+      displayWidth(column.header),
+      widest,
+      v.ts?.prefix.length ?? 0,
+    );
   }
+  // The operators of an operated column, L. or LD., head it on a line of
+  // their own, ending one column past its name, or with it in the display
+  // layout (past 0). build makes a line of the given columns from a
+  // function giving each its cell.
+  const operated = columns.some((c) => c.v.ts),
+    operators = (build, list, past = 1) => {
+      const chars = [...build((c) => " ".repeat(c.width - 1) + "\u0001")];
+      let k = 0;
+      chars.forEach((ch, at) => {
+        if (ch !== "\u0001") return;
+        chars[at] = " ";
+        const prefix = list[k++].v.ts?.prefix ?? "";
+        for (let j = 0; j < prefix.length; j++)
+          chars[at + 1 + past - prefix.length + j] = prefix[j];
+      });
+      return chars.join("");
+    };
   const fit = (text, width, left) => {
       const blanks = " ".repeat(Math.max(0, width - displayWidth(text)));
       return left ? text + blanks : blanks + text;
@@ -1704,6 +1909,10 @@ export function list(session, text, ctx) {
     // count when the line is wrapped.
     const line = (items) => items.join("   ") + "  ";
     if (options.header !== false) ctx.out("");
+    if (options.header !== false && operated)
+      out(
+        `${noobs ? " " : "    "}   ${operators((cell) => line(columns.map(cell)), columns)}`,
+      );
     if (options.header !== false)
       out(`${noobs ? " " : "    "}   ${line(columns.map(heading))}`);
     rows.forEach((i, k) =>
@@ -1730,6 +1939,10 @@ export function list(session, text, ctx) {
     if (options.header !== false) ctx.out("");
     ctx.out(`${margin}+${"-".repeat(inner)}+`);
     if (options.header !== false) {
+      if (operated)
+        ctx.out(
+          `${margin}|${operators((cell) => ` ${line(columns.map(cell))} `, columns)}|`,
+        );
       ctx.out(`${margin}| ${line(columns.map(heading))} |`);
       ctx.out(`${margin}${rule}`);
     }
@@ -1810,6 +2023,17 @@ export function list(session, text, ctx) {
     layouts.forEach((layout, b) => {
       if (b) ctx.out(margin + rules[b]);
       if (options.header !== false) {
+        if (operated) {
+          ctx.out(
+            lead +
+              operators(
+                (cell) => row(layout, cell),
+                layout.map(({ c }) => c),
+                0,
+              ),
+          );
+          lead = margin;
+        }
         ctx.out(lead + row(layout, heading));
         lead = margin;
       }
@@ -1847,8 +2071,8 @@ export function wrapLine(line, linesize) {
 
 /**
  * Runs a reporting command once per by-group, under Stata's group heading.
- * As in Stata's by, a group with no observations, r(2000), is not an
- * error: its message is shown and the next group runs.
+ * As in Stata's by, a group with no observations, r(2000), or too few,
+ * r(2001), is not an error: its message is shown and the next group runs.
  */
 export const perGroup = (run) => (session, text, ctx) => {
   if (!ctx.by) return run(session, text, ctx);
@@ -1877,7 +2101,15 @@ export const perGroup = (run) => (session, text, ctx) => {
     try {
       run(session, text, { ...ctx, group });
     } catch (error) {
-      if (!(error instanceof StataError && error.code === 2000)) throw error;
+      if (!(error instanceof StataError)) throw error;
+      // by, rc0 goes on past any error, saying what it was.
+      if (ctx.by.rc0 && ![2000, 2001].includes(error.code)) {
+        if (error.message) ctx.out(error.message);
+        ctx.out(`(return code was ${error.code})`);
+        ctx.out("");
+        continue;
+      }
+      if (![2000, 2001].includes(error.code)) throw error;
       ctx.out(error.message);
       ctx.out("");
     }
@@ -1913,13 +2145,34 @@ function tableQualifiers(text) {
 const refusal = (error) =>
   Boolean(error.hint) ||
   /\bnot available\b|\bavailable here\b/.test(error.message);
+/**
+ * tab1 and tab2 read [w=exp] themselves, as a frequency weight, the first
+ * kind their syntax allows: Stata says so once, before the first table, and
+ * passes the weight on to each table as an fweight. Their marksample then
+ * refuses a frequency weight that is not a whole number, r(401), before
+ * any table is begun.
+ */
+function assumeFrequency(session, parsed, text, rest, ctx) {
+  const generic = genericWeight(text);
+  if (generic) ctx.out(assumedWeights("fweight"));
+  if (parsed.weight?.type === "fweight")
+    weightedRows(session, parsed, session.rows(parsed, null), {
+      expand: false,
+    });
+  if (!generic) return rest;
+  return rest.replace(/\[\s*w(?:e(?:i(?:g(?:ht?)?)?)?)?\s*=/, "[fweight=");
+}
 /** tab1: a one-way table for each variable. */
 export function tab1(session, text, ctx) {
   const q = tableQualifiers(text),
     names = session.varlist(q.varlist);
   if (!names.length) throw new StataError("varlist required", 100);
   // tab1.ado's own syntax: its errors stop tab1.
-  session.parse("varlist [if] [in] [fweight aweight iweight] [, *]", text);
+  const parsed = session.parse(
+      "varlist [if] [in] [fweight aweight iweight] [, *]",
+      text,
+    ),
+    rest = assumeFrequency(session, parsed, text, q.rest, ctx);
   // tab1.ado runs each table under capture noisily, then leaves its loop
   // inside a capture block: a table that fails prints its message and ends
   // the run, and tab1 itself still succeeds; the captures leave _rc behind.
@@ -1934,7 +2187,7 @@ export function tab1(session, text, ctx) {
       session.settings.linesize ?? 80,
     ).forEach((line) => ctx.out(line));
     try {
-      tabulate(session, `${name} ${q.rest}`, ctx);
+      tabulate(session, `${name} ${rest}`, ctx);
       session.rc = 0;
     } catch (error) {
       if (!(error instanceof StataError) || refusal(error)) throw error;
@@ -1972,6 +2225,11 @@ export function tab2(session, text, ctx) {
     names = session.varlist(q.varlist);
   if (names.length < 2)
     throw new StataError("too few variables specified", 102);
+  const parsed = session.parse(
+      "varlist [if] [in] [fweight aweight iweight] [, *]",
+      text,
+    ),
+    rest = assumeFrequency(session, parsed, text, q.rest, ctx);
   ctx.out("");
   for (let a = 0; a < (firstonly ? 1 : names.length); a++)
     for (let b = a + 1; b < names.length; b++) {
@@ -1983,7 +2241,7 @@ export function tab2(session, text, ctx) {
       // and tab2 itself succeeds: tab2.ado leaves its capture block before
       // it records the code.
       try {
-        tabulate(session, `${names[a]} ${names[b]} ${q.rest}`, ctx);
+        tabulate(session, `${names[a]} ${names[b]} ${rest}`, ctx);
       } catch (error) {
         if (!(error instanceof StataError) || refusal(error)) throw error;
         ctx.out(error.message);

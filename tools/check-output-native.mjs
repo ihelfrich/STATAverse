@@ -68,6 +68,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       "capture label drop _all",
       "scalar drop _all",
       "capture estimates clear",
+      // clear keeps e(), and a case begins without estimates, as the
+      // runtime's fresh session does.
+      "ereturn clear",
       "macro drop _all",
       "set type float",
       `log using "case-${k}.log", text replace nomsg`,
@@ -80,7 +83,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   await promisify(execFile)(
     "/Applications/Stata/StataMP.app/Contents/MacOS/stata-mp",
     ["-b", "do", "audit.do"],
-    { cwd: folder, timeout: 180000 },
+    // Every case runs in one Stata session, which takes several minutes
+    // once the case file holds a few hundred cases, longer when other
+    // recordings share the machine.
+    { cwd: folder, timeout: 2700000 },
   );
   const results = [];
   for (const [k, c] of cases.entries()) {
@@ -97,7 +103,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       }
       if (!started) continue;
       if (/^end of do-file$/.test(line)) break;
-      if (/^\. /.test(line) || line === ".") {
+      // A prompt is ". " (an empty one keeps its blank); a line that is
+      // only "." is output, a missing value displayed.
+      if (/^\. /.test(line)) {
         current = { command: line.slice(2).trim(), lines: [] };
         if (current.command) commands.push(current);
       } else if (/^> /.test(line) && current && !current.lines.length)

@@ -25,6 +25,17 @@ import {
   refusal,
 } from "./console-files.js";
 import { picture, typeOf } from "./console-picture.js";
+import {
+  adviseRecord,
+  commandParts,
+  distance,
+  nearest,
+  resolveCommand,
+} from "./console-hints.js";
+import { HELP, LANGUAGE, helpUrl } from "./console-help.js";
+import { mountBrowser } from "./console-browse.js";
+import { splitCommands } from "./runtime/dofile.js";
+import { commandLines } from "./runtime/echo.js";
 
 const KEY = "stataverse:console:v1",
   SCHEME_KEY = "stataverse:console:scheme",
@@ -33,6 +44,9 @@ const KEY = "stataverse:console:v1",
   FOX_KEY = "stataverse:console:fox",
   MAX_OUTPUT = 400000;
 const EXAMPLE = EXAMPLES[0].text;
+// The commands, with the loops and prefixes, that help and the Commands
+// list know.
+const KNOWN = [...COMMANDS, ...LANGUAGE];
 const $ = (id) => document.getElementById(id);
 const source = $("console-source"),
   output = $("console-output"),
@@ -107,6 +121,7 @@ function startWorker() {
         const asked = waiting.get(reply.id);
         if (!asked) return;
         if (reply.progress) return asked.progress?.(reply.progress);
+        if (reply.stream) return asked.stream?.(reply.stream);
         waiting.delete(reply.id);
         if (reply.ok) asked.resolve(reply);
         else asked.reject(new Error(reply.message));
@@ -123,7 +138,19 @@ async function takeHere(message, progress) {
   );
   return giveFile(local, message.name, message.as, bytes);
 }
-function ask(message, progress) {
+// What the session has been asked to do since it was last cleared, so that
+// after Stop a new session can be brought back to where the old one was:
+// the runs, and every file given or taken away, in order, with the files
+// the session had when it was cleared. A file added again, or removed,
+// after a run that read it is then read as that run read it.
+let journal = [],
+  journalBase = new Map();
+const JOURNALED = new Set(["run", "file", "take", "binary", "remove"]);
+function ask(message, progress, stream, { kept = true } = {}) {
+  if (kept && message.kind === "reset") {
+    journal = [];
+    journalBase = new Map(uploads);
+  } else if (kept && JOURNALED.has(message.kind)) journal.push(message);
   if (!worker) {
     local ??= createConsoleSession();
     if (message.kind === "take") return takeHere(message, progress);
@@ -137,9 +164,13 @@ function ask(message, progress) {
               ? local.addBinary(message.name, message.bytes)
               : message.kind === "remove"
                 ? local.removeFile(message.name)
-                : message.kind === "export"
-                  ? local.exportData()
-                  : local.reset(message.dataset),
+                : message.kind === "peek"
+                  ? local.peek(message.request)
+                  : message.kind === "export"
+                    ? local.exportData()
+                    : message.kind === "read"
+                      ? { file: local.readFile(message.name) }
+                      : local.reset(message.dataset),
       );
     } catch (error) {
       return Promise.reject(error);
@@ -147,36 +178,43 @@ function ask(message, progress) {
   }
   return new Promise((resolve, reject) => {
     const id = ++sequence;
-    waiting.set(id, { resolve, reject, progress });
+    waiting.set(id, { resolve, reject, progress, stream });
     worker.postMessage({ ...message, id });
   });
 }
 
 // ----- the project: one or more do-files, kept between visits -----
-function loadProject() {
+/** The do-files of a kept project, or null; a file that is not one is left out. */
+function readProject(raw) {
   try {
-    const kept = JSON.parse(localStorage.getItem(PROJECT_KEY));
-    if (
-      kept &&
-      Array.isArray(kept.files) &&
-      kept.files.length &&
-      kept.files.length <= 30 &&
-      kept.files.every(
+    const kept = JSON.parse(raw);
+    if (!kept || !Array.isArray(kept.files)) return null;
+    const files = kept.files
+      .filter(
         (file) =>
           file &&
           typeof file.name === "string" &&
           /^[A-Za-z0-9_-]{1,60}\.do$/.test(file.name) &&
-          typeof file.text === "string" &&
-          file.text.length < 200000,
+          typeof file.text === "string",
       )
-    )
-      return {
-        files: kept.files.map(({ name, text }) => ({ name, text })),
-        active: Math.min(kept.files.length - 1, Math.max(0, kept.active | 0)),
-      };
+      .map(({ name, text }) => ({ name, text }));
+    if (!files.length) return null;
+    return {
+      files,
+      active: Math.min(files.length - 1, Math.max(0, kept.active | 0)),
+    };
   } catch {
-    // Fall through to the single do-file of earlier visits.
+    return null;
   }
+}
+function loadProject() {
+  let kept = null;
+  try {
+    kept = readProject(localStorage.getItem(PROJECT_KEY));
+  } catch {
+    kept = null;
+  }
+  if (kept) return kept;
   let text = null;
   try {
     text = localStorage.getItem(KEY);
@@ -194,14 +232,86 @@ function loadProject() {
   };
 }
 const project = loadProject();
+// A deleted do-file can be brought back: from the status line at once, and
+// from More for as long as the page is open.
+const deleted = [];
+// The do-files as this window last read or wrote them. Another window of
+// the Console may change them: what it changed is taken in, what this one
+// changed is kept, and a file both changed is kept twice, so that neither
+// window's work is lost.
+const textsOf = (files) => new Map(files.map(({ name, text }) => [name, text]));
+let base = textsOf(project.files),
+  written = null;
+/**
+ * Takes in the do-files another window kept. Returns whether this window's
+ * files changed.
+ */
+function merge(theirs) {
+  const before = JSON.stringify(project.files),
+    active = project.files[project.active],
+    others = textsOf(theirs.files);
+  for (const [name, text] of others) {
+    const mine = project.files.find((file) => file.name === name),
+      was = base.get(name);
+    if (!mine) {
+      // Added there, or changed there after it was deleted here.
+      if (was === undefined || was !== text) project.files.push({ name, text });
+    } else if (mine.text === text || text === was) continue;
+    else if (mine.text === was) mine.text = text;
+    else project.files.push({ name: freeName(name), text });
+  }
+  // Deleted there, and not changed here since.
+  for (const file of [...project.files])
+    if (
+      !others.has(file.name) &&
+      base.get(file.name) === file.text &&
+      project.files.length > 1
+    )
+      project.files.splice(project.files.indexOf(file), 1);
+  project.active = Math.max(0, project.files.indexOf(active));
+  base = others;
+  return JSON.stringify(project.files) !== before;
+}
 function save() {
   project.files[project.active].text = source.value;
   try {
-    localStorage.setItem(PROJECT_KEY, JSON.stringify(project));
+    const kept = localStorage.getItem(PROJECT_KEY);
+    if (kept && kept !== written) {
+      const theirs = readProject(kept);
+      if (theirs && merge(theirs)) {
+        source.value = project.files[project.active].text;
+        showTabs();
+        paint();
+      }
+    }
+    written = JSON.stringify(project);
+    localStorage.setItem(PROJECT_KEY, written);
+    base = textsOf(project.files);
   } catch {
     // Storage can be full or unavailable; the page still works without it.
   }
 }
+window.addEventListener("storage", (event) => {
+  if (event.key !== PROJECT_KEY || !event.newValue) return;
+  const theirs = readProject(event.newValue);
+  if (!theirs) return;
+  project.files[project.active].text = source.value;
+  const file = current(),
+    at = source.selectionStart;
+  const changed = merge(theirs);
+  written = event.newValue;
+  if (!changed) return;
+  if (current() !== file || source.value !== file.text) {
+    source.value = current().text;
+    if (current() === file) source.setSelectionRange(at, at);
+  }
+  showTabs();
+  paint();
+  status.textContent =
+    "Another window of the Console changed the do-files; its changes are here too.";
+  // What only this window had goes back, for the other window to take in.
+  if (JSON.stringify(project.files) !== JSON.stringify(theirs.files)) save();
+});
 /** A name no file in the project has yet, starting from a wanted one. */
 function freeName(wanted, except = -1) {
   let name = doName(wanted);
@@ -227,6 +337,11 @@ function showTabs() {
   });
   $("console-tab-name").value = project.files[project.active].name;
   $("console-tab-delete").disabled = project.files.length < 2;
+  const restore = $("console-tab-restore");
+  restore.hidden = !deleted.length;
+  restore.textContent = deleted.length
+    ? `Bring back ${deleted.at(-1).name}`
+    : "";
   // One file needs no tabs; the bar appears with the second.
   $("console-tabs-bar").hidden = mapping || project.files.length < 2;
   run.textContent = mapping
@@ -245,15 +360,42 @@ function openFile(k) {
   paint();
   point(0, false);
 }
-/** Adds do-files to the project, replacing any of the same name. */
-function addDoFiles(files, open = true) {
+/**
+ * Adds do-files to the project. One with the name of a file already there
+ * and other text never replaces it: the added file takes a free name
+ * (main_2.do), or, with `renameOld` (the map writing main.do and the files
+ * it runs, whose names it uses), the file already there does. Returns the
+ * names given and what to tell the student.
+ */
+function addDoFiles(files, { open = true, renameOld = false } = {}) {
   save();
   let first = -1;
+  const names = [],
+    notes = [];
   for (const file of files) {
-    const name = doName(file.name);
-    let at = project.files.findIndex((each) => each.name === name);
-    if (at < 0) at = project.files.push({ name, text: "" }) - 1;
-    project.files[at].text = file.text;
+    let name = doName(file.name),
+      at = project.files.findIndex((each) => each.name === name);
+    // An empty file, or the example do-file as the page first shows it,
+    // holds no work of the student's and is simply replaced.
+    const spare =
+      at >= 0 &&
+      (!project.files[at].text.trim() || project.files[at].text === EXAMPLE);
+    if (spare) project.files[at].text = file.text;
+    else if (at >= 0 && project.files[at].text !== file.text) {
+      const free = freeName(name);
+      if (renameOld) {
+        notes.push(`The ${name} that was there is kept as ${free}.`);
+        project.files[at].name = free;
+      } else {
+        notes.push(
+          `${name} was already open with other text, so the added file is ${free}; neither was changed.`,
+        );
+        name = free;
+      }
+      at = -1;
+    }
+    if (at < 0) at = project.files.push({ name, text: file.text }) - 1;
+    names.push(name);
     if (first < 0) first = at;
   }
   if (open && first >= 0) {
@@ -263,6 +405,7 @@ function addDoFiles(files, open = true) {
   save();
   showTabs();
   paint();
+  return { names, notes };
 }
 /** Gives the session every do-file, so that one can run another with do. */
 async function shareFiles() {
@@ -417,6 +560,22 @@ function goTo(line) {
   band.classList.add("is-flash");
 }
 /** Replaces text in the editor so that the browser's undo can restore it. */
+// Where the student last typed: the do-file or the command line.
+let typingAt = "source";
+/** Puts a name into the command line at its cursor, spaced as a word. */
+function typeCommand(text) {
+  const { selectionStart: start, selectionEnd: end, value } = commandLine,
+    before = value.slice(0, start ?? value.length),
+    after = value.slice(end ?? value.length),
+    piece = `${before && !/[\s(]$/.test(before) ? " " : ""}${text}${after && !/^\s/.test(after) ? " " : after ? "" : " "}`;
+  commandLine.focus();
+  commandLine.setRangeText(
+    piece,
+    start ?? value.length,
+    end ?? value.length,
+    "end",
+  );
+}
 function typeInto(text, selectAll) {
   source.focus();
   if (selectAll) source.select();
@@ -447,47 +606,120 @@ function selectedLines() {
 
 // ----- the variables -----
 let known = null,
-  opened = false;
+  opened = false,
+  // The data in memory as last reported, for the hints under an error.
+  memoryNow = { variables: [] },
+  // How the Variables list is ordered: by a column, or as in the data.
+  variableOrder = null;
 function showVariables(memory) {
+  memoryNow = memory;
   const table = $("console-variable-table"),
     body = table.querySelector("tbody"),
     before = known;
   known = new Set(memory.variables.map((v) => v.name));
   body.textContent = "";
-  for (const variable of memory.variables) {
+  const rows = memory.variables.map((variable, k) => ({ ...variable, k }));
+  if (variableOrder) {
+    const { key, descending } = variableOrder,
+      sign = descending ? -1 : 1;
+    rows.sort(
+      (a, b) =>
+        sign *
+          String(a[key] ?? "").localeCompare(String(b[key] ?? ""), "en", {
+            numeric: true,
+          }) || a.k - b.k,
+    );
+  }
+  for (const th of table.querySelectorAll("th[data-key]"))
+    th.setAttribute(
+      "aria-sort",
+      variableOrder?.key === th.dataset.key
+        ? variableOrder.descending
+          ? "descending"
+          : "ascending"
+        : "none",
+    );
+  for (const variable of rows) {
     const row = document.createElement("tr"),
       name = document.createElement("td"),
       insert = document.createElement("button");
+    row.dataset.search =
+      `${variable.name} ${variable.label} ${variable.valueLabel}`.toLowerCase();
     insert.type = "button";
     insert.className = "console-name";
     insert.textContent = variable.name;
-    insert.title = `Put ${variable.name} in the do-file`;
+    insert.title = `Put ${variable.name} where you are typing`;
     insert.addEventListener("click", () => {
       // In the map a name goes to the field last used there.
       if (mapping) {
         if (!map.insert(variable.name))
           status.textContent =
             "Select a field in a step first; the name goes there.";
-      } else typeInto(variable.name, false);
+      } else if (typingAt === "command" && !commandLine.disabled)
+        // As in Stata, a name clicked while a command is being typed goes
+        // into the command.
+        typeCommand(variable.name);
+      else typeInto(variable.name, false);
     });
     name.append(insert);
     row.append(name);
     // A variable this run created is marked for a moment.
     if (before && !before.has(variable.name)) row.className = "is-new";
     // In the order of Stata's Variables window.
-    for (const text of [
-      variable.label,
-      variable.type,
-      variable.format,
-      variable.valueLabel ?? "",
-    ]) {
+    for (const text of [variable.label, variable.type, variable.format]) {
       const cell = document.createElement("td");
       cell.textContent = text;
       row.append(cell);
     }
+    // A value label shows what its numbers stand for, on request, in a
+    // row of its own under the variable.
+    const labelCell = document.createElement("td"),
+      pairs = memory.labels?.[variable.valueLabel];
+    row.append(labelCell);
     body.append(row);
+    if (variable.valueLabel && pairs?.values.length) {
+      const toggle = document.createElement("button"),
+        values = document.createElement("tr"),
+        cell = document.createElement("td");
+      toggle.type = "button";
+      toggle.className = "console-label-toggle";
+      toggle.textContent = variable.valueLabel;
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.title = `What the values of ${variable.valueLabel} stand for`;
+      values.className = "console-label-row";
+      values.hidden = true;
+      values.dataset.search = row.dataset.search;
+      cell.colSpan = 5;
+      cell.textContent =
+        `${variable.valueLabel}: ` +
+        pairs.values.map(([value, text]) => `${value} = ${text}`).join("; ") +
+        (pairs.count > pairs.values.length
+          ? `; and ${pairs.count - pairs.values.length} more`
+          : "");
+      values.append(cell);
+      toggle.addEventListener("click", () => {
+        const open = toggle.getAttribute("aria-expanded") !== "true";
+        toggle.setAttribute("aria-expanded", String(open));
+        values.hidden = !open;
+      });
+      labelCell.append(toggle);
+      body.append(values);
+    } else labelCell.textContent = variable.valueLabel ?? "";
   }
+  // On a phone the rows are laid out as cards (console.css), which takes
+  // a table's own roles away in some browsers; they are given explicitly.
+  table.setAttribute("role", "table");
+  for (const part of table.querySelectorAll("thead, tbody"))
+    part.setAttribute("role", "rowgroup");
+  for (const row of table.querySelectorAll("tr"))
+    row.setAttribute("role", "row");
+  for (const cell of table.querySelectorAll("th"))
+    cell.setAttribute("role", "columnheader");
+  for (const cell of table.querySelectorAll("td"))
+    cell.setAttribute("role", "cell");
   table.hidden = !memory.variables.length;
+  $("console-variable-tools").hidden = !memory.variables.length;
+  filterVariables();
   // The list opens by itself the first time there is something in it.
   if (memory.variables.length && !opened) {
     opened = true;
@@ -499,13 +731,70 @@ function showVariables(memory) {
       // estimates store keeps a marker variable that is not the student's.
       .filter((name) => !name.startsWith("_est_")),
   );
-  $("console-files").textContent = memory.files.length
-    ? memory.files.join(", ")
-    : "none";
+  // Each file in the session's folder can be downloaded: a dataset saved
+  // with save, a CSV from export delimited, a log, a workbook.
+  const folder = $("console-files");
+  folder.textContent = memory.files.length ? "" : "none";
+  memory.files.forEach((name, k) => {
+    const link = document.createElement("button");
+    link.type = "button";
+    link.className = "console-file-link";
+    link.textContent = name;
+    // Named as a copy to keep, not as the Download of Your files.
+    link.setAttribute("aria-label", `Save a copy of ${name} to this computer`);
+    link.title = `Save a copy of ${name} to this computer`;
+    link.addEventListener("click", () => downloadFile(name));
+    folder.append(...(k ? [", "] : []), link);
+  });
+  $("browse-summary").textContent = memory.variables.length
+    ? `Sort, search and edit the ${memory.observations.toLocaleString("en-US")} observations`
+    : "";
   $("console-memory").textContent = memory.variables.length
-    ? `${memory.observations.toLocaleString("en-US")} observations, ${memory.variables.length} variables${memory.sortedBy.length ? `, sorted by ${memory.sortedBy.join(" ")}` : ""}.`
+    ? `${memory.observations.toLocaleString("en-US")} observations, ${memory.variables.length} variable${memory.variables.length === 1 ? "" : "s"}${memory.sortedBy.length ? `, sorted by ${memory.sortedBy.join(" ")}` : ""}.`
     : "No data in memory.";
 }
+
+/** Shows the variables whose name or labels hold what is typed. */
+function filterVariables() {
+  const wanted = $("console-variable-filter").value.trim().toLowerCase(),
+    rows = [
+      ...document.querySelectorAll(
+        "#console-variable-table tbody tr:not(.console-label-row)",
+      ),
+    ];
+  let shown = 0;
+  for (const row of rows) {
+    row.hidden = !!wanted && !row.dataset.search.includes(wanted);
+    // A value label's own row goes with its variable.
+    const values = row.nextElementSibling;
+    if (values?.classList.contains("console-label-row"))
+      values.hidden =
+        row.hidden ||
+        row
+          .querySelector(".console-label-toggle")
+          ?.getAttribute("aria-expanded") !== "true";
+    if (!row.hidden) shown++;
+  }
+  $("console-variable-found").textContent = !wanted
+    ? ""
+    : shown
+      ? `${shown} of ${rows.length} variables.`
+      : "No variable matches.";
+}
+$("console-variable-filter").addEventListener("input", filterVariables);
+for (const th of document.querySelectorAll(
+  "#console-variable-table th[data-key]",
+))
+  th.querySelector("button").addEventListener("click", () => {
+    const key = th.dataset.key;
+    variableOrder =
+      variableOrder?.key !== key
+        ? { key, descending: false }
+        : variableOrder.descending
+          ? null
+          : { key, descending: true };
+    showVariables(memoryNow);
+  });
 
 // ----- the results -----
 function append(text, className) {
@@ -562,36 +851,277 @@ function graphOf(graph) {
   figure.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   return figure;
 }
+/**
+ * A record as Stata's log has it: the command, then what it printed, and
+ * a blank line, which a comment or a blank line of the do-file has not, nor
+ * output that ends with one already, as a table does.
+ */
+const recordText = (record) =>
+  [...commandLines(record, record.width), ...record.lines].join("\n") +
+  (record.comment || record.lines.at(-1) === "" ? "" : "\n");
+/** A short name for a command, for the labels of its buttons. */
+const brief = (command) =>
+  command.length > 40 ? `${command.slice(0, 38)}…` : command;
+function toolButton(text, label, act) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "console-tool";
+  button.textContent = text;
+  // The name a screen reader gives begins with the words on the button.
+  if (label) button.setAttribute("aria-label", label);
+  button.addEventListener("click", act);
+  return button;
+}
+/** A command's entry in the help: what it does, how to write it, a link. */
+function helpCard(name) {
+  const card = document.createElement("span"),
+    [summary, syntax] = HELP[name] ?? [],
+    link = document.createElement("a");
+  card.className = "console-help-card";
+  if (summary) {
+    const what = document.createElement("span"),
+      how = document.createElement("code");
+    what.className = "console-help-what";
+    what.textContent = summary;
+    how.textContent = syntax;
+    card.append(what, how);
+  }
+  link.href = helpUrl(name);
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = `Stata's help for ${name}`;
+  card.append(link);
+  return card;
+}
+/** Opens the Commands list on one command's help. */
+function showHelp(name) {
+  const drawer = $("drawer-commands"),
+    filter = $("console-filter");
+  drawer.open = true;
+  filter.value = name;
+  filter.dispatchEvent(new CustomEvent("input", { detail: { only: true } }));
+  const item = items[names.indexOf(name)];
+  if (!item) return;
+  const button = item.querySelector("button");
+  if (button.getAttribute("aria-expanded") !== "true") button.click();
+  item.scrollIntoView({ block: "center" });
+  focusSoon(button);
+}
+/**
+ * Focuses an element in a drawer that is opening: its content can take
+ * the focus only once the opening has begun, so this tries for a moment.
+ */
+function focusSoon(element, tries = 20) {
+  element.focus({ preventScroll: true });
+  if (document.activeElement !== element && tries > 0)
+    setTimeout(() => focusSoon(element, tries - 1), 30);
+}
+/** The plain hint under a failed command, with its help and a fix. */
+function hintNode(record) {
+  const advice = adviseRecord(record, {
+    commands: KNOWN,
+    variables: memoryNow.variables,
+  });
+  if (!advice) return null;
+  const hint = document.createElement("span"),
+    label = document.createElement("strong");
+  hint.className = "console-hint";
+  hint.setAttribute("role", "note");
+  label.textContent = "Hint";
+  hint.append(label, " ", advice.text);
+  if (advice.fix)
+    hint.append(
+      " ",
+      toolButton(
+        `Try ${advice.fix}`,
+        `Try ${advice.fix} (puts it at the command line)`,
+        () => {
+          commandLine.value = advice.fix;
+          commandLine.focus();
+        },
+      ),
+    );
+  if (advice.help && names.includes(advice.help))
+    hint.append(
+      " ",
+      toolButton(`help ${advice.help}`, "", () => showHelp(advice.help)),
+    );
+  return hint;
+}
+/**
+ * What help was asked about: a command or topic, "" for help alone, or
+ * null when the record is not a help command.
+ */
+function helpAsked(record) {
+  const { word, rest } = commandParts(record.command);
+  if (record.rc || resolveCommand(word, COMMANDS) !== "help") return null;
+  return rest.trim().split(/\s+/)[0] ?? "";
+}
+/**
+ * help on something that is not a command here: Stata's help for that
+ * topic, or, for help alone, its contents and the Commands list.
+ */
+function topicCard(topic) {
+  const card = document.createElement("span"),
+    what = document.createElement("span"),
+    link = document.createElement("a");
+  card.className = "console-help-card";
+  what.className = "console-help-what";
+  what.textContent = topic
+    ? `${topic} is not a command that runs here; Stata's help may have a page on it. The Commands list shows what runs here.`
+    : "The Commands list shows every command that runs here, each with a line of help. Stata's own help starts at its contents.";
+  link.href = topic ? helpUrl(topic) : helpUrl("contents");
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = topic
+    ? `Stata's help for ${topic}`
+    : "Stata's help contents";
+  card.append(
+    what,
+    toolButton("Open the Commands list", "", () => {
+      const drawer = $("drawer-commands"),
+        filter = $("console-filter");
+      drawer.open = true;
+      filter.value = "";
+      filter.dispatchEvent(new Event("input"));
+      drawer.scrollIntoView({ block: "start" });
+      focusSoon(filter);
+    }),
+    " ",
+    link,
+  );
+  return card;
+}
 /** One command and what it printed, as it appears in the Results window. */
 function recordNode(record) {
+  // A comment, a blank line or #delimit in a do-file is echoed as Stata
+  // echoes it, with no tools and no blank line after it.
+  if (record.comment) {
+    const block = document.createElement("span"),
+      command = document.createElement("span");
+    block.className = "console-record is-comment";
+    block.text = recordText(record);
+    command.className = "console-command";
+    // Cut at the linesize as a command is; a blank line is a prompt alone.
+    command.textContent = commandLines(record, record.width).join("\n");
+    block.append(command, "\n");
+    if (record.lines.length)
+      block.append(linesOf(record.lines.join("\n") + "\n"));
+    return block;
+  }
   const block = document.createElement("span"),
-    command = document.createElement("span");
+    command = document.createElement("span"),
+    tools = document.createElement("span"),
+    graphs = record.graphs ?? (record.graph ? [record.graph] : []);
   block.className = "console-record";
+  block.text = recordText(record);
   command.className = "console-command";
-  // A loop is echoed as Stata echoes it: its lines, numbered, once.
-  command.textContent = [`. ${record.command}`, ...(record.echo ?? [])].join(
-    "\n",
+  // A loop is echoed as Stata echoes it: its lines, numbered, once. A
+  // line wider than the linesize goes on after "> ", as in Stata.
+  command.textContent = commandLines(record, record.width).join("\n");
+  // Copy what one command printed, or save its graph; shown on pointing
+  // or focus, and always on a touch screen.
+  tools.className = "console-tools";
+  tools.append(
+    toolButton("Copy", `Copy the results of ${brief(record.command)}`, () =>
+      copyText(block.text, "The command and its results were copied."),
+    ),
   );
-  block.append(command, "\n");
+  graphs.forEach((graph, k) =>
+    tools.append(
+      toolButton(
+        graphs.length > 1 ? `Save graph ${k + 1}` : "Save graph",
+        `${graphs.length > 1 ? `Save graph ${k + 1}` : "Save graph"} of ${brief(record.command)} as an SVG file`,
+        () => {
+          hand(
+            new TextEncoder().encode(graph.svg),
+            `graph${k ? k + 1 : ""}.svg`,
+            "image/svg+xml",
+          );
+          status.textContent = "Saved the graph as an SVG file.";
+        },
+      ),
+    ),
+  );
+  block.append(command, tools, "\n");
   if (record.lines.length) {
-    const lines = linesOf(record.lines.join("\n") + "\n", !!record.rc);
-    lines.classList.add("console-lines");
-    if (record.rc) lines.classList.add("console-error");
+    // Only the error is shown as one: what a loop or a command printed
+    // before it failed is ordinary output, as in Stata.
+    const fault = record.rc
+        ? Math.min(record.lines.length, record.fault ?? 2)
+        : 0,
+      printed = record.lines.slice(0, record.lines.length - fault),
+      wrong = record.lines.slice(record.lines.length - fault);
+    const lines = document.createElement("span");
+    lines.className = "console-lines";
+    // Lines the command printed in Stata's error style, as display as
+    // error and capture noisily print them, are red too.
+    const red = new Set(record.errorLines ?? []);
+    for (let k = 0; k < printed.length;) {
+      let end = k + 1;
+      while (end < printed.length && red.has(end) === red.has(k)) end++;
+      const piece = linesOf(
+        printed.slice(k, end).join("\n") + "\n",
+        red.has(k),
+      );
+      if (red.has(k)) piece.classList.add("console-error");
+      lines.append(piece);
+      k = end;
+    }
+    if (wrong.length) {
+      const error = linesOf(wrong.join("\n") + "\n", true);
+      error.classList.add("console-error");
+      lines.append(error);
+    }
     lines.style.setProperty("--rows", Math.min(record.lines.length, 14));
     block.append(lines);
   }
-  for (const graph of record.graphs ?? (record.graph ? [record.graph] : []))
-    block.append(graphOf(graph), "\n");
-  block.append("\n");
+  if (record.rc) {
+    const hint = hintNode(record);
+    if (hint) block.append(hint);
+  }
+  // help shows this site's entry for the command, and Stata's own help;
+  // a topic that is not a command, such as datetime, links to Stata's
+  // help for it, and help alone to its contents.
+  const asked = helpAsked(record);
+  if (asked !== null) {
+    const name = asked && resolveCommand(asked, KNOWN);
+    if (name) block.append(helpCard(name), "\n");
+    else {
+      block.append(topicCard(asked), "\n");
+      // A misspelt command is offered its right spelling; a short topic
+      // such as mi or i is not taken for a command it happens to resemble.
+      const lower = asked.toLowerCase(),
+        typo = nearest(asked, names).filter(
+          (name) =>
+            distance(lower, name.toLowerCase()) <=
+            Math.max(1, Math.floor(asked.length / 4)),
+        );
+      if (asked.length >= 3 && typo.length) {
+        const hint = hintNode({
+          command: `help ${asked}`,
+          lines: [`command ${asked} is unrecognized`],
+          rc: 199,
+        });
+        if (hint) block.append(hint);
+      }
+    }
+  }
+  for (const graph of graphs) block.append(graphOf(graph), "\n");
+  // A comment or a blank line of the do-file is followed directly by the
+  // next line, as in Stata's log; a command by a blank line.
+  if (!record.comment) block.append("\n");
   return block;
 }
 /**
  * Adds records to the Results window. `origin` says where they came from:
  * lines of a do-file ({ file, from, to }) or a step of the map ({ step }).
  */
-function show(records, origin) {
+function show(records, origin, more = false) {
   const set = origin?.file ? marksOf(origin.file) : null;
-  if (set)
+  // The first part of a run clears the marks of the lines it covers; the
+  // parts that follow add to them.
+  if (set && !more)
     for (const [line, mark] of [...set])
       if (line > origin.from && line <= origin.to) {
         forget(mark);
@@ -630,6 +1160,16 @@ function show(records, origin) {
       block.mark = mark;
       block.file = origin.file;
       block.classList.add("has-line");
+      // The keyboard's way back to the line, as a click on the command is.
+      block
+        .querySelector(".console-tools")
+        ?.append(
+          toolButton(
+            "Go to line",
+            `Go to line of ${brief(record.command)} in the do-file`,
+            () => backTo(block),
+          ),
+        );
     }
     output.append(block);
     blocks.push(block);
@@ -653,6 +1193,7 @@ function show(records, origin) {
       "(earlier results were removed to keep the page responsive)\n\n",
     );
   }
+  offerKeeping();
   // New results that fit are shown whole; longer ones start at their top.
   const first = blocks.find((block) => block.isConnected);
   // A run that stopped ends at its error, so that is what is shown.
@@ -677,27 +1218,182 @@ function busy(running) {
     "#console-datasets button, #console-own button",
   ))
     button.disabled = running;
+  browser.setBusy(running);
   offerSelection();
   stop.hidden = !running || !worker;
   status.dataset.state = running ? "running" : "idle";
   isRunning = running;
+  showProgress(running);
   if (!running) for (const done of idle.splice(0)) done();
 }
+// ----- how far a long run has got -----
+// A run that lasts more than a moment shows the line it has reached, how
+// many commands have run and how long it has taken, with how to stop it.
+// The text is not announced as it changes; the status line says Running.
+const progress = {
+  started: 0,
+  line: 0,
+  commands: 0,
+  lines: 0,
+  from: 0,
+  timer: null,
+};
+function showProgress(running) {
+  const box = $("console-progress");
+  clearInterval(progress.timer);
+  if (!running) {
+    box.hidden = true;
+    return;
+  }
+  Object.assign(progress, { started: performance.now(), line: 0, commands: 0 });
+  progress.timer = setInterval(drawProgress, 250);
+}
+function drawProgress() {
+  const seconds = (performance.now() - progress.started) / 1000;
+  if (seconds < 0.6) return;
+  const box = $("console-progress"),
+    bar = $("console-progress-bar");
+  box.hidden = false;
+  if (progress.lines > 1 && progress.line) {
+    bar.max = progress.lines;
+    bar.value = Math.min(progress.line, progress.lines);
+  } else bar.removeAttribute("value");
+  const at = progress.from + progress.line,
+    where =
+      progress.line && progress.lines > 1
+        ? progress.from
+          ? `line ${at} (the selection is lines ${progress.from + 1}–${progress.from + progress.lines}), `
+          : `line ${at} of ${progress.lines}, `
+        : "";
+  $("console-progress-text").textContent =
+    `${where ? `At ${where}` : ""}${progress.commands ? `${progress.commands.toLocaleString("en-US")} command${progress.commands === 1 ? "" : "s"} run, ` : ""}${seconds.toFixed(1)} s.${worker ? " Stop, or Ctrl or ⌘ + ., ends the run." : ""}`.replace(
+      /^./,
+      (c) => c.toUpperCase(),
+    );
+}
+
 // Whether a run is going, and what waits for it to end.
 let isRunning = false;
 const idle = [];
 const whenIdle = () =>
   isRunning ? new Promise((resolve) => idle.push(resolve)) : Promise.resolve();
 
+/**
+ * browse, edit and help print a note where the runtime has no editor or
+ * help files; the Console opens its browser or shows its help instead, so
+ * the note is left out, and Results show what Stata's do.
+ */
+const NOTES =
+  /^\((browse|edit) opens Stata's Data Editor|^\(Stata's help files are not included/;
+function quietNotes(record) {
+  if (record.comment) return record;
+  const { word, rest } = commandParts(record.command),
+    name = resolveCommand(word, COMMANDS);
+  if (record.rc || !["browse", "edit", "help"].includes(name)) return record;
+  // browse and edit give what they show after macros are expanded; the
+  // text typed is the fallback.
+  return {
+    ...record,
+    lines: record.lines.filter((line) => !NOTES.test(line)),
+    opens: name,
+    where: record.opened?.where ?? rest.trim(),
+    labels: record.opened?.labels ?? true,
+  };
+}
+// A byte that is not UTF-8 is shown as U+FFFD, as the session shows it in
+// what a run returns at its end.
+const readable1 = (line) =>
+  line.replace(/(?<![\uD800-\uDBFF])[\uDC80-\uDCFF]/g, "\uFFFD");
+const readable = (record) => ({
+  ...record,
+  lines: record.lines.map(readable1),
+});
+// Where the run that Stop ended was stopped: the do-file line, or 0.
+let stopped = null;
 /** Runs text in the session and shows what it printed; null after a fault. */
 async function perform(text, origin) {
   let result;
+  // What the run has printed so far, shown as it comes when a run is long;
+  // after Stop, all of it stays, as Stata keeps it.
+  const message = { kind: "run", source: text, doFile: origin != null },
+    heard = {
+      shown: 0,
+      waiting: [],
+      timer: 0,
+      node: 0,
+      line: 0,
+      command: "",
+      echo: [],
+      partial: [],
+      // How many commands the run had finished when it last said so: Stop
+      // puts the session back to that point, which is what Results show.
+      count: 0,
+    },
+    flush = () => {
+      clearTimeout(heard.timer);
+      heard.timer = 0;
+      const batch = heard.waiting.splice(0);
+      if (!batch.length) return;
+      show(batch.map(quietNotes), origin, heard.shown > 0);
+      heard.shown += batch.length;
+    };
   try {
     // What the command line runs keeps its locals for the next command;
     // the do-file, a selection of it and the map's steps run as do-files.
-    result = await ask({ kind: "run", source: text, doFile: origin != null });
+    progress.lines = origin?.file ? text.split("\n").length : 0;
+    // A selection's lines are counted as the editor's gutter numbers them.
+    progress.from = origin?.file ? origin.from : 0;
+    result = await ask(
+      message,
+      ({ line, commands }) => {
+        progress.line = line;
+        progress.commands = commands;
+      },
+      (piece) => {
+        heard.count = piece.count ?? heard.count;
+        if (!piece.records) {
+          heard.partial = piece.partial;
+          return;
+        }
+        heard.waiting.push(...piece.records.map(readable));
+        Object.assign(heard, {
+          node: piece.node,
+          line: piece.line,
+          command: piece.command,
+          echo: piece.echo,
+          partial: [],
+        });
+        heard.timer ||= setTimeout(flush, 300);
+      },
+    );
+    // How the run ended, so that putting it back after a Stop can tell
+    // whether it ran the same way again.
+    message.rc = result.rc;
+    message.records = result.output.length;
   } catch (error) {
-    if (error.stopped) return null;
+    if (error.stopped) {
+      // Break: every command that had finished when Stop was pressed (as
+      // far as Results show) took effect, inside a loop or a do-file too,
+      // and a new session is brought to that point; the one stopped is
+      // shown with what it printed, then --Break-- and r(1), as Stata
+      // shows it.
+      message.stopAfter = heard.count;
+      heard.waiting.push({
+        command: heard.command || text.trim().split("\n")[0],
+        echo: heard.echo,
+        lines: [...heard.partial.map(readable1), "--Break--", "r(1);"],
+        rc: 1,
+        ...(origin?.file && heard.line ? { line: heard.line } : {}),
+      });
+      flush();
+      stopped = {
+        line: origin?.file && heard.line ? heard.line + origin.from : 0,
+      };
+      return null;
+    }
+    clearTimeout(heard.timer);
+    // Put back after a Stop, this run is expected to fail the same way.
+    message.faulted = true;
     // Anything that is not a Stata error is a fault in the interpreter.
     append(
       `\nThe interpreter stopped unexpectedly: ${error.message}\n`,
@@ -716,11 +1412,25 @@ async function perform(text, origin) {
     busy(false);
     return null;
   }
-  show(result.output, origin);
+  clearTimeout(heard.timer);
+  memoryNow = result.memory;
+  const records = result.output.map(quietNotes);
+  show(records.slice(heard.shown), origin, heard.shown > 0);
   showVariables(result.memory);
+  // browse and edit open the data browser, as they open Stata's editor.
+  const opened = records.findLast(
+    (record) => !record.rc && /^(browse|edit)$/.test(record.opens ?? ""),
+  );
+  if (opened)
+    browser.open(opened.where, opened.opens === "edit", opened.labels);
+  else browser.refresh();
   if (result.made?.length) await keepMade(result.made);
+  if (result.written?.length) await keepWritten(result.written);
   return result;
 }
+/** The commands a run ran: its records, less the comments it echoed. */
+const ran = (result) =>
+  result.output.filter((record) => !record.comment).length;
 function finish(rc, commands, started, output = []) {
   const seconds = ((performance.now() - started) / 1000).toFixed(2),
     missing = rc === 601 ? missingFile(output) : "";
@@ -741,8 +1451,18 @@ function finish(rc, commands, started, output = []) {
   }
   busy(false);
   status.dataset.state = rc ? "error" : "done";
-  if (rc) fox.failed(rc);
-  else fox.done();
+  if (rc) {
+    const last = output.findLast((record) => record.rc);
+    fox.failed(
+      rc,
+      last
+        ? adviseRecord(last, {
+            commands: KNOWN,
+            variables: memoryNow.variables,
+          })?.text
+        : undefined,
+    );
+  } else fox.done();
   // On a narrow screen the results are below the editor; go to them.
   if (!mapping && window.matchMedia("(max-width: 900px)").matches)
     $("results-title").scrollIntoView({ block: "start" });
@@ -784,7 +1504,7 @@ async function execute(text = source.value, what = "do-file") {
   // Every do-file of the project is there for do, run and include.
   await shareFiles();
   const result = await perform(text, origin);
-  if (result) finish(result.rc, result.output.length, started, result.output);
+  if (result) finish(result.rc, ran(result), started, result.output);
   return result;
 }
 
@@ -804,7 +1524,7 @@ async function runSteps(entries, mark) {
     mark(entry.id, "running");
     const result = await perform(entry.lines.join("\n"), { step: entry.id });
     if (!result) return mark(entry.id, "error");
-    commands += result.output.length;
+    commands += ran(result);
     mark(entry.id, result.rc ? "error" : "done", result);
     if (result.rc) return finish(result.rc, commands, started, result.output);
     const terms = entry.guard ? [] : map.termsOf(entry.id);
@@ -828,12 +1548,82 @@ async function runSteps(entries, mark) {
   finish(0, commands, started);
 }
 
-/** A new worker with the student's files, and a new session in it. */
-async function restart(message) {
+/**
+ * A new worker with the student's files, and a new session in it. With
+ * `replay`, what the old session was asked to do since it was cleared is
+ * done again, quietly and in order: the files it had then, each run and
+ * each file added or removed since, so that the new one holds the same
+ * data, results, macros and logs; the run that was stopped is done up to
+ * where Stop found it. Each run is checked to end as it ended before; one
+ * that does not is named in the status, for the data may then differ.
+ * Returns false when the session could not be put back.
+ */
+async function restart(message, replay = false) {
+  const steps = replay ? journal.slice() : [],
+    base = replay ? new Map(journalBase) : new Map();
   await startWorker();
-  for (const [name, file] of uploads)
-    await sendUpload(name, file).catch(() => {});
-  await newSession(message);
+  if (!steps.length) {
+    for (const [name, file] of uploads)
+      await sendUpload(name, file).catch(() => {});
+    await newSession(message);
+    return true;
+  }
+  let memory = null,
+    differs = null;
+  try {
+    // The files the session had when it was last cleared; the journal
+    // gives and takes away the rest as they were.
+    for (const [name, file] of base)
+      await sendUpload(name, file, null, { kept: false }).catch(() => {});
+    memory = (
+      await ask({ kind: "reset", dataset: "" }, null, null, { kept: false })
+    ).memory;
+    for (const step of steps) {
+      let reply;
+      try {
+        reply = await ask({ ...step, quiet: true }, null, null, {
+          kept: false,
+        });
+      } catch (error) {
+        // Only a worker that has died ends the putting back. A file that
+        // cannot be read again (changed on disk since), or a run that
+        // fails in the interpreter where it did not before, is named.
+        if (error.lost || !worker) throw error;
+        if (!step.faulted)
+          differs ??=
+            step.kind === "run"
+              ? `${step.source.trim().split("\n")[0]} stopped in the interpreter this time`
+              : `${step.name} could not be read again`;
+        continue;
+      }
+      memory = reply.memory ?? memory;
+      if (
+        step.kind === "run" &&
+        step.stopAfter === undefined &&
+        step.rc !== undefined &&
+        (reply.rc !== step.rc || reply.output.length !== step.records)
+      )
+        differs ??= `${step.source.trim().split("\n")[0]} ended differently this time (return code ${reply.rc}, not ${step.rc})`;
+    }
+  } catch (error) {
+    journal = [];
+    journalBase = new Map(uploads);
+    if (!worker) await startWorker();
+    for (const [name, file] of uploads)
+      await sendUpload(name, file, null, { kept: false }).catch(() => {});
+    await newSession(
+      `Stopped. The session could not be put back as it was (${error.message}), so it was cleared: the data in memory are gone; the do-file text and Results are unchanged.`,
+    );
+    return false;
+  }
+  journal = steps;
+  journalBase = base;
+  known = null;
+  showVariables(memory);
+  status.textContent = differs
+    ? `${message} But in putting the session back, ${differs}, so the data may not be as they were: check them before going on.`
+    : message;
+  return true;
 }
 async function newSession(message) {
   const result = await ask({ kind: "reset", dataset: "" });
@@ -872,6 +1662,7 @@ for (const entry of Object.values(LIBRARY)) {
   load.textContent = "Load";
   load.setAttribute("aria-label", `Load ${entry.id}`);
   load.addEventListener("click", async () => {
+    if (!mayReplaceData(`Load ${entry.id} in their place`)) return;
     await execute(`sysuse ${entry.id}, clear\ndescribe`, "command");
     $("results-title").scrollIntoView({ block: "start" });
   });
@@ -928,6 +1719,22 @@ const map = mountMap({
   }),
   layout = document.querySelector(".console-layout");
 let mapping = false;
+// ----- the data browser: browse and edit -----
+const browser = mountBrowser({
+  drawer: $("drawer-browse"),
+  ask,
+  async run(command) {
+    ranTyped.push(command);
+    await execute(command, "command");
+  },
+  onOpen() {
+    $("drawer-browse").scrollIntoView({ block: "nearest" });
+  },
+});
+$("console-browse").addEventListener("click", () => {
+  browser.open("", false);
+  $("drawer-browse").scrollIntoView({ block: "start" });
+});
 function setMode(toMap) {
   mapping = toMap;
   layout.classList.toggle("is-mapping", toMap);
@@ -957,11 +1764,13 @@ $("map-tidy").addEventListener("click", () => map.tidy());
 $("map-export").addEventListener("click", () => {
   const files = map.files();
   setMode(false);
-  addDoFiles(files);
-  status.textContent =
+  const { notes } = addDoFiles(files, { renameOld: true });
+  status.textContent = [
     files.length > 1
       ? `The map was written to ${files.length} do-files. Run main.do to run them all.`
-      : "The map was written to main.do.";
+      : "The map was written to main.do.",
+    ...notes,
+  ].join(" ");
 });
 source.value = project.files[project.active].text;
 showTabs();
@@ -986,16 +1795,37 @@ $("console-tab-name").addEventListener("change", (event) => {
   save();
   showTabs();
 });
+function bringBack() {
+  const file = deleted.pop();
+  if (!file) return;
+  save();
+  file.name = freeName(file.name);
+  project.active = project.files.push(file) - 1;
+  source.value = file.text;
+  save();
+  showTabs();
+  paint();
+  status.textContent = `${file.name} is back.`;
+}
 $("console-tab-delete").addEventListener("click", () => {
   if (project.files.length < 2) return;
+  save();
   const [gone] = project.files.splice(project.active, 1);
+  deleted.push(gone);
   project.active = Math.max(0, project.active - 1);
   source.value = project.files[project.active].text;
   save();
   showTabs();
   paint();
-  status.textContent = `${gone.name} was deleted.`;
+  status.textContent = `${gone.name} was deleted. `;
+  const undo = document.createElement("button");
+  undo.type = "button";
+  undo.className = "quiet-button";
+  undo.textContent = "Undo";
+  undo.addEventListener("click", bringBack);
+  status.append(undo);
 });
+$("console-tab-restore").addEventListener("click", bringBack);
 
 // ----- a menu of command patterns -----
 const insert = $("console-insert");
@@ -1024,6 +1854,51 @@ insert.addEventListener("change", () => {
   status.textContent = `Inserted "${item[0]}". Change the names to your own.`;
 });
 
+// ----- copying the results -----
+/** Puts text on the clipboard, with a fallback for browsers that refuse. */
+async function copyText(text, done) {
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    copied = true;
+  } catch {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.append(area);
+    area.select();
+    try {
+      copied = document.execCommand("copy");
+    } catch {
+      copied = false;
+    }
+    area.remove();
+  }
+  status.textContent = copied
+    ? done
+    : "This browser did not allow copying. Select the text in Results and copy it.";
+}
+/** Every record in the Results window, as one log. */
+const allResults = () =>
+  [...output.querySelectorAll(".console-record")]
+    .map((block) => block.text ?? "")
+    .join("\n");
+function offerKeeping() {
+  const any = !!output.querySelector(".console-record");
+  $("console-copy-all").hidden = !any;
+  $("console-save-log").hidden = !any;
+}
+$("console-copy-all").addEventListener("click", () =>
+  copyText(allResults(), "All the results were copied."),
+);
+$("console-save-log").addEventListener("click", () => {
+  hand(new TextEncoder().encode(allResults()), "results.log", "text/plain");
+  status.textContent =
+    "Downloaded results.log: every command in Results and what it printed.";
+});
+
 // ----- the whole project as a folder to run in Stata -----
 function hand(bytes, name, type) {
   const link = document.createElement("a"),
@@ -1043,6 +1918,7 @@ $("console-download").addEventListener("click", async () => {
     added.push({
       name,
       made: file.made,
+      written: !!file.written,
       data: new Uint8Array(await file.blob.arrayBuffer()),
     });
   const bytes = projectZip(files, added, new Date(), ranTyped.join("\n"));
@@ -1052,28 +1928,85 @@ $("console-download").addEventListener("click", async () => {
 });
 
 // ----- what runs here, with a filter -----
-const names = [...new Set(COMMANDS.map((command) => command.name))].sort(),
+// Each name opens its entry: what it does, how to write it, Stata's help.
+const names = [...new Set(KNOWN.map((command) => command.name))].sort(),
   list = $("console-commands"),
   items = names.map((name) => {
     const item = document.createElement("li"),
+      button = document.createElement("button"),
       code = document.createElement("code");
+    button.type = "button";
+    button.className = "console-help-name";
+    button.setAttribute("aria-expanded", "false");
     code.textContent = name;
-    item.append(code);
+    button.append(code);
+    button.addEventListener("click", () => {
+      const open = button.getAttribute("aria-expanded") !== "true";
+      button.setAttribute("aria-expanded", String(open));
+      item.classList.toggle("is-open", open);
+      if (open && !item.querySelector(".console-help-card"))
+        item.append(helpCard(name));
+    });
+    item.dataset.search = `${name} ${HELP[name]?.[0] ?? ""}`.toLowerCase();
+    item.append(button);
     list.append(item);
     return item;
   });
 $("console-filter").addEventListener("input", (event) => {
-  const wanted = event.target.value.trim().toLowerCase();
-  let shown = 0;
+  const wanted = event.target.value.trim().toLowerCase(),
+    // One command's help, opened from a hint, shows that command alone.
+    only = !!event.detail?.only;
+  // The command of that name first, then those whose names begin with or
+  // hold what is typed, then those whose description has a word that
+  // begins with it: regress before ivregress, and graph finds twoway.
+  const word = new RegExp(
+      `\\b${wanted.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+    ),
+    rank = (name, k) =>
+      name === wanted
+        ? 0
+        : name.startsWith(wanted)
+          ? 1
+          : name.includes(wanted)
+            ? 2
+            : !only && word.test(items[k].dataset.search)
+              ? 3
+              : 4;
+  const ranked = names
+    .map((name, k) => ({ name, k, rank: wanted ? rank(name, k) : 0 }))
+    .filter((each) => each.rank < 4)
+    .sort((x, y) => x.rank - y.rank || x.name.localeCompare(y.name));
+  const byName = ranked.filter((each) => each.rank < 3),
+    byUse = ranked.filter((each) => each.rank === 3),
+    shown = new Set(ranked.map((each) => each.k));
   items.forEach((item, k) => {
-    item.hidden = !!wanted && !names[k].includes(wanted);
-    if (!item.hidden) shown++;
+    item.hidden = !!wanted && !shown.has(k);
   });
+  // The list is in that order while something is typed, and in the
+  // alphabet's order when the filter is empty.
+  for (const each of ranked) list.append(items[each.k]);
+  const advice =
+    wanted && !byName.length
+      ? adviseRecord(
+          {
+            command: wanted,
+            lines: [`command ${wanted} is unrecognized`],
+            rc: 199,
+          },
+          { commands: KNOWN },
+        )
+      : null;
   $("console-found").textContent = !wanted
     ? ""
-    : shown
-      ? `${shown} of ${names.length} commands match.`
-      : `No command here is called ${wanted}. It may be written differently, or not be available yet.`;
+    : byName.length
+      ? `${ranked.length} of ${names.length} commands match${byUse.length ? `: ${byName.length} by name, then ${byUse.length} by what they do` : ""}.`
+      : `No command here is called ${wanted}.${
+          byUse.length
+            ? ` ${byUse.length === 1 ? "This one does" : `These ${byUse.length} do`} what you describe.`
+            : advice?.suggest.length
+              ? ` ${advice.text.replace(" The Commands list shows what runs here.", "")}`
+              : " It may be written differently, or not be available here."
+        }`;
 });
 
 // ----- the colours of the Results window -----
@@ -1102,21 +2035,53 @@ run.addEventListener("click", () => (mapping ? map.runAll() : execute()));
 runSelection.addEventListener("click", () =>
   execute(selectedLines(), "selection"),
 );
+// Whether a Stop is being dealt with: the run ended and the session being
+// put back. Pressing Stop again then changes nothing, as pressing Break
+// twice changes nothing in Stata.
+let restoring = false;
 stop.addEventListener("click", async () => {
-  // Ending the worker is the only way to interrupt it; the session goes too.
+  if (restoring) {
+    status.textContent =
+      "Stop was pressed: the session is being put back as it was when the run stopped. This ends by itself.";
+    return;
+  }
+  restoring = true;
+  // Ending the worker is the only way to interrupt it. What the run has
+  // already said (what it printed, how far it got) is let in first, so
+  // that the point it is put back to is the one Results show.
+  await new Promise((resolve) => setTimeout(resolve, 60));
   worker?.terminate();
   worker = null;
+  stopped = null;
   abandon(Object.assign(new Error("stopped"), { stopped: true }));
-  append("\n--Break--\n", "console-error");
+  // The run's own ending (what it printed, where it stopped) comes first.
+  await new Promise((resolve) => setTimeout(resolve, 0));
   fox.idle();
-  status.textContent = "Stopped. Starting a new session…";
+  const where = stopped?.line ? ` on line ${stopped.line}` : "";
+  status.textContent = `Stopped${where}. Putting the session back as it was when the run stopped (the commands run since it was last cleared are run again, which takes about as long as they took)…`;
   await restart(
-    "Stopped. The session was cleared; the do-file text is unchanged.",
+    `Stopped${where} (--Break--). The commands that had finished when you pressed Stop took effect, as they do after Break in Stata.`,
+    true,
   );
+  restoring = false;
   busy(false);
 });
+// Ctrl or ⌘ + . stops a run, as Break does in Stata for Mac.
+document.addEventListener("keydown", (event) => {
+  if (
+    (event.ctrlKey || event.metaKey) &&
+    event.key === "." &&
+    isRunning &&
+    !stop.hidden
+  ) {
+    event.preventDefault();
+    stop.click();
+  }
+});
 reset.addEventListener("click", async () => {
+  if (isRunning || !mayReplaceData("Clear the session")) return;
   output.textContent = "";
+  offerKeeping();
   for (const file of project.files) {
     marksOf(file).forEach(forget);
     marks.delete(file);
@@ -1126,18 +2091,76 @@ reset.addEventListener("click", async () => {
   place();
   fox.idle();
   fox.say("");
-  await newSession("The session was cleared. The do-file text is unchanged.");
+  await newSession(
+    `The session was cleared. The do-file text is unchanged${uploads.size ? ", and your files, those the session wrote among them, are still here" : ""}.`,
+  );
 });
 examples.addEventListener("change", () => {
   const example = EXAMPLES.find((e) => e.id === examples.value);
   examples.value = "";
   if (!example) return;
+  // The do-file holds the student's work: the example opens beside it.
+  const own = source.value.trim();
+  if (own && !EXAMPLES.some((each) => each.text.trim() === own)) {
+    const { names } = addDoFiles([
+      { name: `${example.id}.do`, text: example.text },
+    ]);
+    source.setSelectionRange(0, 0);
+    source.scrollTop = 0;
+    follow();
+    status.textContent = `Opened "${example.title}" as ${names[0]}, in a tab of its own; your do-file is unchanged.`;
+    return;
+  }
   typeInto(example.text, true);
   source.setSelectionRange(0, 0);
   source.scrollTop = 0;
   follow();
-  status.textContent = `Loaded "${example.title}". Undo in the do-file brings your own text back.`;
+  status.textContent = `Loaded "${example.title}". Undo in the do-file brings the text before it back.`;
 });
+// Tab indents, as in Stata's Do-file Editor, and Shift+Tab takes the indent
+// away; after Escape, Tab moves on from the editor, so that the keyboard can
+// always leave it.
+let tabLeaves = false;
+source.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") tabLeaves = true;
+  else if (event.key !== "Tab") tabLeaves = false;
+  if (
+    event.key !== "Tab" ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    tabLeaves
+  )
+    return;
+  event.preventDefault();
+  indent(event.shiftKey);
+});
+source.addEventListener("blur", () => {
+  tabLeaves = false;
+});
+/** Indents the lines of the selection by four spaces, or takes four away. */
+function indent(back) {
+  const { selectionStart: from, selectionEnd: to, value } = source;
+  if (!back && from === to) {
+    typeInto("    ", false);
+    return;
+  }
+  const start = value.lastIndexOf("\n", from - 1) + 1,
+    end = to > from && value[to - 1] === "\n" ? to - 1 : to,
+    lines = value.slice(start, end).split("\n"),
+    changed = lines.map((line) =>
+      back ? line.replace(/^( {1,4}|\t)/, "") : `    ${line}`,
+    ),
+    text = changed.join("\n");
+  if (text === lines.join("\n")) return;
+  source.setSelectionRange(start, end);
+  typeInto(text, false);
+  // A caret stays where it was in its line; a selection holds the lines.
+  if (from === to) {
+    const at = Math.max(start, from + changed[0].length - lines[0].length);
+    source.setSelectionRange(at, at);
+  } else source.setSelectionRange(start, start + text.length);
+}
 source.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
     event.preventDefault();
@@ -1159,6 +2182,12 @@ document.addEventListener("selectionchange", () => {
   const line = lineAt(source.value, source.selectionStart);
   // Moving to a line shows what it printed; typing does not move Results.
   if (line !== caret) point(line, performance.now() - typed > 400);
+});
+source.addEventListener("focus", () => {
+  typingAt = "source";
+});
+commandLine.addEventListener("focus", () => {
+  typingAt = "command";
 });
 source.addEventListener("focus", () =>
   point(lineAt(source.value, source.selectionStart), false),
@@ -1190,30 +2219,111 @@ output.addEventListener("click", (event) => {
     if (block.dataset.step) map.reveal(Number(block.dataset.step));
     return;
   }
+  backTo(block);
+});
+/** Goes from a block of Results to the line of the do-file it came from. */
+function backTo(block) {
   const line = lineOf(block),
     k = project.files.indexOf(block.file);
-  if (!line || k < 0) return;
+  if (!line || k < 0 || mapping) return;
   if (k !== project.active) openFile(k);
   goTo(line);
-});
+}
 
 // ----- the command line under the results -----
 const history = [],
   // Every command run from the command line or a Load button, so that the
   // project zip carries the files they used.
   ranTyped = [];
-let recalled = 0;
+let recalled = 0,
+  // The lines of a loop, program or other block typed so far: as in
+  // Stata's Command window, it runs once it is closed.
+  typedBlock = [];
+/**
+ * What closes the block text leaves open: "}" for a loop or an if, "end"
+ * for a program or input, or "" when nothing is left open. A } that closes
+ * nothing is left for the run to report.
+ */
+function leftOpen(text) {
+  const open = [];
+  for (const { text: line } of splitCommands(text)) {
+    if (open.at(-1) === "end") {
+      if (line === "end") open.pop();
+      continue;
+    }
+    if (
+      /^pr(?:o(?:g(?:r(?:am?)?)?)?)?\s+(?:de(?:f(?:i(?:ne?)?)?)?\s+)?[A-Za-z_]\w*\s*(?:,.*)?$/.test(
+        line,
+      ) &&
+      !/^pr\w*\s+(drop|dir|list)\b/.test(line)
+    ) {
+      open.push("end");
+      continue;
+    }
+    if (/^inp(?:ut?)?(\s|$)/.test(line)) {
+      open.push("end");
+      continue;
+    }
+    if (/^\}/.test(line)) {
+      if (open.at(-1) !== "}") return "";
+      open.pop();
+    }
+    if (/\{$/.test(line)) open.push("}");
+  }
+  return open.at(-1) ?? "";
+}
+// The lines of the open block, shown at the foot of Results as Stata shows
+// them while they are typed.
+let pending = null;
+function setOpened(lines, closer = "}") {
+  typedBlock = lines;
+  if (lines.length) {
+    if (!pending) {
+      pending = document.createElement("span");
+      pending.className = "console-pending";
+    }
+    pending.textContent = `${lines.map((line, k) => (k ? `  ${k + 1}. ${line}` : `. ${line}`)).join("\n")}\n`;
+    output.append(pending);
+    output.scrollTop = output.scrollHeight;
+  } else {
+    pending?.remove();
+    pending = null;
+  }
+  document.querySelector(".console-dot").textContent = typedBlock.length
+    ? `${typedBlock.length + 1}.`
+    : ".";
+  commandLine.placeholder = typedBlock.length
+    ? `the next line, or ${closer} to finish`
+    : "type a command, press Enter";
+}
 $("console-prompt").addEventListener("submit", (event) => {
   event.preventDefault();
   const text = commandLine.value.trim();
-  if (!text || commandLine.disabled) return;
-  if (history.at(-1) !== text) history.push(text);
-  ranTyped.push(text);
+  if ((!text && !typedBlock.length) || commandLine.disabled) return;
+  if (text && history.at(-1) !== text) history.push(text);
   recalled = history.length;
   commandLine.value = "";
-  execute(text, "command").then(() => commandLine.focus());
+  const lines = [...typedBlock, text],
+    closer = leftOpen(lines.join("\n"));
+  if (closer) {
+    // As in Stata's Command window, the block runs when it is closed;
+    // until then Results shows its lines as they are typed.
+    setOpened(lines, closer);
+    status.textContent = `${typedBlock[0]} is open: type its lines, then ${closer} on a line of its own to run it. Escape drops it.`;
+    return;
+  }
+  setOpened([]);
+  const whole = lines.join("\n");
+  ranTyped.push(whole);
+  execute(whole, "command").then(() => commandLine.focus());
 });
 commandLine.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && typedBlock.length) {
+    event.preventDefault();
+    status.textContent = `The block ${typedBlock[0]} was dropped; nothing in it ran.`;
+    setOpened([]);
+    return;
+  }
   // Up and Down walk through the commands typed here, as in Stata.
   if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
   if (!history.length) return;
@@ -1231,9 +2341,9 @@ commandLine.addEventListener("keydown", (event) => {
 // is { blob, made }: made is true for a graph that graph export wrote.
 const uploads = new Map();
 let shelf = null;
-async function shelve(name, blob, made = false) {
+async function shelve(name, blob, made = false, written = false) {
   try {
-    await shelf?.put(name, blob, made);
+    await shelf?.put(name, blob, made, written);
     return true;
   } catch {
     return false;
@@ -1251,7 +2361,9 @@ function showUploads() {
     size.className = "console-own-size";
     size.textContent = file.made
       ? `${megabytes(file.blob.size)}, made by graph export`
-      : megabytes(file.blob.size);
+      : file.written
+        ? `${megabytes(file.blob.size)}, written by this session`
+        : megabytes(file.blob.size);
     if (file.made) {
       const download = document.createElement("button");
       download.textContent = `Download ${name}`;
@@ -1271,6 +2383,7 @@ function showUploads() {
         command = loadCommand(name);
       load.textContent = `Load ${name}`;
       load.addEventListener("click", () => {
+        if (!mayReplaceData(`Load ${name} in their place`)) return;
         ranTyped.push(command);
         execute(`${command}\ndescribe`, "command");
       });
@@ -1281,6 +2394,20 @@ function showUploads() {
         $("main").scrollIntoView({ block: "start" });
       });
       buttons.push(load, build);
+    }
+    if (file.written) {
+      const download = document.createElement("button");
+      download.textContent = `Download ${name}`;
+      download.addEventListener("click", async () =>
+        hand(
+          new Uint8Array(await file.blob.arrayBuffer()),
+          name,
+          /\.(log|txt|csv|do|smcl)$/i.test(name)
+            ? "text/plain"
+            : "application/octet-stream",
+        ),
+      );
+      buttons.push(download);
     }
     const remove = document.createElement("button");
     remove.textContent = "Remove";
@@ -1311,16 +2438,23 @@ function showUploads() {
   if (mapping) map.draw();
 }
 /** Gives the session one of the student's files; progress as it is read. */
-function sendUpload(name, file, progress) {
+function sendUpload(name, file, progress, options) {
   if (file.made)
     return file.blob
       .arrayBuffer()
       .then((buffer) =>
-        ask({ kind: "binary", name, bytes: new Uint8Array(buffer) }),
+        ask(
+          { kind: "binary", name, bytes: new Uint8Array(buffer) },
+          null,
+          null,
+          options,
+        ),
       );
   return ask(
     { kind: "take", name, file: file.blob, as: fileKind(name) },
     progress,
+    null,
+    options,
   );
 }
 /** Graphs written by graph export, made into files and kept. */
@@ -1348,6 +2482,54 @@ async function keepMade(made) {
   }
   if (kept.length) showUploads();
 }
+/**
+ * Files that save, export, putexcel or log using wrote: kept as the
+ * student's own files are, in this browser and in a new session, since in
+ * Stata they are on disk and neither clear all nor quitting removes them.
+ */
+async function keepWritten(names) {
+  let lost = "";
+  for (const name of names) {
+    let file = null;
+    try {
+      file = (await ask({ kind: "read", name })).file;
+    } catch {
+      file = null;
+    }
+    if (!file) continue;
+    const blob = new Blob([file.bytes ?? file.text]);
+    uploads.set(name, { blob, made: false, written: true });
+    if (!(await shelve(name, blob, false, true)) && shelf) lost = name;
+  }
+  showUploads();
+  if (lost)
+    status.textContent += ` ${lost} could not be kept in this browser (its storage is full), so it is here for this visit only: save a copy from Data.`;
+}
+/**
+ * Whether the data in memory may be replaced: when they have changed since
+ * they were last saved, the student is asked first, as Stata's File > Open
+ * asks, and as use without clear refuses with r(4).
+ */
+function mayReplaceData(what) {
+  if (!memoryNow.changed) return true;
+  if (
+    window.confirm(
+      `The data in memory have changed since they were last saved. ${what}, and lose the changes?`,
+    )
+  )
+    return true;
+  status.textContent =
+    "Nothing was replaced: the data in memory are as they were. Save them with save, or download them from Data, first.";
+  return false;
+}
+// Leaving the page loses the data in memory, as quitting Stata does: the
+// browser asks first when they have changed since they were last saved,
+// as Stata warns on exit, or while a run is going on.
+window.addEventListener("beforeunload", (event) => {
+  if (!memoryNow.changed && !isRunning) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 /** Takes files from the picker or a drop. Returns what to tell the student. */
 async function takeFiles(list) {
   const notes = [],
@@ -1366,6 +2548,19 @@ async function takeFiles(list) {
     if (refused) {
       notes.push(refused);
       continue;
+    }
+    // A file of the same name is not replaced without asking, as the
+    // operating system asks before a file in Stata's folder is overwritten.
+    if (kind !== "do" && uploads.has(name)) {
+      const was = uploads.get(name);
+      if (
+        !window.confirm(
+          `${name} is already among your files${was.written ? " (the session wrote it)" : was.made ? " (graph export made it)" : ""}. Replace it with the file you chose?`,
+        )
+      ) {
+        notes.push(`${name} was not added: the ${name} already here is kept.`);
+        continue;
+      }
     }
     if (kind === "do") {
       // The editor keeps do-files of up to 200,000 characters.
@@ -1409,14 +2604,23 @@ async function takeFiles(list) {
     }
   }
   if (scripts.length) {
-    addDoFiles(scripts);
+    const added = addDoFiles(scripts);
     notes.push(
-      `Opened ${scripts.map((file) => doName(file.name)).join(", ")} in the do-file editor.`,
+      `Opened ${added.names.join(", ")} in the do-file editor.`,
+      ...added.notes,
     );
   }
   showUploads();
-  // One data file is loaded straight away, so there is something to see.
-  if (loaded && !isRunning) {
+  // One data file is loaded straight away when memory is empty, so there
+  // is something to see. Data already in memory are never replaced: adding
+  // a file to the folder does not touch memory in Stata, and it may be a
+  // file to merge.
+  const empty = !memoryNow.variables.length && !(memoryNow.observations > 0);
+  if (loaded && !isRunning && !empty)
+    notes.push(
+      `The data in memory are unchanged; ${loaded} loads it in their place.`,
+    );
+  else if (loaded && !isRunning) {
     ranTyped.push(loaded);
     const ran = await execute(`${loaded}\ndescribe`, "command");
     notes.push(
@@ -1442,7 +2646,11 @@ async function restoreFiles() {
       const result = await sendUpload(file.name, file, ({ loaded, total }) => {
         status.textContent = `Reading ${file.name} from this browser: ${Math.floor((100 * loaded) / total)}%…`;
       });
-      uploads.set(file.name, { blob: file.blob, made: file.made });
+      uploads.set(file.name, {
+        blob: file.blob,
+        made: file.made,
+        written: !!file.written,
+      });
       showVariables(result.memory);
     } catch {
       // A file that cannot be read back is taken off the shelf, so that it
@@ -1493,6 +2701,22 @@ const more = $("console-more");
 more.addEventListener("click", (event) => {
   if (event.target.closest("button:not(.console-switch)")) more.open = false;
 });
+// The menu opens under its button and is moved in from the edge of a narrow
+// screen, so that none of it is off the page.
+more.addEventListener("toggle", () => {
+  const panel = more.querySelector(".console-menu-panel");
+  panel.style.translate = "";
+  if (!more.open) return;
+  const box = panel.getBoundingClientRect(),
+    room = document.documentElement.clientWidth;
+  const shift =
+    box.right > room - 8
+      ? Math.max(room - 8 - box.right, 8 - box.left)
+      : box.left < 8
+        ? 8 - box.left
+        : 0;
+  if (shift) panel.style.translate = `${Math.round(shift)}px 0`;
+});
 for (const control of more.querySelectorAll("select, input"))
   control.addEventListener("change", () => {
     more.open = false;
@@ -1505,6 +2729,25 @@ document.addEventListener("keydown", (event) => {
   more.open = false;
   more.querySelector("summary").focus();
 });
+/** A file of the session's folder, as the browser's download. */
+async function downloadFile(name) {
+  let file = null;
+  try {
+    file = (await ask({ kind: "read", name })).file;
+  } catch {
+    file = null;
+  }
+  if (!file) {
+    status.textContent = `${name} is no longer in this session.`;
+    return;
+  }
+  const bytes = file.bytes ?? new TextEncoder().encode(file.text),
+    type = /\.(log|txt|csv|do|smcl)$/i.test(name)
+      ? "text/plain"
+      : "application/octet-stream";
+  hand(bytes, name, type);
+  status.textContent = `Downloaded ${name}.`;
+}
 $("console-download-data").addEventListener("click", async () => {
   const result = await ask({ kind: "export" });
   if (!result.memory.variables.length) {

@@ -19,10 +19,19 @@ const dot = (a, b) => a.reduce((t, v, i) => t + v * b[i], 0);
  * in turn, leaving out any that add nothing. Returns the rank excluding the
  * constant, and the explained, residual and total sums of squares.
  */
-export function project(columns, y) {
-  const centre = (v) => {
-      const m = mean(v);
-      return v.map((value) => value - m);
+export function project(columns, y, weights = null) {
+  // With weights, each value is centred at the weighted mean and scaled by
+  // the square root of its weight, which makes the sums of squares
+  // weighted ones.
+  const total = weights ? weights.reduce((t, v) => t + v, 0) : 0,
+    root = weights ? weights.map((v) => Math.sqrt(v)) : null,
+    centre = (v) => {
+      if (!weights) {
+        const m = mean(v);
+        return v.map((value) => value - m);
+      }
+      const m = v.reduce((t, value, i) => t + weights[i] * value, 0) / total;
+      return v.map((value, i) => (value - m) * root[i]);
     },
     yc = centre(y),
     basis = [];
@@ -57,6 +66,9 @@ export function project(columns, y) {
 
 /** The estimation sample as plain arrays: y, fitted values and residuals. */
 export function sampleFrame(model, session) {
+  // No observation of the sample is left in the data (they were dropped,
+  // or the data read in again).
+  if (!model.sample?.length) throw new StataError("no observations", 2000);
   const dependent = session.data.get(model.depvar),
     used = model.names.map((_, k) => k).filter((k) => model.estimable[k]),
     rows = model.sample,
@@ -85,11 +97,11 @@ export function sampleFrame(model, session) {
 
 function onlyRegress(model, what) {
   if (model.command !== "regress")
-    throw new StataError(`estat ${what} is only available after regress`, 301);
+    throw new StataError(`estat ${what} not valid`, 321);
 }
 
-function hettest(session, model, text, ctx) {
-  onlyRegress(model, "hettest");
+function hettest(session, model, text, ctx, typed = "hettest") {
+  onlyRegress(model, typed);
   if (model.vce !== "ols")
     throw new StataError(
       "hettest not appropriate after estimation using robust or clustered VCE",
@@ -108,9 +120,21 @@ function hettest(session, model, text, ctx) {
           frame.rows.map((i) => session.data.get(name).data[i]),
         )
       : [frame.fitted],
-    s2 = model.rss / n,
+    // e(rss)/e(N), as the fit stored them, even when observations of its
+    // sample have been dropped since (hettest.ado).
+    s2 = model.rss / (model.N ?? n),
     scaled = frame.residuals.map((e) => (e * e) / s2),
-    result = project(columns, scaled),
+    // The auxiliary regression takes the fit's weights; analytic weights
+    // are scaled to sum to its number of observations, as regress scales
+    // them.
+    raw = model.wtype && model.weights?.length === n ? model.weights : null,
+    sum = raw ? raw.reduce((t, v) => t + v, 0) : 0,
+    weights = raw
+      ? model.wtype === "aweight"
+        ? raw.map((v) => (v * n) / sum)
+        : raw
+      : null,
+    result = project(columns, scaled, weights),
     chi2 = result.ess / 2,
     df = result.rank,
     p = chi2tail(df, chi2);
@@ -132,8 +156,8 @@ function hettest(session, model, text, ctx) {
   session.results.r = { chi2, df, p };
 }
 
-function ovtest(session, model, text, ctx) {
-  onlyRegress(model, "ovtest");
+function ovtest(session, model, text, ctx, typed = "ovtest") {
+  onlyRegress(model, typed);
   session.parse("[, | Rhs]", text);
   const frame = sampleFrame(model, session),
     n = frame.rows.length,
@@ -160,16 +184,17 @@ function ovtest(session, model, text, ctx) {
   ctx.out("");
   ctx.out("H0: Model has no omitted variables");
   ctx.out("");
-  ctx.out(
-    `${`F(${df}, ${dfResidual})`.padStart(8)} =${applyFormat(F, "%7.2f")}`,
-  );
-  ctx.out(`Prob > F = ${applyFormat(p, "%6.4f")}`);
+  // The two labels end in one column, under the wider of them.
+  const label = `F(${df}, ${dfResidual})`.padStart(8);
+  ctx.out(`${label} =${applyFormat(F, "%7.2f")}`);
+  ctx.out(`${"Prob > F".padStart(label.length)} = ${applyFormat(p, "%6.4f")}`);
   ctx.out("");
   session.results.r = { F, df, df_r: dfResidual, p };
 }
 
-function imtest(session, model, text, ctx) {
-  onlyRegress(model, "imtest");
+function imtest(session, model, text, ctx, typed = "imtest") {
+  onlyRegress(model, typed);
+  if (model.wtype) throw new StataError("imtest does not support weights", 101);
   const parsed = session.parse("[, White | Preserve]", text),
     frame = sampleFrame(model, session),
     n = frame.rows.length,
@@ -178,7 +203,8 @@ function imtest(session, model, text, ctx) {
     // in single precision, and centres the regressors before multiplying.
     f = Math.fround,
     e = frame.residuals.map(f),
-    s2 = model.rss / n,
+    // e(rss)/e(N), as the fit stored them (imtest.ado).
+    s2 = model.rss / (model.N ?? n),
     centred = x.map((column) => {
       const m = mean(column);
       return column.map((v) => v - m);
@@ -317,11 +343,15 @@ function vce(session, model, text, ctx) {
         format,
       ).trim();
     },
-    // 2.g as 2. above g, c.x#c.x as c.x# above c.x, o.x as o. above x.
+    // 2.g as 2. above g, c.x#c.x as c.x# above c.x, o.x as o. above x,
+    // and a statistic over groups, c.y@1.g, as c.y@ above 1.g.
     split = (name) => {
       const cut = name.includes("#")
         ? name.lastIndexOf("#") + 1
-        : (/^(\d+[bno]*|c?o)\./.exec(name)?.[0].length ?? 0);
+        : name.includes("@")
+          ? name.lastIndexOf("@") + 1
+          : (/^(\d+[bno]*|c?o|r\d+vs\d+|o?(?:[LFDS]\d*)+)\./.exec(name)?.[0]
+              .length ?? 0);
       return [name.slice(0, cut), abbreviate(name.slice(cut), width)];
     },
     heads = shown.map((s) => split(s.name)),
@@ -344,7 +374,7 @@ function vce(session, model, text, ctx) {
   });
   ctx.out("");
   ctx.out(
-    `${correlation ? "Correlation" : "Covariance"} matrix of coefficients of ${model.command} model`,
+    `${correlation ? "Correlation" : "Covariance"} matrix of coefficients of ${model.legacy ?? session.results.e?.cmd ?? model.command} model`,
   );
   ctx.out("");
   const equationOf = (k) => shown[k].equation ?? "_";
@@ -380,13 +410,16 @@ function vce(session, model, text, ctx) {
         equation = shown[r].equation;
         ctx.out(`${equationOf(r).padEnd(13)}|${blank()}`);
       }
-      // An interaction too long for the stub is split after its last #,
-      // the first part on a line of its own.
+      // An interaction too long for the stub is split after its last #
+      // (a statistic over groups after its @), the first part on a line of
+      // its own.
       const name = shown[r].name,
         cut =
           name.length > 12 && name.includes("#")
             ? name.lastIndexOf("#") + 1
-            : 0;
+            : name.length > 12 && name.includes("@")
+              ? name.lastIndexOf("@") + 1
+              : 0;
       if (cut)
         ctx.out(
           `${abbreviate(name.slice(0, cut), 13).padStart(13)}|${blank()}`.trimEnd(),
@@ -542,7 +575,7 @@ function summarizeSample(session, model, text, ctx) {
       wtype === "fweight" ? weights.reduce((t, v) => t + v, 0) : rows.length;
   if (options.header !== false) {
     ctx.out("");
-    const command = model.command,
+    const command = session.results.e?.cmd ?? model.command,
       at = (offset) => " ".repeat(Math.max(0, offset - 1));
     if (!clustvar)
       ctx.out(
@@ -614,7 +647,8 @@ function summarizeSample(session, model, text, ctx) {
             else ctx.out(`${indent}${one}`.trimEnd());
           }),
         ),
-    depvar = data.get(model.depvar),
+    // arima's may be operated (D.y), and is then summarized from model.summary.
+    depvar = model.summary ? null : data.get(model.depvar),
     equation = !!options.equation,
     // The dependent variable has no column and sits where a table's
     // constant would: first, or alone in its equation.
@@ -684,6 +718,43 @@ function summarizeSample(session, model, text, ctx) {
           ? `${abbreviate(name, 12).padEnd(13)}|`
           : `  ${abbreviate(name, 12).padEnd(13)}|`,
       );
+  // arima heads the dependent variable and its regressors by equation, as
+  // arima_estat.ado lists them for estat_summ.
+  if (model.summary && !listed) {
+    const { summary } = model,
+      stated = [
+        ["depvar", summary.depvar],
+        ...summary.columns.map((c) => [summary.equation, c]),
+      ],
+      // An operated variable is headed by its name, its operator (D1.)
+      // labelling the row.
+      put = ({ name, variable, operated, column }) =>
+        emit([
+          ...(operated ? [`${abbreviate(variable, 12).padStart(12)} |`] : []),
+          `${(operated ?? abbreviate(name, 12)).padStart(12)} |${cells(
+            rows.map((i) => column[i]),
+            variableLabel(operated ? variable : name),
+          )}`,
+        ]);
+    stated.forEach(([group, entry], j) => {
+      if (j && group !== stated[j - 1][0]) ctx.out(line("+"));
+      if (!j || group !== stated[j - 1][0]) heading(group);
+      put(entry);
+    });
+    ctx.out(labels ? "-".repeat(length + 4) : `  ${"-".repeat(length + 8)}`);
+    ctx.out("");
+    session.results.r = {
+      "matrix:stats": {
+        rowNames: stated.map(([group, { name }]) => `${group}:${name}`),
+        colNames: ["mean", "sd", "min", "max"],
+        values: stated.map(([, { column }]) => {
+          const m = stats(rows.map((i) => column[i]));
+          return [m.mean, m.sd, m.min, m.max];
+        }),
+      },
+    };
+    return;
+  }
   if (equation) {
     heading("depvar");
     emit(withLabels(lay([null], [model.depvar])));
@@ -765,17 +836,19 @@ function summarizeSample(session, model, text, ctx) {
 /** Runs a regress diagnostic; returns false when the name is not one. */
 export function regressDiagnostic(session, model, what, text, ctx) {
   const rest = text.trim().slice(what.length),
-    run = {
-      hettest,
-      ovtest,
-      imtest,
-      vce,
-      summarize: summarizeSample,
-      su: summarizeSample,
-      summ: summarizeSample,
-    }[what];
+    // Each name with the shortest abbreviation regress_estat and
+    // estat_default take for it.
+    run = [
+      ["hettest", 4, hettest],
+      ["ovtest", 3, ovtest],
+      ["imtest", 3, imtest],
+      ["vce", 3, vce],
+      ["summarize", 2, summarizeSample],
+    ].find(
+      ([name, shortest]) => what.length >= shortest && name.startsWith(what),
+    )?.[2];
   if (!run) return false;
-  run(session, model, rest, ctx);
+  run(session, model, rest, ctx, what);
   return true;
 }
 
@@ -783,6 +856,9 @@ export function regressDiagnostic(session, model, what, text, ctx) {
  * predict's statistics that need the leverage. Returns the values for every
  * observation, or null when the option is not one of these.
  */
+/** A square root, missing (2^1023, as Stata stores it) for a negative. */
+const rootOrMissing = (value) => (value < 0 ? MISSING : Math.sqrt(value));
+
 export function leverageStatistic(session, model, option) {
   const labels = {
     hat: "Leverage",
@@ -792,8 +868,19 @@ export function leverageStatistic(session, model, option) {
     cooksd: "Cook's D",
     stdr: "S.E. of the residual",
     stdf: "S.E. of the forecast",
+    covratio: "COVRATIO",
+    welsch: "Welsch distance",
   };
   if (!labels[option]) return null;
+  // COVRATIO and Welsch distance are for the estimation sample, and a
+  // robust fit has neither.
+  const sampleOnly = option === "covratio" || option === "welsch";
+  if (sampleOnly && model.vce !== "ols")
+    throw new StataError(
+      `option ${option} not allowed after robust estimation`,
+      198,
+    );
+  const inSample = sampleOnly ? new Set(model.sample) : null;
   if (model.command !== "regress" || model.vce !== "ols")
     if (option !== "stdf" && option !== "stdr")
       if (model.command !== "regress")
@@ -805,6 +892,7 @@ export function leverageStatistic(session, model, option) {
     n = model.N,
     values = new Array(data.n).fill(MISSING);
   for (let i = 0; i < data.n; i++) {
+    if (inSample && !inSample.has(i)) continue;
     const row = model.names.map((name, j) =>
       name === "_cons" ? 1 : model.columns[j].value(i),
     );
@@ -822,12 +910,82 @@ export function leverageStatistic(session, model, option) {
     else if (option === "stdr") values[i] = Math.sqrt(s2 * (1 - h));
     else if (option === "hat" || option === "leverage") values[i] = h;
     else if (isMissing(e)) continue;
-    else if (option === "rstandard") values[i] = e / Math.sqrt(s2 * (1 - h));
+    // Outside the sample the leverage can pass 1. Stata's _predict then
+    // takes the square root of a negative number for missing, the double
+    // 2^1023, and divides by it, which leaves a residual of almost zero
+    // rather than a missing value; the same arithmetic gives the same.
+    else if (option === "rstandard")
+      values[i] = e / (Math.sqrt(s2) * rootOrMissing(1 - h));
     else if (option === "rstudent") {
       const without = (model.rss - (e * e) / (1 - h)) / (n - k - 1);
-      values[i] = e / Math.sqrt(without * (1 - h));
+      values[i] = e / rootOrMissing(without * (1 - h));
+    } else if (option === "covratio") {
+      const r2 = (e * e) / (s2 * (1 - h));
+      values[i] = ((n - k - r2) / (n - k - 1)) ** k / (1 - h);
+    } else if (option === "welsch") {
+      const without = (model.rss - (e * e) / (1 - h)) / (n - k - 1),
+        r = e / Math.sqrt(without * (1 - h));
+      values[i] = ((r * Math.sqrt(h)) / (1 - h)) * Math.sqrt(n - 1);
     } else if (option === "cooksd")
       values[i] = ((e * e) / (s2 * (1 - h))) * (h / ((1 - h) * k));
   }
   return { values, label: labels[option] };
+}
+
+/**
+ * Influence after regress: DFBETA for coefficient k (the change in it when
+ * an observation is left out, over its standard error without that
+ * observation) or, with k null, DFITS. Values are for the estimation
+ * sample; robust estimates have neither, as in Stata.
+ */
+export function influence(session, model, k, option) {
+  if (model.command !== "regress")
+    throw new StataError(`option ${option} not allowed`, 198);
+  if (model.vce !== "ols")
+    throw new StataError(
+      `option ${option} not allowed after robust estimation`,
+      198,
+    );
+  const dependent = session.data.get(model.depvar),
+    p = model.names.length,
+    n = model.N,
+    values = new Array(session.data.n).fill(MISSING);
+  // Once observations of the sample are dropped, (X'X)^-1 no longer
+  // describes the rest: dfbeta, as regres_p.ado computes it, scales the
+  // studentized residual by the residual of the regressor on the others
+  // over the observations left, DFBETA = t r / sqrt((1 - h) sum r^2).
+  let partial = null;
+  if (k !== null && model.reducedSample) {
+    const others = model.names
+        .map((name, j) => j)
+        .filter(
+          (j) => j !== k && model.names[j] !== "_cons" && model.estimable[j],
+        )
+        .map((j) => model.sample.map(model.columns[j].value)),
+      fitted = project(others, model.sample.map(model.columns[k].value));
+    partial = {
+      at: new Map(model.sample.map((i, r) => [i, fitted.residuals[r]])),
+      sum: fitted.rss,
+    };
+  }
+  for (const i of new Set(model.sample)) {
+    const row = model.names.map((name, j) =>
+      name === "_cons" ? 1 : model.columns[j].value(i),
+    );
+    // (X'X)^-1 x_i, its leverage and the residual.
+    const lean = model.xtxInverse.map((r) =>
+        r.reduce((t, v, c) => t + v * row[c], 0),
+      ),
+      h = lean.reduce((t, v, c) => t + v * row[c], 0),
+      e = dependent.data[i] - row.reduce((t, v, j) => t + v * model.b[j], 0),
+      s2 = (model.rss - (e * e) / (1 - h)) / (n - model.rank - 1);
+    values[i] =
+      k === null
+        ? (e / Math.sqrt(s2 * (1 - h))) * Math.sqrt(h / (1 - h))
+        : partial
+          ? ((e / Math.sqrt(s2 * (1 - h))) * partial.at.get(i)) /
+            Math.sqrt((1 - h) * partial.sum)
+          : (lean[k] * e) / (1 - h) / Math.sqrt(s2 * model.xtxInverse[k][k]);
+  }
+  return values;
 }

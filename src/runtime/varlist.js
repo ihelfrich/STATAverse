@@ -26,16 +26,33 @@ export function resolveVariable(word, names) {
 
 export function expandVarlist(text, names) {
   const out = [];
+  // With no variables in memory a name or a range is Stata's "no variables
+  // defined", a wildcard "variable x* not found", and _all stands for none.
+  if (!names.length)
+    for (const word of text.trim().split(/\s+/).filter(Boolean)) {
+      if (word === "_all") continue;
+      if (/[*?~]/.test(word) && !/[#().]/.test(word)) throw notFound(word);
+      throw new StataError("no variables defined", 111);
+    }
   for (const word of text.trim().split(/\s+/).filter(Boolean)) {
     if (word === "_all") out.push(...names);
+    // A brace ends Stata's reading of names: sum x { finds no name there.
+    else if (word.startsWith("{"))
+      throw new StataError("nothing found where name expected", 198);
+    // A parenthesis with no operator's period, as in ar(1), is read as
+    // Stata's recoding syntax.
+    else if (/[()]/.test(word) && !word.includes(".") && !word.includes("#"))
+      throw new StataError("coding operators not allowed", 198);
     else if (/^[\p{L}\p{Nd}_]*\.[\p{L}_#(]/u.test(word) || /[#()]/.test(word))
       throw new StataError(
         "factor-variable and time-series operators not allowed",
         101,
       );
-    else if (!/^[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~-]*$/u.test(word))
-      throw new StataError(`${word} invalid name`, 198);
-    else if (word.includes("-")) {
+    else if (!/^[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~-]*$/u.test(word)) {
+      // x] or x@: the character that cannot be in a name is named.
+      const stray = /^[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~-]*(.)/u.exec(word);
+      throw new StataError(`${stray ? stray[1] : word} invalid name`, 198);
+    } else if (word.includes("-")) {
       const ends = word.split("-");
       if (ends.length !== 2 || !ends[0] || !ends[1])
         throw new StataError(`${word} invalid name`, 198);
@@ -52,4 +69,27 @@ export function expandVarlist(text, names) {
     } else out.push(resolveVariable(word, names));
   }
   return out;
+}
+
+/**
+ * Groups of a varlist under time-series operators, as Stata shows them:
+ * consecutive variables with one underlying variable form a group, headed
+ * by its name when any of them is operated, each then labelled L1., D1.
+ * or --. for the variable itself. An operated variable is a temporary one
+ * carrying ts, as operatorVariables in timeseries.js makes it.
+ */
+export function operatorGroups(variables) {
+  const groups = [];
+  for (const [k, v] of variables.entries()) {
+    // A factor-variable column alone, as 1.g, is a group of its own.
+    const base = v.ts?.alone ? v.name : (v.ts?.variable ?? v.name),
+      last = groups.at(-1);
+    if (last && last.base === base) last.members.push(k);
+    else groups.push({ base, members: [k] });
+  }
+  for (const group of groups)
+    group.headed = group.members.some(
+      (k) => variables[k].ts && !variables[k].ts.alone,
+    );
+  return groups;
 }

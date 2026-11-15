@@ -17,14 +17,18 @@ import { mentions, projectZip } from "../src/console-project.js";
 import { deflate, pdfOf } from "../src/console-picture.js";
 import { writeDta } from "../src/console-dta.js";
 
-/** Records as Stata's log shows them. */
+/**
+ * Records as Stata's log shows them: a blank line after each command's
+ * output, none after a comment, a blank line or the prompt at the end of
+ * an included file.
+ */
 const transcript = (output) =>
   output
     .flatMap((record) => [
       `. ${record.command}`,
       ...(record.echo ?? []),
       ...record.lines,
-      "",
+      ...(record.comment ? [] : [""]),
     ])
     .join("\n")
     .trimEnd();
@@ -144,14 +148,23 @@ test("comment lines in a loop echo as Stata 19 echoes them", () => {
       line: 1,
     },
   );
-  // A program's body is not run where it is written; its loop is not echoed.
+  // A program's body is not run where it is written: its definition is
+  // echoed with its lines numbered from 1, as Stata 19's log shows it, and
+  // its loop is not echoed when it runs.
   const program = createConsoleSession().run(
     "program define twice\n  forvalues i = 1/2 {\n    display `i'\n  }\nend\ntwice",
   ).output;
   assert.deepEqual(
     program.map((r) => r.command),
-    ["twice"],
+    ["program define twice", "twice"],
   );
+  assert.deepEqual(program[0].echo, [
+    "  1.   forvalues i = 1/2 {",
+    "  2.     display `i'",
+    "  3.   }",
+    "  4. end",
+  ]);
+  assert.deepEqual(program[1].lines, ["1", "2"]);
 });
 
 test("graph export writes .svg, .png and .pdf with Stata 19's messages", () => {
@@ -796,6 +809,7 @@ sub line 2
 subloop 1
 subloop 2
 
+.
 . display "end"
 end`,
   );

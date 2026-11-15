@@ -15,9 +15,12 @@ import {
   abbreviate,
   baseLevelsAsked,
   design,
+  forgetEstimates,
   invertSymmetric,
+  numericVarlist,
   tableWidth,
   termRows,
+  weightsNotYet,
 } from "./estimation.js";
 import { count, labelled } from "./reports.js";
 import { optionItems, splitAtComma } from "./syntax.js";
@@ -83,6 +86,29 @@ export function layoutRows(session, f, baseLevels, cell, w, omittedValue = 0) {
  * the cut points of ologit and oprobit are; base cells of interactions are
  * then omitted as they would be beside a constant.
  */
+/**
+ * The frame of a model that needs two observations, as Stata's tobit,
+ * ologit, oprobit, mlogit, nbreg and cloglog do: one, however weighted,
+ * fits nothing, and Stata says so before it looks at the outcome.
+ */
+/**
+ * The frame of nbreg, which Stata refuses when every outcome is zero, once
+ * it has counted two observations or more (poisson looks first).
+ */
+export function notAllZero(f) {
+  if (f.y.length && f.y.every((v) => v === 0))
+    throw new StataError(
+      `${f.dependent.name} is zero for all observations`,
+      498,
+    );
+  return f;
+}
+
+export function twoOrMore(f) {
+  if (f.y.length === 1) throw new StataError("insufficient observations", 2001);
+  return f;
+}
+
 export function frame(
   session,
   parsed,
@@ -250,9 +276,12 @@ export const iterationLine = (k, word, value, note) =>
  * iteration log, or without a log a blank line after the notes. Without a
  * log, a fit that did not converge says so first.
  */
-function opening(ctx, text, f, fit, word) {
+function opening(ctx, text, f, fit, word, lead = null) {
   if (noLog(text) && !fit.converged) ctx.out("convergence not achieved");
   ctx.out("");
+  // The sum of analytic weights comes first, and the log follows it at
+  // once.
+  if (lead) ctx.out(lead);
   if (f.notes(ctx) && noLog(text)) ctx.out("");
   iterations(ctx, text, fit.log, word, fit.notes, fit.converged);
 }
@@ -312,13 +341,16 @@ export const tableHead = (ctx, depvar, level, first, t, robust, w) => {
  * and which observations remain, those with no cluster or a missing or
  * zero weight being left out. Sampling weights imply the sandwich.
  */
-function requested(session, parsed) {
+function requested(session, parsed, analytic = false) {
   const { robust, cluster } = readVce(session, parsed.options, /^oim$/, {
     multiway: false,
   });
   let weight = null;
+  // An analytic weight, where the model takes one, weights the likelihood
+  // and leaves the variance as it is.
+  const aweight = analytic && parsed.weight?.type === "aweight";
   if (parsed.weight) {
-    if (parsed.weight.type !== "pweight")
+    if (parsed.weight.type !== "pweight" && !aweight)
       throw new StataError(
         `${parsed.weight.type}s are not available in the browser yet; pweights are`,
         198,
@@ -326,7 +358,8 @@ function requested(session, parsed) {
     weight = evaluateAll(session.compile(parsed.weight.exp), session.data.n);
   }
   return {
-    robust: robust || !!weight,
+    robust: robust || (!!weight && !aweight),
+    aweight,
     cluster,
     weight,
     keep: (i) =>
@@ -463,7 +496,7 @@ function tobit(session, text, ctx) {
   // ll and ul may stand alone, as ll() does, for the outcome's own limit.
   const [head, tail] = splitAtComma(text),
     parsed = session.parse(
-      "anything [if] [in] [fweight pweight iweight aweight] [, LL(string) UL(string) Level(cilevel) noLOg noCONStant VCE(string) BASElevels ALLBASElevels | OFFset(varname)]",
+      "anything [if] [in] [aweight fweight pweight iweight] [, LL(string) UL(string) Level(cilevel) noLOg noCONStant VCE(string) BASElevels ALLBASElevels | OFFset(varname)]",
       tail === null
         ? text
         : `${head},${tail.replace(/\b(ll|ul)\b(?!\s*\()/g, "$1()")}`,
@@ -472,13 +505,15 @@ function tobit(session, text, ctx) {
     asked = requested(session, parsed),
     given = (name) =>
       new RegExp(`\\b${name}\\b`).test(splitAtComma(text)[1] ?? ""),
-    f = frame(
-      session,
-      parsed,
-      options.constant !== false,
-      undefined,
-      true,
-      asked,
+    f = twoOrMore(
+      frame(
+        session,
+        parsed,
+        options.constant !== false,
+        undefined,
+        true,
+        asked,
+      ),
     ),
     // A limit is a number, or an expression that gives one, as tobit's
     // _chk_limit takes it; . is no limit.
@@ -821,18 +856,30 @@ function ordered(kind) {
   const link = LINKS[kind];
   return (session, text, ctx) => {
     const parsed = session.parse(
-        "anything [if] [in] [fweight pweight iweight] [, Level(cilevel) noLOg OR Robust VCE(string) CLuster(string) BASElevels ALLBASElevels | OFFset(varname)]",
+        "anything [if] [in] [fweight pweight iweight aweight] [, Level(cilevel) noLOg OR Robust VCE(string) CLuster(string) BASElevels ALLBASElevels | OFFset(varname)]",
         text,
       ),
       options = parsed.options,
-      asked = requested(session, parsed),
-      f = frame(session, parsed, false, true, false, asked),
+      asked = requested(session, parsed, true),
+      f = twoOrMore(frame(session, parsed, false, true, false, asked)),
       n = f.y.length,
-      weight = (i) => (f.w ? f.w[i] : 1),
+      // Analytic weights are rescaled to sum to the number of observations.
+      sumW = asked.aweight ? f.w.reduce((t, v) => t + v, 0) : null;
+    if (asked.aweight) f.w = f.w.map((v) => (v * n) / sumW);
+    const weight = (i) => (f.w ? f.w[i] : 1),
       levels = [...new Set(f.y)].sort((a, b) => a - b),
       cuts = levels.length - 1,
       k = f.active.length;
-    if (cuts < 1) throw new StataError("outcome does not vary", 2000);
+    // ologit and oprobit have cleared e() by then, and say so after a
+    // blank line.
+    if (cuts < 1) {
+      forgetEstimates(session);
+      ctx.out("");
+      throw new StataError(
+        `too few categories in variable ${f.dependent.name}`,
+        148,
+      );
+    }
     const category = f.y.map((v) => levels.indexOf(v)),
       // One observation's log likelihood and score.
       term = (r, i, theta) => {
@@ -985,7 +1032,9 @@ function ordered(kind) {
         kind,
         sample: f.sample,
         // Each observation's sampling weight, which margins averages with.
-        ...(f.w ? { weights: f.w, wtype: "pweight" } : {}),
+        ...(f.w
+          ? { weights: f.w, wtype: asked.aweight ? "aweight" : "pweight" }
+          : {}),
         cuts: full.theta.slice(k),
         // The cut points as test and lincom reach them, [/]cut1 and so on:
         // their values, their covariances with each coefficient in names
@@ -1045,7 +1094,16 @@ function ordered(kind) {
     }).length;
     if (determined) session.results.e.N_cd = determined;
     const critical = invnormal(1 - (1 - options.level / 100) / 2);
-    opening(ctx, text, f, full, word);
+    opening(
+      ctx,
+      text,
+      f,
+      full,
+      word,
+      asked.aweight
+        ? `(sum of wgt is ${applyFormat(sumW, "%18.0gc").trim()})`
+        : null,
+    );
     // Without regressors there is no test to report, and no coefficients
     // above the cut points.
     header(ctx, [
@@ -1132,12 +1190,12 @@ function ordered(kind) {
 // ----- multinomial logit -----
 function mlogit(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, Baseoutcome(real 0) Level(cilevel) noLOg RRr noCONStant BASElevels ALLBASElevels | Robust VCE(string)]",
+      "anything [if] [in] [fweight pweight iweight] [, Baseoutcome(real 0) Level(cilevel) noLOg RRr noCONStant BASElevels ALLBASElevels | Robust VCE(string)]",
       text,
     ),
-    options = parsed.options,
+    options = (weightsNotYet(parsed, "mlogit"), parsed.options),
     constant = options.constant !== false,
-    f = frame(session, parsed, constant);
+    f = twoOrMore(frame(session, parsed, constant));
   // Without factor variables there are no base levels to show; the table
   // with them is not laid out by term here, so their base levels are not
   // offered either.
@@ -1164,7 +1222,12 @@ function mlogit(session, text, ctx) {
       `baseoutcome(${options.baseoutcome}) is not an outcome`,
       198,
     );
-  if (outcomes.length < 2) throw new StataError("outcome does not vary", 2000);
+  // mlogit has cleared e() by then, and says so after a blank line.
+  if (outcomes.length < 2) {
+    forgetEstimates(session);
+    ctx.out("");
+    throw new StataError("too few categories", 148);
+  }
   const k = f.x[0].length,
     others = outcomes.map((_, j) => j).filter((j) => j !== base),
     which = f.y.map((v) => others.indexOf(outcomes.indexOf(v))),
@@ -1284,6 +1347,10 @@ function mlogit(session, text, ctx) {
     k_out: outcomes.length,
     baseout: outcomes[base],
     ibaseout: base + 1,
+    // Every outcome has an equation, the base one included.
+    k_eq: outcomes.length,
+    k_eq_model: outcomes.length,
+    k_eq_base: base + 1,
     rank,
     k: size,
     cmd: "mlogit",
@@ -1562,15 +1629,19 @@ function poissonFit(x, y, lnFact, constant, w = null) {
 
 /**
  * A generalised inverse of a symmetric matrix, as Mata's invsym() gives:
- * columns are taken in order, one whose pivot is not positive is dropped,
- * and the rows and columns of dropped ones are zero.
+ * columns are taken in order of their diagonal, largest first (the first
+ * of equal ones first), one whose pivot falls to 1e-9 of its diagonal is
+ * dropped, and the rows and columns of dropped ones are zero. Installed
+ * Stata keeps (27, 27 \ 27, 27 + 2.8e-8) whole but drops the first column
+ * of (27, 27 \ 27, 27 + 2.7e-8), and of (27, 27 \ 27, 27) the second.
  */
 export function generalizedInverse(a) {
   const n = a.length,
     keep = [],
     // Rows of the Cholesky factor of the kept columns.
-    factor = [];
-  for (let j = 0; j < n; j++) {
+    factor = [],
+    order = [...Array(n).keys()].sort((i, j) => a[j][j] - a[i][i] || i - j);
+  for (const j of order) {
     const row = keep.map(() => 0);
     let pivot = a[j][j];
     keep.forEach((c, q) => {
@@ -1579,7 +1650,7 @@ export function generalizedInverse(a) {
       row[q] = v / factor[q][q];
       pivot -= row[q] * row[q];
     });
-    if (!(pivot > 1e-13 * Math.abs(a[j][j]))) continue;
+    if (!(pivot > 1e-9 * Math.abs(a[j][j]))) continue;
     row.push(Math.sqrt(pivot));
     keep.push(j);
     factor.push(row);
@@ -1605,7 +1676,12 @@ export function generalizedInverse(a) {
  * estimates, the log likelihood at each iteration and the generalised
  * inverse of the information.
  */
-export function maximizeNR(evaluate, start, limit = 300) {
+export function maximizeNR(
+  evaluate,
+  start,
+  limit = 300,
+  { tolerance = 1e-6, ltolerance = 1e-7, nrtolerance = 1e-5 } = {},
+) {
   const reldif = (a, b) => Math.abs(a - b) / (Math.abs(b) + 1),
     times = (m, v) => m.map((row) => row.reduce((t, x, k) => t + x * v[k], 0)),
     // Concave unless a column the inverse dropped has curvature.
@@ -1713,15 +1789,15 @@ export function maximizeNR(evaluate, start, limit = 300) {
     log.push(current.value);
     notes.push(shortened ? "backed up" : "");
     if (
-      before.every((v, k) => reldif(theta[k], v) <= 1e-6) ||
-      reldif(current.value, v0) <= 1e-7
+      before.every((v, k) => reldif(theta[k], v) <= tolerance) ||
+      reldif(current.value, v0) <= ltolerance
     ) {
       const V = generalizedInverse(current.information),
         step = times(V, current.gradient);
       if (
         concave(current.information, V) &&
         Math.abs(current.gradient.reduce((t, g, k) => t + g * step[k], 0)) <
-          1e-5
+          nrtolerance
       )
         return { theta, ll: current.value, V, log, notes, converged: true };
     }
@@ -1734,9 +1810,12 @@ function nbreg(session, text, ctx) {
       text,
     ),
     options = parsed.options,
-    asked = requested(session, parsed),
+    asked =
+      (numericVarlist(session, parsed.anything), requested(session, parsed)),
     constant = options.constant !== false,
-    f = frame(session, parsed, constant, constant, false, asked),
+    f = notAllZero(
+      twoOrMore(frame(session, parsed, constant, constant, false, asked)),
+    ),
     n = f.y.length,
     weight = (i) => (f.w ? f.w[i] : 1);
   if (f.y.some((v) => v < 0 || !Number.isInteger(v)))
@@ -1872,8 +1951,12 @@ function nbreg(session, text, ctx) {
     rank = robust
       ? robustRank(cov, clusters)
       : cov.filter((row, j) => row[j] !== 0).length,
+    // lnalpha without a variance (at the boundary) is not in the rank.
     dfModel = robust
-      ? Math.max(0, Math.min(regressors, rank - (k + 1 - regressors)))
+      ? Math.max(
+          0,
+          Math.min(regressors, rank - (k - regressors) - Number(cov[k][k] > 0)),
+        )
       : regressors,
     chi2 = robust
       ? dfModel < regressors

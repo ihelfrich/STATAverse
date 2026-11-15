@@ -3,8 +3,14 @@
 // ssc install) but should say so plainly rather than stop a do-file.
 import { StataError } from "./errors.js";
 import { splitAtComma } from "./syntax.js";
-import { abbreviateAmong, applyFormat, parseFormat } from "./format.js";
-import { invttail, ttail } from "./distributions.js";
+import {
+  abbreviateAmong,
+  abbreviateName,
+  applyFormat,
+  parseFormat,
+} from "./format.js";
+import { ibeta, invttail, ttail } from "./distributions.js";
+import { invnormal } from "./functions-normal.js";
 import {
   abbreviate,
   columnName,
@@ -38,6 +44,8 @@ import { Generator } from "./random.js";
 import { fileName, fold, load } from "./data-commands.js";
 import { smclParagraph } from "./data-utilities.js";
 import { characteristicsOf, defineCharacteristic } from "./store.js";
+import { operatorVariables } from "./timeseries.js";
+import { factorVariables } from "./factor-varlist.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 
@@ -58,6 +66,8 @@ function numeric(session, names) {
 function ci(session, text, ctx) {
   const m = /^\s*(\w+)\s*([\s\S]*)$/.exec(text);
   if (!m) throw new StataError("invalid syntax", 198);
+  if (/^prop/.test(m[1]) && "proportions".startsWith(m[1]))
+    return ciProportions(session, m[2], ctx);
   if (!"means".startsWith(m[1]) || m[1].length < 4) {
     if (/^(prop|var)/.test(m[1]))
       throw new StataError(`ci ${m[1]} is not available yet; ci means is`, 198);
@@ -168,6 +178,183 @@ function ci(session, text, ctx) {
   }
   ctx.out("");
   if (last) session.results.r = last;
+}
+
+/** The x at which the regularized incomplete beta I_x(a, b) is p. */
+function invibeta(a, b, p) {
+  let low = 0,
+    high = 1;
+  for (let k = 0; k < 200 && high - low > 1e-17; k++) {
+    const mid = (low + high) / 2;
+    if (ibeta(a, b, mid) < p) low = mid;
+    else high = mid;
+  }
+  return (low + high) / 2;
+}
+const PROPORTION_TYPES = {
+  exact: "Binomial exact",
+  wald: "Binomial Wald",
+  wilson: "Wilson",
+  agresti: "Agresti\u2013Coull",
+  jeffreys: "Jeffreys",
+};
+/**
+ * ci proportions: each 0/1 variable's proportion, its standard error and a
+ * binomial interval, exact (Clopper-Pearson) unless wald, wilson, agresti
+ * or jeffreys is asked for. Variables that are not 0/1 are passed over. An
+ * exact interval at a proportion of 0 or 1 is one-sided, and marked.
+ */
+function ciProportions(session, text, ctx) {
+  const parsed = session.parse(
+      "[varlist] [if] [in] [fweight] [, Level(cilevel) SEParator(integer 5) EXact WAld WIlson Agresti Jeffreys]",
+      text,
+    ),
+    options = parsed.options,
+    asked = Object.keys(PROPORTION_TYPES).filter((type) => options[type]);
+  if (asked.length > 1)
+    throw new StataError(
+      `options ${asked.join(" and ")} may not be combined`,
+      198,
+    );
+  const type = asked[0] ?? "exact",
+    level = options.level,
+    alpha = 1 - level / 100,
+    z = invnormal(1 - alpha / 2),
+    weighted = weightedRows(
+      session,
+      parsed,
+      session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null),
+    ),
+    rows = weighted.rows,
+    binary = parsed.varlist
+      .map((name) => session.data.get(name))
+      .filter((variable) => {
+        if (isStringType(variable.type)) return false;
+        const values = rows
+          .map((i) => variable.data[i])
+          .filter((v) => !isMissing(v));
+        return values.every((v) => v === 0 || v === 1);
+      });
+  if (!binary.length) {
+    ctx.out("no binary (0/1) variables found; nothing to compute");
+    return;
+  }
+  const digits = String(level).length,
+    rule =
+      "-------------+---------------------------------------------------------------",
+    label = PROPORTION_TYPES[type];
+  ctx.out("");
+  ctx.out(" ".repeat(57 + Math.floor((20 - label.length) / 2)) + label);
+  ctx.out(
+    `    Variable |        Obs  Proportion    Std. err.    ${digits === 2 ? "   " : digits === 4 ? " " : ""}[${g(level)}% conf. interval]`,
+  );
+  ctx.out(rule);
+  let last = null,
+    oneSided = false;
+  // An interval clipped at 0 or 1 is marked * or **, and footnoted, as
+  // ci_14_0.ado marks it; the name as its footnote writes it.
+  const clipped = { lower: false, upper: false },
+    method = { wald: "Wald", wilson: "Wilson", agresti: "Agresti–Coull" }[type];
+  binary.forEach((variable, shown) => {
+    if (shown && options.separator && shown % options.separator === 0)
+      ctx.out(rule);
+    const values = rows
+        .map((i) => variable.data[i])
+        .filter((v) => !isMissing(v)),
+      n = values.length,
+      k = values.filter((v) => v === 1).length,
+      p = n ? k / n : MISSING,
+      se = n ? Math.sqrt((p * (1 - p)) / n) : MISSING;
+    let lb = MISSING,
+      ub = MISSING,
+      star = "",
+      low = false,
+      high = false;
+    if (n && type === "exact") {
+      if (k === 0) {
+        lb = 0;
+        ub = 1 - (alpha / 2) ** (1 / n);
+        star = "*";
+      } else if (k === n) {
+        lb = (alpha / 2) ** (1 / n);
+        ub = 1;
+        star = "*";
+      } else {
+        lb = invibeta(k, n - k + 1, alpha / 2);
+        ub = invibeta(k + 1, n - k, 1 - alpha / 2);
+      }
+    } else if (n && type === "wald") {
+      lb = Math.max(0, p - z * se);
+      ub = Math.min(1, p + z * se);
+      low = lb === 0;
+      high = ub === 1;
+    } else if (n && type === "wilson") {
+      const centre = (k + (z * z) / 2) / (n + z * z),
+        spread =
+          ((z * Math.sqrt(n)) / (n + z * z)) *
+          Math.sqrt(p * (1 - p) + (z * z) / (4 * n));
+      lb = centre - spread;
+      ub = centre + spread;
+      low = lb < 0;
+      high = ub > 1;
+    } else if (n && type === "agresti") {
+      const m = n + z * z,
+        q = (k + (z * z) / 2) / m,
+        spread = (z * Math.sqrt(q * (1 - q))) / Math.sqrt(m);
+      lb = q - spread;
+      ub = q + spread;
+      low = lb < 0;
+      high = ub > 1;
+    } else if (n && type === "jeffreys") {
+      lb = k === 0 ? 0 : invibeta(k + 0.5, n - k + 0.5, alpha / 2);
+      ub = k === n ? 1 : invibeta(k + 0.5, n - k + 0.5, 1 - alpha / 2);
+    }
+    if (star) oneSided = true;
+    if (low) lb = 0;
+    if (high) ub = 1;
+    if (low || high) star = low && high ? "* **" : low ? "*" : "**";
+    clipped.lower ||= low;
+    clipped.upper ||= high;
+    const number = (value) => applyFormat(value, "%9.0g");
+    let line = `${padDisplay(abbreviateAmong(variable.name, 12, session.data.names), 12)} |`;
+    for (const [column, cell] of [
+      [16, applyFormat(n, "%10.0fc")],
+      [29, number(p)],
+      [41, number(se)],
+      [57, number(lb)],
+      [69, number(ub) + star],
+    ])
+      line = line.padEnd(column - 1) + cell;
+    ctx.out(line);
+    last = { N: n, proportion: p, se, lb, ub, level, citype: type };
+  });
+  if (oneSided) {
+    ctx.out("");
+    ctx.out(
+      `(*) one-sided, ${g(100 - (100 - level) / 2)}% confidence interval`,
+    );
+  }
+  if (clipped.lower || clipped.upper) ctx.out("");
+  if (clipped.lower)
+    ctx.out(`(*) The ${method} interval was clipped at the lower endpoint`);
+  if (clipped.upper)
+    ctx.out(`(**) The ${method} interval was clipped at the upper endpoint`);
+  // ci.ado's note when some variables named have more than two levels.
+  const twoLevels = parsed.varlist.filter((name) => {
+    const variable = session.data.get(name),
+      present = new Set(
+        rows
+          .map((i) => variable.data[i])
+          .filter((v) => (isStringType(variable.type) ? true : !isMissing(v))),
+      );
+    return present.size <= 2;
+  });
+  if (twoLevels.length < parsed.varlist.length) {
+    ctx.out("");
+    ctx.out("Note: The results are produced only for binary (0/1) variables.");
+  }
+  ctx.out("");
+  session.results.r = last;
 }
 
 /**
@@ -366,7 +553,7 @@ function pwcorr(session, text, ctx) {
     out(
       `             |${variables
         .slice(start, end)
-        .map((v) => columnName(v.name, session.data.names))
+        .map((v) => columnName(v.ts?.name ?? v.name, session.data.names))
         .join("")}`,
     );
     out(`-------------+${"-".repeat(9 * (end - start))}`);
@@ -382,7 +569,7 @@ function pwcorr(session, text, ctx) {
         if (j < i && shownP(result.p)) S[i][j] = S[j][i] = result.p;
       }
       out(
-        `${rowName(variables[i].name, session.data.names)} | ${results
+        `${rowName(variables[i].ts?.name ?? variables[i].name, session.data.names)} | ${results
           .map(({ rho, p }, j) =>
             shownP(p) || start + j === i
               ? " " +
@@ -416,7 +603,7 @@ function pwcorr(session, text, ctx) {
   }
   // Under by, Stata's by adds a blank line before the next group's rule.
   if (ctx.group) ctx.out("");
-  const names = variables.map((v) => v.name),
+  const names = variables.map((v) => v.ts?.name ?? v.name),
     matrix = (values) => ({ rowNames: names, colNames: names, values });
   session.results.r = {
     N: N[0][1],
@@ -442,30 +629,238 @@ export function ranks(values) {
   return out;
 }
 
+/**
+ * spearman, as spearman_17.ado (Stata's spearman under version 17 and
+ * before) computes and lays it out. Two variables give the one test; more,
+ * or matrix, give the lower triangle of correlations, each pair ranked over
+ * its own observations (those of every variable unless pw), with stats()
+ * choosing the rows of each cell, print() and star() as pwcorr's, and the
+ * Bonferroni or Sidak adjustment of the significance levels.
+ */
 function spearman(session, text, ctx) {
   const parsed = session.parse(
-      "varlist(min=2 max=2) [if] [in] [, | STats(string) Print(real 0) STar(real 0) PW Matrix]",
+      "[varlist(min=2)] [if] [in] [, STats(string) Bonferroni Print(string) SIDak STar(string) PW MATrix]",
       text,
     ),
-    [a, b] = numeric(session, parsed.varlist),
-    rows = session
-      .rows(parsed, null)
-      .filter((i) => !isMissing(a.data[i]) && !isMissing(b.data[i])),
-    n = rows.length;
-  if (n < 2) throw new StataError("no observations", 2000);
-  const rho = pearson(
-      ranks(rows.map((i) => a.data[i])),
-      ranks(rows.map((i) => b.data[i])),
-    ),
-    p = significance(rho, n);
-  ctx.out("");
-  ctx.out(` Number of obs = ${count(n).padStart(7)}`);
-  ctx.out(`Spearman's rho = ${applyFormat(rho, "%12.4f")}`);
-  ctx.out("");
-  ctx.out(`Test of H0: ${a.name} and ${b.name} are independent`);
-  ctx.out(`    Prob > |t| = ${applyFormat(p, "%12.4f")}`);
-  ctx.out("");
-  session.results.r = { N: n, rho, p };
+    options = parsed.options,
+    numbers = {};
+  // print() and star() are each one number, read by syntax first.
+  for (const name of ["star", "print"]) {
+    if (options[name] === undefined) continue;
+    const words = options[name].trim().split(/\s+/).filter(Boolean),
+      value = words.length === 1 ? parseNumber(words[0]) : NaN;
+    if (words.length > 1)
+      throw new StataError(`${name}() invalid -- single number required`, 123);
+    if (!Number.isFinite(value) || isMissing(value))
+      throw new StataError(`${name}() invalid -- invalid number`, 121);
+    numbers[name] = value;
+  }
+  // A string variable is named and left out.
+  for (const name of parsed.varlist)
+    if (isStringType(session.data.get(name).type))
+      ctx.out(`(${name} ignored because string variable)`);
+  const variables = parsed.varlist
+      .map((name) => session.data.get(name))
+      .filter((v) => !isStringType(v.type)),
+    k = variables.length;
+  let rows = session.rows(parsed, ctx.group ? { groups: [ctx.group] } : null);
+  if (!options.pw)
+    rows = rows.filter((i) => variables.every((v) => !isMissing(v.data[i])));
+  if (k < 2) throw new StataError("too few variables specified", 102);
+  if (options.bonferroni && options.sidak)
+    throw new StataError(
+      "only one of bonferroni and sidak can be specified",
+      198,
+    );
+  const pairs = (k * (k - 1)) / 2,
+    adjust = options.bonferroni ? pairs : 1,
+    level = (name) => {
+      const given = options[name];
+      if (given === undefined) return -1;
+      const value = numbers[name];
+      if (value <= 0 || value >= 1)
+        throw new StataError(`${name}() must be between 0 and 1`, 198);
+      return value;
+    },
+    star = level("star"),
+    print = level("print"),
+    wanted = (options.stats ?? "").trim().split(/\s+/).filter(Boolean);
+  for (const word of wanted)
+    if (!["rho", "obs", "p"].includes(word))
+      throw new StataError(
+        "stats() must contain one or more of rho, obs, and p",
+        198,
+      );
+  const show = {
+    rho: !wanted.length || wanted.includes("rho"),
+    obs: wanted.includes("obs"),
+    p: wanted.includes("p"),
+  };
+  if (k === 2 && !options.matrix) {
+    const [a, b] = variables,
+      used = rows.filter((i) => !isMissing(a.data[i]) && !isMissing(b.data[i])),
+      n = used.length;
+    if (n < 2) throw new StataError("no observations", 2000);
+    const rho = Math.max(
+        -1,
+        Math.min(
+          1,
+          pearson(
+            ranks(used.map((i) => a.data[i])),
+            ranks(used.map((i) => b.data[i])),
+          ),
+        ),
+      ),
+      p = significance(rho, n);
+    ctx.out("");
+    // spearman_17.ado shows the count in %7.0f, without commas.
+    ctx.out(` Number of obs = ${applyFormat(n, "%7.0f")}`);
+    ctx.out(`Spearman's rho = ${applyFormat(rho, "%12.4f")}`);
+    ctx.out("");
+    ctx.out(
+      `Test of H0: ${abbreviateName(a.name, 20)} and ${abbreviateName(b.name, 20)} are independent`,
+    );
+    ctx.out(`    Prob > |t| = ${applyFormat(p, "%12.4f")}`);
+    ctx.out("");
+    session.results.r = { N: n, rho, p };
+    return;
+  }
+  // The count: that of the first variable, unless pw leaves the pairs with
+  // counts of their own.
+  if (!show.obs)
+    ctx.out(
+      options.pw &&
+        rows.some((i) => variables.some((v) => isMissing(v.data[i])))
+        ? "(obs=varies)"
+        : `(obs=${rows.filter((i) => !isMissing(variables[0].data[i])).length})`,
+    );
+  if (!(wanted.length <= 1 && show.rho)) {
+    ctx.out("");
+    ctx.out(`+${"-".repeat(17)}+`);
+    ctx.out(`|  Key${" ".repeat(12)}|`);
+    ctx.out(`|${"-".repeat(17)}|`);
+    for (const [on, label] of [
+      [show.rho, "rho"],
+      [show.obs, "Number of obs"],
+      [show.p, "Sig. level"],
+    ])
+      if (on) ctx.out(`|   ${label.padEnd(14)}|`);
+    ctx.out(`+${"-".repeat(17)}+`);
+  }
+  // Each pair is ranked over the observations both have.
+  const pair = (a, b) => {
+    const used = rows.filter(
+        (i) => !isMissing(a.data[i]) && !isMissing(b.data[i]),
+      ),
+      n = used.length;
+    let rho =
+      n < 2
+        ? MISSING
+        : pearson(
+            ranks(used.map((i) => a.data[i])),
+            ranks(used.map((i) => b.data[i])),
+          );
+    if (!isMissing(rho)) rho = Math.max(-1, Math.min(1, rho));
+    // As the ado computes it: a missing correlation is not below 1 in
+    // absolute value, and has a level of 0.
+    let p =
+      !isMissing(rho) && Math.abs(rho) < 1
+        ? smaller(
+            2 *
+              adjust *
+              ttail(
+                n - 2,
+                (Math.abs(rho) * Math.sqrt(n - 2)) / Math.sqrt(1 - rho * rho),
+              ),
+            1,
+          )
+        : 0;
+    if (options.sidak) p = smaller(1, 1 - (1 - p) ** pairs);
+    return { n, rho, p };
+  };
+  const linesize = session.settings.linesize ?? 80,
+    span = Math.floor((linesize - 15) / 9) - 1,
+    N = variables.map(() => variables.map(() => 0)),
+    R = variables.map(() => variables.map(() => 0)),
+    P = variables.map(() => variables.map(() => 0)),
+    shown = (p) => p <= print || print === -1,
+    lines = [];
+  let last = null;
+  for (let j0 = 0; j0 < k; j0 += span + 1) {
+    const j1 = Math.min(j0 + span, k - 1);
+    lines.push("");
+    lines.push(
+      " ".repeat(13) +
+        "|" +
+        variables
+          .slice(j0, j1 + 1)
+          .map((v) => abbreviateName(v.name, 8).padStart(9))
+          .join(""),
+    );
+    lines.push(`${"-".repeat(13)}+${"-".repeat(9 * (j1 - j0 + 1))}`);
+    for (let i = j0; i < k; i++) {
+      const cells = [];
+      for (let j = j0; j <= Math.min(j1, i); j++) {
+        const result = pair(variables[i], variables[j]);
+        N[i][j] = N[j][i] = result.n;
+        R[i][j] = R[j][i] = result.rho;
+        if (i === j) P[i][i] = MISSING;
+        else P[i][j] = P[j][i] = result.p;
+        if (i === k - 1 && j === k - 2) last = result;
+        cells.push({ ...result, diagonal: i === j });
+      }
+      const label = abbreviateName(variables[i].name, 12).padStart(12) + " | ",
+        margin = " ".repeat(13) + "| ";
+      if (show.rho)
+        lines.push(
+          label +
+            cells
+              .map((c) =>
+                shown(c.p) || c.diagonal
+                  ? " " +
+                    applyFormat(c.rho, "%7.4f") +
+                    (c.p <= star && !c.diagonal ? "*" : " ")
+                  : " ".repeat(9),
+              )
+              .join(""),
+        );
+      if (show.obs)
+        lines.push(
+          (show.rho ? margin : label) +
+            cells
+              .map((c) =>
+                shown(c.p) || c.diagonal
+                  ? " " + applyFormat(c.n, "%7.0g") + " "
+                  : " ".repeat(9),
+              )
+              .join(""),
+        );
+      if (show.p)
+        lines.push(
+          (show.rho || show.obs ? margin : label) +
+            cells
+              .filter((c) => !c.diagonal)
+              .map((c) =>
+                shown(c.p)
+                  ? " " + applyFormat(c.p, "%7.4f") + " "
+                  : " ".repeat(9),
+              )
+              .join(""),
+        );
+      if (wanted.length > 1) lines.push(margin.trimEnd());
+    }
+  }
+  lines.forEach((line) => ctx.out(line.trimEnd()));
+  const names = variables.map((v) => v.name),
+    matrix = (values) => ({ rowNames: names, colNames: names, values });
+  session.results.r = {
+    N: last.n,
+    rho: last.rho,
+    p: last.p,
+    "matrix:Nobs": matrix(N),
+    "matrix:Rho": matrix(R),
+    "matrix:P": matrix(P),
+  };
 }
 
 function clonevar(session, text, ctx) {
@@ -501,6 +896,23 @@ function clonevar(session, text, ctx) {
 // would have done, so that a do-file written for Stata keeps running.
 const note = (message) => (_session, _text, ctx) => ctx.out(message);
 const quiet = () => {};
+
+/**
+ * browse and edit: [varlist] [if] [in] [, nolabel], read as Stata reads
+ * them, so that a name not in memory or an option they lack is an error.
+ * What they would show is left in session.opened (the text after macro
+ * expansion, and whether value labels are shown), for a page that has a
+ * data browser to open it.
+ */
+const opensEditor = (message) => (session, text, ctx) => {
+  const parsed = session.parse("[varlist] [if] [in] [, NOLabel]", text);
+  session.rows(parsed, null);
+  session.opened = {
+    where: splitAtComma(text)[0].trim(),
+    labels: !parsed.options.nolabel,
+  };
+  ctx.out(message);
+};
 
 /**
  * timer on|off|clear|list [#]: wall-clock timers 1 to 100. Each keeps its
@@ -1046,24 +1458,29 @@ export const EVERYDAY_COMMANDS = [
       ctx.out("");
     },
   },
-  { name: "mean", minimum: 4, run: mean },
+  { name: "mean", minimum: 4, run: factorVariables(mean) },
   // ci is byable(recall) in Stata: under by it runs once per group.
   { name: "ci", minimum: 2, run: perGroup(ci), byable: true },
   { name: "cii", minimum: 3, run: cii },
-  { name: "pwcorr", minimum: 6, run: perGroup(pwcorr), byable: true },
+  {
+    name: "pwcorr",
+    minimum: 6,
+    run: operatorVariables(perGroup(pwcorr)),
+    byable: true,
+  },
   { name: "spearman", minimum: 8, run: spearman },
   { name: "clonevar", minimum: 8, run: clonevar },
   {
     name: "browse",
     minimum: 2,
-    run: note(
+    run: opensEditor(
       "(browse opens Stata's Data Editor; here, use list to see the data)",
     ),
   },
   {
     name: "edit",
     minimum: 2,
-    run: note(
+    run: opensEditor(
       "(edit opens Stata's Data Editor; here, use replace to change values)",
     ),
   },

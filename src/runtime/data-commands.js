@@ -9,6 +9,7 @@ import { count, list } from "./reports.js";
 import { applySyntax, splitAtComma } from "./syntax.js";
 import { Dataset } from "./store.js";
 import { findFile } from "./files.js";
+import { oldMerge } from "./merge-old.js";
 import {
   MAX_STRING_WIDTH,
   MISSING,
@@ -116,6 +117,22 @@ export function changed(session) {
   if (data.dirty) return true;
   empty ??= fingerprint(new Dataset());
   return fingerprint(data) !== (data.clean ?? empty);
+}
+/**
+ * Runs change(), after which data that had not changed since they were
+ * saved or read still count as unchanged: Stata's estimates store, clear
+ * and drop add and remove their _est_ variables without setting c(changed).
+ */
+export function unchangedBy(session, change) {
+  const was = changed(session);
+  try {
+    return change();
+  } finally {
+    if (!was) {
+      session.data.clean = fingerprint(session.data);
+      session.data.dirty = false;
+    }
+  }
 }
 /** Run after each command: marks the data once they have changed. */
 export function markChanged(session) {
@@ -348,7 +365,7 @@ function paragraph(session, text) {
  * value labels of the using data come along, except those the master data
  * already define. Returns the names whose using values are dropped.
  */
-function reconcile(session, command, data, other, names, options, ctx) {
+export function reconcile(session, command, data, other, names, options, ctx) {
   // Stata goes through the shared variables in the using data's order.
   const shared = other.variables
       .filter((v) => names.includes(v.name) && data.has(v.name))
@@ -550,6 +567,9 @@ export function strLKey(session, key, where) {
 }
 function merge(session, text, ctx) {
   const m = /^\s*(1:1|m:1|1:m|m:m)\s+([\s\S]*)$/.exec(text);
+  // merge [varlist] using file, as Stata wrote it before version 11.
+  if (!m && /(^|\s)using(\s|$)/.test(splitAtComma(text)[0]))
+    return oldMerge(session, text, ctx);
   if (!m) throw invalid("merge needs 1:1, m:1, 1:m or m:m");
   if (m[1] === "m:m")
     throw invalid("merge m:m is not available; it rarely does what is wanted");
@@ -733,6 +753,16 @@ function merge(session, text, ctx) {
   result.n = all.length;
   result.label = data.label;
   result.valueLabels = data.valueLabels;
+  // The estimation sample stays with the master observations; a using
+  // observation, or a master one repeated for another match, is outside it.
+  if (data.esample) {
+    result.esample = Uint8Array.from(all, (row) =>
+      row.master !== null && rows[row.master] === row
+        ? data.esample[row.master]
+        : 0,
+    );
+    result.esampleOf = data.esampleOf;
+  }
   for (const variable of data.variables) {
     const text = isStringType(variable.type),
       theirs =
@@ -1115,7 +1145,14 @@ function reshapeTab(session, ctx, spec, values, text) {
     levels = [...new Set(present)]
       .sort((a, b) => a - b)
       .map((v) => formatNumber(v));
-    // Tab finds the values with tabulate, which leaves r(N) and r(r).
+    // Tab finds the values with tabulate, which leaves r(N) and r(r). With
+    // no value to tabulate (a stub that matches only names whose suffix is
+    // not a number) it stops before anything is changed.
+    if (!levels.length)
+      throw new StataError(
+        `variable ${spec.j} contains all missing values`,
+        498,
+      );
     session.results.r = { N: present.length, r: levels.length };
   } else {
     levels = [...new Set(values.filter((v) => v !== ""))].sort((a, b) =>
@@ -1209,7 +1246,7 @@ function reshapeLevels(session, ctx, spec) {
 /** A copy of the data, to work on without touching what is in memory. */
 function workingCopy(data) {
   const copy = new Dataset({ defaultType: data.defaultType });
-  copy.restore(data.snapshot());
+  copy.restore(data.snapshot({ marks: true }));
   return copy;
 }
 /** Groups of observations with the same values of names, in sorted data. */
@@ -1571,6 +1608,15 @@ function reshapeLong(session, ctx) {
     ...[...columns.keys()].filter((n) => !front.includes(n)),
   ])
     columns.get(name)();
+  // reshape long keeps the estimation sample in the last observation of
+  // each i, which is the original observation in Stata's reshape.
+  if (work.esample) {
+    const last = sortedLevels.at(-1);
+    result.esample = Uint8Array.from(rows, ([r, level]) =>
+      level === last ? work.esample[r] : 0,
+    );
+    result.esampleOf = work.esampleOf;
+  }
   result.sortedBy = [...front];
   applyCharsForLong(result, spec);
   rebuilt(session, result);
@@ -1596,7 +1642,10 @@ function reshapeError(session, ctx) {
     { xi } = reshapeLevels(session, ctx, spec),
     i = spec.i.join(" "),
     show = (names, rows) => {
-      const flag = "__000000";
+      // A name no variable has, as a temporary variable would be.
+      let flag = "__000000";
+      for (let k = 1; data.has(flag); k++)
+        flag = `__${String(k).padStart(6, "0")}`;
       data.generate(
         flag,
         Array.from({ length: data.n }, (_, r) => (rows.has(r) ? 1 : 0)),
@@ -1814,7 +1863,10 @@ function expandCommand(session, text, ctx) {
   ignored(negative, "negative");
   ignored(zero, "zero");
   data.reorder(order);
-  data.sortedBy = [];
+  // Copies go at the end, outside the estimation sample as Stata leaves
+  // them, and only then are the data no longer sorted.
+  data.esample?.fill(0, before);
+  if (order.length > before) data.sortedBy = [];
   // generate() marks the original observations 0 and the copies 1, with
   // the value label _merge unless a label of that name is already defined.
   if (marker) {
@@ -2671,6 +2723,61 @@ function recode(session, text, ctx) {
 }
 
 const quiet = () => {};
+
+/**
+ * cmdlog: a file of the commands typed in the Command window, in the
+ * session's folder. As in Stata, the commands of a do-file are not written
+ * to it (see console-session.js, which writes the typed ones).
+ */
+function cmdlog(session, text, ctx) {
+  const [head, optionText] = splitAtComma(text),
+    words = head.trim().split(/\s+/).filter(Boolean),
+    open = session.cmdlog,
+    none = () => new StataError("no cmdlog file open", 607);
+  if (!words.length || /^q(u(e(ry?)?)?)?$/.test(words[0])) {
+    if (words.length > 1 || optionText !== null)
+      throw new StataError("invalid syntax", 198);
+    ctx.out(
+      open
+        ? `    cmdlog:  ${open.path}, ${open.on ? "on" : "off"}`
+        : "(closed)",
+    );
+    return;
+  }
+  if (/^(close|off|on)$/.test(words[0])) {
+    if (words.length > 1 || optionText !== null)
+      throw new StataError("invalid syntax", 198);
+    if (!open) throw none();
+    if (words[0] === "close") {
+      session.cmdlog = null;
+      ctx.out(`(cmdlog ${open.path} closed)`);
+    } else {
+      open.on = words[0] === "on";
+      ctx.out(`(cmdlog ${open.path} ${open.on ? "resumed" : "paused"})`);
+    }
+    return;
+  }
+  if (words[0] !== "using" || words.length !== 2)
+    throw new StataError("invalid syntax", 198);
+  let append = false,
+    replace = false;
+  for (const option of (optionText ?? "").trim().split(/\s+/).filter(Boolean))
+    if (/^a(p(p(e(nd?)?)?)?)?$/.test(option)) append = true;
+    else if (option === "replace") replace = true;
+    else throw new StataError(`option ${option} not allowed`, 198);
+  if (open) throw new StataError("log file already open", 604);
+  const typed = words[1].replace(/^"|"$/g, ""),
+    name = /\.\w+$/.test(typed) ? typed : `${typed}.txt`,
+    path = `/stataverse/${name}`,
+    files = (session.files ??= new Map()),
+    exists = files.has(name);
+  if (exists && !append && !replace)
+    throw new StataError(`file ${path} already exists`, 602);
+  if (!exists && replace) ctx.out(`(file ${path} not found)`);
+  if (!exists || replace) files.set(name, { text: "" });
+  session.cmdlog = { name, path, on: true };
+  ctx.out(`(cmdlog ${path} opened)`);
+}
 export const DATA_COMMANDS = [
   { name: "save", minimum: 3, run: save },
   { name: "use", minimum: 1, run: use },
@@ -2684,12 +2791,17 @@ export const DATA_COMMANDS = [
   { name: "encode", minimum: 2, run: encode },
   { name: "decode", minimum: 3, run: decode },
   { name: "recode", minimum: 6, run: recode },
-  // A browser session has one folder and no log files; these are accepted
-  // so that do-files written for Stata keep running.
+  // A browser session has one folder; these are accepted so that do-files
+  // written for Stata keep running. The Console keeps a log (session.log)
+  // the student can download.
   { name: "mkdir", minimum: 5, run: quiet },
   { name: "cd", minimum: 2, run: quiet },
-  { name: "log", minimum: 3, run: quiet },
-  { name: "cmdlog", minimum: 6, run: quiet },
+  {
+    name: "log",
+    minimum: 3,
+    run: (session, text, ctx) => session.log?.(text, ctx),
+  },
+  { name: "cmdlog", minimum: 6, run: cmdlog },
   {
     name: "pwd",
     minimum: 3,

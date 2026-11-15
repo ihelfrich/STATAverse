@@ -9,6 +9,8 @@ import {
 } from "./format.js";
 import { Ftail, invttail, ttail } from "./distributions.js";
 import { project } from "./diagnostics.js";
+import { operatorGroups } from "./varlist.js";
+import { weightsNotYet } from "./estimation.js";
 import {
   count,
   displayWidth,
@@ -19,7 +21,13 @@ import {
   percentile,
   weightedRows,
 } from "./reports.js";
-import { clauses, optionItems, splitAtComma } from "./syntax.js";
+import {
+  assumedWeights,
+  clauses,
+  genericWeight,
+  optionItems,
+  splitAtComma,
+} from "./syntax.js";
 import { MISSING, isMissing, isStringType, truncateColumns } from "./values.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
@@ -1125,6 +1133,9 @@ function meanOrTotal(session, text, ctx, totals) {
       text,
     ),
     options = parsed.options;
+  // [weight=exp] is a frequency weight, and Stata says so first.
+  if (parsed.weight && genericWeight(text))
+    ctx.out(assumedWeights(parsed.weight.type));
   if (options.cformat !== undefined) {
     const spec = parseFormat(options.cformat.trim());
     if (!spec || spec.kind === "string")
@@ -1174,6 +1185,12 @@ function meanOrTotal(session, text, ctx, totals) {
   if (overOptions !== null && !/^\s*(nol(a(b(el?)?)?)?)?\s*$/.test(overOptions))
     throw new StataError("invalid over() option", 198);
   const over = overText === null ? [] : overVariables(session, overText);
+  if (over.length && variables.some((v) => v.ts?.factor))
+    throw new StataError(
+      `factor variables with over() are not available in the browser yet for ${command}`,
+      198,
+      "Make each level a variable with generate, or leave out over().",
+    );
   for (const v of over)
     if (variables.includes(v))
       throw new StataError(
@@ -1287,8 +1304,11 @@ function meanOrTotal(session, text, ctx, totals) {
           .join("#"),
         empty: !group.rows.length,
       })),
+      // A factor-variable column, as 1.g from mean i.g, is named as Stata
+      // names it and keeps its group for the table.
       variables: variables.map((variable) => ({
-        name: variable.name,
+        name: variable.ts?.factor ? variable.ts.name : variable.name,
+        ts: variable.ts?.factor ? variable.ts : undefined,
         cells: groups.map((group) => estimate(group.rows, variable)),
       })),
     };
@@ -1301,19 +1321,23 @@ function meanOrTotal(session, text, ctx, totals) {
     N: n,
     k_eq: 1,
     rank: groups.filter((group) => group.rows.length).length * variables.length,
-    cmdline: `${command} ${text.trim()}`,
+    cmdline: `${command} ${(ctx.commandText ?? text).trim()}`,
     cmd: command,
     vce: cluster ? "cluster" : "analytic",
     ...(cluster ? { vcetype: "Robust", clustvar: cluster.name } : {}),
     title: totals ? "Total estimation" : "Mean estimation",
     estat_cmd: "estat_vce_only",
-    varlist: variables.map((v) => v.name).join(" "),
+    varlist: variables
+      .map((v) => (v.ts?.factor ? v.ts.name : v.name))
+      .join(" "),
     marginsnotok: "_ALL",
     ...(over.length ? { over: over.map((v) => v.name).join(" ") } : {}),
     properties: "b V",
   };
   results.e = session.results.e;
   session.meanTotalResults = results;
+  // e(sample) marks the observations the estimates used.
+  session.postedSample = rows;
   showMeanOrTotal(session, results, options, ctx);
 }
 
@@ -1407,10 +1431,23 @@ function showMeanOrTotal(session, results, options, ctx) {
     );
   }
   ctx.out(`${"-".repeat(stub + 1)}+${"-".repeat(width - stub - 2)}`);
+  // The levels of a factor variable, as from mean i.g, are rows under
+  // its name, labelled by level, with a blank row between groups.
+  const factorGroups = operatorGroups(results.variables),
+    factorGroupOf = new Map(
+      factorGroups.flatMap((group, at) => group.members.map((k) => [k, at])),
+    );
   results.variables.forEach((variable, k) => {
     if (!over.length) {
+      const at = factorGroupOf.get(k),
+        group = factorGroups[at];
+      if (group.members[0] === k) {
+        if (at && (group.headed || factorGroups[at - 1].headed))
+          ctx.out(`${" ".repeat(stub)} |`);
+        if (group.headed) ctx.out(`${group.base.padStart(stub)} |`);
+      }
       ctx.out(
-        `${variable.name.padStart(stub)} |${row(variable.cells[0], names[k][0])}`,
+        `${(group.headed ? variable.ts.label : variable.name).padStart(stub)} |${row(variable.cells[0], names[k][0])}`,
       );
       return;
     }
@@ -1479,6 +1516,8 @@ function proportion(session, text, ctx) {
         .filter((i) => variables.every((v) => present(v.data[i]))),
     );
   if (!rows.length) throw new StataError("no observations", 2000);
+  if (parsed.weight && genericWeight(text))
+    ctx.out(assumedWeights(parsed.weight.type));
   const critical = invttail(n - 1, (1 - level / 100) / 2),
     sumW = weights ? rows.reduce((t, i) => t + weights[i], 0) : rows.length,
     blocks = variables.map((variable) => {
@@ -1586,6 +1625,79 @@ function proportion(session, text, ctx) {
       ),
     },
   };
+  // e() as Stata 19's proportion posts it. The covariance of two
+  // indicators is that of the proportions' sampling: the (weighted)
+  // covariance over the (weighted) number of observations, or with a
+  // sampling weight the linearized one.
+  const cells = blocks.flatMap(({ variable, levels }) =>
+      levels.map((value) => ({ variable, value })),
+    ),
+    names = cells.map(({ variable, value }) => `${value}.${variable.name}`),
+    weightOf = (i) => (weights ? weights[i] : 1),
+    p = cells.map(
+      ({ variable, value }) =>
+        rows.reduce(
+          (t, i) => t + (variable.data[i] === value ? weightOf(i) : 0),
+          0,
+        ) / sumW,
+    ),
+    V = cells.map(() => []);
+  cells.forEach((a, j) =>
+    cells.forEach((b, k) => {
+      if (k > j) return;
+      let total = 0;
+      for (const i of rows) {
+        const dj = Number(a.variable.data[i] === a.value),
+          dk = Number(b.variable.data[i] === b.value);
+        total +=
+          type === "pweight"
+            ? weights[i] ** 2 * (dj - p[j]) * (dk - p[k])
+            : weightOf(i) * dj * dk;
+      }
+      V[j][k] = V[k][j] =
+        type === "pweight"
+          ? ((rows.length / (rows.length - 1)) * total) / sumW ** 2
+          : (total / sumW - p[j] * p[k]) / sumW;
+    }),
+  );
+  const stripe = (values) => ({ rowNames: ["y1"], colNames: names, values }),
+    wexp = parsed.weight ? `= ${parsed.weight.exp.trim()}` : "";
+  session.estimates = null;
+  session.results.e = {
+    df_r: n - 1,
+    N_over: 1,
+    N: n,
+    k_eq: 1,
+    rank: blocks.reduce((t, block) => t + block.levels.length - 1, 0),
+    cmdline: `proportion ${text.trim()}`,
+    cmd: "proportion",
+    vce: type === "pweight" ? "robust" : "analytic",
+    title: percent ? "Percent estimation" : "Proportion estimation",
+    ...(parsed.weight ? { wexp, wtype: parsed.weight.type } : {}),
+    estat_cmd: "estat_vce_only",
+    varlist: names.join(" "),
+    marginsnotok: "_ALL",
+    properties: "b V",
+    "matrix:b": stripe([p]),
+    "matrix:V": { rowNames: [...names], colNames: names, values: V },
+    "matrix:freq": {
+      rowNames: ["r1"],
+      colNames: names,
+      values: [p.map((value) => value * sumW)],
+    },
+    "matrix:_N": {
+      rowNames: ["r1"],
+      colNames: names,
+      values: [names.map(() => new Set(rows).size)],
+    },
+    "matrix:error": {
+      rowNames: ["r1"],
+      colNames: names.map((_, k) => `c${k + 1}`),
+      values: [names.map(() => 0)],
+    },
+    "function:sample": true,
+  };
+  session.postedSample = rows;
 }
 
 /**
@@ -1595,10 +1707,11 @@ function proportion(session, text, ctx) {
  */
 function anova(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [, | Partial SEquential noCONStant DOF(integer 0)]",
+      "anything [if] [in] [aweight fweight] [, | Partial SEquential noCONStant DOF(integer 0)]",
       text,
     ),
-    words = parsed.anything.trim().split(/\s+/),
+    words =
+      (weightsNotYet(parsed, "anova"), parsed.anything.trim().split(/\s+/)),
     data = session.data,
     dependent = data.get(session.varlist(words[0])[0]);
   if (isStringType(dependent.type)) throw new StataError("type mismatch", 109);
@@ -1667,15 +1780,46 @@ function anova(session, text, ctx) {
         ),
     );
   }
-  const columnsOf = (term) =>
-      term.factors
+  const columnsOf = (factors) =>
+      factors
         .map((name) => blocks.get(name))
         .reduce(
           (acc, block) =>
             acc.flatMap((a) => block.map((b) => a.map((v, i) => v * b[i]))),
           [rows.map(() => 1)],
         ),
-    built = terms.map((term) => ({ ...term, columns: columnsOf(term) })),
+    // An interaction whose margins are not terms of their own takes them
+    // in, as Stata's indicator coding does: a#b alone is every cell of a
+    // and b. A margin is one with all of the term's covariates. When two
+    // terms would share a margin (a#b a#c without a), Stata's partial sums
+    // of squares depend on which indicator columns it drops, which is not
+    // reproduced here.
+    setKey = (factors) => [...factors].sort().join("#"),
+    named = new Set(terms.map((term) => setKey(term.factors))),
+    covered = new Set(),
+    built = terms.map((term) => {
+      const columns = columnsOf(term.factors),
+        continuous = term.factors.filter((name) => /^c\./.test(name)),
+        count = term.factors.length;
+      for (let mask = 1; mask < (1 << count) - 1; mask++) {
+        const subset = term.factors.filter((_, k) => mask & (1 << k)),
+          key = setKey(subset);
+        if (
+          !continuous.every((name) => subset.includes(name)) ||
+          named.has(key)
+        )
+          continue;
+        if (covered.has(key))
+          throw new StataError(
+            `anova terms that share ${subset.join("#").replace(/(^|#)[ci]\./g, "$1")} without it as a term of its own are not available in the browser yet`,
+            198,
+            `Add ${subset.join("#").replace(/(^|#)[ci]\./g, "$1")} to the terms, or use a##b, which includes it.`,
+          );
+        covered.add(key);
+        columns.push(...columnsOf(subset));
+      }
+      return { ...term, columns };
+    }),
     y = rows.map((i) => dependent.data[i]),
     fitOf = (list) =>
       project(
@@ -1692,7 +1836,19 @@ function anova(session, text, ctx) {
           ? `${applyFormat(ss / df / mse, "%10.2f")}${applyFormat(Ftail(df, dfResidual, ss / df / mse), "%8.4f")}`
           : ""
       }`,
-    split = `${" ".repeat(14)}-----------+${"-".repeat(52)}`;
+    // The rule under Source reaches one column past the longest term, whose
+    // names are each cut to eleven characters.
+    labelOf = (term) =>
+      term.key
+        .replace(/(^|#)[ci]\./g, "$1")
+        .split("#")
+        .map((name) => abbreviateName(name, 11))
+        .join("#"),
+    widest = Math.min(
+      23,
+      Math.max(10, ...built.map((term) => labelOf(term).length)),
+    ),
+    split = `${" ".repeat(24 - widest)}${"-".repeat(widest + 1)}+${"-".repeat(52)}`;
   if (dfResidual < 1) throw new StataError("insufficient observations", 2001);
   ctx.out("");
   ctx.out(
@@ -1712,7 +1868,7 @@ function anova(session, text, ctx) {
     const without = fitOf(built.filter((other) => other !== term));
     ctx.out(
       row(
-        term.key.replace(/(^|#)[ci]\./g, "$1"),
+        labelOf(term),
         without.rss - full.rss,
         full.rank - without.rank,
         true,
@@ -1737,6 +1893,7 @@ function anova(session, text, ctx) {
     cmd: "anova",
     depvar: dependent.name,
   };
+  session.postedSample = rows;
 }
 
 export const TABLE_COMMANDS = [

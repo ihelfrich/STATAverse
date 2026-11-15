@@ -19,6 +19,7 @@ import {
   termRows,
 } from "./estimation.js";
 import { count } from "./reports.js";
+import { assumedWeights, genericWeight } from "./syntax.js";
 import { STOCK_YOGO } from "./stock-yogo.js";
 import { MISSING, isMissing } from "./values.js";
 import { clusterMeat, noCluster, readVce } from "./vce.js";
@@ -164,12 +165,20 @@ function generatedNotes(session, model, ctx) {
 }
 
 function ivFrame(session, model) {
+  // The sample as the observations now stand (see inFitLayout), which
+  // iv.rows, the rows at the time of the fit, no longer is once
+  // observations are dropped.
   const iv = model.iv,
-    column = (c) => iv.rows.map((i) => c.value(i));
+    rows = model.sample ?? iv.rows,
+    column = (c) => rows.map((i) => c.value(i));
   return {
     iv,
-    n: iv.rows.length,
-    y: iv.rows.map((i) => session.data.get(iv.dep).data[i]),
+    // The observations of the sample still in the data, which the
+    // auxiliary regressions use, and e(N), which the endogeneity tests
+    // count even when some of them have been dropped since.
+    n: rows.length,
+    N: model.N ?? rows.length,
+    y: rows.map((i) => session.data.get(iv.dep).data[i]),
     endogenous: iv.columns.endogenous.map(column),
     exogenous: iv.columns.exogenous.map(column),
     instruments: iv.columns.instruments.map(column),
@@ -420,20 +429,28 @@ function endogenous(session, model, ctx) {
     throw new StataError("not available after LIML estimator", 321);
   if (model.iv.estimator === "gmm") return endogenousGmm(session, model, ctx);
   unadjusted(model, "endogenous");
+  // As Stata's ivregress_estat.ado: the residuals of the fit (uc) and of
+  // OLS of the dependent variable on the regressors (ue), each projected
+  // over the sample as it now is, and e(N).
   const f = ivFrame(session, model),
     x = [...f.endogenous, ...f.exogenous],
-    // The first-stage residuals join the regression; under exogeneity
-    // their coefficients are zero.
-    v = f.endogenous.map(
-      (column) => project([...f.exogenous, ...f.instruments], column).residuals,
+    z = [...f.exogenous, ...f.instruments],
+    uc = f.y.map(
+      (value, i) =>
+        value -
+        x.reduce((t, column, k) => t + column[i] * model.iv.b[k], 0) -
+        model.iv.b[x.length],
     ),
-    before = project(x, f.y),
-    after = project([...x, ...v], f.y),
+    ols = project(x, f.y),
+    // ue on the instruments and the regressors tested, uc on the
+    // instruments.
+    difference =
+      project([...z, ...f.endogenous], ols.residuals).ess - project(z, uc).ess,
     // Stata counts a factor's base level among the endogenous regressors.
     df = model.iv.endogenousCount ?? f.endogenous.length,
-    dfResidual = f.n - x.length - 1 - df,
-    durbin = (f.n * (before.rss - after.rss)) / before.rss,
-    wu = (before.rss - after.rss) / df / (after.rss / dfResidual),
+    dfResidual = f.N - x.length - 1 - df,
+    durbin = difference / (ols.rss / f.N),
+    wu = difference / df / ((ols.rss - difference) / dfResidual),
     pDurbin = chi2tail(df, durbin),
     pWu = Ftail(df, dfResidual, wu),
     line = (label, value, p) =>
@@ -475,7 +492,9 @@ function overid(session, model, ctx) {
     ),
     z = [...f.exogenous, ...f.instruments],
     fitted = project(z, e),
-    total = e.reduce((t, v) => t + v * v, 0),
+    // Stata divides by the fit's e(rss), the sum of these squares over the
+    // sample as it was.
+    total = model.rss ?? e.reduce((t, v) => t + v * v, 0),
     sargan = f.n * (1 - fitted.rss / total),
     basmann = (sargan * (f.n - z.length - 1)) / (f.n - sargan),
     pSargan = chi2tail(df, sargan),
@@ -540,11 +559,11 @@ export function ivDiagnostic(session, model, what, ctx) {
         ? overid
         : null;
   if (!run) return false;
+  // ivreg, the older command, has none of these tests.
+  if (model.legacy === "ivreg")
+    throw new StataError(`estat ${what} not valid`, 321);
   if (model.command !== "ivregress")
-    throw new StataError(
-      `estat ${what} is only available after ivregress`,
-      301,
-    );
+    throw new StataError(`estat ${what} not valid`, 321);
   if (model.wtype)
     throw new StataError(
       `estat ${what} after a weighted ivregress is not available yet`,
@@ -936,6 +955,8 @@ function areg(session, text, ctx) {
     ...(asked.cluster ? { clustvar: asked.cluster.name } : {}),
     ...(wtype ? { wtype, wexp: `= ${parsed.weight.exp}` } : {}),
   };
+  // [weight=exp] is an analytic weight, and Stata says so first.
+  if (wtype && genericWeight(text)) ctx.out(assumedWeights(wtype));
   for (const k of active.keys())
     if (!kept.includes(k))
       ctx.out(`note: ${active[k].name} omitted because of collinearity.`);

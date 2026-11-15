@@ -54,7 +54,7 @@ function readme(files, used, added) {
     ),
     ...added.map(
       (file) =>
-        `  ${file.name}    ${file.made ? "a graph the do-file exported" : "a file you added"}`,
+        `  ${file.name}    ${file.made ? "a graph the do-file exported" : file.written ? "a file the do-file wrote (save, export or log)" : "a file you added"}`,
     ),
     "",
     used.size

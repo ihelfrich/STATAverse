@@ -10,6 +10,7 @@ import { zip } from "../console-zip.js";
 import { STANDARD_MESSAGES } from "./error-messages.js";
 import { StataError } from "./errors.js";
 import { applyFormat, parseFormat } from "./format.js";
+import { matrixExpression } from "./matrix.js";
 import { count } from "./reports.js";
 import { Dataset } from "./store.js";
 import {
@@ -1690,17 +1691,26 @@ const PUT_SET_OPTIONS = {
   sheet: { arg: "required" },
   replace: {},
   modify: {},
-  open: {
-    refuse:
-      "Each putexcel here saves the workbook at once; leave out open and putexcel close.",
-  },
+  open: {},
   locale: {
     arg: "required",
     refuse: "The browser writes workbooks as UTF-8 text; leave out locale().",
   },
 };
 
+// What Stata 19 says to putexcel set while a workbook is held open.
+const STILL_OPEN = [
+  "Excel file open",
+  "    Type putexcel save to save the existing open file. Type",
+  "",
+  "        putexcel describe",
+  "",
+  "    to see current settings.",
+  "",
+].join("\n");
+
 function putexcelSet(session, text, ctx) {
+  if (session.putexcel?.open) throw new StataError(STILL_OPEN, 198);
   const [head, optionText] = splitAtCommaSimple(text),
     options = readOptions(optionText, PUT_SET_OPTIONS);
   let name = unquote(head);
@@ -1717,7 +1727,13 @@ function putexcelSet(session, text, ctx) {
       `file ${name} already exists; you must specify either option modify or option replace`,
       602,
     );
-  if (options.replace)
+  // With open, the workbook is held, and what putexcel writes reaches the
+  // file only at putexcel save or putexcel close.
+  if (options.open && (options.replace || options.modify))
+    ctx.out(
+      `note: file will be ${options.replace ? "replaced" : "modified"} when putexcel save command is issued.`,
+    );
+  else if (options.replace)
     ctx.out(
       "note: file will be replaced when the first putexcel command is issued.",
     );
@@ -1726,7 +1742,33 @@ function putexcelSet(session, text, ctx) {
     sheet: sheetSpec?.name || "Sheet1",
     replaceSheet: sheetSpec?.mode === "replace",
     mode: options.replace ? "replace" : options.modify ? "modify" : "create",
+    open: Boolean(options.open),
+    // The workbook held open, once something is written to it.
+    book: null,
   };
+}
+
+/**
+ * putexcel save and putexcel close: either writes the workbook held open
+ * by putexcel set, open, and lets it go. Without open each putexcel has
+ * saved the workbook already, and there is nothing to do.
+ */
+function putexcelFinish(session, rest, ctx) {
+  const state = session.putexcel;
+  if (!state) throw new StataError("no Excel file specified", 198);
+  const tail = rest.trim();
+  if (tail.startsWith(",")) readOptions(tail.slice(1), {});
+  else if (tail) throw new StataError("invalid syntax", 198);
+  if (!state.open) return;
+  state.open = false;
+  const book = state.book;
+  state.book = null;
+  if (!book) {
+    ctx.out("no data written");
+    return;
+  }
+  saveBook(session, state.name, book);
+  ctx.out(`file ${state.name} saved`);
 }
 
 function putexcelDescribe(session, ctx) {
@@ -1738,10 +1780,12 @@ function putexcelDescribe(session, ctx) {
     ["Write mode", state.mode],
     ["Sheetname", state.sheet],
     ["Locale", "UTF-8"],
-    ["Open file handle", "no"],
+    ["Open file handle", state.open ? "yes" : "no"],
   ];
   ctx.out("");
-  ctx.out(`  ${"-".repeat(17)}+${"-".repeat(14)}`);
+  // putexcel.ado's rule is as wide as the file's name, from 11 to 60.
+  const width = Math.min(60, Math.max(11, state.name.length));
+  ctx.out(`  ${"-".repeat(17)}+${"-".repeat(width + 3)}`);
   for (const [key, value] of rows) ctx.out(`  ${key.padEnd(17)}|  ${value}`);
 }
 
@@ -1846,7 +1890,7 @@ function putexcelCells(session, text, ctx) {
     writes.push({ address, cells: putValue(session, value, options) });
   }
   const fresh = state.mode === "replace" || state.mode === "create",
-    book = openForWriting(session, state.name, fresh);
+    book = state.book ?? openForWriting(session, state.name, fresh);
   let sheet = book.sheets.find((s) => s.name === state.sheet);
   if (!sheet) {
     // Stata 19's messages for a sheet name Excel refuses.
@@ -1873,10 +1917,168 @@ function putexcelCells(session, text, ctx) {
       if (!sheet.rows.has(r)) sheet.rows.set(r, new Map());
       sheet.rows.get(r).set(c, { ...cell, keepStyle: true });
     }
-  saveBook(session, state.name, book);
+  // sheet(name, replace) replaces the sheet at every putexcel that
+  // writes to it, as Stata 19 does, not only at the first.
   state.mode = "modify";
-  state.replaceSheet = false;
+  // A workbook held open is saved by putexcel save or putexcel close.
+  if (state.open) {
+    state.book = book;
+    return;
+  }
+  saveBook(session, state.name, book);
   ctx.out(`file ${state.name} saved`);
+}
+
+/**
+ * putexcel's result sets, as putexcel.ado reads them: rscalars, escalars,
+ * rmacros, emacros, rmatrices, ematrices (each from its first four
+ * letters), r* and e*, and their names (rscalarnames, enames and the
+ * rest). Returns { cat, kind, names } or null.
+ */
+function resultSet(value) {
+  const word = value.trim();
+  if (word === "e*" || word === "r*")
+    return { cat: word[0], kind: "all", names: false };
+  const m =
+    /^([er])(scal(?:a(?:rs?)?)?|mac(?:r(?:os?)?)?|mat(?:r(?:i(?:c(?:es?)?)?)?)?|scalarn(?:a(?:m(?:es?)?)?)?|macron(?:a(?:m(?:es?)?)?)?|matrixn(?:a(?:m(?:es?)?)?)?|na(?:m(?:es?)?)?)$/.exec(
+      word,
+    );
+  if (!m) return null;
+  const [, cat, rest] = m,
+    names = /n/.test(rest.slice(3)) || rest.startsWith("na");
+  return {
+    cat,
+    names,
+    kind: rest.startsWith("na")
+      ? "all"
+      : rest.startsWith("scal")
+        ? "numscalar"
+        : rest.startsWith("mac")
+          ? "macro"
+          : "matrix",
+  };
+}
+
+/**
+ * The cells a result set writes: each value below the last (a matrix
+ * whole, with a blank row after it), or, for the names, each name; r* and
+ * e* write the scalars, then the macros, then the matrices, a blank row
+ * between.
+ */
+function resultSetCells(session, { cat, kind, names }) {
+  const results = session.results[cat] ?? {},
+    entries = Object.entries(results),
+    scalars = entries.filter(([, v]) => typeof v === "number"),
+    macros = entries.filter(
+      ([key, v]) => typeof v === "string" && !key.includes(":"),
+    ),
+    // e(b) and e(V) come from the fit, before the matrices e() holds.
+    matrices = [
+      ...(cat === "e" && session.estimates ? ["b", "V"] : []),
+      ...entries
+        .filter(([key, v]) => key.startsWith("matrix:") && v?.values)
+        .map(([key]) => key.slice(7)),
+    ].filter((name, k, all) => all.indexOf(name) === k),
+    kinds = kind === "all" ? ["numscalar", "macro", "matrix"] : [kind],
+    out = [];
+  let row = 0;
+  if (names) {
+    for (const each of kinds)
+      (each === "numscalar"
+        ? scalars.map(([key]) => key)
+        : each === "macro"
+          ? macros.map(([key]) => key)
+          : matrices
+      ).forEach((name) =>
+        out.push({ dr: row++, dc: 0, cell: { t: "s", v: name } }),
+      );
+    return out;
+  }
+  for (const each of kinds) {
+    const before = row;
+    if (each === "numscalar")
+      for (const [, v] of scalars)
+        out.push({
+          dr: row++,
+          dc: 0,
+          cell: isMissing(v) ? { t: "z" } : { t: "n", v },
+        });
+    else if (each === "macro")
+      for (const [, v] of macros)
+        out.push({ dr: row++, dc: 0, cell: { t: "s", v } });
+    else
+      for (const name of matrices) {
+        const matrix = matrixExpression(session, `${cat}(${name})`);
+        matrix.values.forEach((values, i) =>
+          values.forEach((v, j) =>
+            out.push({
+              dr: row + i,
+              dc: j,
+              cell: isMissing(v) ? { t: "z" } : { t: "n", v },
+            }),
+          ),
+        );
+        row += matrix.values.length + 1;
+      }
+    // putexcel.ado leaves a row between the kinds of r* and e*.
+    if (row > before && each !== "matrix") row++;
+  }
+  return out;
+}
+
+/**
+ * etable: the coefficient table of the last estimation as it was shown,
+ * its heads in the first row and each coefficient's row after them, the
+ * numbers as they were displayed. A table with rows of factor levels,
+ * equations or notes is not written here.
+ */
+function etableCells(session) {
+  // The table must be the last one shown: not after quietly, nor after
+  // another command left its own r().
+  const shown = session.estimates?.shownFit,
+    lines =
+      shown && !shown.quiet && session.results.r?.["matrix:table"]
+        ? shown.lines
+        : [],
+    head = lines.findIndex((line) => /\|.*conf\. interval\]\s*$/.test(line));
+  if (head < 0)
+    throw new StataError(
+      "information for the estimation table not found;\n    replay estimation results and try again.",
+      111,
+    );
+  const unavailable = () =>
+      new StataError(
+        "putexcel etable for this table is not available in the browser yet",
+        198,
+        "Write the coefficients with putexcel A1 = matrix(r(table)'), names.",
+      ),
+    at = head + 2,
+    end = lines.findIndex((line, k) => k >= at && /^-+$/.test(line)),
+    // The first bar divides the names from the heads (P>|t| has others).
+    bar = lines[head].indexOf("|"),
+    label = lines[head].slice(0, bar),
+    heads = lines[head].slice(bar + 1),
+    out = [];
+  if (end < 0) throw unavailable();
+  [label.trim(), ...heads.trim().split(/\s{2,}/)].forEach((v, dc) =>
+    out.push({ dr: 0, dc, cell: { t: "s", v } }),
+  );
+  lines.slice(at, end).forEach((line, k) => {
+    const name = line.slice(0, Math.max(0, line.indexOf("|"))),
+      rest = line.slice(line.indexOf("|") + 1),
+      numbers = rest.trim().split(/\s+/);
+    if (!name.trim() || numbers.length !== 6) throw unavailable();
+    out.push({ dr: k + 1, dc: 0, cell: { t: "s", v: name.trim() } });
+    numbers.forEach((text, j) => {
+      const v = Number(text);
+      out.push({
+        dr: k + 1,
+        dc: j + 1,
+        cell: text === "." || !Number.isFinite(v) ? { t: "z" } : { t: "n", v },
+      });
+    });
+  });
+  return out;
 }
 
 /** The cells one putexcel value writes, relative to its upper-left cell. */
@@ -1890,6 +2092,9 @@ function putValue(session, value, options) {
         : { t: "n", v: result };
   if (value.startsWith('"') || value.startsWith('`"'))
     return one({ t: "s", v: unquote(value) });
+  const set = resultSet(value);
+  if (set) return resultSetCells(session, set);
+  if (value.trim() === "etable") return etableCells(session);
   const call = /^([A-Za-z_]\w*)\(([\s\S]*)\)$/.exec(value);
   if (call && !value.startsWith("(")) {
     const [, kind, inside] = call;
@@ -1903,24 +2108,48 @@ function putValue(session, value, options) {
       );
     throw new StataError(`${kind} not found`, 111);
   }
+  // An expression outside parentheses is read as cell values, and a
+  // function in it, e(N) or round() among them, as a name not found.
+  const inner = /([A-Za-z_]\w*)\s*\(/.exec(value);
+  if (inner && !value.startsWith("("))
+    throw new StataError(`${inner[1]} not found`, 111);
   return one(fromResult(session.scalar(value)));
 }
 
 function matrixCells(session, name, options) {
-  const matrix = session.matrices?.get(name);
-  if (!matrix) throw new StataError(`matrix ${name} not found`, 111);
-  const rows = options.names || options.rownames,
-    cols = options.names || options.colnames,
-    dr = cols ? 1 : 0,
-    dc = rows ? 1 : 0,
+  // A matrix expression, as Stata takes it: a named matrix, a result such
+  // as e(b) or r(table) (a scalar result or none being 1 x 1), or e(b)*2.
+  const matrix = matrixExpression(session, name);
+  // Names with equations (1:age, as after mlogit) take two rows or
+  // columns: the equation, then the name.
+  const split = (names) => {
+      const equations = names.some((name) => name.includes(":"));
+      return {
+        depth: equations ? 2 : 1,
+        parts: names.map((name) => {
+          const at = name.lastIndexOf(":");
+          return equations
+            ? [at < 0 ? "_" : name.slice(0, at), name.slice(at + 1)]
+            : [name];
+        }),
+      };
+    },
+    rows = options.names || options.rownames ? split(matrix.rowNames) : null,
+    cols = options.names || options.colnames ? split(matrix.colNames) : null,
+    dr = cols ? cols.depth : 0,
+    dc = rows ? rows.depth : 0,
     out = [];
   if (cols)
-    matrix.colNames.forEach((c, j) =>
-      out.push({ dr: 0, dc: dc + j, cell: { t: "s", v: c } }),
+    cols.parts.forEach((parts, j) =>
+      parts.forEach((v, k) =>
+        out.push({ dr: k, dc: dc + j, cell: { t: "s", v } }),
+      ),
     );
   matrix.values.forEach((row, i) => {
     if (rows)
-      out.push({ dr: dr + i, dc: 0, cell: { t: "s", v: matrix.rowNames[i] } });
+      rows.parts[i].forEach((v, k) =>
+        out.push({ dr: dr + i, dc: k, cell: { t: "s", v } }),
+      );
     row.forEach((v, j) =>
       out.push({
         dr: dr + i,
@@ -1942,10 +2171,6 @@ export function putexcel(session, text, ctx) {
   if (m?.[1] === "describe" && !m[2].trim())
     return putexcelDescribe(session, ctx);
   if (m?.[1] === "save" || m?.[1] === "close")
-    throw new StataError(
-      `putexcel ${m[1]} is not available in the browser yet`,
-      198,
-      "Each putexcel here saves the workbook at once, so nothing is left to save or close.",
-    );
+    return putexcelFinish(session, m[2], ctx);
   return putexcelCells(session, text, ctx);
 }

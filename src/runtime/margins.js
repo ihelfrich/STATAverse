@@ -3,6 +3,7 @@
 // an average over the estimation sample of a function of x'b, so its
 // gradient with respect to b is an average too.
 import { StataError } from "./errors.js";
+import { clauses, splitAtComma } from "./syntax.js";
 import { applyFormat } from "./format.js";
 import { invttail, ttail } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
@@ -14,6 +15,7 @@ import { MISSING, isMissing } from "./values.js";
 import { outcomeMargins } from "./outcome-margins.js";
 import { zColumn } from "./models.js";
 import { contrastTables, distribution } from "./contrast.js";
+import { chainDerivatives } from "./margins-chain.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 // For each link: the mean, its derivative and second derivative in x'b.
@@ -49,6 +51,8 @@ const LINEAR_COMMANDS = [
   "prais",
   "ivregress",
   "xtreg",
+  // mixed: the fixed portion of the linear prediction, as its default.
+  "mixed",
 ];
 export function linkOf(model) {
   if (model.kind === "glm")
@@ -109,6 +113,21 @@ export function nullSpace(model, rows) {
 }
 
 /**
+ * A margin's variance, g'Vg. A margin whose variance is zero in exact
+ * arithmetic (after xtreg, fe the average prediction is the mean of the
+ * outcome, whatever the coefficients) comes out as rounding noise of
+ * either sign, some 1e-20 of the terms that cancel; Stata shows it as
+ * missing. A variance that small beside its terms is taken as zero.
+ */
+function marginVariance(gradient, V) {
+  const v = quadratic(gradient, V);
+  let size = 0;
+  gradient.forEach((a, i) =>
+    gradient.forEach((b, j) => (size += Math.abs(a * V[i][j] * b))),
+  );
+  return Math.abs(v) <= 1e-14 * size ? 0 : v;
+}
+/**
  * Whether a row of the design is estimable: orthogonal to each null vector
  * of the design, and with no weight on a factor that has only one level in
  * the estimation sample. Stata omits such a factor's level as collinear
@@ -124,8 +143,11 @@ export function estimability(model, rows) {
             c.omittedCell ||
             (!c.base && model.estimable?.[j] === false)),
       ) ||
-      // Without a constant, a factor's base level is a restriction.
-      (!model.names.includes("_cons") && model.columns.some((c) => c?.base)),
+      // Without a constant, a factor's base level is a restriction, unless
+      // the model absorbs one, as clogit's groups do (Stata's addcons).
+      (!model.names.includes("_cons") &&
+        !model.addcons &&
+        model.columns.some((c) => c?.base)),
     nulls = restricted ? nullSpace(model, rows) : [],
     lone = model.columns
       .map((c, j) =>
@@ -392,9 +414,12 @@ export function marginsTable(
         continue;
       }
       // A variance that is zero, or below zero by rounding, leaves the
-      // standard error, the test and the interval missing, as in Stata.
+      // standard error, the test and the interval missing, as in Stata;
+      // so does one that is zero but for rounding, some 1e-20 of the
+      // squared margin (xtreg, fe's margin at the means).
       const v = variance(result.gradient),
-        known = v > 0 && !isMissing(v),
+        known =
+          v > 0 && !isMissing(v) && v > 1e-20 * result.value * result.value,
         se = known ? Math.sqrt(v) : MISSING,
         z = known ? result.value / se : MISSING,
         bound = (sign) =>
@@ -416,11 +441,46 @@ export function marginsTable(
     );
 }
 
+/**
+ * Every name in margins' list is looked up first, as Stata does: an option
+ * written before the comma, as in margins age dydx(age), is a variable
+ * dydx that is not found.
+ */
+function namesInMarginlist(session, text) {
+  const head = splitAtComma(text)[0],
+    end = clauses(head, false)[0]?.at ?? head.length;
+  for (const word of head.slice(0, end).trim().split(/\s+/).filter(Boolean))
+    for (const part of word.split("#")) {
+      if (/@/.test(part)) continue;
+      const name = /^[A-Za-z_]\w*/.exec(
+        part.replace(/^(?:[A-Za-z]+\d*|[A-Za-z]+\([^()]*\))\./, ""),
+      )?.[0];
+      if (name) session.varlist(name);
+    }
+}
 function margins(session, text, ctx) {
   const model = estimates(session);
+  namesInMarginlist(session, text);
   if (["ologit", "oprobit", "mlogit"].includes(model.kind))
     return outcomeMargins(session, model, text, ctx);
-  const link = linkOf(model);
+  // A model may name its own predictions, as xtlogit's pr and pu0 are,
+  // taking predict() out of the options. One that depends on an ancillary
+  // parameter (pr, through sigma_u) brings that parameter's derivative,
+  // and the variance that includes it.
+  const chosen = model.margins?.choose(text);
+  if (chosen) text = chosen.text;
+  const link = chosen?.link ?? linkOf(model),
+    aux = chosen?.aux ?? null,
+    V = chosen?.V ?? model.V,
+    // An offset or exposure enters each observation's linear prediction at
+    // its own value, whatever at() and atmeans fix, as in Stata.
+    shift = chosen?.offset ?? null;
+  // A prefix's results from a command that is not an estimator (bootstrap
+  // r(mean): summarize): margins looks for a variable named after the
+  // first statistic, as Stata's does.
+  const posted = session.results.e ?? {};
+  if (!model.columns && posted.prefix && posted.cmdname && model.names?.length)
+    throw new StataError(`variable ${model.names[0]} not found`, 111);
   if (!link || !model.sample)
     throw new StataError(
       `margins is not available after ${model.command} yet`,
@@ -431,22 +491,43 @@ function margins(session, text, ctx) {
       `margins is not available after ${model.command} yet`,
       322,
     );
+  // None of the fit's observations is in the data (they were read in again,
+  // reshaped or dropped).
+  if (!model.sample.length)
+    throw new StataError(
+      "e(sample) does not identify the estimation sample",
+      322,
+    );
   const [mean, slope, curve] = link,
     parsed = session.parse(
-      "[anything] [, DYdx(string) AT(string) ATMeans OVER(varlist) Level(cilevel) | noSE POST EYex(string) DYex(string) EYdx(string) PWcompare CONTrast VCE(string) PRedict(string) EXPression(string)]",
+      "[anything] [if] [in] [, DYdx(string) AT(string) ATMeans OVER(varlist) Level(cilevel) VSQuish noATLegend | noSE POST EYex(string) DYex(string) EYdx(string) PWcompare CONTrast VCE(string) PRedict(string) EXPression(string)]",
       text,
     ),
     options = parsed.options,
     level = options.level,
-    rows = model.sample,
-    // Frequency weights count as that many observations.
-    n = model.wtype === "fweight" ? model.N : rows.length,
+    // if and in take the margins over part of the estimation sample.
+    qualified =
+      parsed.if !== undefined || parsed.in !== undefined
+        ? new Set(session.rows(parsed, null))
+        : null,
+    rows = qualified
+      ? model.sample.filter((i) => qualified.has(i))
+      : model.sample,
+    // Each observation's place in the sample, for its weight.
+    position = new Map(model.sample.map((i, r) => [i, r])),
     // Weights, one per row of the sample, weight every average.
     weightOf = model.weights ? (r) => model.weights[r] : () => 1,
-    total = model.weights ? model.weights.reduce((t, v) => t + v, 0) : n,
-    // Each observation's place in the sample, for its weight.
-    position = new Map(rows.map((i, r) => [i, r])),
-    k = model.names.length,
+    // Frequency weights count as that many observations.
+    n =
+      model.wtype === "fweight"
+        ? qualified
+          ? rows.reduce((t, i) => t + weightOf(position.get(i)), 0)
+          : model.N
+        : rows.length,
+    total = model.weights
+      ? rows.reduce((t, i) => t + weightOf(position.get(i)), 0)
+      : n,
+    k = model.names.length + (aux ? 1 : 0),
     // Every variable that enters the model, in order of first appearance.
     variables = [
       ...new Set(
@@ -476,14 +557,15 @@ function margins(session, text, ctx) {
       name === "_cons"
         ? 1
         : rows.reduce(
-            (t, i, r) => t + weightOf(r) * model.columns[j].value(i),
+            (t, i) => t + weightOf(position.get(i)) * model.columns[j].value(i),
             0,
           ) / total,
     ),
     variableMeans = new Map(
       variables.map((v) => [
         v.name,
-        rows.reduce((t, i, r) => t + weightOf(r) * v.data[i], 0) / total,
+        rows.reduce((t, i) => t + weightOf(position.get(i)) * v.data[i], 0) /
+          total,
       ]),
     );
   // When the fit omitted a coefficient or left a level with no
@@ -491,7 +573,7 @@ function margins(session, text, ctx) {
   // the design is not a combination of the rows in the estimation sample.
   // The design's null space, over every column (base levels included),
   // tells which; Stata checks each observation's row as margins does.
-  const check = estimability(model, rows);
+  const check = estimability(model, model.sample);
   // Values of the variables for observation i under a set of fixed values.
   // fixed: Map of variable name to a value, or "mean". Stata holds a fixed
   // value, a mean included, in float precision.
@@ -564,7 +646,7 @@ function margins(session, text, ctx) {
       sum = subset.reduce((t, i) => t + share(i), 0);
     for (const i of subset) {
       const r = row(i, fixed),
-        [v, dv] = each(r, xb(r), i),
+        [v, dv] = each(r, xb(r) + (shift ? shift(i) : 0), i),
         part = share(i) / sum;
       value += v * part;
       dv.forEach((d, j) => (gradient[j] += d * part));
@@ -574,17 +656,107 @@ function margins(session, text, ctx) {
       ? { value, gradient }
       : { value: 0, gradient: new Array(k).fill(0), estimable: false };
   };
-  const prediction = (fixed, subset) =>
-    average(fixed, (r, e) => [mean(e), r.map((v) => slope(e) * v)], subset);
+  // Set when Stata's chain rule finds the prediction does not move as its
+  // coefficient is stepped, as where every prediction is saturated at
+  // one: Stata warns, and an effect is shown as omitted.
+  let constantPrediction = false;
+  const prediction = (fixed, subset) => {
+    if (chosen?.chain && chainOf(fixed, subset)?.flat)
+      constantPrediction = true;
+    return average(
+      fixed,
+      (r, e) => [
+        mean(e),
+        [...r.map((v) => slope(e) * v), ...(aux ? [aux.mean(e)] : [])],
+      ],
+      subset,
+    );
+  };
   // The effect of a continuous variable: f'(x'b) times the derivative of
   // x'b, which involves other variables when there are interactions.
+  // Where the model asks for it (chosen.chain) Stata takes f' and f''
+  // numerically, stepping the constant or, without one, the first
+  // estimated coefficient whose column is nowhere zero in the rows
+  // averaged (margins-chain.js); its effects and their standard errors
+  // carry that step's error, and so do these. With no such column the
+  // derivatives are analytic, as Stata's then are.
+  const chainOf = (fixed, subset = rows) => {
+    const evaluated = subset.map((i) => row(i, fixed)),
+      constant = model.names.findIndex(
+        (name, j) => name === "_cons" && model.estimable?.[j] !== false,
+      ),
+      chainColumn =
+        constant >= 0
+          ? constant
+          : model.names.findIndex(
+              (name, j) =>
+                !model.columns[j]?.base &&
+                model.estimable?.[j] !== false &&
+                evaluated.every((values) => values[j] !== 0),
+            );
+    if (chainColumn < 0) return null;
+    const shares = subset.map((i) => weightOf(position.get(i))),
+      sum = shares.reduce((t, v) => t + v, 0),
+      cases = subset.map((i, r) => {
+        const values = evaluated[r];
+        return {
+          i,
+          values,
+          // The index at b_j + delta, summed afresh as Stata's predict
+          // does, so that its rounding is Stata's.
+          index: (delta) =>
+            values.reduce(
+              (t, v, j) =>
+                t + v * (j === chainColumn ? model.b[j] + delta : model.b[j]),
+              0,
+            ) + (shift ? shift(i) : 0),
+          x: values[chainColumn],
+          w: shares[r] / sum,
+        };
+      }),
+      derivatives = chainDerivatives(cases, link, model.b[chainColumn]);
+    return { cases, derivatives, flat: derivatives.flat };
+  };
+  const numericEffect = (fixed, variable) => {
+    const chain = chainOf(fixed);
+    if (!chain) return analyticEffect(fixed, variable);
+    const { cases, derivatives } = chain,
+      gradient = new Array(k).fill(0);
+    if (chain.flat) {
+      constantPrediction = true;
+      return { value: 0, gradient, omitted: true };
+    }
+    let value = 0,
+      estimable = true;
+    cases.forEach((c, n) => {
+      const found = derivatives[n],
+        d = slopeRow(c.i, fixed, variable),
+        total = d.reduce((t, v, j) => t + v * model.b[j], 0);
+      value += found.slope * total * c.w;
+      c.values.forEach(
+        (v, j) =>
+          (gradient[j] += (found.curve * v * total + found.slope * d[j]) * c.w),
+      );
+      if (estimable && check) estimable = check(c.values);
+    });
+    return estimable
+      ? { value, gradient }
+      : { value: 0, gradient: new Array(k).fill(0), estimable: false };
+  };
   const effect = (fixed, variable) =>
+    chosen?.chain
+      ? numericEffect(fixed, variable)
+      : analyticEffect(fixed, variable);
+  const analyticEffect = (fixed, variable) =>
     average(fixed, (r, e, i) => {
       const d = slopeRow(i, fixed, variable),
         total = d.reduce((t, v, j) => t + v * model.b[j], 0);
       return [
         slope(e) * total,
-        r.map((v, c) => curve(e) * v * total + slope(e) * d[c]),
+        [
+          ...r.map((v, c) => curve(e) * v * total + slope(e) * d[c]),
+          ...(aux ? [aux.slope(e) * total] : []),
+        ],
       ];
     });
   const difference = (a, b) =>
@@ -692,18 +864,76 @@ function margins(session, text, ctx) {
   // instead, the last varying fastest, whatever order at() names them in.
   const atNames = [];
   if (options.at) {
-    const entries = [];
-    for (const m of options.at.matchAll(
-      /(\w+)\s*=\s*(\((?:[^()]|\([^()]*\))*\)|\S+)/g,
-    )) {
-      const name = session.varlist(m[1])[0];
-      if (!covariates.includes(name))
-        throw new StataError(
-          `invalid at() option;\nvariable ${name} not found in list of covariates`,
+    const entries = [],
+      notCovariate = (word) =>
+        new StataError(
+          `invalid at() option;\nvariable ${word} not found in list of covariates`,
           322,
-        );
-      entries.push([name, parseNumlist(m[2].replace(/^\(|\)$/g, ""))]);
-      atNames.push(name);
+        ),
+      covariate = (word) => {
+        let name;
+        try {
+          [name] = session.varlist(word);
+        } catch {
+          throw notCovariate(word);
+        }
+        if (!covariates.includes(name)) throw notCovariate(name);
+        return name;
+      };
+    // Read in turn: name = value(s); (stat) before the names it sets; and
+    // a name alone, which takes the statistic in force, the mean unless
+    // one was given. A word that fits none is read as a name: at(x = 1 2)
+    // finds no variable 2.
+    let rest = options.at.trim(),
+      m;
+    while (rest) {
+      if ((m = /^\(\s*([^()]*?)\s*\)\s*/.exec(rest))) {
+        if (m[1] !== "mean")
+          throw /^(median|p\d+|min|max|zero|base|asbalanced|asobserved)$/.test(
+            m[1],
+          )
+            ? new StataError(
+                `margins, at((${m[1]}) ...) is not available yet; give the values with at(name = #)`,
+                198,
+              )
+            : new StataError(
+                `invalid at() option;\n(${m[1]}) invalid statistic`,
+                198,
+              );
+      } else if ((m = /^([A-Za-z_][\w*?~-]*)\s*=\s*/.exec(rest))) {
+        const name = covariate(m[1]);
+        rest = rest.slice(m[0].length);
+        const value = /^(\((?:[^()]|\([^()]*\))*\)|[^\s()]+)\s*/.exec(rest);
+        if (!value)
+          throw new StataError(
+            "invalid at() option;\n'' found where number expected",
+            7,
+          );
+        entries.push([name, parseNumlist(value[1].replace(/^\(|\)$/g, ""))]);
+        atNames.push(name);
+        m = value;
+      } else {
+        m = /^[^\s()=]+\s*/.exec(rest) ?? [rest];
+        // A word alone names covariates: _all (or *) is every one of
+        // them and _continuous and _factor the two kinds, each held at the
+        // statistic. Stata takes no other wildcard: at((mean) x*) finds no
+        // covariate x*.
+        const word = m[0].trim();
+        let names;
+        if (word === "_all" || word === "*") names = covariates;
+        else if (word === "_continuous")
+          names = covariates.filter((name) => !factors.has(name));
+        else if (word === "_factor")
+          names = covariates.filter((name) => factors.has(name));
+        else if (/[*?~-]/.test(word)) throw notCovariate(word);
+        else names = [covariate(word)];
+        for (const name of names) {
+          if (entries.some(([seen]) => seen === name)) continue;
+          entries.push([name, ["mean"]]);
+          atNames.push(name);
+        }
+      }
+      rest = rest.slice(m[0].length);
     }
     if (!atNames.length) throw new StataError("invalid at() option", 198);
     entries
@@ -747,7 +977,7 @@ function margins(session, text, ctx) {
         )
       )
         throw new StataError(
-          `${name}: factor variables may not contain noninteger values`,
+          `${name}:  factor variables may not contain noninteger values`,
           452,
         );
     }
@@ -1012,10 +1242,11 @@ function margins(session, text, ctx) {
     );
   } else results.push({ label: "_cons", plain: true, ...prediction(sets[0]) });
 
-  // After qreg, newey and prais Stata's margins refers to the normal.
+  // After qreg, newey and prais Stata's margins refers to the normal, and
+  // after jackknife to the distribution of the fit it resampled.
   const t =
-      model.dist !== "z" &&
-      !["qreg", "newey", "prais", "xtreg"].includes(model.command),
+      (model.resampledDist !== undefined ? model.resampledDist : model.dist) !==
+        "z" && !["qreg", "newey", "prais", "xtreg"].includes(model.command),
     critical = t
       ? invttail(model.df_r, (1 - level / 100) / 2)
       : invnormal(1 - (1 - level / 100) / 2),
@@ -1039,8 +1270,9 @@ function margins(session, text, ctx) {
       : fixedAll
         ? "Adjusted predictions"
         : "Predictive margins",
-    expression =
-      model.kind === "poisson" || model.kind === "nbreg"
+    expression = chosen
+      ? chosen.expression
+      : model.kind === "poisson" || model.kind === "nbreg"
         ? "Predicted number of events"
         : ["logit", "probit", "cloglog"].includes(model.kind)
           ? `Pr(${model.depvar})`
@@ -1048,7 +1280,9 @@ function margins(session, text, ctx) {
             ? `Predicted mean ${model.depvar}`
             : model.command === "newey"
               ? "Fitted values"
-              : "Linear prediction",
+              : model.command === "mixed"
+                ? "Linear prediction, fixed portion"
+                : "Linear prediction",
     vce =
       {
         ols: "OLS",
@@ -1058,6 +1292,8 @@ function margins(session, text, ctx) {
         oim: "OIM",
         unadjusted: "Unadjusted",
         conventional: "Conventional",
+        bootstrap: "Bootstrap",
+        jackknife: "Jackknife",
       }[model.vce] ?? "OLS";
   // A factor variable held at its means is shown level by level, each level
   // at the share of observations in it, as Stata shows it.
@@ -1115,6 +1351,8 @@ function margins(session, text, ctx) {
       ctx.out(
         `note: ${count(outside)} observation${outside === 1 ? "" : "s"} omitted because of missing values in over() variable${overNames.length > 1 ? "s" : ""}.`,
       );
+    if (constantPrediction)
+      ctx.out("warning: prediction constant over observations.");
     ctx.out("");
     // Number of obs ends at column 78, however wide the count; beside a
     // subpopulation both labels are as wide and the counts aligned.
@@ -1133,10 +1371,11 @@ function margins(session, text, ctx) {
     } else {
       const observations = `Number of obs = ${tally(n)}`;
       ctx.out(`${heading.padEnd(78 - observations.length)}${observations}`);
-      ctx.out(`Model VCE: ${vce}`);
+      // mixed leaves no e(vce), and Stata then names none.
+      if (model.command !== "mixed") ctx.out(`Model VCE: ${vce}`);
     }
     ctx.out("");
-    ctx.out(`Expression: ${expression}, predict()`);
+    ctx.out(`Expression: ${expression}, ${chosen?.predict ?? "predict()"}`);
     if (overNames.length) ctx.out(`Over:       ${overNames.join(" ")}`);
     if (dydx)
       ctx.out(
@@ -1145,6 +1384,9 @@ function margins(session, text, ctx) {
           .map((r) => r.wrt)
           .join(" ")}`,
       );
+    // vsquish changes nothing here: the legend has no blank lines to take
+    // out. noatlegend leaves the legend out.
+    if (options.atlegend === false) return;
     if (sets.length > 1) {
       const prefix = `${sets.length}._at:`.length;
       legend.forEach((entries, s) =>
@@ -1161,6 +1403,12 @@ function margins(session, text, ctx) {
         .filter((e) => !e.hidden)
         .forEach((e, j) => ctx.out(`${j ? "    " : "At: "}${describe(e)}`));
   };
+  // Contrasts take their variance from the coefficients alone.
+  if (contrastSpec && aux)
+    throw new StataError(
+      `contrasts of margins of ${expression} are not available after ${model.command} yet; predict(pu0) or predict(xb) has them`,
+      198,
+    );
   if (contrastSpec)
     return contrastTables(
       session,
@@ -1201,7 +1449,7 @@ function margins(session, text, ctx) {
       level,
       critical,
       tail,
-      variance: (gradient) => quadratic(gradient, model.V),
+      variance: (gradient) => marginVariance(gradient, V),
     },
     ctx,
   );
@@ -1218,8 +1466,7 @@ function margins(session, text, ctx) {
       stored.map((b2) =>
         a.gradient.reduce(
           (t, ga, i) =>
-            t +
-            ga * b2.gradient.reduce((u, gb, j) => u + model.V[i][j] * gb, 0),
+            t + ga * b2.gradient.reduce((u, gb, j) => u + V[i][j] * gb, 0),
           0,
         ),
       ),

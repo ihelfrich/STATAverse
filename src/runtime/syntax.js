@@ -235,7 +235,8 @@ export function loneEquals(text) {
     else if (c === ")" || c === "]") opens.pop();
     else if (
       c === "=" &&
-      !/[=!~<>]/.test(text[i - 1] ?? "") &&
+      // Stata reads > =, < =, ! = and ~ = as one operator.
+      !/[=!~<>]\s*$/.test(text.slice(0, i)) &&
       text[i + 1] !== "="
     ) {
       const open = opens.at(-1) ?? -1;
@@ -252,6 +253,32 @@ export function loneEquals(text) {
   return null;
 }
 
+/**
+ * What stands on either side of a lone = found by loneEquals: the operands
+ * between it and the nearest & or | at its own depth (Stata binds = as
+ * tightly as ==), as { left, right } texts.
+ */
+export function equalsOperands(text, lone) {
+  const edge = (from, step) => {
+    let depth = 0,
+      quote = false,
+      i = from;
+    for (; i >= 0 && i < text.length; i += step) {
+      const c = text[i];
+      if (c === '"') quote = !quote;
+      if (quote) continue;
+      if ((step > 0 ? "([" : ")]").includes(c)) depth++;
+      else if ((step > 0 ? ")]" : "([").includes(c) && --depth < 0) break;
+      else if (!depth && (c === "&" || c === "|")) break;
+    }
+    return i;
+  };
+  return {
+    left: text.slice(edge(lone.at - 1, -1) + 1, lone.at).trim(),
+    right: text.slice(lone.at + 1, edge(lone.at + 1, 1)).trim(),
+  };
+}
+
 // Finds where each clause of the part before the comma begins.
 export function clauses(head, expAllowed = true) {
   const found = [];
@@ -266,7 +293,13 @@ export function clauses(head, expAllowed = true) {
     if (c === "[" && !flags[i]) {
       // flags is false for brackets; find those opened at the top level.
       const opensAtTop = depthBefore(head, flags, i) === 0;
-      if (opensAtTop && (i === 0 || /\s/.test(head[i - 1])))
+      // After an operator it is a coefficient, [/athrho] or [eq]x, in an
+      // expression: replace w = w + [/athrho], count if x > [eq]x.
+      if (
+        opensAtTop &&
+        (i === 0 || /\s/.test(head[i - 1])) &&
+        !/[-+/^=<>&|!(,]$/.test(head.slice(0, i).trimEnd())
+      )
         found.push({ kind: "weight", at: i, after: i });
     }
   }
@@ -283,7 +316,7 @@ export function clauses(head, expAllowed = true) {
     if (
       flags[i] &&
       head[i] === "=" &&
-      !/[=!~<>]/.test(head[i - 1] ?? "") &&
+      !/[=!~<>]\s*$/.test(head.slice(0, i)) &&
       // Where no =exp is declared, == belongs to an expression.
       (expAllowed || head[i + 1] !== "=")
     ) {
@@ -416,6 +449,21 @@ function newVariables(text, context) {
     // name:label attaches a value label, which generate handles itself.
     const name = token.split(":")[0];
     if (name === "_all") throw notAllowed("_all");
+    // A name that starts well and then meets a character no name has is
+    // refused by that character, as Stata's parser reads it (y@ is "@
+    // invalid name"); a range (y-z) is not a new name at all.
+    const stray =
+      /^[\p{L}_][\w\u0080-\u{10FFFF}.]*([^\w\u0080-\u{10FFFF}.])/u.exec(name);
+    if (
+      stray &&
+      context.names.includes(name.slice(0, stray.index + stray[0].length - 1))
+    )
+      throw new StataError(
+        `variable ${name.slice(0, stray[0].length - 1)} already defined`,
+        110,
+      );
+    if (stray?.[1] === "-") throw new StataError("invalid syntax", 198);
+    if (stray) throw new StataError(`${stray[1]} invalid name`, 198);
     if (!isName(name) || isReserved(name))
       throw new StataError(`${name} invalid name`, 198);
     if (context.names.includes(name))
@@ -596,7 +644,13 @@ export function applySyntax(declaration, text, context) {
     if (matches.length > 1) throw new StataError("invalid syntax", 198);
     if (matches.length && !allowed)
       throw notAllowed(
-        kind === "exp" ? "=exp" : kind === "weight" ? "weights" : kind,
+        kind === "exp"
+          ? "=exp"
+          : kind === "weight"
+            ? "weights"
+            : kind === "in"
+              ? "in range"
+              : kind,
       );
     if (!matches.length && allowed && kind !== "weight" && !decl[kind].optional)
       throw new StataError(`${kind === "exp" ? "=exp" : kind} required`, 100);
@@ -638,7 +692,10 @@ export function applySyntax(declaration, text, context) {
     let names;
     if (leading) {
       names = existingVariables(leading, position.specs, context);
-      checkCount(names.length, position.specs, position.kind);
+      // _all with no variables in memory is a list of none, which Stata's
+      // drop, keep, describe, order, sort and the others accept.
+      if (names.length || !/^\s*_all\s*$/.test(leading))
+        checkCount(names.length, position.specs, position.kind);
     } else if (!position.optional)
       throw new StataError("varlist required", 100);
     else
@@ -662,6 +719,12 @@ export function applySyntax(declaration, text, context) {
       locals.in = (decl.in.bare ? "" : "in ") + `${first}/${last}`;
       result.in = [first, last];
     } else if (clause.kind === "exp") {
+      // A second = names what follows it: gen z = = x is =x invalid name.
+      if (/^=(?!=)/.test(clause.text))
+        throw new StataError(
+          `=${/^=\s*([^\s\-+*/^<>&|!~=,()[\]]*)/.exec(clause.text)[1]} invalid name`,
+          198,
+        );
       if (clause.text.startsWith("="))
         throw new StataError("invalid syntax", 198);
       context.expression?.(clause.text, "exp");
@@ -699,11 +762,20 @@ export function applySyntax(declaration, text, context) {
     const match = matchOption(item.name, decl.options);
     if (!match) {
       // Stata names an option written with an argument as name().
-      if (!decl.star)
-        throw new StataError(
+      if (!decl.star) {
+        const error = new StataError(
           `option ${item.name}${item.argument === undefined ? "" : "()"} not allowed`,
           198,
         );
+        // The options this command does take, for the Console to suggest
+        // the nearest of them; what Stata prints is unchanged.
+        error.allowed = decl.options
+          .filter((option) => !option.unavailable)
+          .map((option) =>
+            option.kind === "off" ? "no" + option.name : option.name,
+          );
+        throw error;
+      }
       extra.push(item.word);
       continue;
     }

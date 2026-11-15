@@ -18,6 +18,7 @@ import { count, perGroup, percentile } from "./reports.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
 import { readVce } from "./vce.js";
 import { evaluateAll } from "./expression.js";
+import { assumedWeights, genericWeight } from "./syntax.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
 const sum = (values) => values.reduce((a, b) => a + b, 0);
@@ -156,7 +157,11 @@ function xtset(session, text, ctx) {
           !isMissing(time[i])
         ) {
           session.panel = null;
-          throw new StataError("repeated time values within panel", 451);
+          // A time series without panels has its repeats in the sample.
+          throw new StataError(
+            `repeated time values ${id ? "within panel" : "in sample"}`,
+            451,
+          );
         }
         if (
           (!id || id[i] === id[i - 1]) &&
@@ -174,7 +179,9 @@ function xtset(session, text, ctx) {
     } else if (options.delta !== 1 || options.format)
       throw new StataError("time variable not specified", 198);
     if (options.noquery) return;
-  }
+  } else if (session.panel?.time)
+    // tsset typed alone sets the data again, which sorts them.
+    data.sort([session.panel.id, session.panel.time].filter(Boolean));
   const panel = session.panel;
   if (!panel)
     throw new StataError("panel variable not set; use xtset varname ...", 459);
@@ -207,12 +214,14 @@ function xtset(session, text, ctx) {
       show = (v) => applyFormat(v, variable.format).trim(),
       low = least(values),
       high = greatest(values);
-    // A gap is a missing period inside some panel.
+    // A gap is a missing period inside some panel; an observation whose
+    // time is missing, sorted last, is not one.
     let gaps = 0;
     const id = panel.id ? data.get(panel.id).data : null;
     for (let i = 1; i < data.n; i++)
       if (
         (!id || id[i] === id[i - 1]) &&
+        !isMissing(variable.data[i]) &&
         variable.data[i] - variable.data[i - 1] > (panel.delta ?? 1)
       )
         gaps++;
@@ -223,13 +232,22 @@ function xtset(session, text, ctx) {
   }
 }
 
-/** Evaluator for L., F. and D. applied to a variable, under the xtset order. */
-export function timeSeriesOperator(session, operator, order, name) {
+/**
+ * Evaluator for time-series operators applied to a variable, under the
+ * xtset order: ops is a list of [letter, order] pairs, L, F, D or S, as
+ * L2D.x gives [["L", 2], ["D", 1]]. Each operator is a shift or a
+ * difference of shifts relative to the observation's own period, so they
+ * combine in any order, as Stata's do.
+ */
+export function timeSeriesOperator(session, ops, name) {
   const panel = session.panel;
   if (!panel?.time) throw new StataError("time variable not set", 111);
   const data = session.data,
     variable = data.get(session.varlist(name)[0]);
-  if (isStringType(variable.type)) throw new StataError("type mismatch", 109);
+  requireTimeOrder(session);
+  // A string variable under an operator is a missing number, as in
+  // generate z = L.s.
+  if (isStringType(variable.type)) return () => MISSING;
   let index = null;
   const build = () => {
     index = new Map();
@@ -240,7 +258,9 @@ export function timeSeriesOperator(session, operator, order, name) {
     return { id, time };
   };
   let columns = null;
-  const at = (i, shift) => {
+  // env, under by, is the observation's group: a lag or lead outside it
+  // is missing, as Stata's by makes it.
+  const at = (i, shift, env) => {
     if (!index || index.owner !== variable.data) {
       columns = build();
       index.owner = variable.data;
@@ -248,21 +268,49 @@ export function timeSeriesOperator(session, operator, order, name) {
     const t = columns.time[i];
     if (isMissing(t)) return MISSING;
     const row = index.get(`${columns.id ? columns.id[i] : ""}|${t + shift}`);
-    return row === undefined ? MISSING : data.get(variable.name).data[row];
+    if (
+      row === undefined ||
+      (env?.count !== undefined &&
+        (row < env.start || row >= env.start + env.count))
+    )
+      return MISSING;
+    return data.get(variable.name).data[row];
   };
-  // Under delta(), a lag of one is one delta earlier.
-  const k = order || 1,
-    step = panel.delta ?? 1;
-  if (operator === "L") return (i) => at(i, -k * step);
-  if (operator === "F") return (i) => at(i, k * step);
-  // D is the difference; D2 is the difference of differences.
-  const difference = (i, depth, shift) => {
-    if (depth === 0) return at(i, shift * step);
-    const a = difference(i, depth - 1, shift),
-      b = difference(i, depth - 1, shift - 1);
-    return isMissing(a) || isMissing(b) ? MISSING : a - b;
+  // Under delta(), a lag of one is one delta earlier. D2 is the difference
+  // of differences; S12 the difference with twelve periods before.
+  const step = panel.delta ?? 1,
+    minus = (a, b) => (isMissing(a) || isMissing(b) ? MISSING : a - b);
+  const value = (i, k, shift, env) => {
+    if (k === ops.length) return at(i, shift * step, env);
+    const [letter, order] = ops[k];
+    if (letter === "L") return value(i, k + 1, shift - order, env);
+    if (letter === "F") return value(i, k + 1, shift + order, env);
+    if (letter === "S")
+      return order
+        ? minus(
+            value(i, k + 1, shift, env),
+            value(i, k + 1, shift - order, env),
+          )
+        : value(i, k + 1, shift, env);
+    const difference = (depth, s) =>
+      depth === 0
+        ? value(i, k + 1, s, env)
+        : minus(difference(depth - 1, s), difference(depth - 1, s - 1));
+    return difference(order, shift);
   };
-  return (i) => difference(i, k, 0);
+  return (i, env) => value(i, 0, 0, env);
+}
+
+/**
+ * Stata's time-series operators need the data sorted by the panel and
+ * time variables, as tsset and xtset leave them: after sort x, or under a
+ * by of another variable, L.x is "not sorted".
+ */
+export function requireTimeOrder(session) {
+  const panel = session.panel,
+    keys = panel.id ? [panel.id, panel.time] : [panel.time];
+  if (!keys.every((key, j) => session.data.sortedBy[j] === key))
+    throw new StataError("not sorted", 5);
 }
 
 function correlation(a, b, w = null) {
@@ -372,14 +420,19 @@ function ols(columns, y, w = null) {
 }
 
 function xtreg(session, text, ctx) {
+  const parsed = parseWithPanel(
+    session,
+    "anything [if] [in] [aweight fweight pweight iweight] [, FE RE BE Robust VCE(string) Level(cilevel) THeta I(varname) | MLE PA SA]",
+    text,
+  );
+  // xtreg.ado checks its varlist before _xt xtsets the data on i().
+  if (parsed.options.i) design(session, parsed.anything, [], true);
+  panelOption(session, parsed.options.i, ctx);
+  unknownOption(parsed);
   const panel = session.panel;
   // _xt.ado's message.
   if (!panel?.id) throw new StataError("must specify panelvar; use xtset", 459);
-  const parsed = session.parse(
-      "anything [if] [in] [aweight fweight pweight iweight] [, FE RE BE Robust VCE(string) Level(cilevel) THeta | MLE PA SA]",
-      text,
-    ),
-    options = parsed.options,
+  const options = parsed.options,
     data = session.data,
     id = data.get(panel.id).data,
     wtype = parsed.weight?.type ?? null;
@@ -392,6 +445,8 @@ function xtreg(session, text, ctx) {
     const compiled = session.compile(parsed.weight.exp);
     if (compiled.type !== "numeric") throw new StataError("type mismatch", 109);
     weightOf = evaluateAll(compiled, data.n);
+    // [w=exp] is an analytic weight, and Stata says so first.
+    if (genericWeight(text)) ctx.out(assumedWeights(wtype));
   }
   const // The same model design as regress, so factor variables and
     // interactions are available.
@@ -420,7 +475,15 @@ function xtreg(session, text, ctx) {
     groups = [...new Set(groupOf)],
     G = groups.length,
     members = new Map(groups.map((key) => [key, []]));
-  if (!N) throw new StataError("no observations", 2000);
+  // The within estimator needs two observations, and says so even with
+  // none; the others need some observations and two panels.
+  if (options.fe ? N < 2 : !N)
+    throw new StataError(
+      options.fe ? "insufficient observations" : "no observations",
+      options.fe ? 2001 : 2000,
+    );
+  if (!options.fe && G < 2)
+    throw new StataError("insufficient observations", 2001);
   groupOf.forEach((key, i) => members.get(key).push(i));
   // Each observation's weight, in the order of rows: analytic weights
   // scaled to sum to the number of observations. A frequency weight counts
@@ -1017,91 +1080,163 @@ function xtreg(session, text, ctx) {
   } else stored.sigma = finite(Math.sqrt(sigmaU ** 2 + sigmaE2));
   const r4 = (value) => applyFormat(value, "%6.4f").trim();
   notes.forEach(ctx.out);
-  ctx.out("");
-  ctx.out(`${header.padEnd(48)}${side("Number of obs", count(nObs))}`);
-  ctx.out(
-    `${`Group variable: ${panel.id}`.padEnd(48)}${side("Number of groups", count(G))}`,
-  );
-  ctx.out("");
-  ctx.out(`${"R-squared:".padEnd(48)}Obs per group:`);
-  // Stata leaves out a between or overall R-squared it cannot compute, and
-  // shows a missing within one as a dot.
-  const rLine = (label, value, always) =>
-    isMissing(value) && !always
-      ? ""
-      : `     ${label} = ${applyFormat(value, "%6.4f")}`;
-  ctx.out(
-    `${rLine("Within ", r2.within, true).padEnd(48)}${obs("min", count(least(sizes)))}`,
-  );
-  ctx.out(
-    `${rLine("Between", r2.between).padEnd(48)}${obs("avg", applyFormat(N / G, "%9.1f").trim())}`,
-  );
-  ctx.out(
-    `${rLine("Overall", r2.overall).padEnd(48)}${obs("max", count(greatest(sizes)))}`,
-  );
-  ctx.out("");
-  ctx.out(
-    `${"".padEnd(48)}${side(statLabel, applyFormat(statistic, "%9.2f").trim())}`,
-  );
-  // xtreg_fe_display.ado leaves out corr(u_i, Xb) and the p-value, and the
-  // blank line after them, when sigma_u is missing.
-  const showU = !useFe || !isMissing(sigmaU);
-  if (showU) {
+  const fitted = session.estimates;
+  /**
+   * The fit as xtreg shows it; under bootstrap or jackknife (r) with the
+   * prefix's test, note, heads and variance (fit), as Stata's xtreg shows
+   * a fit made under a prefix.
+   */
+  const show = (ctx, r = null, fit = null) => {
+    // Under bootstrap or jackknife the prefix has put the blank line
+    // above the header.
+    if (!r) ctx.out("");
+    ctx.out(`${header.padEnd(48)}${side("Number of obs", count(nObs))}`);
     ctx.out(
-      `${corrLine.padEnd(48)}${side(dist === "t" ? "Prob > F" : "Prob > chi2", r4(p))}`,
+      `${`Group variable: ${panel.id}`.padEnd(48)}${side("Number of groups", count(G))}`,
     );
-    thetaLines?.forEach(ctx.out);
     ctx.out("");
-  }
-  // The first column is as wide as Stata makes it; see tableWidth. The
-  // dependent variable does not count.
-  const model = session.estimates,
-    w = tableWidth(session, model),
-    rule = "-".repeat(66 + w),
-    split = `${"-".repeat(w + 1)}+${"-".repeat(64)}`;
-  if (clustered)
+    ctx.out(`${"R-squared:".padEnd(48)}Obs per group:`);
+    // Stata leaves out a between or overall R-squared it cannot compute, and
+    // shows a missing within one as a dot.
+    const rLine = (label, value, always) =>
+      isMissing(value) && !always
+        ? ""
+        : `     ${label} = ${applyFormat(value, "%6.4f")}`;
     ctx.out(
-      `(Std. err. adjusted for ${count(G)} clusters in ${panel.id})`.padStart(
-        66 + w,
-      ),
+      `${rLine("Within ", r2.within, true).padEnd(48)}${obs("min", count(least(sizes)))}`,
     );
-  ctx.out(rule);
-  if (clustered) ctx.out(`${" ".repeat(w + 1)}|               Robust`);
-  ctx.out(
-    `${abbreviate(dep, w).padStart(w)} | Coefficient  ${clustered ? "std" : "Std"}. err.      ${dist}    P>|${dist}|     [${g(level)}% conf. interval]`,
-  );
-  ctx.out(split);
-  termRows(
-    session,
-    model,
-    (k) => {
-      const variance = model.V[k][k],
-        se = isMissing(variance) ? MISSING : Math.sqrt(variance),
-        known = !isMissing(se) && se > 0,
-        t = known ? model.b[k] / se : MISSING,
-        bound = (sign) =>
-          known && Number.isFinite(critical)
-            ? model.b[k] + sign * critical * se
-            : MISSING;
-      return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${statisticCell(t)}${applyFormat(known ? finite(tail(t)) : MISSING, "%8.3f")}${g(bound(-1)).padStart(13)}${g(bound(1)).padStart(12)}`;
-    },
-    w,
-  ).forEach(ctx.out);
-  ctx.out(useBe ? rule : split);
-  if (!useBe) {
-    if (showU)
-      ctx.out(`${"sigma_u".padStart(w)} |  ${g(sigmaU, "%10.0g").padStart(9)}`);
     ctx.out(
-      `${"sigma_e".padStart(w)} |  ${g(finite(Math.sqrt(sigmaE2)), "%10.0g").padStart(9)}`,
+      `${rLine("Between", r2.between).padEnd(48)}${obs("avg", applyFormat(N / G, "%9.1f").trim())}`,
     );
-    if (showU)
+    ctx.out(
+      `${rLine("Overall", r2.overall).padEnd(48)}${obs("max", count(greatest(sizes)))}`,
+    );
+    ctx.out("");
+    const test = r
+      ? r.df
+        ? {
+            label: `F(${r.test.df}, ${r.df})`,
+            value: r.test.F,
+            p: r.test.p,
+            pLabel: "Prob > F",
+          }
+        : {
+            label: `Wald chi2(${r.test.df})`,
+            value: r.test.value,
+            p: r.test.p,
+            pLabel: "Prob > chi2",
+          }
+      : {
+          label: statLabel,
+          value: statistic,
+          p,
+          pLabel: dist === "t" ? "Prob > F" : "Prob > chi2",
+        };
+    ctx.out(
+      `${"".padEnd(48)}${side(test.label, applyFormat(test.value, "%9.2f").trim())}`,
+    );
+    // xtreg_fe_display.ado leaves out corr(u_i, Xb) and the p-value, and the
+    // blank line after them, when sigma_u is missing.
+    const showU = !useFe || !isMissing(sigmaU);
+    if (showU) {
+      ctx.out(`${corrLine.padEnd(48)}${side(test.pLabel, r4(test.p))}`);
+      thetaLines?.forEach(ctx.out);
+      ctx.out("");
+    }
+    // The first column is as wide as Stata makes it; see tableWidth. The
+    // dependent variable does not count.
+    const model = fit ?? fitted,
+      w = tableWidth(session, model),
+      rule = "-".repeat(66 + w),
+      split = `${"-".repeat(w + 1)}+${"-".repeat(64)}`;
+    // Under a prefix the replications are based on the panels, and the
+    // table has the prefix's heads.
+    if (r)
       ctx.out(
-        `${"rho".padStart(w)} |  ${g(rho, "%10.0g").padStart(9)}   (fraction of variance due to u_i)`,
+        (
+          r.note ?? `(Replications based on clustering on ${panel.id})`
+        ).padStart(66 + w),
       );
-    ctx.out(rule);
-  }
-  if (footer) ctx.out(footer);
-  ctx.out("");
+    else if (clustered)
+      ctx.out(
+        `(Std. err. adjusted for ${count(G)} clusters in ${panel.id})`.padStart(
+          66 + w,
+        ),
+      );
+    if (r) r.heads(ctx, w, dep, "Coefficient");
+    else {
+      ctx.out(rule);
+      if (clustered) ctx.out(`${" ".repeat(w + 1)}|               Robust`);
+      ctx.out(
+        `${abbreviate(dep, w).padStart(w)} | Coefficient  ${clustered ? "std" : "Std"}. err.      ${dist}    P>|${dist}|     [${g(level)}% conf. interval]`,
+      );
+      ctx.out(split);
+    }
+    // The prefix's statistic is z after bootstrap and t with its degrees of
+    // freedom after jackknife.
+    const shownDist = r ? (r.df ? "t" : "z") : dist,
+      shownDf = r ? r.df : df,
+      shownCritical = r
+        ? shownDist === "t"
+          ? invttail(shownDf, (1 - r.level / 100) / 2)
+          : invnormal(1 - (1 - r.level / 100) / 2)
+        : critical,
+      shownTail = (t) =>
+        shownDist === "t"
+          ? 2 * ttail(shownDf, Math.abs(t))
+          : 2 * normal(-Math.abs(t));
+    termRows(
+      session,
+      model,
+      (k) => {
+        const variance = model.V[k][k],
+          se = isMissing(variance) ? MISSING : Math.sqrt(variance),
+          known = !isMissing(se) && se > 0,
+          t = known ? model.b[k] / se : MISSING,
+          bound = (sign) =>
+            known && Number.isFinite(shownCritical)
+              ? model.b[k] + sign * shownCritical * se
+              : MISSING;
+        return `${g(model.b[k]).padStart(11)}${g(se).padStart(11)}${statisticCell(t)}${applyFormat(known ? finite(shownTail(t)) : MISSING, "%8.3f")}${g(bound(-1)).padStart(13)}${g(bound(1)).padStart(12)}`;
+      },
+      w,
+    ).forEach(ctx.out);
+    ctx.out(useBe ? rule : split);
+    if (!useBe) {
+      if (showU)
+        ctx.out(
+          `${"sigma_u".padStart(w)} |  ${g(sigmaU, "%10.0g").padStart(9)}`,
+        );
+      ctx.out(
+        `${"sigma_e".padStart(w)} |  ${g(finite(Math.sqrt(sigmaE2)), "%10.0g").padStart(9)}`,
+      );
+      if (showU)
+        ctx.out(
+          `${"rho".padStart(w)} |  ${g(rho, "%10.0g").padStart(9)}   (fraction of variance due to u_i)`,
+        );
+      ctx.out(rule);
+    }
+    // Under a prefix the test of the panel effects takes the prefix's
+    // residual degrees of freedom, none after bootstrap.
+    if (footer && r && typeof extra.F_f === "number") {
+      const denominator = r.df ? String(r.df) : ".",
+        pValue = r.df ? Ftail(G - 1, r.df, extra.F_f) : MISSING;
+      ctx.out(
+        `${`F test that all u_i=0: F(${G - 1}, ${denominator}) = ${applyFormat(extra.F_f, "%8.2f").trim()}`.padEnd(61)}Prob > F = ${applyFormat(pValue, "%6.4f")}`,
+      );
+    } else if (footer) ctx.out(footer);
+    ctx.out("");
+  };
+  show(ctx);
+  // bootstrap and jackknife show the fit their way: the test of the
+  // slopes, xtreg's header and its rows of sigma_u, sigma_e and rho.
+  fitted.resampled = {
+    tested: (fit) =>
+      fit.names
+        .map((name, k) => (name !== "_cons" && fit.estimable[k] ? k : -1))
+        .filter((k) => k >= 0),
+    show: (_, ctx, fit, r) => show(ctx, r, fit),
+  };
 }
 
 /**
@@ -1150,32 +1285,69 @@ function operatedColumn(session, operators, values) {
   return column;
 }
 
+/**
+ * The old i(varname) option, as _xt.ado takes it: the data are xtset on the
+ * variable named, with the time variable when that still works, and a
+ * warning when it replaces another panel variable.
+ */
+export function panelOption(session, typed, ctx) {
+  if (!typed) return;
+  const name = session.varlist(typed)[0],
+    before = session.panel,
+    quiet = { ...ctx, out: () => {} };
+  if (before?.id === name) return;
+  if (before?.id) ctx.out(`warning: existing panel variable is not ${name}`);
+  try {
+    // _xt.ado keeps the time variable and its delta.
+    const delta = before?.delta ?? 1;
+    xtset(
+      session,
+      before?.time
+        ? `${name} ${before.time}${delta === 1 ? "" : `, delta(${delta})`}`
+        : name,
+      quiet,
+    );
+  } catch (error) {
+    if (!(error instanceof StataError)) throw error;
+    xtset(session, name, quiet);
+  }
+}
+
+/**
+ * Parses a command that takes i(): an option it does not know is held
+ * back, as the ado-file passes it on with * and meets it only after _xt
+ * has xtset the data on i(). unknownOption throws it then.
+ */
+export function parseWithPanel(session, schema, text) {
+  try {
+    return session.parse(schema, text);
+  } catch (error) {
+    if (!(error instanceof StataError) || !error.allowed) throw error;
+    const loose = session.parse(schema.replace(/\]\s*$/, " *]"), text);
+    loose.unknown = error;
+    return loose;
+  }
+}
+
+/**
+ * The option held back by parseWithPanel, if any. invalid gives ml's
+ * "word invalid", which xtlogit and xtprobit print, in place of syntax's
+ * message.
+ */
+export function unknownOption(parsed, invalid = false) {
+  if (!parsed.unknown) return;
+  if (invalid) throw new StataError(`${parsed.options["*"][0]} invalid`, 198);
+  throw parsed.unknown;
+}
+
 // xtsum follows xtsum.ado: each statistic in %9.0g, N and n in %8.0f, and
 // T or T-bar in %8.0g. A string variable gets a row of missing values.
 function xtsum(session, text, ctx) {
   const parsed = session.parse("[anything] [if] [in] [, I(varname)]", text),
-    data = session.data;
-  // i() names the panel variable, as _xt.ado takes it: the data are xtset
-  // on it, with the time variable when that still works.
-  if (parsed.options.i) {
-    const name = session.varlist(parsed.options.i)[0],
-      before = session.panel,
-      quiet = { ...ctx, out: () => {} };
-    if (before?.id && before.id !== name)
-      ctx.out(`warning: existing panel variable is not ${name}`);
-    try {
-      xtset(session, before?.time ? `${name} ${before.time}` : name, quiet);
-    } catch (error) {
-      if (!(error instanceof StataError)) throw error;
-      xtset(session, name, quiet);
-    }
-  }
-  const panel = session.panel;
-  if (!panel?.id) throw new StataError("must specify panelvar; use xtset", 459);
-  const id = data.get(panel.id).data,
-    time = panel.time ? data.get(panel.time).data : null,
+    data = session.data,
     // Each entry is a variable or, as varlist(ts) allows, a time-series
-    // operator applied to one, such as L.w or D2.w.
+    // operator applied to one, such as L.w or D2.w. xtsum.ado checks them
+    // before _xt xtsets the data on i().
     entries = (
       parsed.anything.trim() ? parsed.anything.trim().split(/\s+/) : ["_all"]
     ).flatMap((word) => {
@@ -1200,7 +1372,12 @@ function xtsum(session, text, ctx) {
           operator: true,
         };
       });
-    }),
+    });
+  panelOption(session, parsed.options.i, ctx);
+  const panel = session.panel;
+  if (!panel?.id) throw new StataError("must specify panelvar; use xtset", 459);
+  const id = data.get(panel.id).data,
+    time = panel.time ? data.get(panel.time).data : null,
     group = ctx.group ? { groups: [ctx.group] } : null,
     marked = new Set(session.rows(parsed, group)),
     // The panels in the order sort ivar tvar puts them, each with its rows.
@@ -1343,7 +1520,10 @@ function xttest0(session, text, ctx) {
     M11 = sum([...totals.values()].map((entry) => entry.n ** 2)),
     A1 = 1 - panelSquares / squares,
     positive = model.sigma_u > 0,
-    lm = positive ? ((N * N) / 2) * ((A1 * A1) / (M11 - N)) : 0,
+    // xttest0.ado counts e(N), the observations of the fit, though some
+    // may have been dropped since; the sums are over those left.
+    eN = model.N ?? N,
+    lm = positive ? ((eN * eN) / 2) * ((A1 * A1) / (M11 - eN)) : 0,
     p = positive ? chi2tail(1, lm) / 2 : 1,
     centred = centre(y),
     variance = sum(centred.map((v) => v * v)) / (N - 1),

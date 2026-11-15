@@ -1,62 +1,62 @@
 {
   "basis": "Each case in tools/wide-probe-cases.txt run in a fresh Console session. Pass means the command finished and every assertion on it held; it does not mean agreement with Stata, which the recorded fixtures establish. The cases are a judgement about what students type, not a sample of student work.",
   "cases": 519,
-  "pass": 415,
-  "refused": 104,
+  "pass": 450,
+  "refused": 69,
   "wrong": 0,
   "crash": 0,
   "groups": {
     "dm": {
-      "pass": 63,
-      "refused": 2,
+      "pass": 65,
+      "refused": 0,
       "wrong": 0,
       "crash": 0
     },
     "desc": {
-      "pass": 37,
-      "refused": 8,
+      "pass": 38,
+      "refused": 7,
       "wrong": 0,
       "crash": 0
     },
     "test": {
-      "pass": 21,
-      "refused": 6,
+      "pass": 24,
+      "refused": 3,
       "wrong": 0,
       "crash": 0
     },
     "est": {
-      "pass": 51,
-      "refused": 17,
+      "pass": 58,
+      "refused": 10,
       "wrong": 0,
       "crash": 0
     },
     "post": {
-      "pass": 63,
-      "refused": 18,
+      "pass": 65,
+      "refused": 16,
       "wrong": 0,
       "crash": 0
     },
     "graph": {
-      "pass": 56,
-      "refused": 12,
+      "pass": 57,
+      "refused": 11,
       "wrong": 0,
       "crash": 0
     },
     "prog": {
-      "pass": 89,
-      "refused": 21,
+      "pass": 97,
+      "refused": 13,
       "wrong": 0,
       "crash": 0
     },
     "date": {
-      "pass": 22,
-      "refused": 5,
+      "pass": 25,
+      "refused": 2,
       "wrong": 0,
       "crash": 0
     },
     "ts": {
-      "pass": 13,
-      "refused": 15,
+      "pass": 21,
+      "refused": 7,
       "wrong": 0,
       "crash": 0
     }
@@ -274,12 +274,12 @@
     },
     {
       "group": "dm",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||contract region female"
     },
     {
       "group": "dm",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||contract region, freq(n) percent(pct)"
     },
     {
@@ -549,7 +549,7 @@
     },
     {
       "group": "desc",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||ci proportions union"
     },
     {
@@ -714,12 +714,12 @@
     },
     {
       "group": "test",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||swilk wage"
     },
     {
       "group": "test",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||sktest wage"
     },
     {
@@ -734,7 +734,7 @@
     },
     {
       "group": "test",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||ktau wage education"
     },
     {
@@ -819,12 +819,12 @@
     },
     {
       "group": "est",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||bysort female: regress wage education"
     },
     {
       "group": "est",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||xi: regress wage education i.region"
     },
     {
@@ -914,7 +914,7 @@
     },
     {
       "group": "est",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||ivreg wage experience (education = near_college)"
     },
     {
@@ -954,7 +954,7 @@
     },
     {
       "group": "est",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "firms||xtset firm year;;xtreg profit L.sales rd, fe"
     },
     {
@@ -1029,7 +1029,7 @@
     },
     {
       "group": "est",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||heckman wage education experience, select(union = female education)"
     },
     {
@@ -1054,12 +1054,12 @@
     },
     {
       "group": "est",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||mixed wage education || region:"
     },
     {
       "group": "est",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||regress wage education experience;;regress"
     },
     {
@@ -1144,12 +1144,12 @@
     },
     {
       "group": "post",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "firms|xtset firm year;;quietly xtreg profit sales rd, fe|predict ui, u"
     },
     {
       "group": "post",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "firms|xtset firm year;;quietly xtreg profit sales rd, fe|predict e, e"
     },
     {
@@ -1724,32 +1724,32 @@
     },
     {
       "group": "prog",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||matrix A = (1, 2 \\ 3, 4);;matrix B = inv(A);;matrix C = A * B;;matrix list C"
     },
     {
       "group": "prog",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||matrix A = (1, 2 \\ 3, 4);;matrix B = A';;display det(A) \" \" trace(A) \" \" rowsof(A)"
     },
     {
       "group": "prog",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||matrix A = J(2, 3, 0);;matrix A[1,2] = 7;;matrix rownames A = a b;;matrix colnames A = x y z;;matrix list A"
     },
     {
       "group": "prog",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||mkmat wage education in 1/5, matrix(X);;matrix list X"
     },
     {
       "group": "prog",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||matrix accum XX = education experience;;matrix list XX"
     },
     {
       "group": "prog",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||regress wage education;;matrix V = e(V);;matrix se = vecdiag(cholesky(diag(vecdiag(V))));;matrix list se"
     },
     {
@@ -1874,7 +1874,7 @@
     },
     {
       "group": "prog",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||program define showit;;version 17;;syntax varlist(min=2 numeric) [if] [in] [, Level(integer 95) noCONStant];;marksample touse;;regress `varlist' if `touse', level(`level') `constant';;end;;showit wage education, level(90)"
     },
     {
@@ -1994,7 +1994,7 @@
     },
     {
       "group": "prog",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||set seed 1;;bootstrap diff = (_b[education] - _b[experience]), reps(50) seed(2): regress wage education experience"
     },
     {
@@ -2304,7 +2304,7 @@
     },
     {
       "group": "date",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||display ustrregexm(\"abc123\", \"\\d+\") \" \" ustrregexra(\"a1b22\", \"\\d\", \"#\") \" \" ustrlen(\"naïve\") \" \" usubstr(\"naïve\", 3, 2) \" \" ustrupper(\"é\")"
     },
     {
@@ -2324,7 +2324,7 @@
     },
     {
       "group": "date",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||display strmatch(\"regress\", \"reg*\") \" \" inlist(\"b\", \"a\", \"b\") \" \" inrange(5, 1, 10) \" \" missing(.) \" \" char(65) \" \" plural(2, \"cat\") \" \" abbrev(\"experience\", 6)"
     },
     {
@@ -2354,7 +2354,7 @@
     },
     {
       "group": "date",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||generate a = autocode(wage, 4, 0, 80);;generate b = recode(wage, 10, 20, 30);;generate c = irecode(wage, 10, 20, 30);;tabulate c"
     },
     {
@@ -2374,17 +2374,17 @@
     },
     {
       "group": "ts",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "macro||generate t = yq(year, quarter);;format t %tq;;tsset t;;generate lg = L.growth;;generate l2 = L2.growth;;generate dg = D.growth;;generate fg = F.growth;;generate d2 = D2.growth;;generate s4 = S4.growth;;summarize lg l2 dg fg d2 s4"
     },
     {
       "group": "ts",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "macro||generate t = yq(year, quarter);;tsset t;;regress growth L.growth L.inflation D.unemployment"
     },
     {
       "group": "ts",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "macro||generate t = yq(year, quarter);;tsset t;;regress growth L(1/4).growth L(0/2).rate"
     },
     {
@@ -2404,7 +2404,7 @@
     },
     {
       "group": "ts",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "macro||generate t = yq(year, quarter);;tsset t;;newey growth L.inflation, lag(4)"
     },
     {
@@ -2424,12 +2424,12 @@
     },
     {
       "group": "ts",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "macro||generate t = yq(year, quarter);;tsset t;;arima growth, ar(1) ma(1)"
     },
     {
       "group": "ts",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "macro||generate t = yq(year, quarter);;tsset t;;var growth inflation, lags(1/2)"
     },
     {
@@ -2464,12 +2464,12 @@
     },
     {
       "group": "ts",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "macro||generate t = yq(year, quarter);;tsset t;;tsappend, add(4);;count"
     },
     {
       "group": "ts",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "macro||generate t = yq(year, quarter);;tsset t;;pperron unemployment"
     },
     {
@@ -2584,7 +2584,7 @@
     },
     {
       "group": "graph",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor||twoway function y = sin(x), range(0 6)"
     },
     {

@@ -3,7 +3,7 @@
 // session.estimates; the post-estimation commands read only that object, so
 // they will serve later estimators without change.
 import { evaluateAll } from "./expression.js";
-import { leverageStatistic } from "./diagnostics.js";
+import { influence, leverageStatistic } from "./diagnostics.js";
 import { greatest, least } from "./extremes.js";
 import { fold } from "./data-commands.js";
 import { StataError } from "./errors.js";
@@ -18,10 +18,25 @@ import {
   labelled,
   percentile,
   perGroup,
+  weightedPercentile,
   weightedRows,
 } from "./reports.js";
-import { optionItems, splitAtComma } from "./syntax.js";
-import { resolveVariable } from "./varlist.js";
+import {
+  assumedWeights,
+  genericWeight,
+  optionItems,
+  splitAtComma,
+} from "./syntax.js";
+import { operatorGroups, resolveVariable } from "./varlist.js";
+import { factorVariables } from "./factor-varlist.js";
+import { parseNumlist } from "./numlist.js";
+import { requireTimeOrder } from "./panel.js";
+import {
+  operatedName,
+  operatorSpecs,
+  operatorVariables,
+  tsTerm,
+} from "./timeseries.js";
 import {
   MISSING,
   byteLength,
@@ -33,6 +48,35 @@ import {
 import { noCluster, refuseVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
+
+/**
+ * The cross-products of columns, weighted by `w` when given: entry (a, b)
+ * is the sum over observations, in order, of w[i] * a[i] * b[i]. One pass
+ * over the rows, skipping zeros (as indicators mostly are), instead of one
+ * pass over the data for each pair of columns.
+ */
+function crossProducts(columns, w) {
+  const k = columns.length,
+    n = k ? columns[0].length : 0,
+    sums = new Float64Array(k * k),
+    row = new Float64Array(k);
+  for (let i = 0; i < n; i++) {
+    for (let a = 0; a < k; a++) row[a] = columns[a][i];
+    const weight = w ? w[i] : 1;
+    for (let a = 0; a < k; a++) {
+      const v = w ? weight * row[a] : row[a];
+      if (v === 0) continue;
+      const at = a * k;
+      for (let b = a; b < k; b++) sums[at + b] += v * row[b];
+    }
+  }
+  return Array.from({ length: k }, (_, a) =>
+    Array.from({ length: k }, (_, b) =>
+      a <= b ? sums[a * k + b] : sums[b * k + a],
+    ),
+  );
+}
+
 export const RULE = "-".repeat(78);
 
 // ----- small dense linear algebra -----
@@ -101,6 +145,110 @@ export const quadratic = (v, m) =>
  */
 const FACTOR_OPERATOR =
   /^(c|i|ibn|i?b(?:\d+|\(\s*#?\d+\s*\)|\(\s*(?:first|last|freq)\s*\)))\.([A-Za-z_]\w*)$/;
+// A factor over some of its levels: i(2 3).g, i(1/3)b2.g.
+const RESTRICTED_FACTOR =
+  /^i\(([^()]*)\)(b(?:\d+|\(\s*#?\d+\s*\)|\(\s*(?:first|last|freq)\s*\)))?\.([A-Za-z_]\w*)$/;
+// A time-series operated variable: L., F., D. and S., each with an order
+// or a numlist in parentheses, combined as in LD.y, L.D.y or L(0/2).x, in
+// either case.
+// The variable may be a list in parentheses, L(1/2).(x y), and a numlist
+// may hold a step, L(1(1)3).x.
+const SERIES_OPERATOR =
+  /^((?:(?:[LFDS](?:\d+|\((?:[^()]|\([^()]*\))*\))?)+\.)+)([A-Za-z_]\w*|\([^()]*\))$/i;
+// The indicator of one level of a factor: 2.g.
+const LEVEL_INDICATOR = /^(\d+)\.([A-Za-z_]\w*)$/;
+
+/**
+ * The variables a time-series operated term stands for, under tsset or
+ * xtset: L(0/2).x is x, L.x and L2.x. Each operated one is made from the
+ * data now (L.x is named as Stata names its coefficient) and carries ts,
+ * the variable it comes from and the label its row has in a table (L1.,
+ * LD., or --. for the variable itself).
+ */
+function seriesVariables(session, word) {
+  const m = SERIES_OPERATOR.exec(word);
+  if (!m) return null;
+  const panel = session.panel;
+  // An operated term without tsset: Stata's message here has no "use".
+  if (!panel?.time) throw new StataError("time variable not set", 111);
+  requireTimeOrder(session);
+  // Each operator with the orders it takes, refused as Stata refuses a
+  // misplaced numlist or a negative difference.
+  const operators = operatorSpecs(m[1]).map(({ letter, orders }) => ({
+    op: letter,
+    orders,
+  }));
+  // L(1/2).(x y) is L(1/2).x L(1/2).y.
+  const names = session.varlist(
+    m[2].startsWith("(") ? m[2].slice(1, -1) : m[2],
+  );
+  if (names.length > 1)
+    return names.flatMap((name) => seriesVariables(session, `${m[1]}${name}`));
+  const base = session.data.get(names[0]);
+  if (isStringType(base.type)) throw new StataError("no observations", 2000);
+  // A negative lag is a lead, and a negative lead a lag: L(-1).x is F.x.
+  const flipped = { L: "F", F: "L" };
+  let combinations = [[]];
+  for (const { op, orders } of operators)
+    combinations = combinations.flatMap((done) =>
+      orders.map((k) => [
+        ...done,
+        k < 0 && flipped[op] ? { op: flipped[op], k: -k } : { op, k },
+      ]),
+    );
+  const data = session.data,
+    id = panel.id ? data.get(panel.id).data : null,
+    time = data.get(panel.time).data,
+    step = panel.delta ?? 1,
+    where = new Map();
+  for (let i = 0; i < data.n; i++)
+    if (!isMissing(time[i])) where.set(`${id ? id[i] : ""}|${time[i]}`, i);
+  const shift = (values, k) =>
+    Float64Array.from(values, (_, i) => {
+      if (isMissing(time[i])) return MISSING;
+      const row = where.get(`${id ? id[i] : ""}|${time[i] - k * step}`);
+      return row === undefined ? MISSING : values[row];
+    });
+  const minus = (a, b) =>
+    a.map((v, i) => (isMissing(v) || isMissing(b[i]) ? MISSING : v - b[i]));
+  return combinations.map((ops) => {
+    // Lags and leads net out and the operators are written L, F, D, S, as
+    // Stata names them: L.F.x is x, and DL.x is LD.x.
+    const used = tsTerm(
+      base.name,
+      ops.map(({ op, k }) => [op, k]),
+    ).ops.map(([op, k]) => ({ op, k }));
+    if (!used.length) return base;
+    let values = Float64Array.from(base.data);
+    for (const { op, k } of [...used].reverse()) {
+      if (op === "L") values = shift(values, k);
+      else if (op === "F") values = shift(values, -k);
+      else if (op === "S") values = minus(values, shift(values, k));
+      else for (let d = 0; d < k; d++) values = minus(values, shift(values, 1));
+    }
+    // Stata's temporary series keep the storage type of the variable: the
+    // difference of two floats is a float.
+    if (base.type === "float")
+      values = values.map((v) => (isMissing(v) ? v : Math.fround(v)));
+    const prefix = used
+      .map(({ op, k }) => (k === 1 ? op : `${op}${k}`))
+      .join("");
+    return {
+      name: `${prefix}.${base.name}`,
+      type: "double",
+      format: base.format,
+      label: "",
+      valueLabel: "",
+      data: values,
+      ts: {
+        base: base.name,
+        label:
+          used.length === 1 && used[0].k === 1 ? `${prefix}1.` : `${prefix}.`,
+      },
+    };
+  });
+}
+
 /** What a base operator asks for: undefined for the first level. */
 function baseSpecification(operator) {
   if (operator === "ibn") return "none";
@@ -133,15 +281,31 @@ function baseLevel(spec, levels, variable, sample) {
       throw new StataError("factor level out of range", 175);
     return levels[spec.ordinal - 1];
   }
-  // Stata then reports the base as an empty level and omits another for
-  // collinearity; that is not done here.
-  if (!levels.includes(spec.value))
-    throw new StataError(
-      `ib${spec.value}.${variable.name}: a base level the estimation sample does not have is not available here; choose one of the levels of ${variable.name} it has (${levels.join(" ")})`,
-      198,
-    );
+  // A level the sample does not have: design() keeps it as an empty base
+  // for a factor on its own, and in an interaction no cell is then a base.
   return spec.value;
 }
+/**
+ * poisson, nbreg, qreg, glm and cloglog read their variables with syntax
+ * varlist(numeric fv), which refuses a string variable by name; Stata 19
+ * prints "string variables not allowed in varlist; s is a string
+ * variable", r(109), where regress and logit find no observations. A
+ * factor (i.s) is left to design(), which refuses it as a factor.
+ */
+export function numericVarlist(session, text) {
+  for (const token of String(text).trim().split(/\s+/))
+    for (const part of token.split("#")) {
+      const m = /^(?:c\.)?([A-Za-z_*?~][\w*?~-]*)$/.exec(part);
+      if (!m) continue;
+      for (const name of session.varlist(m[1]))
+        if (isStringType(session.data.get(name).type))
+          throw new StataError(
+            `string variables not allowed in varlist;\n${name} is a string variable`,
+            109,
+          );
+    }
+}
+
 /**
  * Reads "y x1 i.g c.x1#c.x2 i.g##c.x1" into a dependent variable and design
  * columns. Each term is a product of components, a component being a
@@ -150,24 +314,53 @@ function baseLevel(spec, levels, variable, sample) {
  * when given, are the observations whose values give each factor's levels.
  */
 export function design(session, text, rows, constant = true, levelRows) {
-  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  // Words split at blanks outside parentheses, so that L(1 2).x is one.
+  const tokens =
+    text.trim().match(/(?:[^\s(]|\((?:[^()]|\([^()]*\))*\))+/g) ?? [];
   if (!tokens.length) throw new StataError("varlist required", 100);
-  const numeric = (name) => {
+  // A string variable as a factor is an error as Stata's fvexpand makes
+  // it; used as a number it is missing in every observation, so the
+  // sample is empty, and Stata 19 says "no observations", r(2000), for
+  // regress, logit, ivregress, xtreg and the others that come here.
+  let stringUsed = null;
+  const numeric = (name, factor = false) => {
     const variable = session.data.get(session.varlist(name)[0]);
-    if (isStringType(variable.type))
-      throw new StataError("string variables may not be used", 109);
+    if (isStringType(variable.type)) {
+      if (factor)
+        throw new StataError(
+          `${variable.name}:  string variables may not be used as factor variables`,
+          109,
+        );
+      stringUsed = variable;
+    }
     return variable;
   };
+  if (SERIES_OPERATOR.test(tokens[0]) && !session.panel?.time)
+    throw new StataError("time variable not set", 111);
+  if (SERIES_OPERATOR.test(tokens[0]))
+    throw new StataError(
+      `${tokens[0]}: time-series operators on the dependent variable are not available in the browser yet`,
+      198,
+      "Make the series first, as in generate dy = D.y, and use it as the dependent variable.",
+    );
   const component = (word, inInteraction) => {
+    // i(numlist).g and i(numlist)b#.g: the factor over those levels only.
+    const restricted = RESTRICTED_FACTOR.exec(word);
+    if (restricted)
+      return {
+        ...component(`i${restricted[2] ?? ""}.${restricted[3]}`, inInteraction),
+        only: parseNumlist(restricted[1]),
+      };
     const m = FACTOR_OPERATOR.exec(word);
     if (!m && /[.()]/.test(word))
       throw new StataError(
         `${word}: this factor-variable or time-series operator is not available yet`,
         198,
       );
+    const factor = m ? m[1] !== "c" : inInteraction;
     return {
-      variable: numeric(m ? m[2] : word),
-      factor: m ? m[1] !== "c" : inInteraction,
+      variable: numeric(m ? m[2] : word, factor),
+      factor,
       // The base level ib#., ib(#n)., ib(first|last|freq). or b#. asks
       // for, or none for ibn.
       base: m ? baseSpecification(m[1]) : undefined,
@@ -246,10 +439,35 @@ export function design(session, text, rows, constant = true, levelRows) {
         .forEach(add);
     } else if (token.includes("#"))
       add(token.split("#").map((part) => component(restore(part), true)));
-    else if (FACTOR_OPERATOR.test(written)) add([component(written, false)]);
+    else if (FACTOR_OPERATOR.test(written) || RESTRICTED_FACTOR.test(written))
+      add([component(written, false)]);
+    else if (LEVEL_INDICATOR.test(written)) {
+      // 2.g: the indicator of one level, a column of its own named so.
+      const [, level, name] = LEVEL_INDICATOR.exec(written),
+        variable = numeric(name, true),
+        value = Number(level);
+      add([
+        {
+          variable: {
+            name: `${value}.${variable.name}`,
+            type: "byte",
+            format: "%9.0g",
+            label: "",
+            valueLabel: "",
+            data: Float64Array.from(variable.data, (v) =>
+              isMissing(v) ? MISSING : Number(v === value),
+            ),
+          },
+          factor: false,
+        },
+      ]);
+    } else if (SERIES_OPERATOR.test(written))
+      for (const variable of seriesVariables(session, written))
+        add([{ variable, factor: false }]);
     else
       for (const name of session.varlist(token)) add([component(name, false)]);
   }
+  if (stringUsed) throw new StataError("no observations", 2000);
   const sample = rows.filter(
     (i) =>
       !isMissing(dependent.data[i]) &&
@@ -257,7 +475,9 @@ export function design(session, text, rows, constant = true, levelRows) {
   );
   const levelsOf = new Map(),
     // Each factor's base level, null for none.
-    baseOf = new Map();
+    baseOf = new Map(),
+    // The factors named on their own, as i.g, not only in interactions.
+    alone = new Set(terms.filter((t) => t.factor).map((t) => t.factor));
   for (const term of terms)
     for (const c of term.components) {
       if (!c.factor || levelsOf.has(c.variable)) continue;
@@ -269,29 +489,74 @@ export function design(session, text, rows, constant = true, levelRows) {
         levels = [...new Set(from.map((i) => c.variable.data[i]))].sort(
           (a, b) => a - b,
         );
-      if (levels.some((level) => !Number.isInteger(level) || level < 0))
+      if (levels.some((level) => !Number.isInteger(level)))
         throw new StataError(
-          `${c.variable.name}: factor variables may not contain noninteger values`,
+          `${c.variable.name}:  factor variables may not contain noninteger values`,
           452,
         );
-      levelsOf.set(c.variable, levels);
-      baseOf.set(c.variable, baseLevel(c.base, levels, c.variable, sample));
+      if (levels.some((level) => level < 0))
+        throw new StataError(
+          `${c.variable.name}:  factor variables may not contain negative values`,
+          452,
+        );
+      // i(2 3).g: only the levels listed, the first of them the base; a
+      // listed level the sample lacks is kept, as Stata keeps it, and shown
+      // as (empty).
+      const kept = c.only ? [...new Set(c.only)].sort((a, b) => a - b) : levels;
+      // ib9.g with no 9 in the sample: Stata keeps 9 as an empty base and
+      // omits another level for collinearity. In an interaction it leaves
+      // the absent level out instead, and no cell is a base.
+      if (
+        c.base?.value !== undefined &&
+        alone.has(c.variable) &&
+        kept.length &&
+        !kept.includes(c.base.value)
+      ) {
+        kept.push(c.base.value);
+        kept.sort((a, b) => a - b);
+      }
+      levelsOf.set(c.variable, kept);
+      baseOf.set(c.variable, baseLevel(c.base, kept, c.variable, sample));
     }
   // A factor's base is its first level, when it has more than one.
   const isBase = (variable, level) =>
     levelsOf.get(variable).length > 1 && level === baseOf.get(variable);
-  // Columns already accepted, orthogonalised, to test later ones against.
-  const basis = [];
+  // Columns already accepted, to test later ones against: what is left of
+  // a column once they are partialled out, from its cross-products with
+  // them and the Cholesky factor of theirs. A column of zeros and ones, as
+  // a factor's indicator is, is multiplied only where it is not zero, so
+  // that a factor with many levels costs little.
+  const basis = [],
+    factor = [];
   const independent = (column) => {
-    let rest = sample.map(column.value);
-    const original = rest.reduce((t, v) => t + v * v, 0);
-    for (const q of basis) {
-      const weight = rest.reduce((t, v, k) => t + v * q.vector[k], 0) / q.norm;
-      rest = rest.map((v, k) => v - weight * q.vector[k]);
+    const m = sample.length,
+      values = new Float64Array(m),
+      nonzero = [];
+    let original = 0;
+    for (let k = 0; k < m; k++) {
+      const v = (values[k] = column.value(sample[k]));
+      if (v !== 0) {
+        nonzero.push(k);
+        original += v * v;
+      }
     }
-    const norm = rest.reduce((t, v) => t + v * v, 0);
-    if (!(original > 0 && norm > 1e-9 * original)) return false;
-    basis.push({ vector: rest, norm });
+    const sparse = nonzero.length < m / 4,
+      size = basis.length,
+      r = new Float64Array(size);
+    let left = original;
+    for (let j = 0; j < size; j++) {
+      const other = basis[j];
+      let dot = 0;
+      if (sparse) for (const k of nonzero) dot += values[k] * other[k];
+      else for (let k = 0; k < m; k++) dot += values[k] * other[k];
+      const row = factor[j];
+      for (let i = 0; i < j; i++) dot -= row[i] * r[i];
+      r[j] = dot / row[j];
+      left -= r[j] * r[j];
+    }
+    if (!(original > 0 && left > 1e-9 * original)) return false;
+    basis.push(values);
+    factor.push([...r, Math.sqrt(left)]);
     return true;
   };
   if (constant) independent({ value: () => 1 });
@@ -336,12 +601,10 @@ export function design(session, text, rows, constant = true, levelRows) {
             )
             .join("#"),
           value: (i) => {
+            for (let k = 0; k < factors.length; k++)
+              if (factors[k].variable.data[i] !== cell[k]) return 0;
             let product = 1;
-            factors.forEach((c, k) => {
-              if (c.variable.data[i] !== cell[k]) product = 0;
-            });
-            if (product)
-              for (const c of continuous) product *= c.variable.data[i];
+            for (const c of continuous) product *= c.variable.data[i];
             return product;
           },
           evaluate: (get) => {
@@ -369,7 +632,13 @@ export function design(session, text, rows, constant = true, levelRows) {
           bases,
         };
       });
-    if (term.factor)
+    if (term.factor) {
+      // ib9.g with no 9 in the sample: the levels in order fill the space
+      // the constant leaves, and Stata omits the last of them, whatever
+      // regress's pivoting would have chosen.
+      const absentBase =
+        made.length > 1 &&
+        !sample.some((i) => term.factor.data[i] === baseOf.get(term.factor));
       // A factor on its own: the first level is the base, unless ib#.
       // chose another or ibn. none. A factor with a single level has no
       // base: its level is a column like any other, omitted beside the
@@ -377,46 +646,64 @@ export function design(session, text, rows, constant = true, levelRows) {
       made.forEach((column) => {
         column.base =
           made.length > 1 && column.level === baseOf.get(term.factor);
-        if (column.base) column.name = column.name.replace(".", "b.");
+        if (column.base) {
+          column.name = column.name.replace(".", "b.");
+          // A base no observation has (ib9.g) is shown as (empty).
+          if (!sample.some((i) => term.factor.data[i] === column.level))
+            column.empty = column.emptyCell = true;
+        }
+        // A level i(5).g lists that the sample lacks is (empty).
+        else if (!sample.some((i) => term.factor.data[i] === column.level)) {
+          column.empty = column.emptyCell = column.collinear = true;
+          column.forcedOmit = true;
+        }
         // A level that adds nothing, such as 2.g beside a dummy for g == 2,
         // is collinear; the likelihood fitters omit it.
-        else if (!independent(column)) column.collinear = true;
+        else if (!independent(column)) {
+          column.collinear = true;
+          if (absentBase) column.forcedOmit = true;
+        }
       });
-    else if (factors.length)
+    } else if (factors.length)
       // In an interaction, cells at base levels give way first: a cell is
       // kept only if it adds something to what is already in the model.
-      [...made]
-        .sort((a, b) => a.bases - b.bases)
-        .forEach((column) => {
-          column.base = !independent(column);
-          // A cell set aside is shown as (empty) when no observation has
-          // its levels, and as (omitted) when none of its levels is a base
-          // and it is collinear with the columns before it.
-          if (column.base) {
-            if (
-              !sample.some((i) =>
-                factors.every(
-                  (c, k) => c.variable.data[i] === column.levels[k],
-                ),
-              )
+      // When a factor's base is a level the sample lacks (ib9.g with no 9),
+      // no cell is a base and Stata omits the last collinear cell, so the
+      // cells are taken in order.
+      (factors.some(
+        (c) =>
+          !levelsOf.get(c.variable).includes(baseOf.get(c.variable)) &&
+          baseOf.get(c.variable) !== null,
+      )
+        ? [...made]
+        : [...made].sort((a, b) => a.bases - b.bases)
+      ).forEach((column) => {
+        column.base = !independent(column);
+        // A cell set aside is shown as (empty) when no observation has
+        // its levels, and as (omitted) when none of its levels is a base
+        // and it is collinear with the columns before it.
+        if (column.base) {
+          if (
+            !sample.some((i) =>
+              factors.every((c, k) => c.variable.data[i] === column.levels[k]),
             )
-              column.empty = column.emptyCell = true;
-            else if (!column.bases) column.omittedCell = true;
-          }
-          // A factor at its base level is marked b, as in 0b.a#1.b; in a
-          // cell left out, every other part is marked o, as in
-          // 0b.a#1o.b and 0b.a#co.x.
-          column.name = term.components
-            .map((c) => {
-              const k = factors.indexOf(c);
-              if (k < 0)
-                return `${column.base ? "co" : "c"}.${c.variable.name}`;
-              const level = column.levels[k],
-                mark = isBase(c.variable, level) ? "b" : column.base ? "o" : "";
-              return `${level}${mark}.${c.variable.name}`;
-            })
-            .join("#");
-        });
+          )
+            column.empty = column.emptyCell = true;
+          else if (!column.bases) column.omittedCell = true;
+        }
+        // A factor at its base level is marked b, as in 0b.a#1.b; in a
+        // cell left out, every other part is marked o, as in
+        // 0b.a#1o.b and 0b.a#co.x.
+        column.name = term.components
+          .map((c) => {
+            const k = factors.indexOf(c);
+            if (k < 0) return `${column.base ? "co" : "c"}.${c.variable.name}`;
+            const level = column.levels[k],
+              mark = isBase(c.variable, level) ? "b" : column.base ? "o" : "";
+            return `${level}${mark}.${c.variable.name}`;
+          })
+          .join("#");
+      });
     // A product of continuous variables joins the columns later cells are
     // tested against.
     else
@@ -425,7 +712,42 @@ export function design(session, text, rows, constant = true, levelRows) {
       });
     columns.push(...made);
   }
+  // set emptycells drop leaves empty cells out of e(b), which the fits here
+  // do not yet do: such a fit is refused rather than shown with them.
+  if (
+    session.settings?.emptycells === "drop" &&
+    columns.some((column) => column.emptyCell)
+  )
+    throw new StataError(
+      "set emptycells drop is not available in the browser yet for a model with empty cells",
+      198,
+      "Type set emptycells keep to fit the model with its empty cells shown as (empty).",
+    );
   return { dependent, columns, sample };
+}
+
+/**
+ * Refuses a weight that Stata's command takes but the browser does not yet,
+ * so that it is not mistaken for one Stata does not allow.
+ */
+export function weightsNotYet(parsed, command) {
+  if (parsed.weight)
+    throw new StataError(
+      `${parsed.weight.type}s are not available with ${command} in the browser yet`,
+      198,
+      "Fit the model without the weight here, or fit it in Stata.",
+    );
+}
+
+/**
+ * Clears e(), as Stata's regress, logit, probit, ologit and mlogit clear it
+ * when they find no observations or an outcome that does not vary: the
+ * estimates, their results and the sample they marked are gone.
+ */
+export function forgetEstimates(session) {
+  session.estimates = null;
+  session.results.e = {};
+  session.data.esample = session.data.esampleOf = null;
 }
 
 export function fit(session, parsed, by) {
@@ -470,7 +792,15 @@ export function fit(session, parsed, by) {
   if (wtype) {
     const all = evaluateAll(session.compile(parsed.weight.exp), session.data.n);
     obs = obs.filter((i) => !isMissing(all[i]) && all[i] !== 0);
-    if (obs.some((i) => all[i] < 0))
+    // regress leaves out the observations whose frequency, analytic or
+    // sampling weight is negative, as it leaves out zero weights; only
+    // importance weights may be negative.
+    if (parsed.positiveWeights && wtype !== "iweight")
+      obs = obs.filter((i) => all[i] > 0);
+    if (
+      !(parsed.positiveWeights && wtype === "iweight") &&
+      obs.some((i) => all[i] < 0)
+    )
       throw new StataError("negative weights encountered", 402);
     sumW = accurateSum(obs, (i) => all[i]);
     if (wtype === "fweight") {
@@ -479,15 +809,32 @@ export function fit(session, parsed, by) {
       // A frequency weight stands for that many identical observations.
       obs = obs.flatMap((i) => new Array(all[i]).fill(i));
     } else {
-      // Analytic and sampling weights are rescaled to sum to N.
-      const scale = obs.length / sumW;
+      // Analytic and sampling weights are rescaled to sum to N; importance
+      // weights, outside a robust variance, are not, and their sum is the
+      // number of observations, as Stata's regress counts them.
+      const scale = wtype === "iweight" && !robust ? 1 : obs.length / sumW;
       w = obs.map((i) => all[i] * scale);
     }
   }
-  const n = obs.length;
-  if (!n) throw new StataError("no observations", 2000);
+  const counted = wtype === "iweight" && !robust;
+  if (!obs.length)
+    throw Object.assign(new StataError("no observations", 2000), {
+      empty: true,
+    });
+  // One observation (however heavily weighted) fits nothing: Stata says so
+  // before it looks for collinearity, with the sample already marked.
+  if (new Set(obs).size < 2)
+    throw Object.assign(new StataError("insufficient observations", 2001), {
+      sample: obs,
+    });
+  const n = counted ? sumW : obs.length;
+  // Importance weights, which may be negative, can sum to less than two.
+  if (counted && !(n >= 2))
+    throw Object.assign(new StataError("insufficient observations", 2001), {
+      sample: obs,
+    });
   const y = obs.map((i) => dependent.data[i]),
-    active = columns.filter((c) => !c.base),
+    active = columns.filter((c) => !c.base && !c.forcedOmit),
     x = active.map((c) => obs.map(c.value)),
     mean = (v) =>
       (w
@@ -500,19 +847,34 @@ export function fit(session, parsed, by) {
   // Choose columns by pivoting: at each step take the column with the most
   // variation left after those already chosen, as Stata does, so which of
   // two collinear variables is omitted does not depend on their order.
+  // With factor variables in the list, Stata's _rmcoll has already omitted
+  // each variable collinear with those before it, the later of two.
   const cross = (a, b) =>
       w
         ? a.reduce((t, v, i) => t + w[i] * v * b[i], 0)
         : a.reduce((t, v, i) => t + v * b[i], 0),
-    original = xc.map((column) => cross(column, column)),
-    remaining = xc.map((column) => column.slice()),
-    chosen = new Set();
+    // The cross-products of the centred columns, each summed over the
+    // observations in order as cross() sums it, in one pass over the data.
+    gram = crossProducts(xc, w),
+    original = xc.map((_, k) => gram[k][k]),
+    // What is left of each column's cross-products once the columns chosen
+    // so far are partialled out: the inner products of the residuals of
+    // Gram-Schmidt, without forming the residuals.
+    remaining = gram.map((row) => row.slice()),
+    chosen = new Set(),
+    factorList = columns.some(
+      (c) => c.levels || !c.term?.variable || /#|(^|#)\d+[bno]*\./.test(c.name),
+    ),
+    set = new Set(
+      factorList ? active.flatMap((c, k) => (c.collinear ? [k] : [])) : [],
+    );
+  const open = (k) => !chosen.has(k) && !set.has(k);
   for (;;) {
     let best = -1,
       size = 0;
-    remaining.forEach((column, k) => {
-      if (chosen.has(k)) return;
-      const norm = cross(column, column);
+    remaining.forEach((row, k) => {
+      if (!open(k)) return;
+      const norm = row[k];
       if (norm > 1e-11 * original[k] && norm > size * (1 + 1e-12)) {
         best = k;
         size = norm;
@@ -521,17 +883,19 @@ export function fit(session, parsed, by) {
     if (best < 0) break;
     chosen.add(best);
     const pivot = remaining[best].slice();
-    remaining.forEach((column, k) => {
-      if (chosen.has(k)) return;
-      const weight = cross(column, pivot) / size;
-      remaining[k] = column.map((v, i) => v - weight * pivot[i]);
+    remaining.forEach((row, k) => {
+      if (!open(k)) return;
+      const weight = pivot[k] / size;
+      for (let j = 0; j < row.length; j++)
+        if (open(j)) row[j] -= weight * pivot[j];
     });
   }
   const kept = xc.map((_, k) => k).filter((k) => chosen.has(k));
   active.forEach((column, k) => {
     if (!chosen.has(k)) column.omitted = true;
   });
-  const s = kept.map((a) => kept.map((b) => cross(xc[a], xc[b]))),
+  for (const column of columns) if (column.forcedOmit) column.omitted = true;
+  const s = kept.map((a) => kept.map((b) => gram[a][b])),
     a = kept.length ? invertSymmetric(s) : [];
   if (!a) throw new StataError("the regressors are too collinear to fit", 198);
   const xy = kept.map((k) => cross(xc[k], yc)),
@@ -638,6 +1002,8 @@ export function fit(session, parsed, by) {
       if (inverse) F = quadratic(slopes, inverse) / dfModel;
     }
   }
+  // A fit of the constant alone has an F of 0 on no degrees of freedom.
+  if (dfModel === 0 && dfResidual > 0 && constant && !shortRank) F = 0;
   // An exact fit gives 0/0 or x/0: Stata shows such an F as missing.
   if (!Number.isFinite(F)) F = MISSING;
   // Coefficients in the order of the design, with base and omitted columns
@@ -687,9 +1053,14 @@ export function fit(session, parsed, by) {
         ? 1 - ((rss / dfResidual) * (n - (constant ? 1 : 0))) / tss
         : MISSING,
     rmse: dfResidual > 0 ? Math.sqrt(rss / dfResidual) : 0,
+    // Analytic weights enter Stata's likelihood as precisions: each
+    // observation adds half the log of its (rescaled) weight.
     ll:
       rss > 0
-        ? -0.5 * n * (Math.log(2 * Math.PI) + Math.log(rss / n) + 1)
+        ? -0.5 * n * (Math.log(2 * Math.PI) + Math.log(rss / n) + 1) +
+          (wtype === "aweight" && w
+            ? 0.5 * w.reduce((t, v) => t + Math.log(v), 0)
+            : 0)
         : MISSING,
     vce: cluster ? "cluster" : robust ? "robust" : "ols",
     sumW,
@@ -744,8 +1115,10 @@ function tableBlocks(session, model) {
       block.term.components.length === 1 &&
       block.term.components[0].factor &&
       block.shown.length === 1;
+    // ratio and its kin head even one group of over() by its name.
     block.alone =
       one &&
+      !model.headedFactors &&
       !session.data.valueLabels?.has(
         block.term.components[0].variable.valueLabel,
       );
@@ -763,8 +1136,13 @@ function tableBlocks(session, model) {
  */
 function levelLabel(session, column) {
   const factors = column.term.components.filter((c) => c.factor),
+    // A level without a value label is shown as its number, even where
+    // the variable has a date format (2020m2 shows as 721).
     pieces = column.levels.map((level, j) =>
-      labelled(session, factors[j].variable, level),
+      /^%-?t/.test(factors[j].variable.format ?? "") &&
+      !session.data.valueLabels?.get(factors[j].variable.valueLabel)?.has(level)
+        ? String(level)
+        : labelled(session, factors[j].variable, level),
     ),
     named = column.levels.some(
       (level, j) =>
@@ -906,17 +1284,21 @@ export function abbreviate(name, width) {
  * Without a width, nothing is abbreviated.
  */
 export function brokenName(name, w, abbreviated = true) {
-  const parts = name.split("#"),
+  // Each piece but the last keeps the # (or the @ of c.y@1.g) that ends it.
+  const parts = name.split(/(?<=[#@])/),
     units = [];
-  parts.forEach((part, k) => {
+  parts.forEach((piece, k) => {
     const final = k === parts.length - 1,
+      sep = final ? "" : piece.slice(-1),
+      part = final ? piece : piece.slice(0, -1),
       last = units.at(-1);
     if (
       last &&
       !last.fixed &&
-      `${last.text}#${part}`.length <= (final ? w : w - 1)
+      `${last.text}${last.sep}${part}`.length <= (final ? w : w - 1)
     ) {
-      last.text = `${last.text}#${part}`;
+      last.text = `${last.text}${last.sep}${part}`;
+      last.sep = sep;
       return;
     }
     // A continuous piece keeps its c. only when it fits with the # that
@@ -924,16 +1306,18 @@ export function brokenName(name, w, abbreviated = true) {
     if (abbreviated && part.length > (final ? w : w - 1) && /^c\../.test(part))
       units.push(
         { text: "c.", fixed: true, bare: true },
-        { text: abbreviate(part.slice(2), w), fixed: true },
+        { text: abbreviate(part.slice(2), w), fixed: true, sep },
       );
     else if (abbreviated && part.length > w)
-      units.push({ text: abbreviate(part, w), fixed: true });
-    else units.push({ text: part });
+      units.push({ text: abbreviate(part, w), fixed: true, sep });
+    else units.push({ text: part, sep });
   });
   const before = units.slice(0, -1);
   return {
     lines: before.map((u) =>
-      u.bare ? `${u.text.padStart(w)} |` : `${`${u.text}#`.padStart(w + 1)}|`,
+      u.bare
+        ? `${u.text.padStart(w)} |`
+        : `${`${u.text}${u.sep}`.padStart(w + 1)}|`,
     ),
     last: units.at(-1).text,
     widest: Math.max(
@@ -969,8 +1353,42 @@ export function termRows(
   const blank = () => {
     if (out.length && out.at(-1) !== gap) out.push(gap);
   };
-  tableBlocks(session, model).forEach((block, b) => {
+  // Time-series operated variables of one variable, side by side, are a
+  // group under its name, each row labelled by its operator (L1., D1., and
+  // --. for the variable itself), as Stata lays them out.
+  const blocks = tableBlocks(session, model),
+    seriesBase = (block) =>
+      block.term === "_cons" || !block.term.variable
+        ? null
+        : (block.term.variable.ts?.base ?? block.term.variable.name),
+    groupOf = blocks.map(() => null);
+  for (let b = 0; b < blocks.length;) {
+    const base = seriesBase(blocks[b]);
+    let e = b + 1;
+    while (e < blocks.length && base && seriesBase(blocks[e]) === base) e++;
+    if (base && blocks.slice(b, e).some((block) => block.term.variable.ts))
+      for (let k = b; k < e; k++) groupOf[k] = { base, first: k === b };
+    b = e;
+  }
+  blocks.forEach((block, b) => {
     const { shown, alone } = block;
+    if (groupOf[b]) {
+      if (groupOf[b].first) {
+        if (b) blank();
+        out.push(`${short(groupOf[b].base).padStart(w)} |`);
+      }
+      const k = block.items[0],
+        label = block.term.variable.ts?.label ?? "--.";
+      // A group that ends with the variable itself (L.x x) runs on into
+      // what follows; one that ends with an operated row has a blank row
+      // after it.
+      previousPlain = label === "--.";
+      return out.push(
+        model.estimable[k]
+          ? `${label.padStart(w)} |${cells(k)}`
+          : `${label.padStart(w)} |${String(omittedValue).padStart(11)}  (omitted)${baseTail.slice(3)}`,
+      );
+    }
     // A factor whose only level is a hidden base (which tobit keeps) shows
     // nothing. Unlabelled, it would be one plain row and leaves no trace;
     // labelled, it would be headed by its name, and the blank rows about
@@ -1011,7 +1429,10 @@ export function termRows(
               !model.columns[k].empty &&
               !model.columns[k].omittedCell
             ? `${label}|${String(omittedValue).padStart(11)}  (base)${baseTail}`
-            : `${label}|${String(omittedValue).padStart(11)}  (${model.columns[k]?.empty ? "empty" : "omitted"})`,
+            : model.columns[k]?.empty
+              ? `${label}|${String(omittedValue).padStart(11)}  (empty)`
+              : // regress, beta shows an omitted variable's beta, zero.
+                `${label}|${String(omittedValue).padStart(11)}  (omitted)${baseTail.slice(3)}`,
       );
     if (block.term === "_cons" || block.term.variable)
       return row(
@@ -1023,7 +1444,11 @@ export function termRows(
       return row(`${short(model.names[shown[0]]).padStart(w)} `, shown[0]);
     // A product of continuous variables is one row; a name too long for the
     // column is broken after a #, the last piece labelling the row.
-    if (shown.length === 1 && block.term.components.every((c) => !c.factor)) {
+    if (
+      shown.length === 1 &&
+      !block.term.ts &&
+      block.term.components.every((c) => !c.factor)
+    ) {
       const name = model.names[shown[0]];
       if (name.length <= w || !name.includes("#"))
         return row(`${short(name).padStart(w)} `, shown[0]);
@@ -1047,6 +1472,11 @@ export function termRows(
           ? `${text.slice(0, w - 3)}..`
           : abbreviate(text, w - 1);
     for (const k of shown) {
+      // A time-series operator labels its row as L1. or LD.
+      if (model.columns[k].tsLabel) {
+        row(`${model.columns[k].tsLabel} `.padStart(w + 1), k);
+        continue;
+      }
       const { pieces, named, text } = levelLabel(session, model.columns[k]);
       if (width && text.length > w - 1 && pieces.length > 1 && !named) {
         const lines = [];
@@ -1067,6 +1497,9 @@ export function termRows(
         row(`${cut(pieces.at(-1))}  `.padStart(w + 1), k);
       } else row(`${cut(text)}  `.padStart(w + 1), k);
     }
+    // A series group that ends with the variable itself (L.x x) runs on
+    // into what follows, with no blank row.
+    if (model.columns[shown.at(-1)]?.tsLabel === "--.") previousPlain = true;
   });
   return out;
 }
@@ -1133,6 +1566,27 @@ export const unmarked = (name) =>
 
 /** Set by the resampling module: runs vce(bootstrap) and vce(jackknife). */
 export const hooks = { resamplingVce: null };
+/**
+ * regress's fit. Finding no observations, Stata's regress has already
+ * cleared e(); finding one, it has marked it as e(sample) and keeps the
+ * estimates before it.
+ */
+function regressFit(session, parsed) {
+  try {
+    return fit(session, { ...parsed, positiveWeights: true }, null);
+  } catch (error) {
+    if (error instanceof StataError && error.empty) forgetEstimates(session);
+    if (error instanceof StataError && error.sample) {
+      const data = session.data,
+        marks = new Uint8Array(data.n);
+      for (const i of error.sample) marks[i] = 1;
+      data.esample = marks;
+      data.esampleOf = session.estimates;
+    }
+    throw error;
+  }
+}
+
 function regress(session, text, ctx) {
   const requested = /\bvce\s*\(((?:[^()]|\([^()]*\))*)\)/.exec(text)?.[1];
   if (
@@ -1144,8 +1598,10 @@ function regress(session, text, ctx) {
       "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta CLuster(string) BASElevels ALLBASElevels | noHEader EForm(string) ABSorb(varname)]",
       text,
     ),
-    model = fit(session, parsed, null),
+    model = regressFit(session, parsed),
     level = parsed.options.level,
+    // A replay of a clustered fit with beta shows no beta coefficients.
+    noBeta = !!model.clusters && !!parsed.options.beta,
     stat = (label, value, wide, relation = "=") =>
       wide
         ? `${label.padEnd(18)}${relation}${value.padStart(11)}`
@@ -1172,40 +1628,37 @@ function regress(session, text, ctx) {
         wide,
       ),
     ];
+  if (noBeta && !ctx.replaying)
+    throw new StataError(
+      "options vce(cluster clustvar) and beta may not be combined",
+      184,
+    );
   model.baseLevels = baseLevelsAsked(parsed.options);
   session.estimates = model;
-  session.results.e = {
-    N: model.N,
-    df_m: model.df_m,
-    df_r: model.df_r,
-    F: model.F,
-    r2: model.r2,
-    r2_a: model.r2_a,
-    rmse: model.rmse,
-    mss: model.mss,
-    rss: model.rss,
-    ll: model.ll,
-    rank: model.rank,
-    ...(model.clusters ? { N_clust: model.clusters } : {}),
-    cmd: "regress",
-    depvar: model.depvar,
-    vce: model.vce,
-  };
+  session.results.e = regressResults(session, model, text, parsed);
+  // [weight=exp] is an analytic weight, and Stata says so first; the sum
+  // of the weights comes before the notes on the columns.
+  if (parsed.weight && genericWeight(text) && !ctx.replaying)
+    ctx.out(assumedWeights(parsed.weight.type));
+  if (
+    model.wtype &&
+    model.wtype !== "fweight" &&
+    !(model.wtype === "iweight" && model.vce === "ols")
+  )
+    ctx.out(`(sum of wgt is ${g(model.sumW, "%18.0gc")})`);
   // Stata's notes, in the order of the columns; a cell of an interaction
   // is named without its omitted markers.
   for (const column of model.columns)
-    if (column.omitted)
-      ctx.out(`note: ${column.name} omitted because of collinearity.`);
-    else if (column.empty)
+    if (column.empty)
       ctx.out(
         `note: ${unmarked(column.name)} identifies no observations in the sample.`,
       );
+    else if (column.omitted)
+      ctx.out(`note: ${column.name} omitted because of collinearity.`);
     else if (column.omittedCell)
       ctx.out(
         `note: ${unmarked(column.name)} omitted because of collinearity.`,
       );
-  if (model.wtype && model.wtype !== "fweight")
-    ctx.out(`(sum of wgt is ${g(model.sumW, "%18.0gc")})`);
   ctx.out("");
   if (wide) {
     side.forEach((line, k) =>
@@ -1262,7 +1715,7 @@ function regress(session, text, ctx) {
       (k) => {
         const { se, t, p } = coefficientTest(model, k),
           beta =
-            model.names[k] === "_cons"
+            model.names[k] === "_cons" || noBeta
               ? MISSING
               : (model.b[k] * sd(model.sample.map(model.columns[k].value))) /
                 sdY;
@@ -1285,15 +1738,177 @@ function regress(session, text, ctx) {
   ctx.out("");
 }
 
+/**
+ * regress's e(), in the order Stata's regress stores it, which ereturn list
+ * shows: its scalars, its macros, and e(beta) and e(V_modelbased) beside
+ * e(b) and e(V).
+ */
+function regressResults(session, model, text, parsed) {
+  const weight = /(?:^|\s)\[\s*([A-Za-z]+)\s*=\s*([^\]]+)\]/.exec(
+      splitAtComma(text)[0],
+    ),
+    stripe = coefficientSpace(model).entries.map(stripeName),
+    plain = model.names.filter((name) => name !== "_cons"),
+    sd = (values) => {
+      const m = values.reduce((a, b) => a + b, 0) / values.length;
+      return Math.sqrt(
+        values.reduce((t, v) => t + (v - m) ** 2, 0) / (values.length - 1),
+      );
+    },
+    dependent = session.data.get(model.depvar),
+    sdY = sd(model.sample.map((i) => dependent.data[i])),
+    s2 = model.dfResidual > 0 ? model.rss / model.dfResidual : MISSING;
+  return {
+    ...(model.clusters ? { N_clust: model.clusters } : {}),
+    N: model.N,
+    sum_w: model.wtype && model.wtype !== "fweight" ? model.sumW : model.N,
+    df_m: model.df_m,
+    df_r: model.df_r,
+    F: model.F,
+    r2: model.r2,
+    rmse: model.rmse,
+    mss: model.mss,
+    rss: model.rss,
+    r2_a: model.r2_a,
+    ll: model.ll,
+    ...(model.constant && !isMissing(model.ll) && !isMissing(model.r2)
+      ? { ll_0: model.ll + (model.N / 2) * Math.log(1 - model.r2) }
+      : {}),
+    rank: model.rank,
+    cmdline: `regress ${text.trim()}`,
+    title: "Linear regression",
+    marginsok: "XB default",
+    vce: model.vce,
+    depvar: model.depvar,
+    cmd: "regress",
+    properties: "b V",
+    predict: "regres_p",
+    model: "ols",
+    estat_cmd: "regress_estat",
+    ...(weight && model.wtype
+      ? { wexp: `= ${weight[2].trim()}`, wtype: model.wtype }
+      : {}),
+    ...(model.vce !== "ols" ? { vcetype: model.vcetype || "Robust" } : {}),
+    ...(model.clusters ? { clustvar: model.clusterName } : {}),
+    ...(model.clusters || !plain.length
+      ? {}
+      : {
+          "matrix:beta": {
+            rowNames: ["y1"],
+            colNames: stripe.filter((name) => name !== "_cons"),
+            values: [
+              model.names
+                .map((name, k) =>
+                  name === "_cons"
+                    ? null
+                    : model.estimable[k]
+                      ? (model.b[k] *
+                          sd(model.sample.map(model.columns[k].value))) /
+                        sdY
+                      : 0,
+                )
+                .filter((v) => v !== null),
+            ],
+          },
+        }),
+    ...(model.vce !== "ols" && model.xtxInverse
+      ? {
+          "matrix:V_modelbased": {
+            rowNames: stripe,
+            colNames: stripe,
+            values: model.xtxInverse.map((row) => row.map((v) => v * s2)),
+          },
+        }
+      : {}),
+  };
+}
+
 export function estimates(session) {
   if (!session.estimates) throw new StataError("last estimates not found", 301);
   return session.estimates;
 }
 
+/**
+ * predict after xtreg: u (the panel effect), e (the idiosyncratic error),
+ * ue (both) and xbu (the prediction with the effect). After fe and be the
+ * effect is the panel's mean residual; after re it is shrunk toward zero
+ * by sigma_u^2 / (sigma_u^2 + sigma_e^2 / T), as Stata estimates it. Only
+ * the estimation sample has them.
+ */
+function panelPredict(session, model, text, ctx) {
+  const parsed = session.parse(
+      "newvarname [if] [in] [, U E UE XBU XB STDP]",
+      text,
+    ),
+    asked = ["u", "e", "ue", "xbu"].filter((name) => parsed.options[name]);
+  if (
+    asked.length + (parsed.options.xb ? 1 : 0) + (parsed.options.stdp ? 1 : 0) >
+    1
+  )
+    throw new StataError("only one statistic may be requested", 198);
+  const what = asked[0],
+    data = session.data,
+    dependent = data.get(model.depvar),
+    id = data.get(model.ivar).data,
+    xb = (i) =>
+      model.names.reduce(
+        (t, name, k) =>
+          t + model.b[k] * (name === "_cons" ? 1 : model.columns[k].value(i)),
+        0,
+      ),
+    residual = new Map(),
+    totals = new Map();
+  for (const i of model.sample) {
+    const r = dependent.data[i] - xb(i),
+      entry = totals.get(id[i]) ?? [0, 0];
+    residual.set(i, r);
+    entry[0] += r;
+    entry[1] += 1;
+    totals.set(id[i], entry);
+  }
+  const effect = (i) => {
+      const [sum, T] = totals.get(id[i]),
+        mean = sum / T;
+      if (model.xt !== "re") return mean;
+      const su2 = model.sigma_u ** 2,
+        se2 = model.sigma_e ** 2;
+      return (su2 / (su2 + se2 / T)) * mean;
+    },
+    keep = new Set(session.rows(parsed, null)),
+    values = new Array(data.n).fill(MISSING);
+  for (const i of model.sample) {
+    if (!keep.has(i)) continue;
+    const u = effect(i),
+      ue = residual.get(i);
+    values[i] =
+      what === "u" ? u : what === "e" ? ue - u : what === "ue" ? ue : xb(i) + u;
+  }
+  const order = [...data.sortedBy],
+    empty = values.filter((v) => isMissing(v)).length;
+  data.generate(parsed.varlist[0], values, {
+    type: parsed.typed[0] ? parsed.types[0] : undefined,
+  });
+  data.sortedBy = order;
+  const panel = model.ivar;
+  data.get(parsed.varlist[0]).label = {
+    u: `u[${panel}]`,
+    e: `e[${panel},t]`,
+    ue: `u[${panel}] + e[${panel},t]`,
+    xbu: `Xb + u[${panel}]`,
+  }[what];
+  if (empty)
+    ctx.out(
+      `(${count(empty)} missing value${empty === 1 ? "" : "s"} generated)`,
+    );
+}
+
 export function predict(session, text, ctx) {
+  const early = estimates(session);
+  if (early.kind === "xtreg" && /,[\s\S]*\b(u|e|ue|xbu)\b/.test(text))
+    return panelPredict(session, early, text, ctx);
   const model = estimates(session),
     parsed = session.parse(
-      "newvarname [if] [in] [, XB Residuals STDP STDF STDR RSTAndard RSTUdent COOKsd Leverage Hat | DFITS SCores]",
+      "newvarname [if] [in] [, XB Residuals STDP STDF STDR RSTAndard RSTUdent COOKsd Leverage Hat DFIts DFBeta(string) COVratio Welsch | SCores]",
       text,
     ),
     options = parsed.options,
@@ -1305,6 +1920,10 @@ export function predict(session, text, ctx) {
       "cooksd",
       "leverage",
       "hat",
+      "dfits",
+      "dfbeta",
+      "covratio",
+      "welsch",
     ].filter((name) => options[name]),
     chosen = ["xb", "residuals", "stdp", ...extra].filter(
       (name) => options[name],
@@ -1328,6 +1947,42 @@ export function predict(session, text, ctx) {
         `option ${extra[0]} is only available after regress`,
         198,
       );
+    // What a weighted fit cannot give: DFBETAs after any weights, and the
+    // statistics of a left-out observation after analytic weights.
+    if (model.wtype && extra[0] === "dfbeta")
+      throw new StataError("not possible after weighted regression", 398);
+    if (
+      model.wtype &&
+      model.wtype !== "fweight" &&
+      /^(dfits|cooksd|rstudent|rstandard|welsch|stdf|stdr)$/.test(extra[0])
+    )
+      throw new StataError("not possible with weighted data", 135);
+    // DFITS and DFBETA(), for the estimation sample.
+    if (extra[0] === "dfits" || extra[0] === "dfbeta") {
+      let k = null;
+      if (extra[0] === "dfbeta") {
+        k = coefficientIndex(model, options.dfbeta);
+        if (k < 0 || model.names[k] === "_cons" || !model.estimable[k])
+          throw new StataError(`${options.dfbeta.trim()} not found`, 111);
+      }
+      const keep = new Set(session.rows(parsed, null)),
+        order = [...session.data.sortedBy],
+        result = influence(session, model, k, extra[0]).map((v, i) =>
+          keep.has(i) ? v : MISSING,
+        ),
+        empty = result.filter((v) => isMissing(v)).length;
+      session.data.generate(parsed.varlist[0], result, {
+        type: parsed.typed[0] ? parsed.types[0] : undefined,
+      });
+      session.data.sortedBy = order;
+      session.data.get(parsed.varlist[0]).label =
+        k === null ? "DFITS" : `DFBETA, ${model.names[k]}`;
+      if (empty)
+        ctx.out(
+          `(${count(empty)} missing value${empty === 1 ? "" : "s"} generated)`,
+        );
+      return;
+    }
     const made = leverageStatistic(session, model, extra[0]),
       keep = new Set(session.rows(parsed, null)),
       order = [...session.data.sortedBy],
@@ -1345,7 +2000,9 @@ export function predict(session, text, ctx) {
     return;
   }
   const data = session.data,
-    dependent = data.get(model.depvar),
+    // Only residuals read the dependent variable: the linear prediction
+    // needs the regressors alone.
+    dependent = options.residuals ? data.get(model.depvar) : null,
     values = new Array(data.n).fill(MISSING);
   let missing = 0;
   session.select(parsed, null, (i) => {
@@ -1443,6 +2100,8 @@ const spaces = new WeakMap();
  * an exponentiated form.
  */
 export function tableResults(session, model, body, command) {
+  // mixed reports its variance parameters as its table shows them.
+  if (model.tableResults) return model.tableResults();
   const space = coefficientSpace(model),
     [, options = ""] = splitAtComma(body ?? ""),
     asked = /(?:^|[\s,])l(?:e(?:v(?:el?)?)?)?\(\s*([\d.]+)\s*\)/.exec(options),
@@ -1526,10 +2185,23 @@ export function tableResults(session, model, body, command) {
 }
 
 export function coefficientSpace(model) {
+  // mixed lays out its own: the fixed effects and its variance parameters.
+  if (model.space) return model.space;
   if (spaces.has(model)) return spaces.get(model);
   const entries = [],
     dropped = (k) => model.estimable?.[k] === false;
-  if (model.equations) {
+  if (model.stripe) {
+    // A model whose equations hold different coefficients (heckman,
+    // teffects, arima, var) lists each with its equation.
+    model.stripe.forEach(({ equation, name }, index) =>
+      entries.push({
+        equation,
+        name,
+        index,
+        omitted: dropped(index) && !/\d+b\./.test(name),
+      }),
+    );
+  } else if (model.equations) {
     const variables = model.coefficientNames?.slice() ?? [];
     for (const name of model.names) {
       const plain = name.replace(/^[^:]+:/, "");
@@ -1551,14 +2223,16 @@ export function coefficientSpace(model) {
     // main equation after the dependent variable too, as in [wage]education.
     // regress (bootstrapped too), ivregress and xtreg leave theirs
     // unnamed, though some of them report z.
-    const unnamed = ["ivregress", "xtreg", "regress"],
+    const unnamed = ["ivregress", "xtreg", "regress", "stcox"],
       tagged =
-        (model.dist === "z" &&
+        ((model.dist === "z" &&
           !unnamed.includes(model.kind) &&
           !unnamed.includes(model.command)) ||
-        !!model.auxiliary ||
-        // svy: logit and the like, which report t.
-        !!model.namedEquation;
+          !!model.auxiliary ||
+          // svy: logit and the like, which report t.
+          !!model.namedEquation) &&
+        // xtgee, which fits the pa models, names no equation.
+        !model.unnamedEquation;
     model.names.forEach((name, index) =>
       entries.push({
         equation: tagged ? model.depvar : null,
@@ -1815,6 +2489,11 @@ export function findCoefficient(
       within(e) &&
       (e.name === text || (e.omitted && omittedName(e.name) === text)),
   );
+  // l.x and L1.x name the coefficient Stata calls L.x.
+  if (at < 0 && operatedName(text) !== text)
+    at = space.entries.findIndex(
+      (e) => within(e) && e.name === operatedName(text),
+    );
   const call = /^(\w+)\(\s*e\.(\w+)\s*\)$/.exec(text);
   if (at < 0 && call)
     at = space.entries.findIndex((e) => {
@@ -1910,7 +2589,12 @@ export function linear(model, text, session) {
   // Spaces may stand around # and after a level's dot: 1.female # c.x, 2. reg.
   let source = text
     .replace(/\s*#\s*/g, "#")
-    .replace(/(?<![\w.])(\d+[A-Za-z]*)\s*\.\s*(?=[A-Za-z_])/g, "$1.");
+    .replace(/(?<![\w.])(\d+[A-Za-z]*)\s*\.\s*(?=[A-Za-z_])/g, "$1.")
+    // [/athrho], a free parameter in brackets, is _b[/athrho].
+    .replace(
+      /(?<!_(?:b|coef|se)\s*)\[\s*\/\s*([A-Za-z_]\w*)\s*\](?![\w(])/g,
+      "_b[/$1]",
+    );
   // _b[name], _b[eq:name], _b[[eq]name], _b[/name] for a parameter of the
   // equation "/", and [eq]_b[name], which names the equation outside. A
   // name alone is a coefficient of the main equations, never of "/".
@@ -2065,8 +2749,19 @@ export function linear(model, text, session) {
       }
       // A time-series operator, which these models do not take.
       if (token.split("#").some((p) => /^[LFDS][A-Za-z0-9]*\./i.test(p))) {
-        const at = exact(token);
-        if (at < 0) throw new StataError(`regressor ${token} not found`, 111);
+        const named = token.split("#").map(operatedName).join("#"),
+          at = exact(named);
+        // Stata names what it cannot find as it names coefficients, or the
+        // variable when the model has nothing of it.
+        if (at < 0) {
+          const base = named.replace(/^.*\./, "");
+          if (
+            !named.includes("#") &&
+            !space.entries.some((e) => e.name.replace(/^.*\./, "") === base)
+          )
+            throw new StataError(`variable ${base} not found`, 111);
+          throw new StataError(`regressor ${named} not found`, 111);
+        }
         return placed(at, token);
       }
       const { terms: wanted } = readTerms(variables, token),
@@ -2162,8 +2857,149 @@ export function linear(model, text, session) {
  * Position of the coefficient called name, [eq]name or eq:name in a model,
  * or -1. A bare name in a model with several equations means the first.
  */
+/**
+ * _b[name] or _se[name] of the last model, as Stata reads them: _b[x] and
+ * _b[eq:x] in the model's equations, _b[/name] and _b[/:name] for an
+ * ancillary parameter such as streg's /ln_p, and _b[_:x] where the
+ * equation has no name. An equation the model does not have is not found;
+ * [eq]_b[x] arrives here as eq:x too.
+ */
+export function coefficientValue(model, kind, name, form = {}) {
+  const text = name.trim(),
+    missing = () => new StataError(`[${text}] not found`, 111),
+    space = coefficientSpace(model),
+    read = (entry) => {
+      const at = space.entries.indexOf(entry);
+      // A model's own e(b) is read as it stands, which nlcom moves.
+      if (kind === "_b" && model.stripe && !model.space)
+        return model.b[entry.index];
+      return kind === "_b" ? space.b[at] : Math.sqrt(space.V[at][at]);
+    },
+    slash = /^\/\s*(?::\s*)?(.+)$/.exec(text),
+    colon = slash ? null : /^([^:#.\s][^:]*?|#\d+)\s*:\s*(.+)$/.exec(text);
+  if (slash) {
+    const entry = space.entries.find(
+      (e) => e.equation === "/" && e.name === slash[1].trim(),
+    );
+    if (!entry) throw missing();
+    return read(entry);
+  }
+  // Stata's i., ibn. and ib#. name no coefficient: _b[i.g].
+  const operator = /(?:^|[:#])(i\w*|b\d+)\.[\p{L}_]/u.exec(text);
+  if (operator) throw new StataError(`${operator[1]}:  operator invalid`, 198);
+  // mlogit: [#k] counts every outcome's equation, the base one included,
+  // and an equation is named by its label or its outcome's value; the base
+  // outcome's coefficients are 0.
+  if (colon && model.equations && model.baseEquation !== undefined) {
+    const given = colon[1].trim(),
+      numbered = /^#(\d+)$/.exec(given);
+    let j = numbered ? Number(numbered[1]) - 1 : model.equations.indexOf(given);
+    if (j < 0 && !numbered)
+      j = (model.outcomeValues ?? []).findIndex((v) => String(v) === given);
+    if (j < 0 || j >= model.equations.length)
+      throw new StataError(`equation [${given}] not found`, 303);
+    const coefficient = colon[2].trim();
+    if (j === model.baseEquation) {
+      if (!(model.coefficientNames ?? []).includes(coefficient))
+        throw missing();
+      return 0;
+    }
+    const at = coefficientIndex(model, `${model.equations[j]}:${coefficient}`);
+    if (at < 0) throw missing();
+    return kind === "_b" ? model.b[at] : Math.sqrt(model.V[at][at]);
+  }
+  // A fit of several equations (heckman): [#2]x is the second equation's,
+  // and an equation it does not have is not found.
+  if (colon && model.names.some((n) => n.includes(":"))) {
+    const equations = [
+        ...new Set(
+          model.names
+            .filter((n) => n.includes(":"))
+            .map((n) => n.replace(/:.*$/, "")),
+        ),
+      ],
+      given = colon[1].trim(),
+      numbered = /^#(\d+)$/.exec(given),
+      equation = numbered ? equations[Number(numbered[1]) - 1] : given,
+      base =
+        model.baseEquation !== undefined
+          ? String(model.equations?.[model.baseEquation])
+          : null;
+    // mlogit's base outcome is an equation e(b) does not hold.
+    if (equation !== base) {
+      if (equation === undefined || !equations.includes(equation))
+        throw new StataError(`equation [${given}] not found`, 303);
+      const at = coefficientIndex(model, `${equation}:${colon[2].trim()}`);
+      if (at < 0) throw missing();
+      return kind === "_b" ? model.b[at] : Math.sqrt(model.V[at][at]);
+    }
+  }
+  if (colon && !model.names.some((n) => n.includes(":"))) {
+    const equation = colon[1].trim(),
+      main = space.entries[0]?.equation ?? null,
+      named = new Set(space.entries.map((e) => e.equation).filter(Boolean));
+    if (equation === "/" || (named.has(equation) && equation !== main)) {
+      const entry = space.entries.find(
+        (e) => e.equation === equation && e.name === colon[2].trim(),
+      );
+      if (!entry) throw missing();
+      return read(entry);
+    }
+    // [#1]x and [#1]_b[x] name the only equation; _b[#1:x] does not.
+    if (equation === "#1" && !form.equation) throw missing();
+    if (equation !== main && !(main === null && equation === "_"))
+      if (!(form.equation && equation === "#1"))
+        throw new StataError(
+          form.equation
+            ? `equation [${equation}] not found`
+            : `equation ${equation} not found`,
+          form.equation ? 303 : 111,
+        );
+  }
+  let at = coefficientIndex(model, text);
+  // A base or omitted level is found without its b or o, as _b[0.g] for
+  // 0b.g; c.x alone is x, and a bare name in an interaction is c.name.
+  if (at < 0) {
+    const level = (part) => part.replace(/^(\d+)(?:bn|b|o)\./, "$1."),
+      parts = text.replace(/^[^:]*:/, "").split("#"),
+      wanted = parts
+        .map((part) =>
+          parts.length > 1 && /^[\p{L}_][\w]*$/u.test(part)
+            ? `c.${part}`
+            : parts.length === 1
+              ? part.replace(/^c\./, "").replace(/^([LFDS])0\./i, "")
+              : part,
+        )
+        .join("#"),
+      prefix = colon ? `${colon[1].trim()}:` : "";
+    if (wanted !== text.replace(/^[^:]*:/, ""))
+      at = coefficientIndex(model, prefix + wanted);
+    if (at < 0) {
+      const plain = wanted.split("#").map(level).join("#");
+      at = model.names.findIndex(
+        (n) =>
+          n
+            .replace(/^[^:]*:/, "")
+            .split("#")
+            .map(level)
+            .join("#") === plain,
+      );
+    }
+  }
+  if (at < 0) throw missing();
+  return kind === "_b" ? model.b[at] : Math.sqrt(model.V[at][at]);
+}
+
 export function coefficientIndex(model, name) {
-  const text = name.trim().replace(/^\[\s*([^\]]+?)\s*\]\s*/, "$1:"),
+  const text = name
+      .trim()
+      .replace(/^\[\s*([^\]]+?)\s*\]\s*/, "$1:")
+      // L1.x is L.x, and l.x is L.x, as Stata names the coefficient.
+      .replace(
+        /(^|[#:])((?:[LFDSlfds]\d*)+)\.(?=[A-Za-z_])/g,
+        (_, before, ops) =>
+          before + ops.toUpperCase().replace(/([LFDS])1(?!\d)/g, "$1") + ".",
+      ),
     exact = model.names.indexOf(text);
   if (exact >= 0) return exact;
   // An interaction may be named in any order, as c.x#1.g for 1.g#c.x.
@@ -2515,8 +3351,9 @@ function listConstraints(model, space, spec, session) {
     } else {
       const at = listCoefficient(model, space, null, token, session),
         { name, equation } = space.entries[at];
-      // After mlogit a name without an equation is tested in each.
-      if (model.equations && equation !== "/")
+      // After mlogit, arima or var a name without an equation is tested in
+      // each equation that has it.
+      if ((model.equations || model.stripe) && equation !== "/")
         space.entries.forEach((e, j) => {
           if (e.name === name && e.equation !== "/")
             add(unitConstraint(space, j));
@@ -2985,7 +3822,7 @@ export function lincom(session, text, ctx) {
   ctx.out("");
   ctx.out(RULE);
   ctx.out(
-    `${abbreviate(model.depvar, 12).padStart(12)} |${eform.length ? `${eform[0][1].padStart(11)} ` : " Coefficient"}  Std. err.      ${letter}    P>|${letter}|${interval}`,
+    `${abbreviate(/\s/.test(model.depvar) ? "" : model.depvar, 12).padStart(12)} |${eform.length ? `${eform[0][1].padStart(11)} ` : " Coefficient"}  Std. err.      ${letter}    P>|${letter}|${interval}`,
   );
   ctx.out(`${"-".repeat(13)}+${"-".repeat(64)}`);
   if (fixed && estimate === 0)
@@ -3126,8 +3963,28 @@ function correlate(session, text, ctx) {
     // left than its column, as Stata 19 shows it; pwcorr pads by columns.
     row = (name) => rowName(name, names, byteLength),
     column = (name) => columnName(name, names, byteLength);
+  // [w=exp] is an analytic weight, and Stata says so first.
+  if (parsed.weight && genericWeight(text))
+    ctx.out(assumedWeights(parsed.weight.type));
   if (sumW) ctx.out(`(sum of wgt is ${applyFormat(sumW, "%18.0gc").trim()})`);
   ctx.out(`(obs=${count(n)})`);
+  // Under time-series operators a column shows its operators above the
+  // variable's name, and the rows of one variable are grouped under it as
+  // L1., D1. and --., in the table of means too.
+  const groups = operatorGroups(variables),
+    heads = new Map(
+      groups.flatMap((group) =>
+        group.members.map((k, j) => [
+          k,
+          group.headed && !j ? group.base : null,
+        ]),
+      ),
+    ),
+    headed = new Set(groups.filter((g) => g.headed).flatMap((g) => g.members)),
+    stub = (a) =>
+      headed.has(a)
+        ? (variables[a].ts?.label ?? "--.").padStart(12)
+        : row(variables[a].name);
   if (options.means) {
     ctx.out("");
     ctx.out(
@@ -3137,8 +3994,9 @@ function correlate(session, text, ctx) {
     variables.forEach((v, a) => {
       const format = meansFormat(v, options.format === false),
         cell = (value) => applyFormat(value, format).padStart(13);
+      if (heads.get(a)) ctx.out(`${row(heads.get(a))} |`);
       ctx.out(
-        `${row(v.name)} |${[
+        `${stub(a)} |${[
           means[a],
           Math.sqrt(C[a][a]),
           least(columns[a]),
@@ -3160,15 +4018,23 @@ function correlate(session, text, ctx) {
   for (let start = 0; start < variables.length; start += across) {
     const block = variables.slice(start, start + across);
     ctx.out("");
-    out(`             |${block.map((v) => column(v.name)).join("")}`);
-    out(`-------------+${"-".repeat(9 * block.length)}`);
-    for (let a = start; a < variables.length; a++)
+    if (block.some((v) => v.ts))
       out(
-        `${row(variables[a].name)} |${block
+        `             | ${block.map((v) => (v.ts?.prefix ?? "").padStart(9)).join("")}`,
+      );
+    out(
+      `             |${block.map((v) => column(v.ts?.variable ?? v.name)).join("")}`,
+    );
+    out(`-------------+${"-".repeat(9 * block.length)}`);
+    for (let a = start; a < variables.length; a++) {
+      if (heads.get(a)) out(`${row(heads.get(a))} |`);
+      out(
+        `${stub(a)} |${block
           .slice(0, a - start + 1)
           .map((_, k) => shown(a, start + k))
           .join("")}`,
       );
+    }
   }
   ctx.out("");
   // Under by, Stata's by adds a blank line before the next group's rule.
@@ -3188,8 +4054,8 @@ function correlate(session, text, ctx) {
         }
       : {}),
     "matrix:C": {
-      rowNames: variables.map((v) => v.name),
-      colNames: variables.map((v) => v.name),
+      rowNames: variables.map((v) => v.ts?.name ?? v.name),
+      colNames: variables.map((v) => v.ts?.name ?? v.name),
       values: C.map((row, a) =>
         row.map((value, b) =>
           options.covariance ? value : correlationOf(C, a, b),
@@ -3226,8 +4092,19 @@ const TABSTAT_WORDS = [
 ];
 function tabstatStatistics(text) {
   const names = [];
-  for (const word of (text || "mean").trim().split(/\s+/).filter(Boolean)) {
-    const typed = word.toLowerCase(),
+  // Statistics are separated by blanks. As Stata reads them, a comma after
+  // a statistic, stat(mean, sd), or a pair of them, stat(mean,,sd), also
+  // ends it; a single comma between two, stat(mean,sd), does not.
+  const words = (text || "mean")
+    .trim()
+    .split(/\s+/)
+    .flatMap((word) => word.split(/,{2,}/))
+    .filter(Boolean);
+  for (const typedWord of words) {
+    const word = /^[^,]+,+$/.test(typedWord)
+        ? typedWord.replace(/,+$/, "")
+        : typedWord,
+      typed = word.toLowerCase(),
       found = TABSTAT_WORDS.find(
         ([name, least]) =>
           typed === name ||
@@ -3242,10 +4119,11 @@ function tabstatStatistics(text) {
 /**
  * The statistics of one variable over some observations, as summarize
  * computes them: with aweights the mean, sum and moments are weighted, N
- * counts observations and percentiles follow the cumulated weights;
- * fweights arrive as repeated observations.
+ * counts observations and percentiles follow the cumulated weights as
+ * summarize, detail's do; with fweights N is their sum and the variance
+ * divides by it less one.
  */
-function tabstatSummary(values, weights) {
+function tabstatSummary(values, weights, frequency = false) {
   const n = values.length,
     w = weights ?? values.map(() => 1),
     W = accurateSum(w);
@@ -3266,12 +4144,17 @@ function tabstatSummary(values, weights) {
     mean = sum / W,
     central = (k) => values.reduce((t, v, i) => t + w[i] * (v - mean) ** k, 0),
     m2 = central(2) / W,
+    N = frequency ? W : n,
     variance =
-      n > 1 ? (weights ? m2 * (n / (n - 1)) : central(2) / (n - 1)) : MISSING,
+      N > 1
+        ? weights && !frequency
+          ? m2 * (n / (n - 1))
+          : central(2) / (N - 1)
+        : MISSING,
     order = values.map((v, i) => [v, w[i]]).sort((a, b) => a[0] - b[0]),
     sorted = order.map(([v]) => v);
   return {
-    N: n,
+    N,
     Sum: sum,
     Mean: mean,
     Variance: variance,
@@ -3280,21 +4163,10 @@ function tabstatSummary(values, weights) {
     Max: sorted[n - 1],
     Skewness: m2 > 0 ? central(3) / W / m2 ** 1.5 : MISSING,
     Kurtosis: m2 > 0 ? central(4) / W / m2 ** 2 : MISSING,
-    // Without weights the p-th percentile is Stata's; with aweights the
-    // first value whose cumulated weight reaches p percent of the total,
-    // averaged with the next when it reaches it exactly.
-    p: (p) => {
-      if (!weights) return percentile(sorted, p);
-      const target = (W * p) / 100;
-      let cumulated = 0;
-      for (let k = 0; k < n; k++) {
-        cumulated += order[k][1];
-        if (Math.abs(cumulated - target) <= 1e-12 * W)
-          return k + 1 < n ? (sorted[k] + sorted[k + 1]) / 2 : sorted[k];
-        if (cumulated > target) return sorted[k];
-      }
-      return sorted[n - 1];
-    },
+    // Without weights the p-th percentile is Stata's; with weights,
+    // frequency weights included, it is summarize, detail's.
+    p: (p) =>
+      weights ? weightedPercentile(order, W, p) : percentile(sorted, p),
   };
 }
 const tabstatValue = (s, name) =>
@@ -3369,6 +4241,9 @@ function tabstat(session, text, ctx) {
     o = parsed.options,
     total = o.total !== false,
     by = o.by ? session.data.get(session.varlist(o.by)[0]) : null;
+  // [w=exp] is an analytic weight here, and Stata says so first.
+  if (parsed.weight && genericWeight(text))
+    ctx.out(assumedWeights(parsed.weight.type));
   if (!total && !by) {
     ctx.out("nothing to display");
     return;
@@ -3434,13 +4309,16 @@ function tabstat(session, text, ctx) {
   if (o.same || o.casewise)
     rows = rows.filter((i) => variables.every((v) => !isMissing(v.data[i])));
   if (!rows.length) throw new StataError("no observations", 2000);
-  const weighted = weightedRows(session, parsed, rows),
+  // Frequency weights come back as weights, so that a population count of
+  // billions needs no rows of its own.
+  const weighted = weightedRows(session, parsed, rows, { expand: false }),
     stat = (subset) =>
       variables.map((v) => {
         const use = subset.filter((i) => !isMissing(v.data[i]));
         return tabstatSummary(
           use.map((i) => v.data[i]),
           weighted.weights ? use.map((i) => weighted.weights[i]) : null,
+          parsed.weight?.type === "fweight",
         );
       });
   // The groups, in sort order, and Total.
@@ -3574,11 +4452,62 @@ function tabstat(session, text, ctx) {
   ctx.out("");
 }
 
+/**
+ * dfbeta: a DFBETA variable for each coefficient named (all but the
+ * constant by default), _dfbeta_# or stub#, numbered on from those there.
+ */
+function dfbeta(session, text, ctx) {
+  const model = estimates(session),
+    parsed = session.parse("[anything] [, STUB(string)]", text),
+    asked =
+      (parsed.varlist ?? []).join(" ").trim() || parsed.anything?.trim() || "",
+    wanted = asked
+      ? asked.split(/\s+/).map((name) => {
+          const k = coefficientIndex(model, name);
+          if (k < 0 || model.names[k] === "_cons")
+            throw new StataError(`${name} not found`, 111);
+          return k;
+        })
+      : model.names
+          .map((name, k) => k)
+          .filter((k) => model.names[k] !== "_cons" && model.estimable[k]),
+    stub = parsed.options.stub?.trim() || "_dfbeta_";
+  ctx.out("");
+  ctx.out(`Generating DFBETA variable${wanted.length > 1 ? "s" : ""} ...`);
+  ctx.out("");
+  if (model.wtype)
+    throw new StataError("not possible after weighted regression", 398);
+  let next = 1;
+  for (const k of wanted) {
+    const values = influence(session, model, k, "dfbeta()");
+    while (session.data.has(`${stub}${next}`)) next++;
+    const name = `${stub}${next}`,
+      order = [...session.data.sortedBy],
+      empty = values.filter((v) => isMissing(v)).length;
+    session.data.generate(name, values, {});
+    session.data.sortedBy = order;
+    session.data.get(name).label = `DFBETA, ${model.names[k]}`;
+    if (empty)
+      ctx.out(
+        `(${count(empty)} missing value${empty === 1 ? "" : "s"} generated)`,
+      );
+    ctx.out(`${name.padStart(13)}: DFBETA ${model.names[k]}`);
+  }
+}
+
 export const ESTIMATION_COMMANDS = [
+  { name: "dfbeta", minimum: 6, run: dfbeta },
   { name: "regress", minimum: 3, run: regress },
   { name: "predict", minimum: 7, run: predict },
   { name: "test", minimum: 4, run: test },
   { name: "lincom", minimum: 6, run: lincom },
-  { name: "correlate", minimum: 3, run: perGroup(correlate), byable: true },
+  {
+    name: "correlate",
+    minimum: 3,
+    run: factorVariables(operatorVariables(perGroup(correlate)), {
+      refuse: "factor-variable operators not allowed",
+    }),
+    byable: true,
+  },
   { name: "tabstat", minimum: 7, run: tabstat },
 ];

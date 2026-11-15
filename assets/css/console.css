@@ -306,6 +306,9 @@
   white-space: pre;
   color: inherit;
   background: transparent;
+  /* Hints and help cards are as wide as Results shows, not as its widest
+     table, so that on a phone their text wraps and their buttons are seen. */
+  container-type: inline-size;
 }
 #console-output:empty::before {
   content: "Results appear here.";
@@ -333,7 +336,9 @@
 }
 .console-graph {
   display: block;
-  width: min(100%, 640px);
+  /* As wide as Results shows, not as its widest line: a long command
+     widens its record, and the graph would run past the window. */
+  width: min(100%, 100cqi, 640px);
   height: auto;
   margin: 8px 0;
   border: 1px solid var(--results-rule);
@@ -491,6 +496,20 @@
 .console-files label {
   display: block;
   margin-bottom: 4px;
+}
+.console-file-link {
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  min-height: 24px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.console-file-link:hover {
+  color: var(--green);
 }
 
 /* ----- what runs here ----- */
@@ -1124,10 +1143,11 @@
 }
 #console-datasets {
   list-style: none;
-  margin: 0;
+  /* Inset as the rest of the drawer is, off its border. */
+  margin: 0 14px 12px;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr));
   gap: 12px;
 }
 #console-datasets li {
@@ -1623,7 +1643,7 @@ body.is-dropping::after {
   right: 0;
   top: calc(100% + 6px);
   z-index: 12;
-  width: 264px;
+  width: min(264px, calc(100vw - 16px));
   max-height: min(74vh, 560px);
   overflow: auto;
   background: #fff;
@@ -1788,7 +1808,7 @@ body.is-dropping::after {
 }
 #console-datasets {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
   gap: 0 24px;
 }
 #console-datasets li {
@@ -1842,9 +1862,22 @@ body.is-dropping::after {
   #console-source {
     height: clamp(240px, 50vh, 520px);
   }
+  /* On a narrow screen the bar wraps and the menu may end up anywhere in
+     it, so its panel hangs from the bar's right edge, which is always on
+     the screen, rather than from the menu's own. */
+  .console-bar {
+    position: relative;
+  }
+  .console-bar .console-menu {
+    position: static;
+  }
   .console-menu-panel {
     right: auto;
     left: 0;
+  }
+  .console-bar .console-menu-panel {
+    left: auto;
+    right: 0;
   }
 }
 
@@ -2130,5 +2163,430 @@ body.is-dropping::after {
   .map-step .map-fields,
   .map-port {
     transition: none;
+  }
+}
+
+/* ----- pass 7: keeping results, hints, help, browsing, progress ----- */
+.console-keep {
+  display: flex;
+  gap: 6px;
+  flex: none;
+  margin-bottom: 9px;
+}
+.console-results .console-bar .console-keep .quiet-button {
+  font-size: 13px;
+  padding: 4px 11px;
+  min-height: 30px;
+}
+.console-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -2px 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.console-progress[hidden] {
+  display: none;
+}
+.console-progress progress {
+  flex: none;
+  width: 140px;
+  height: 8px;
+  accent-color: var(--green);
+}
+/* A record's own buttons sit at the right of its command line. */
+.console-tools {
+  position: absolute;
+  right: 12px;
+  display: inline-flex;
+  gap: 4px;
+  font-family: var(--sans);
+  opacity: 0;
+}
+.console-record:hover .console-tools,
+.console-tools:focus-within {
+  opacity: 1;
+}
+@media (hover: none) {
+  /* On a touch screen the buttons are always shown, so they follow the
+     command instead of covering the end of a long one. */
+  .console-tools {
+    position: static;
+    margin-left: 2ch;
+    vertical-align: middle;
+    opacity: 1;
+  }
+}
+.console-tool {
+  font: 12px/1.2 var(--sans);
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid var(--pane-edge);
+  border-radius: 4px;
+  background: var(--results-bg);
+  color: var(--results-command);
+  cursor: pointer;
+}
+.console-tool:hover {
+  border-color: var(--results-command);
+}
+.console-tool:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 1px;
+}
+.console-hint {
+  display: block;
+  white-space: normal;
+  max-width: min(76ch, calc(100cqi - 12px));
+  position: sticky;
+  left: 0;
+  margin: 6px 0 2px;
+  padding: 7px 10px;
+  border-left: 3px solid #d08a2e;
+  border-radius: 0 6px 6px 0;
+  background: #fff8ec;
+  color: #3b2a12;
+  font: 13px/1.5 var(--sans);
+}
+.console-hint strong {
+  font-weight: 650;
+}
+.console-hint .console-tool {
+  margin-top: 2px;
+}
+.console-window[data-scheme="classic"] .console-hint {
+  background: #2a2208;
+  color: #ffe8b0;
+}
+/* The lines of a block typed at the command line, before its }. */
+.console-pending {
+  display: block;
+  margin-top: 6px;
+  opacity: 0.75;
+}
+.console-help-card {
+  display: grid;
+  gap: 4px;
+  white-space: normal;
+  max-width: min(76ch, calc(100cqi - 12px));
+  margin: 4px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--pane-edge);
+  border-radius: 6px;
+  background: #f7f9fc;
+  color: var(--ink);
+  font: 13px/1.5 var(--sans);
+}
+.console-help-card code {
+  font: 12.5px/1.45 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.console-help-card a {
+  color: var(--green);
+  justify-self: start;
+}
+.console-window[data-scheme="classic"] .console-help-card {
+  background: #0e1a0e;
+  color: var(--results-ink);
+  border-color: var(--results-rule);
+}
+.console-window[data-scheme="classic"] .console-help-card a {
+  color: #9cc3ff;
+}
+.console-help-note {
+  font-size: 13px;
+  color: var(--muted);
+}
+.console-help-name {
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.console-help-name code {
+  display: inline-block;
+  min-height: 24px;
+}
+.console-help-name:hover code,
+.console-help-name[aria-expanded="true"] code {
+  background: var(--mint);
+  color: #0f2f86;
+}
+#console-commands li.is-open {
+  flex-basis: 100%;
+}
+#console-commands .console-help-card {
+  margin: 6px 0 4px;
+}
+/* Sortable headings keep the look of the headings they replace. */
+.console-sort,
+.browse-sort {
+  min-height: 24px;
+  min-width: 24px;
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.console-sort:hover,
+.browse-sort:hover {
+  color: #0f2f86;
+  text-decoration: underline;
+}
+th[aria-sort="ascending"] .console-sort::after,
+th[aria-sort="ascending"] .browse-sort::after {
+  content: " ▲";
+  font-size: 0.8em;
+}
+th[aria-sort="descending"] .console-sort::after,
+th[aria-sort="descending"] .browse-sort::after {
+  content: " ▼";
+  font-size: 0.8em;
+}
+#console-variable-tools[hidden] {
+  display: none;
+}
+#console-variable-filter,
+#browse-find {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  padding: 6px 10px;
+  width: min(100%, 240px);
+  border: 1px solid var(--pane-edge);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--ink);
+}
+#console-variable-tools .quiet-button {
+  margin-left: auto;
+}
+#console-variable-table summary {
+  cursor: pointer;
+  color: #0f2f86;
+}
+.console-label-values {
+  display: block;
+  white-space: pre;
+  color: var(--muted);
+  font-size: 12.5px;
+  padding: 2px 0 2px 12px;
+}
+#browse-where {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.browse-scroll {
+  max-height: 460px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+#browse-table {
+  border-collapse: collapse;
+  font: 13px/1.4 var(--mono);
+  min-width: 100%;
+}
+#browse-table caption {
+  caption-side: bottom;
+  text-align: left;
+  font: 13px var(--sans);
+  color: var(--muted);
+  padding: 8px;
+}
+#browse-table th,
+#browse-table td {
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  white-space: nowrap;
+  text-align: left;
+}
+#browse-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f3f5f9;
+  font: 600 13px var(--sans);
+  vertical-align: bottom;
+  z-index: 1;
+}
+#browse-table tbody th {
+  background: #f8f9fb;
+  color: var(--muted);
+  font-weight: 400;
+  text-align: right;
+}
+.browse-type {
+  display: block;
+  font: 11.5px var(--mono);
+  color: var(--muted);
+  font-weight: 400;
+}
+#browse-table td.is-number {
+  text-align: right;
+}
+/* Value labels in blue, as Stata's Data Editor shows them. */
+#browse-table td.is-labelled {
+  color: #1f50cd;
+}
+#browse-table td.is-missing {
+  color: var(--muted);
+}
+.browse-cell {
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  min-height: 24px;
+  text-align: inherit;
+  border: 1px dashed transparent;
+  background: none;
+  padding: 0 2px;
+  cursor: text;
+}
+.browse-cell:hover,
+.browse-cell:focus-visible {
+  border-color: var(--pane-edge);
+  background: var(--mint);
+}
+.browse-input {
+  font: inherit;
+  width: 10ch;
+  min-width: 100%;
+  padding: 1px 3px;
+  border: 1px solid var(--green);
+  border-radius: 3px;
+}
+.browse-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 13.5px;
+}
+.browse-pages .quiet-button {
+  font-size: 13px;
+  padding: 4px 11px;
+  min-height: 30px;
+}
+#browse-go {
+  width: 7em;
+  font: inherit;
+  padding: 4px 6px;
+  border: 1px solid var(--pane-edge);
+  border-radius: 5px;
+}
+#browse-note:empty {
+  display: none;
+}
+@media (max-width: 900px) {
+  .console-keep {
+    margin-left: auto;
+  }
+  .browse-scroll {
+    max-height: 60vh;
+  }
+}
+/* A card's own output panel has its Close button where the tools would be;
+   the same records are in Results, with their tools. */
+.map-output-log .console-tools {
+  display: none;
+}
+.console-label-row td {
+  font-family: var(--sans);
+  white-space: normal;
+}
+/* On a phone each variable is a card: its name, then its label, then its
+   type, format and value label on one line, so that nothing is hidden in
+   a box that scrolls sideways. The headings stay, as sort buttons. */
+@media (max-width: 600px) {
+  #console-variable-table {
+    display: flex;
+    flex-direction: column;
+  }
+  #console-variable-table thead,
+  #console-variable-table tbody,
+  #console-variable-table caption {
+    display: block;
+  }
+  #console-variable-table caption {
+    order: 1;
+  }
+  #console-variable-table thead tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  #console-variable-table thead th {
+    border: 0;
+    padding: 4px 0;
+  }
+  #console-variable-table tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 14px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  #console-variable-table tbody td {
+    border: 0;
+    padding: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  #console-variable-table tbody td:nth-child(1),
+  #console-variable-table tbody td:nth-child(2) {
+    flex: 1 1 100%;
+  }
+  #console-variable-table tbody td:nth-child(2):empty {
+    display: none;
+  }
+  #console-variable-table tbody td:nth-child(n + 3) {
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  #console-variable-table .console-label-row td {
+    flex: 1 1 100%;
+  }
+  #console-variable-table tbody tr[hidden],
+  #console-variable-table[hidden] {
+    display: none;
+  }
+}
+.console-label-toggle {
+  font: inherit;
+  color: #0f2f86;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+/* The Results window stays in view as the page scrolls; the drawers under
+   it come over it, so that a table in a drawer is never hidden behind it. */
+.console-drawers {
+  position: relative;
+  z-index: 2;
+  background: var(--paper);
+  box-shadow: 0 -26px 0 var(--paper);
+}
+/* At the narrowest phones the site's links wrap, so that the page does not
+   scroll sideways. */
+@media (max-width: 420px) {
+  .console-page .app-header nav {
+    flex-wrap: wrap;
+    height: auto;
+    gap: 2px 18px;
+    padding-bottom: 8px;
+  }
+  .console-page .app-header nav a {
+    padding: 8px 0 6px;
   }
 }
