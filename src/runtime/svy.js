@@ -1038,10 +1038,20 @@ function summary(session, text, ctx, prefix, kind) {
           value = kind === "mean" ? sum / weight : sum;
         if (kind === "mean" && !(weight > 0))
           throw new StataError("no observations", 2000);
+        // estat sd's standard deviation: the weighted sum of squares over
+        // the sum of the weights, times n/(n - 1), as mean's.
+        let squares = 0,
+          n = 0;
+        rows.forEach((i, j) => {
+          if (kind !== "mean" || !inGroup(tuple, i) || !ew[j]) return;
+          squares += ew[j] * (variable.data[i] - value) ** 2;
+          n++;
+        });
         items.push({
           variable,
           tuple,
           value,
+          sd: Math.sqrt(((squares / weight) * n) / (n - 1)),
           score: (i, j) =>
             inGroup(tuple, i)
               ? kind === "mean"
@@ -1294,6 +1304,51 @@ function summary(session, text, ctx, prefix, kind) {
         d: survey.df,
         level: shownLevel,
       }),
+    // estat sd after svy: mean: each mean and its standard deviation (or
+    // variance), in the table's rows, under "Over" with over().
+    ...(kind === "mean"
+      ? {
+          svySd: (out, variance, srssubpop) => {
+            // For a subpopulation (over() or subpop()) Stata's default
+            // estimates the subpopulation's spread from the whole design,
+            // which is not computed here; srssubpop's, as though the
+            // subpopulation were a simple random sample, is.
+            if ((over.length || survey.subpop) && !srssubpop)
+              throw new StataError(
+                "estat sd for a subpopulation is not available in the browser yet without srssubpop",
+                198,
+                "Type estat sd, srssubpop for the standard deviations of each subpopulation taken as a simple random sample.",
+              );
+            const rule = "-".repeat(w + 25),
+              shown = items.map((item) => (variance ? item.sd ** 2 : item.sd));
+            out.out("");
+            out.out(rule);
+            out.out(
+              `${over.length ? "Over".padStart(w) : " ".repeat(w)} |       Mean   ${variance ? " Variance" : "Std. dev."}`,
+            );
+            out.out(`${"-".repeat(w + 1)}+${"-".repeat(23)}`);
+            termRows(
+              session,
+              table,
+              (a) =>
+                `${g(items[a].value).padStart(11)}${g(shown[a]).padStart(12)}`,
+              w,
+            ).forEach(out.out);
+            out.out(rule);
+            out.out("");
+            const stripe = (values) => ({
+              rowNames: ["r1"],
+              colNames: table.names,
+              values: [values],
+            });
+            session.results.r = {
+              "matrix:sd": stripe(items.map((item) => item.sd)),
+              "matrix:variance": stripe(items.map((item) => item.sd ** 2)),
+              "matrix:mean": stripe(items.map((item) => item.value)),
+            };
+          },
+        }
+      : {}),
   };
   session.results.e = surveyResults(survey, {
     singleton: Number(variance.singleton),
@@ -2598,7 +2653,7 @@ export function guardAfterSvy(session, name, text) {
     );
   if (name === "estat") {
     const sub = /^\s*(\w+)/.exec(text)?.[1] ?? "";
-    if (/^vce$/.test(sub)) return;
+    if (/^vce$/.test(sub) || sub === "sd") return;
     if (
       /^(ic|class(i(f(i(c(a(t(i(on?)?)?)?)?)?)?)?)?|hett(e(st?)?)?|ovt(e(st?)?)?|imt(e(st?)?)?|vif|lroc|szroc)$/.test(
         sub,

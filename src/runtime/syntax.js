@@ -476,7 +476,7 @@ function newVariables(text, context) {
 }
 
 function existingVariables(text, specs, context) {
-  const names = expandVarlist(text, context.names);
+  const names = expandVarlist(text, context.names, context.parentheses);
   for (const name of names) {
     const type = context.types?.[name];
     if (!type) continue;

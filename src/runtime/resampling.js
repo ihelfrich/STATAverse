@@ -1705,8 +1705,13 @@ function statisticsModel(items, observed, V, props) {
   };
 }
 
-/** The Wald statistic that all slopes are zero. */
+/**
+ * The Wald statistic that all slopes are zero. mean, total, proportion and
+ * ratio, which show their own tables, have no such test, and a prefix
+ * posts none for them.
+ */
 function wald(model) {
+  if (model.resampledDisplay) return { df: 0, value: MISSING };
   const at = model.names
       .map((name, k) =>
         !/(^|:)_cons$/.test(name) && model.estimable[k] ? k : -1,

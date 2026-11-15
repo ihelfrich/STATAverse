@@ -184878,6 +184878,2083 @@
       ]
     },
     {
+      "id": "recheck-describe-mean-posted",
+      "source": "clear\nset seed 12345\nset obs 30\ngenerate y = round(runiform()*10, .01)\ngenerate x = round(runiform()*5, .01)\ngenerate g = 1 + floor(runiform()*3)\ngenerate w = 1 + floor(runiform()*4)\ngenerate c = ceil(_n/3)\nlabel define gl 1 \"North\" 2 \"South\" 3 \"West\"\nlabel values g gl\nmean y x\nereturn list\nmatrix list e(b)\nmatrix list e(V)\nmatrix list e(sd)\nmatrix list e(_N)\nlincom y - x\ntest y = x\nestat vce\nestat sd\nreturn list\ndisplay _b[y] \" \" _se[y]\nestimates store m1\nmean\nestimates table m1\ncapture noisily predict p\ncapture noisily estat ic\nmean y, over(g)\nmatrix list e(b)\nmatrix list r(table)\nlincom _b[c.y@1.g] - _b[c.y@2.g]\ntest _b[c.y@1.g] = _b[c.y@2.g] = _b[c.y@3.g]\nestat sd, variance\nmean y x [pw=w]\nmatrix list e(V)\nestat sd\nmean y x [aw=w]\nmatrix list e(V)\nmean y x [fw=w]\nmatrix list e(sd)\nmatrix list e(_N)\nmean y x, vce(cluster c)\nmatrix list e(V)\nmean i.g\nmatrix list e(b)\nlincom 1.g - 2.g\nmean y, coeflegend\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate y = round(runiform()*10, .01)", "lines": [] },
+        { "command": "generate x = round(runiform()*5, .01)", "lines": [] },
+        { "command": "generate g = 1 + floor(runiform()*3)", "lines": [] },
+        { "command": "generate w = 1 + floor(runiform()*4)", "lines": [] },
+        { "command": "generate c = ceil(_n/3)", "lines": [] },
+        {
+          "command": "label define gl 1 \"North\" 2 \"South\" 3 \"West\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        {
+          "command": "mean y x",
+          "lines": [
+            "Mean estimation                             Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   4.351667   .5520118      3.222676    5.480657",
+            "           x |   2.501667   .2737559      1.941773     3.06156",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ereturn list",
+          "lines": [
+            "scalars:",
+            "               e(df_r) =  29",
+            "             e(N_over) =  1",
+            "                  e(N) =  30",
+            "               e(k_eq) =  1",
+            "               e(rank) =  2",
+            "",
+            "macros:",
+            "            e(cmdline) : \"mean y x\"",
+            "                e(cmd) : \"mean\"",
+            "                e(vce) : \"analytic\"",
+            "              e(title) : \"Mean estimation\"",
+            "          e(estat_cmd) : \"estat_vce_only\"",
+            "            e(varlist) : \"y x\"",
+            "       e(marginsnotok) : \"_ALL\"",
+            "         e(properties) : \"b V\"",
+            "",
+            "matrices:",
+            "                  e(b) :  1 x 2",
+            "                  e(V) :  2 x 2",
+            "                 e(sd) :  1 x 2",
+            "                 e(_N) :  1 x 2",
+            "              e(error) :  1 x 2",
+            "",
+            "functions:",
+            "             e(sample)"
+          ]
+        },
+        {
+          "command": "matrix list e(b)",
+          "lines": [
+            "e(b)[1,2]",
+            "            y          x",
+            "y1  4.3516666  2.5016666"
+          ]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[2,2]",
+            "            y           x",
+            "y   .30471701",
+            "x  -.04272343   .07494232"
+          ]
+        },
+        {
+          "command": "matrix list e(sd)",
+          "lines": [
+            "e(sd)[1,2]",
+            "            y          x",
+            "y1  3.0234931   1.499423"
+          ]
+        },
+        {
+          "command": "matrix list e(_N)",
+          "lines": ["e(_N)[1,2]", "     y   x", "r1  30  30"]
+        },
+        {
+          "command": "lincom y - x",
+          "lines": [
+            " ( 1)  y - x = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        Mean | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |       1.85   .6819869     2.71   0.011       .45518     3.24482",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test y = x",
+          "lines": [
+            " ( 1)  y - x = 0",
+            "",
+            "       F(  1,    29) =    7.36",
+            "            Prob > F =    0.0111"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of mean model",
+            "",
+            "        e(V) |          y           x",
+            "-------------+-----------------------",
+            "           y |  .30471701",
+            "           x | -.04272343   .07494232"
+          ]
+        },
+        {
+          "command": "estat sd",
+          "lines": [
+            "-------------------------------------",
+            "             |       Mean   Std. dev.",
+            "-------------+-----------------------",
+            "           y |   4.351667    3.023493",
+            "           x |   2.501667    1.499423",
+            "-------------------------------------"
+          ]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "matrices:",
+            "                 r(sd) :  1 x 2",
+            "           r(variance) :  1 x 2",
+            "               r(mean) :  1 x 2"
+          ]
+        },
+        {
+          "command": "display _b[y] \" \" _se[y]",
+          "lines": ["4.3516666 .55201179"]
+        },
+        { "command": "estimates store m1", "lines": [] },
+        {
+          "command": "mean",
+          "lines": [
+            "Mean estimation                             Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   4.351667   .5520118      3.222676    5.480657",
+            "           x |   2.501667   .2737559      1.941773     3.06156",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table m1",
+          "lines": [
+            "---------------------------",
+            "    Variable |     m1",
+            "-------------+-------------",
+            "           y |  4.3516666",
+            "           x |  2.5016666",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily predict p",
+          "lines": ["predict is not allowed after mean"]
+        },
+        {
+          "command": "capture noisily estat ic",
+          "lines": ["invalid subcommand ic"]
+        },
+        {
+          "command": "mean y, over(g)",
+          "lines": [
+            "Mean estimation                             Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "       c.y@g |",
+            "      North  |       5.43   1.068565       3.24454     7.61546",
+            "      South  |      4.414   .7527493      2.874455    5.953545",
+            "       West  |   3.412727   1.007668      1.351815    5.473639",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(b)",
+          "lines": [
+            "e(b)[1,3]",
+            "          c.y@       c.y@       c.y@",
+            "          1.g        2.g        3.g",
+            "y1  5.4299999  4.4139999  3.4127272"
+          ]
+        },
+        {
+          "command": "matrix list r(table)",
+          "lines": [
+            "r(table)[9,3]",
+            "              c.y@       c.y@       c.y@",
+            "              1.g        2.g        3.g",
+            "     b  5.4299999  4.4139999  3.4127272",
+            "    se  1.0685647  .75274932  1.0076679",
+            "     t  5.0815828  5.8638378  3.3867578",
+            "pvalue  .00002022  2.316e-06  .00204999",
+            "    ll  3.2445397  2.8744547  1.3518149",
+            "    ul    7.61546  5.9535452  5.4736395",
+            "    df         29         29         29",
+            "  crit  2.0452296  2.0452296  2.0452296",
+            " eform          0          0          0"
+          ]
+        },
+        {
+          "command": "lincom _b[c.y@1.g] - _b[c.y@2.g]",
+          "lines": [
+            " ( 1)  c.y@1bn.g - c.y@2.g = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        Mean | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |      1.016   1.307081     0.78   0.443    -1.657282    3.689282",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test _b[c.y@1.g] = _b[c.y@2.g] = _b[c.y@3.g]",
+          "lines": [
+            " ( 1)  c.y@1bn.g - c.y@2.g = 0",
+            " ( 2)  c.y@1bn.g - c.y@3.g = 0",
+            "",
+            "       F(  2,    29) =    0.94",
+            "            Prob > F =    0.4005"
+          ]
+        },
+        {
+          "command": "estat sd, variance",
+          "lines": [
+            "-------------------------------------",
+            "        Over |       Mean    Variance",
+            "-------------+-----------------------",
+            "       c.y@g |",
+            "      North  |       5.43    10.27647",
+            "      South  |      4.414    5.666315",
+            "       West  |   3.412727    11.16934",
+            "-------------------------------------"
+          ]
+        },
+        {
+          "command": "mean y x [pw=w]",
+          "lines": [
+            "Mean estimation                             Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   4.394938   .6135394      3.140109    5.649767",
+            "           x |   2.568765   .2587847      2.039491     3.09804",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[2,2]",
+            "            y           x",
+            "y    .3764306",
+            "x  -.01760131   .06696952"
+          ]
+        },
+        {
+          "command": "estat sd",
+          "lines": [
+            "-------------------------------------",
+            "             |       Mean   Std. dev.",
+            "-------------+-----------------------",
+            "           y |   4.394938    3.034717",
+            "           x |   2.568765    1.355339",
+            "-------------------------------------"
+          ]
+        },
+        {
+          "command": "mean y x [aw=w]",
+          "lines": [
+            "Mean estimation                             Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   4.394938    .554061      3.261756     5.52812",
+            "           x |   2.568765   .2474499      2.062674    3.074857",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[2,2]",
+            "            y           x",
+            "y   .30698356",
+            "x  -.02403265   .06123145"
+          ]
+        },
+        {
+          "command": "mean y x [fw=w]",
+          "lines": [
+            "Mean estimation                             Number of obs = 81",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   4.394938   .3335889      3.731075    5.058801",
+            "           x |   2.568765   .1489846      2.272277    2.865254",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(sd)",
+          "lines": [
+            "e(sd)[1,2]",
+            "            y          x",
+            "y1  3.0022999  1.3408611"
+          ]
+        },
+        {
+          "command": "matrix list e(_N)",
+          "lines": ["e(_N)[1,2]", "     y   x", "r1  30  30"]
+        },
+        {
+          "command": "mean y x, vce(cluster c)",
+          "lines": [
+            "Mean estimation                             Number of obs = 30",
+            "",
+            "                     (Std. err. adjusted for 10 clusters in c)",
+            "--------------------------------------------------------------",
+            "             |               Robust",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   4.351667   .7427324      2.671489    6.031844",
+            "           x |   2.501667   .2394661      1.959957    3.043377",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[2,2]",
+            "            y           x",
+            "y   .55165137",
+            "x  -.04451253   .05734401"
+          ]
+        },
+        {
+          "command": "mean i.g",
+          "lines": [
+            "Mean estimation                             Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |         .3   .0850963      .1259585    .4740415",
+            "      South  |   .3333333   .0875376      .1542988    .5123679",
+            "       West  |   .3666667   .0894855      .1836482    .5496852",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(b)",
+          "lines": [
+            "e(b)[1,3]",
+            "            1.         2.         3.",
+            "            g          g          g",
+            "y1         .3  .33333333  .36666667"
+          ]
+        },
+        {
+          "command": "lincom 1.g - 2.g",
+          "lines": [
+            " ( 1)  1bn.g - 2.g = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "        Mean | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.0333333   .1476508    -0.23   0.823    -.3353132    .2686465",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean y, coeflegend",
+          "lines": [
+            "Mean estimation                             Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |       Mean   Legend",
+            "-------------+----------------------------------------------------------------",
+            "           y |   4.351667  _b[y]",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-describe-total-posted",
+      "source": "clear\nset seed 12345\nset obs 30\ngenerate y = round(runiform()*10, .01)\ngenerate x = round(runiform()*5, .01)\ngenerate g = 1 + floor(runiform()*3)\ngenerate w = 1 + floor(runiform()*4)\nlabel define gl 1 \"North\" 2 \"South\" 3 \"West\"\nlabel values g gl\ntotal y\nereturn list\nmatrix list e(b)\nlincom y/30\ncapture noisily estat sd\nestat vce\ntotal y, over(g)\ntest _b[c.y@1.g] = _b[c.y@3.g]\ntotal y x [iw=w]\nmatrix list e(V)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate y = round(runiform()*10, .01)", "lines": [] },
+        { "command": "generate x = round(runiform()*5, .01)", "lines": [] },
+        { "command": "generate g = 1 + floor(runiform()*3)", "lines": [] },
+        { "command": "generate w = 1 + floor(runiform()*4)", "lines": [] },
+        {
+          "command": "label define gl 1 \"North\" 2 \"South\" 3 \"West\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        {
+          "command": "total y",
+          "lines": [
+            "Total estimation                            Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |      Total   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |     130.55   16.56035      96.68027    164.4197",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "ereturn list",
+          "lines": [
+            "scalars:",
+            "               e(df_r) =  29",
+            "             e(N_over) =  1",
+            "                  e(N) =  30",
+            "               e(k_eq) =  1",
+            "               e(rank) =  1",
+            "",
+            "macros:",
+            "            e(cmdline) : \"total y\"",
+            "                e(cmd) : \"total\"",
+            "                e(vce) : \"analytic\"",
+            "              e(title) : \"Total estimation\"",
+            "          e(estat_cmd) : \"estat_vce_only\"",
+            "            e(varlist) : \"y\"",
+            "       e(marginsnotok) : \"_ALL\"",
+            "         e(properties) : \"b V\"",
+            "",
+            "matrices:",
+            "                  e(b) :  1 x 1",
+            "                  e(V) :  1 x 1",
+            "                 e(_N) :  1 x 1",
+            "              e(error) :  1 x 1",
+            "",
+            "functions:",
+            "             e(sample)"
+          ]
+        },
+        {
+          "command": "matrix list e(b)",
+          "lines": ["symmetric e(b)[1,1]", "         y", "y1  130.55"]
+        },
+        {
+          "command": "lincom y/30",
+          "lines": [
+            " ( 1)  .0333333*y = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "       Total | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |   4.351667   .5520118     7.88   0.000     3.222676    5.480657",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily estat sd",
+          "lines": ["mean estimation results not found"]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of total model",
+            "",
+            "        e(V) |          y",
+            "-------------+-----------",
+            "           y |  274.24531"
+          ]
+        },
+        {
+          "command": "total y, over(g)",
+          "lines": [
+            "Total estimation                            Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |      Total   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "       c.y@g |",
+            "      North  |      48.87   9.617082      29.20086    68.53914",
+            "      South  |      44.14   7.527493      28.74455    59.53545",
+            "       West  |      37.54   11.08435      14.86996    60.21003",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test _b[c.y@1.g] = _b[c.y@3.g]",
+          "lines": [
+            " ( 1)  c.y@1bn.g - c.y@3.g = 0",
+            "",
+            "       F(  1,    29) =    0.60",
+            "            Prob > F =    0.4463"
+          ]
+        },
+        {
+          "command": "total y x [iw=w]",
+          "lines": [
+            "Total estimation                            Number of obs = 81",
+            "",
+            "--------------------------------------------------------------",
+            "             |      Total   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |     355.99    27.0207      302.2171    409.7629",
+            "           x |     208.07   12.06775      184.0544    232.0856",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[2,2]",
+            "            y           x",
+            "y   730.11819",
+            "x  -57.158365   145.63058"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-describe-proportion-posted",
+      "source": "clear\nset seed 12345\nset obs 30\ngenerate g = 1 + floor(runiform()*3)\ngenerate h = runiform() < .4\ngenerate w = 1 + floor(runiform()*3)\ngenerate c = ceil(_n/3)\nlabel define gl 1 \"North\" 2 \"South\" 3 \"West\"\nlabel values g gl\nproportion g h\nmatrix list r(table)\nmatrix list e(b)\nereturn list\nlincom 1.g - 2.g\ntest 1.g = 3.g\nestat vce\ndisplay _b[2.g] \" \" _se[2.g]\nproportion g h, coeflegend\nproportion, level(90)\nproportion, percent\nproportion g, noheader\nproportion g, nolabel\nproportion g, citype(normal) level(90)\nproportion g, vce(cluster c)\nproportion g h, citype(wilson)\nproportion g h, citype(exact)\nproportion g h, citype(jeffreys)\nproportion g [pw=w], citype(wilson)\nproportion g [fw=w], citype(exact)\nproportion g, percent coeflegend\nproportion g [pw=w]\nmatrix list e(V)\ncapture noisily estat sd\ncapture noisily proportion g, citype(clopper)\ncapture noisily proportion g h if h > .5 & g > 1.5\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate g = 1 + floor(runiform()*3)", "lines": [] },
+        { "command": "generate h = runiform() < .4", "lines": [] },
+        { "command": "generate w = 1 + floor(runiform()*3)", "lines": [] },
+        { "command": "generate c = ceil(_n/3)", "lines": [] },
+        {
+          "command": "label define gl 1 \"North\" 2 \"South\" 3 \"West\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        {
+          "command": "proportion g h",
+          "lines": [
+            "Proportion estimation                       Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |   .3333333   .0860663      .1846341    .5247215",
+            "      South  |         .4   .0894427      .2372751    .5882527",
+            "       West  |   .2666667   .0807373      .1351703     .458296",
+            "             |",
+            "           h |",
+            "          0  |   .6333333   .0879815      .4431648     .789417",
+            "          1  |   .3666667   .0879815       .210583    .5568352",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list r(table)",
+          "lines": [
+            "r(table)[9,5]",
+            "                1.         2.         3.         0.         1.",
+            "                g          g          g          h          h",
+            "     b  .33333333         .4  .26666667  .63333333  .36666667",
+            "    se   .0860663  .08944272  .08073734  .08798148  .08798148",
+            "     t  3.8729833   4.472136  3.3028913  7.1984847  4.1675438",
+            "pvalue   .0005642  .00010966  .00254783  6.337e-08  .00025339",
+            "    ll  .18463406   .2372751  .13517028  .44316481  .21058297",
+            "    ul  .52472154  .58825274  .45829599  .78941703  .55683519",
+            "    df         29         29         29         29         29",
+            "  crit  2.0452296  2.0452296  2.0452296  2.0452296  2.0452296",
+            " eform          0          0          0          0          0"
+          ]
+        },
+        {
+          "command": "matrix list e(b)",
+          "lines": [
+            "e(b)[1,5]",
+            "            1.         2.         3.         0.         1.",
+            "            g          g          g          h          h",
+            "y1  .33333333         .4  .26666667  .63333333  .36666667"
+          ]
+        },
+        {
+          "command": "ereturn list",
+          "lines": [
+            "scalars:",
+            "               e(df_r) =  29",
+            "             e(N_over) =  1",
+            "                  e(N) =  30",
+            "               e(k_eq) =  1",
+            "               e(rank) =  3",
+            "",
+            "macros:",
+            "            e(cmdline) : \"proportion g h\"",
+            "                e(cmd) : \"proportion\"",
+            "                e(vce) : \"analytic\"",
+            "              e(title) : \"Proportion estimation\"",
+            "          e(estat_cmd) : \"estat_vce_only\"",
+            "            e(varlist) : \"1.g 2.g 3.g 0.h 1.h\"",
+            "       e(marginsnotok) : \"_ALL\"",
+            "         e(properties) : \"b V\"",
+            "",
+            "matrices:",
+            "                  e(b) :  1 x 5",
+            "                  e(V) :  5 x 5",
+            "               e(freq) :  1 x 5",
+            "                 e(_N) :  1 x 5",
+            "              e(error) :  1 x 5",
+            "",
+            "functions:",
+            "             e(sample)"
+          ]
+        },
+        {
+          "command": "lincom 1.g - 2.g",
+          "lines": [
+            " ( 1)  1bn.g - 2.g = 0",
+            "",
+            "------------------------------------------------------------------------------",
+            "  Proportion | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "         (1) |  -.0666667   .1558727    -0.43   0.672    -.3854621    .2521288",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "test 1.g = 3.g",
+          "lines": [
+            " ( 1)  1bn.g - 3.g = 0",
+            "",
+            "       F(  1,    29) =    0.22",
+            "            Prob > F =    0.6396"
+          ]
+        },
+        {
+          "command": "estat vce",
+          "lines": [
+            "Covariance matrix of coefficients of proportion model",
+            "",
+            "             |          1.          2.          3.          0.          1.",
+            "        e(V) |          g           g           g           h           h",
+            "-------------+-----------------------------------------------------------",
+            "         1.g |  .00740741",
+            "         2.g | -.00444444        .008",
+            "         3.g | -.00296296  -.00355556   .00651852",
+            "         0.h |  .00074074   .00044444  -.00118519   .00774074",
+            "         1.h | -.00074074  -.00044444   .00118519  -.00774074   .00774074"
+          ]
+        },
+        {
+          "command": "display _b[2.g] \" \" _se[2.g]",
+          "lines": [".4 .08944272"]
+        },
+        {
+          "command": "proportion g h, coeflegend",
+          "lines": [
+            "Proportion estimation                       Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "             | Proportion   Legend",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "      North  |   .3333333  _b[1bn.g]",
+            "      South  |         .4  _b[2.g]",
+            "       West  |   .2666667  _b[3.g]",
+            "             |",
+            "           h |",
+            "          0  |   .6333333  _b[0bn.h]",
+            "          1  |   .3666667  _b[1.h]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion, level(90)",
+          "lines": [
+            "Proportion estimation                       Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             | Proportion   Std. err.     [90% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |   .3333333   .0860663      .2056716    .4912314",
+            "      South  |         .4   .0894427      .2614024    .5566957",
+            "       West  |   .2666667   .0807373      .1527614    .4230911",
+            "             |",
+            "           h |",
+            "          0  |   .6333333   .0879815       .475719    .7667926",
+            "          1  |   .3666667   .0879815      .2332074     .524281",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion, percent",
+          "lines": [
+            "Percent estimation                          Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             |    Percent   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |      33.33       8.61         18.46       52.47",
+            "      South  |      40.00       8.94         23.73       58.83",
+            "       West  |      26.67       8.07         13.52       45.83",
+            "             |",
+            "           h |",
+            "          0  |      63.33       8.80         44.32       78.94",
+            "          1  |      36.67       8.80         21.06       55.68",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g, noheader",
+          "lines": [
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |   .3333333   .0860663      .1846341    .5247215",
+            "      South  |         .4   .0894427      .2372751    .5882527",
+            "       West  |   .2666667   .0807373      .1351703     .458296",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g, nolabel",
+          "lines": [
+            "Proportion estimation                       Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |   .3333333   .0860663      .1846341    .5247215",
+            "      South  |         .4   .0894427      .2372751    .5882527",
+            "       West  |   .2666667   .0807373      .1351703     .458296",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g, citype(normal) level(90)",
+          "lines": [
+            "Proportion estimation                       Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Normal",
+            "             | Proportion   Std. err.     [90% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |   .3333333   .0860663      .1870958    .4795709",
+            "      South  |         .4   .0894427      .2480255    .5519745",
+            "       West  |   .2666667   .0807373      .1294837    .4038497",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g, vce(cluster c)",
+          "lines": [
+            "Proportion estimation                       Number of obs = 30",
+            "",
+            "                     (Std. err. adjusted for 10 clusters in c)",
+            "--------------------------------------------------------------",
+            "             |               Robust              Logit",
+            "             | Proportion   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |   .3333333   .1111111      .1389276     .607766",
+            "      South  |         .4   .0831479       .233404    .5934531",
+            "       West  |   .2666667   .0968644      .1060145    .5272011",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g h, citype(wilson)",
+          "lines": [
+            "Proportion estimation                       Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Wilson",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |   .3333333   .0860663       .192305    .5121995",
+            "      South  |         .4   .0894427      .2459063    .5767964",
+            "       West  |   .2666667   .0807373      .1418266    .4444796",
+            "             |",
+            "           h |",
+            "          0  |   .6333333   .0879815      .4551356    .7812608",
+            "          1  |   .3666667   .0879815      .2187392    .5448644",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g h, citype(exact)",
+          "lines": [
+            "Proportion estimation                       Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Exact",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |   .3333333   .0860663      .1728742      .52812",
+            "      South  |         .4   .0894427      .2265576    .5939651",
+            "       West  |   .2666667   .0807373      .1227948    .4588937",
+            "             |",
+            "           h |",
+            "          0  |   .6333333   .0879815      .4385598    .8007014",
+            "          1  |   .3666667   .0879815      .1992986    .5614402",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g h, citype(jeffreys)",
+          "lines": [
+            "Proportion estimation                       Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                  Jeffreys",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |   .3333333   .0860663      .1859788    .5111481",
+            "      South  |         .4   .0894427      .2404859    .5777997",
+            "       West  |   .2666667   .0807373      .1349414    .4409957",
+            "             |",
+            "           h |",
+            "          0  |   .6333333   .0879815       .455118    .7871731",
+            "          1  |   .3666667   .0879815      .2128269     .544882",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g [pw=w], citype(wilson)",
+          "lines": [
+            "Proportion estimation                       Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Wilson",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |   .3870968   .0992841       .215645    .5919816",
+            "      South  |   .3709677     .09499      .2077938    .5700709",
+            "       West  |   .2419355   .0831563      .1151635    .4390189",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g [fw=w], citype(exact)",
+          "lines": [
+            "Proportion estimation                       Number of obs = 62",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Exact",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |   .3870968     .06186      .2660085    .5193474",
+            "      South  |   .3709677   .0613492      .2516417    .5030584",
+            "       West  |   .2419355   .0543885       .142186    .3674497",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g, percent coeflegend",
+          "lines": [
+            "Percent estimation                          Number of obs = 30",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |    Percent   Legend",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "      North  |      33.33  _b[1bn.g]",
+            "      South  |      40.00  _b[2.g]",
+            "       West  |      26.67  _b[3.g]",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g [pw=w]",
+          "lines": [
+            "Proportion estimation                       Number of obs = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |   .3870968   .0992841      .2115835    .5978086",
+            "      South  |   .3709677     .09499      .2041398    .5755382",
+            "       West  |   .2419355   .0831563      .1121046    .4465121",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list e(V)",
+          "lines": [
+            "symmetric e(V)[3,3]",
+            "              1.          2.          3.",
+            "              g           g           g",
+            "1.g   .00985733",
+            "2.g  -.00598273   .00902309",
+            "3.g   -.0038746  -.00304037   .00691497"
+          ]
+        },
+        {
+          "command": "capture noisily estat sd",
+          "lines": ["mean estimation results not found"]
+        },
+        {
+          "command": "capture noisily proportion g, citype(clopper)",
+          "lines": [
+            "invalid citype() option;",
+            "clopper is not a recognized CI type"
+          ]
+        },
+        {
+          "command": "capture noisily proportion g h if h > .5 & g > 1.5",
+          "lines": [
+            "Proportion estimation                        Number of obs = 8",
+            "",
+            "--------------------------------------------------------------",
+            "             |                                   Logit",
+            "             | Proportion   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      South  |         .5   .1767767      .1581521    .8418479",
+            "       West  |         .5   .1767767      .1581521    .8418479",
+            "             |",
+            "         1.h |          1          0             .           .",
+            "--------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-describe-mean-replicated",
+      "source": "clear\nset seed 12345\nset obs 30\ngenerate y = round(runiform()*10, .01)\ngenerate x = round(runiform()*5, .01)\ngenerate g = 1 + floor(runiform()*3)\nlabel define gl 1 \"North\" 2 \"South\" 3 \"West\"\nlabel values g gl\nbootstrap, reps(20) seed(1): mean y x\nbootstrap, reps(20) seed(1): total y\njackknife: mean y\njackknife: total y, over(g)\nmean y, vce(bootstrap, reps(20) seed(1))\nmean y, vce(jackknife)\ntotal y, vce(bootstrap, reps(20) seed(1))\ntotal y, vce(jackknife)\nmean y, over(g) vce(bootstrap, reps(20) seed(2))\nbootstrap, reps(20) seed(1): proportion g\nproportion g, vce(bootstrap, reps(20) seed(1))\nproportion g, vce(jackknife)\ncapture noisily predict p\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 12345", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        { "command": "generate y = round(runiform()*10, .01)", "lines": [] },
+        { "command": "generate x = round(runiform()*5, .01)", "lines": [] },
+        { "command": "generate g = 1 + floor(runiform()*3)", "lines": [] },
+        {
+          "command": "label define gl 1 \"North\" 2 \"South\" 3 \"West\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        {
+          "command": "bootstrap, reps(20) seed(1): mean y x",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Mean estimation                             Number of obs = 30",
+            "                                            Replications  = 20",
+            "",
+            "--------------------------------------------------------------",
+            "             |   Observed   Bootstrap         Normal-based",
+            "             |       mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   4.351667   .5593413      3.255378    5.447955",
+            "           x |   2.501667    .255095       2.00169    3.001644",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bootstrap, reps(20) seed(1): total y",
+          "lines": [
+            "(running total on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Total estimation                            Number of obs = 30",
+            "                                            Replications  = 20",
+            "",
+            "--------------------------------------------------------------",
+            "             |   Observed   Bootstrap         Normal-based",
+            "             |      total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |     130.55   16.78024      97.66133    163.4387",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife: mean y",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Jackknife replications (30): .........10.........20.........30 done",
+            "",
+            "Mean estimation                             Number of obs = 30",
+            "                                            Replications  = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |              Jackknife",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   4.351667   .5520119      3.222675    5.480658",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "jackknife: total y, over(g)",
+          "lines": [
+            "(running total on estimation sample)",
+            "",
+            "Jackknife replications (30): .........10.........20.........30 done",
+            "",
+            "Total estimation                            Number of obs = 30",
+            "                                            Replications  = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |              Jackknife",
+            "             |      Total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "       c.y@g |",
+            "      North  |      48.87   16.09455      15.95295    81.78704",
+            "      South  |      44.14   13.22334      17.09524    71.18476",
+            "       West  |      37.54     13.653      9.616473    65.46353",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean y, vce(bootstrap, reps(20) seed(1))",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Mean estimation                             Number of obs = 30",
+            "                                            Replications  = 20",
+            "",
+            "--------------------------------------------------------------",
+            "             |   Observed   Bootstrap         Normal-based",
+            "             |       mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   4.351667   .5593413      3.255378    5.447955",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean y, vce(jackknife)",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Jackknife replications (30): .........10.........20.........30 done",
+            "",
+            "Mean estimation                             Number of obs = 30",
+            "                                            Replications  = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |              Jackknife",
+            "             |       Mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |   4.351667   .5520119      3.222675    5.480658",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total y, vce(bootstrap, reps(20) seed(1))",
+          "lines": [
+            "(running total on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Total estimation                            Number of obs = 30",
+            "                                            Replications  = 20",
+            "",
+            "--------------------------------------------------------------",
+            "             |   Observed   Bootstrap         Normal-based",
+            "             |      total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |     130.55   16.78024      97.66133    163.4387",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total y, vce(jackknife)",
+          "lines": [
+            "(running total on estimation sample)",
+            "",
+            "Jackknife replications (30): .........10.........20.........30 done",
+            "",
+            "Total estimation                            Number of obs = 30",
+            "                                            Replications  = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |              Jackknife",
+            "             |      Total   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |     130.55   16.00834      97.80926    163.2907",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean y, over(g) vce(bootstrap, reps(20) seed(2))",
+          "lines": [
+            "(running mean on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Mean estimation                             Number of obs = 30",
+            "                                            Replications  = 20",
+            "",
+            "--------------------------------------------------------------",
+            "             |   Observed   Bootstrap         Normal-based",
+            "             |       mean   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "       c.y@g |",
+            "      North  |       5.43   1.129039      3.217123    7.642877",
+            "      South  |      4.414   .8136304      2.819314    6.008686",
+            "       West  |   3.412727   .9661794       1.51905    5.306404",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "bootstrap, reps(20) seed(1): proportion g",
+          "lines": [
+            "(running proportion on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Proportion estimation                       Number of obs = 30",
+            "                                            Replications  = 20",
+            "",
+            "--------------------------------------------------------------",
+            "             |   Observed   Bootstrap            Logit",
+            "             | proportion   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |         .3   .0861116       .160975    .4891006",
+            "      South  |   .3333333   .0625015       .223671    .4645858",
+            "       West  |   .3666667   .0753937      .2345367    .5224304",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g, vce(bootstrap, reps(20) seed(1))",
+          "lines": [
+            "(running proportion on estimation sample)",
+            "",
+            "Bootstrap replications (20): .........10.........20 done",
+            "",
+            "Proportion estimation                       Number of obs = 30",
+            "                                            Replications  = 20",
+            "",
+            "--------------------------------------------------------------",
+            "             |   Observed   Bootstrap            Logit",
+            "             | proportion   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |         .3   .0861116       .160975    .4891006",
+            "      South  |   .3333333   .0625015       .223671    .4645858",
+            "       West  |   .3666667   .0753937      .2345367    .5224304",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion g, vce(jackknife)",
+          "lines": [
+            "(running proportion on estimation sample)",
+            "",
+            "Jackknife replications (30): .........10.........20.........30 done",
+            "",
+            "Proportion estimation                       Number of obs = 30",
+            "                                            Replications  = 30",
+            "",
+            "--------------------------------------------------------------",
+            "             |              Jackknife            Logit",
+            "             | Proportion   std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           g |",
+            "      North  |         .3   .0850963       .157617    .4953678",
+            "      South  |   .3333333   .0875377      .1826041    .5280975",
+            "       West  |   .3666667   .0894855      .2083894    .5601015",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily predict p",
+          "lines": ["predict is not allowed after jackknife:proportion"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-describe-long-names",
+      "source": "clear\nset seed 3\nset obs 40\ngenerate household_income_2023 = round(rnormal(60000,9000),1)\ngenerate years_of_schooling = floor(8+10*runiform())\ngenerate byte owns_home_flag = runiform()<.6\ngenerate byte longfactorvariablename = 1 + mod(_n,2)\ngenerate byte region = 1 + mod(_n,3)\nlabel define reg 1 \"Northeast\" 2 \"Comparison group for the study\" 3 \"Sou\"\nlabel values region reg\nmean household_income_2023\nmean household_income_2023, coeflegend\ntotal years_of_schooling household_income_2023\nproportion owns_home_flag\nproportion longfactorvariablename\nmean i.region\nmean i.longfactorvariablename\nmean i.region, nofvlabel\nsummarize i.region\nsummarize i.region i.longfactorvariablename\nsummarize i.region, nofvlabel\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 3", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        {
+          "command": "generate household_income_2023 = round(rnormal(60000,9000),1)",
+          "lines": []
+        },
+        {
+          "command": "generate years_of_schooling = floor(8+10*runiform())",
+          "lines": []
+        },
+        {
+          "command": "generate byte owns_home_flag = runiform()<.6",
+          "lines": []
+        },
+        {
+          "command": "generate byte longfactorvariablename = 1 + mod(_n,2)",
+          "lines": []
+        },
+        { "command": "generate byte region = 1 + mod(_n,3)", "lines": [] },
+        {
+          "command": "label define reg 1 \"Northeast\" 2 \"Comparison group for the study\" 3 \"Sou\"",
+          "lines": []
+        },
+        { "command": "label values region reg", "lines": [] },
+        {
+          "command": "mean household_income_2023",
+          "lines": [
+            "Mean estimation                                      Number of obs = 40",
+            "",
+            "-----------------------------------------------------------------------",
+            "                      |       Mean   Std. err.     [95% conf. interval]",
+            "----------------------+------------------------------------------------",
+            "household_income_2023 |   58399.72   1201.239      55969.99    60829.46",
+            "-----------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean household_income_2023, coeflegend",
+          "lines": [
+            "Mean estimation                             Number of obs = 40",
+            "",
+            "---------------------------------------------------------------------------------------",
+            "                      |       Mean   Legend",
+            "----------------------+----------------------------------------------------------------",
+            "household_income_2023 |   58399.72  _b[household_income_2023]",
+            "---------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "total years_of_schooling household_income_2023",
+          "lines": [
+            "Total estimation                                     Number of obs = 40",
+            "",
+            "-----------------------------------------------------------------------",
+            "                      |      Total   Std. err.     [95% conf. interval]",
+            "----------------------+------------------------------------------------",
+            "   years_of_schooling |        478   18.28268      441.0198    514.9802",
+            "household_income_2023 |    2335989   48049.55       2238800     2433178",
+            "-----------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion owns_home_flag",
+          "lines": [
+            "Proportion estimation                         Number of obs = 40",
+            "",
+            "----------------------------------------------------------------",
+            "               |                                   Logit",
+            "               | Proportion   Std. err.     [95% conf. interval]",
+            "---------------+------------------------------------------------",
+            "owns_home_flag |",
+            "            0  |       .275   .0706001      .1563488     .437048",
+            "            1  |       .725   .0706001       .562952    .8436512",
+            "----------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "proportion longfactorvariablename",
+          "lines": [
+            "Proportion estimation                                 Number of obs = 40",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |                                   Logit",
+            "                       | Proportion   Std. err.     [95% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "longfactorvariablename |",
+            "                    1  |         .5   .0790569        .34533      .65467",
+            "                    2  |         .5   .0790569        .34533      .65467",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean i.region",
+          "lines": [
+            "Mean estimation                                                Number of obs = 40",
+            "",
+            "---------------------------------------------------------------------------------",
+            "                                |       Mean   Std. err.     [95% conf. interval]",
+            "--------------------------------+------------------------------------------------",
+            "                         region |",
+            "                     Northeast  |       .325       .075      .1732982    .4767018",
+            "Comparison group for the study  |        .35   .0763763      .1955144    .5044856",
+            "                           Sou  |       .325       .075      .1732982    .4767018",
+            "---------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean i.longfactorvariablename",
+          "lines": [
+            "Mean estimation                                       Number of obs = 40",
+            "",
+            "------------------------------------------------------------------------",
+            "                       |       Mean   Std. err.     [95% conf. interval]",
+            "-----------------------+------------------------------------------------",
+            "longfactorvariablename |",
+            "                    1  |         .5   .0800641      .3380551    .6619449",
+            "                    2  |         .5   .0800641      .3380551    .6619449",
+            "------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "mean i.region, nofvlabel",
+          "lines": [
+            "Mean estimation                             Number of obs = 40",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "      region |",
+            "          1  |       .325       .075      .1732982    .4767018",
+            "          2  |        .35   .0763763      .1955144    .5044856",
+            "          3  |       .325       .075      .1732982    .4767018",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "summarize i.region",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "      region |",
+            "  Northeast  |         40        .325    .4743416          0          1",
+            "Compariso..  |         40         .35    .4830459          0          1",
+            "        Sou  |         40        .325    .4743416          0          1"
+          ]
+        },
+        {
+          "command": "summarize i.region i.longfactorvariablename",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "      region |",
+            "  Northeast  |         40        .325    .4743416          0          1",
+            "Compariso..  |         40         .35    .4830459          0          1",
+            "        Sou  |         40        .325    .4743416          0          1",
+            "             |",
+            "longfactor~e |",
+            "          1  |         40          .5    .5063697          0          1",
+            "          2  |         40          .5    .5063697          0          1"
+          ]
+        },
+        {
+          "command": "summarize i.region, nofvlabel",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "      region |",
+            "          1  |         40        .325    .4743416          0          1",
+            "          2  |         40         .35    .4830459          0          1",
+            "          3  |         40        .325    .4743416          0          1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-describe-summarize-fvlabels",
+      "source": "clear\nset obs 12\ngenerate byte g = 1 + mod(_n,6)\nlabel define gl 1 \"Northeastern\" 2 \"VeryLongLabelWithoutSpaces\" 3 \"Abcdefghijk\" 4 \"Région Île-de-France\" 5 \"a b\" 6 \"東京都の中心部です\"\nlabel values g gl\nsummarize i.g\nsummarize i.g, nofvlabel\nsummarize 2.g\nsummarize i.g, separator(2)\nsummarize i.g [aw=g]\nmean i.g\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 12",
+          "lines": ["Number of observations (_N) was 0, now 12."]
+        },
+        { "command": "generate byte g = 1 + mod(_n,6)", "lines": [] },
+        {
+          "command": "label define gl 1 \"Northeastern\" 2 \"VeryLongLabelWithoutSpaces\" 3 \"Abcdefghijk\" 4 \"Région Île-de-France\" 5 \"a b\" 6 \"東京都の中心部です\"",
+          "lines": []
+        },
+        { "command": "label values g gl", "lines": [] },
+        {
+          "command": "summarize i.g",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           g |",
+            "Northeast~n  |         12    .1666667    .3892495          0          1",
+            "VeryLongL~s  |         12    .1666667    .3892495          0          1",
+            "Abcdefghijk  |         12    .1666667    .3892495          0          1",
+            "Région Îl..  |         12    .1666667    .3892495          0          1",
+            "        a b  |         12    .1666667    .3892495          0          1",
+            "-------------+---------------------------------------------------------",
+            "東京都の~す  |         12    .1666667    .3892495          0          1"
+          ]
+        },
+        {
+          "command": "summarize i.g, nofvlabel",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           g |",
+            "          1  |         12    .1666667    .3892495          0          1",
+            "          2  |         12    .1666667    .3892495          0          1",
+            "          3  |         12    .1666667    .3892495          0          1",
+            "          4  |         12    .1666667    .3892495          0          1",
+            "          5  |         12    .1666667    .3892495          0          1",
+            "-------------+---------------------------------------------------------",
+            "          6  |         12    .1666667    .3892495          0          1"
+          ]
+        },
+        {
+          "command": "summarize 2.g",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           g |",
+            "VeryLongL~s  |         12    .1666667    .3892495          0          1"
+          ]
+        },
+        {
+          "command": "summarize i.g, separator(2)",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           g |",
+            "Northeast~n  |         12    .1666667    .3892495          0          1",
+            "VeryLongL~s  |         12    .1666667    .3892495          0          1",
+            "-------------+---------------------------------------------------------",
+            "Abcdefghijk  |         12    .1666667    .3892495          0          1",
+            "Région Îl..  |         12    .1666667    .3892495          0          1",
+            "-------------+---------------------------------------------------------",
+            "        a b  |         12    .1666667    .3892495          0          1",
+            "東京都の~す  |         12    .1666667    .3892495          0          1"
+          ]
+        },
+        {
+          "command": "summarize i.g [aw=g]",
+          "lines": [
+            "    Variable |     Obs      Weight        Mean   Std. dev.       Min        Max",
+            "-------------+-----------------------------------------------------------------",
+            "           g |",
+            "Northeast~n  |      12          42     .047619   .2224283          0          1",
+            "VeryLongL~s  |      12          42    .0952381   .3065962          0          1",
+            "Abcdefghijk  |      12          42    .1428571   .3654869          0          1",
+            "Région Îl..  |      12          42    .1904762   .4101375          0          1",
+            "        a b  |      12          42    .2380952   .4448565          0          1",
+            "-------------+-----------------------------------------------------------------",
+            "東京都の~す  |      12          42    .2857143   .4718416          0          1"
+          ]
+        },
+        {
+          "command": "mean i.g",
+          "lines": [
+            "Mean estimation                                            Number of obs = 12",
+            "",
+            "-----------------------------------------------------------------------------",
+            "                            |       Mean   Std. err.     [95% conf. interval]",
+            "----------------------------+------------------------------------------------",
+            "                          g |",
+            "              Northeastern  |   .1666667   .1123666     -.0806506     .413984",
+            "VeryLongLabelWithoutSpaces  |   .1666667   .1123666     -.0806506     .413984",
+            "               Abcdefghijk  |   .1666667   .1123666     -.0806506     .413984",
+            "      Région Île-de-France  |   .1666667   .1123666     -.0806506     .413984",
+            "                       a b  |   .1666667   .1123666     -.0806506     .413984",
+            "        東京都の中心部です  |   .1666667   .1123666     -.0806506     .413984",
+            "-----------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-describe-missing-comma",
+      "source": "clear\nset obs 10\ngenerate y = _n\ngenerate x = mod(_n, 3)\ngenerate byte region = 1 + mod(_n, 2)\ncapture noisily ttest y by(region)\ncapture noisily tabstat y by(region)\ncapture noisily tabulate y by(region)\ncapture noisily sdtest y by(region)\ncapture noisily summarize y by(region)\ncapture noisily mean y over(region)\ncapture noisily total y over(region)\ncapture noisily proportion x over(region)\ncapture noisily ratio y/x over(region)\ncapture noisily regress y x by(region)\ncapture noisily list y by(region)\ncapture noisily correlate y x by(region)\ncapture noisily pwcorr y x by(region)\ncapture noisily ci means y by(region)\ncapture noisily summarize y ar(1)\ncapture noisily tabulate y x(1)\nsummarize y (region)\nmean y (region)\ncapture noisily logit region x by(y)\ncapture noisily prtest region by(x)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 10",
+          "lines": ["Number of observations (_N) was 0, now 10."]
+        },
+        { "command": "generate y = _n", "lines": [] },
+        { "command": "generate x = mod(_n, 3)", "lines": [] },
+        { "command": "generate byte region = 1 + mod(_n, 2)", "lines": [] },
+        {
+          "command": "capture noisily ttest y by(region)",
+          "lines": ["factor-variable and time-series operators not allowed"]
+        },
+        {
+          "command": "capture noisily tabstat y by(region)",
+          "lines": ["factor-variable and time-series operators not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate y by(region)",
+          "lines": ["factor-variable and time-series operators not allowed"]
+        },
+        {
+          "command": "capture noisily sdtest y by(region)",
+          "lines": ["factor-variable and time-series operators not allowed"]
+        },
+        {
+          "command": "capture noisily summarize y by(region)",
+          "lines": ["variable by not found"]
+        },
+        {
+          "command": "capture noisily mean y over(region)",
+          "lines": ["variable over not found"]
+        },
+        {
+          "command": "capture noisily total y over(region)",
+          "lines": ["variable over not found"]
+        },
+        {
+          "command": "capture noisily proportion x over(region)",
+          "lines": ["variable over not found"]
+        },
+        {
+          "command": "capture noisily ratio y/x over(region)",
+          "lines": [
+            "parentheses are required for multiple ratio specifications"
+          ]
+        },
+        {
+          "command": "capture noisily regress y x by(region)",
+          "lines": ["variable by not found"]
+        },
+        {
+          "command": "capture noisily list y by(region)",
+          "lines": ["variable by not found"]
+        },
+        {
+          "command": "capture noisily correlate y x by(region)",
+          "lines": ["factor-variable operators not allowed"]
+        },
+        {
+          "command": "capture noisily pwcorr y x by(region)",
+          "lines": ["factor-variable operators not allowed"]
+        },
+        {
+          "command": "capture noisily ci means y by(region)",
+          "lines": ["factor-variable and time-series operators not allowed"]
+        },
+        {
+          "command": "capture noisily summarize y ar(1)",
+          "lines": ["coding operators not allowed"]
+        },
+        {
+          "command": "capture noisily tabulate y x(1)",
+          "lines": ["factor-variable and time-series operators not allowed"]
+        },
+        {
+          "command": "summarize y (region)",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           y |         10         5.5     3.02765          1         10",
+            "      region |         10         1.5    .5270463          1          2"
+          ]
+        },
+        {
+          "command": "mean y (region)",
+          "lines": [
+            "Mean estimation                             Number of obs = 10",
+            "",
+            "--------------------------------------------------------------",
+            "             |       Mean   Std. err.     [95% conf. interval]",
+            "-------------+------------------------------------------------",
+            "           y |        5.5   .9574271      3.334149    7.665851",
+            "      region |        1.5   .1666667      1.122974    1.877026",
+            "--------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily logit region x by(y)",
+          "lines": ["variable by not found"]
+        },
+        {
+          "command": "capture noisily prtest region by(x)",
+          "lines": ["factor-variable and time-series operators not allowed"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-describe-sdtest-labels",
+      "source": "clear\nset seed 7\nset obs 30\ngenerate score_post = round(rnormal(60,10),0.1)\ngenerate a_rather_long_variable_name_x = round(rnormal(58,9),0.1)\ngenerate byte grp = _n>15\nlabel define g 0 \"Control group\" 1 \"Treatment group\"\nlabel values grp g\ngenerate str20 arm = cond(_n>15, \"Standard curriculum arm\", \"  New arm\")\ngenerate double frac = cond(_n>15, 0.1, 1e10)\ngenerate byte three = mod(_n,3)\nsdtest score_post == a_rather_long_variable_name_x\nsdtest a_rather_long_variable_name_x == 9\nsdtest score_post, by(grp)\nsdtest score_post, by(arm)\nsdtest score_post, by(frac)\nsdtest score_post, by(grp) level(99)\ncapture noisily sdtest score_post, by(three)\ncapture noisily sdtest score_post if grp == 0, by(grp)\ncapture noisily sdtest score_post if score_post > 1000, by(grp)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7", "lines": [] },
+        {
+          "command": "set obs 30",
+          "lines": ["Number of observations (_N) was 0, now 30."]
+        },
+        {
+          "command": "generate score_post = round(rnormal(60,10),0.1)",
+          "lines": []
+        },
+        {
+          "command": "generate a_rather_long_variable_name_x = round(rnormal(58,9),0.1)",
+          "lines": []
+        },
+        { "command": "generate byte grp = _n>15", "lines": [] },
+        {
+          "command": "label define g 0 \"Control group\" 1 \"Treatment group\"",
+          "lines": []
+        },
+        { "command": "label values grp g", "lines": [] },
+        {
+          "command": "generate str20 arm = cond(_n>15, \"Standard curriculum arm\", \"  New arm\")",
+          "lines": []
+        },
+        {
+          "command": "generate double frac = cond(_n>15, 0.1, 1e10)",
+          "lines": []
+        },
+        { "command": "generate byte three = mod(_n,3)", "lines": [] },
+        {
+          "command": "sdtest score_post == a_rather_long_variable_name_x",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "score_~t |      30       57.75    2.096624    11.48368    53.46192    62.03808",
+            "a_rath~x |      30       58.71    1.686569    9.237717    55.26058    62.15942",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      60       58.23    1.335407    10.34402    55.55786    60.90214",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(score_post) / sd(a_rather_long_~x)                 f =   1.5454",
+            "H0: ratio = 1                                    Degrees of freedom =   29, 29",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.8765         2*Pr(F > f) = 0.2471           Pr(F > f) = 0.1235"
+          ]
+        },
+        {
+          "command": "sdtest a_rather_long_variable_name_x == 9",
+          "lines": [
+            "One-sample test of variance",
+            "------------------------------------------------------------------------------",
+            "Variable |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "a_rath~x |      30       58.71    1.686569    9.237717    55.26058    62.15942",
+            "------------------------------------------------------------------------------",
+            "    sd = sd(a_rather_long_variable_name_x)                 c = chi2 =  30.5522",
+            "H0: sd = 9                                       Degrees of freedom =       29",
+            "",
+            "     Ha: sd < 9                   Ha: sd != 9                   Ha: sd > 9",
+            "  Pr(C < c) = 0.6132         2*Pr(C > c) = 0.7737           Pr(C > c) = 0.3868"
+          ]
+        },
+        {
+          "command": "sdtest score_post, by(grp)",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "   Group |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            " Control |      15    54.44667    2.893093     11.2049     48.2416    60.65173",
+            "Treatmen |      15    61.05333    2.877927    11.14616    54.88079    67.22587",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      30       57.75    2.096624    11.48368    53.46192    62.03808",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(Control) / sd(Treatmen)                            f =   1.0106",
+            "H0: ratio = 1                                    Degrees of freedom =   14, 14",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.5077         2*Pr(F > f) = 0.9846           Pr(F > f) = 0.4923"
+          ]
+        },
+        {
+          "command": "sdtest score_post, by(arm)",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "   Group |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "  New ar |      15    54.44667    2.893093     11.2049     48.2416    60.65173",
+            "Standard |      15    61.05333    2.877927    11.14616    54.88079    67.22587",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      30       57.75    2.096624    11.48368    53.46192    62.03808",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(New ar) / sd(Standard)                             f =   1.0106",
+            "H0: ratio = 1                                    Degrees of freedom =   14, 14",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.5077         2*Pr(F > f) = 0.9846           Pr(F > f) = 0.4923"
+          ]
+        },
+        {
+          "command": "sdtest score_post, by(frac)",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "   Group |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       1 |      15    61.05333    2.877927    11.14616    54.88079    67.22587",
+            "10000000 |      15    54.44667    2.893093     11.2049     48.2416    60.65173",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      30       57.75    2.096624    11.48368    53.46192    62.03808",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(1) / sd(10000000)                                  f =   0.9895",
+            "H0: ratio = 1                                    Degrees of freedom =   14, 14",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.4923         2*Pr(F < f) = 0.9846           Pr(F > f) = 0.5077"
+          ]
+        },
+        {
+          "command": "sdtest score_post, by(grp) level(99)",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "   Group |     Obs        Mean    Std. err.   Std. dev.   [99% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            " Control |      15    54.44667    2.893093     11.2049    45.83438    63.05895",
+            "Treatmen |      15    61.05333    2.877927    11.14616     52.4862    69.62047",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      30       57.75    2.096624    11.48368    51.97089     63.5291",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(Control) / sd(Treatmen)                            f =   1.0106",
+            "H0: ratio = 1                                    Degrees of freedom =   14, 14",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.5077         2*Pr(F > f) = 0.9846           Pr(F > f) = 0.4923"
+          ]
+        },
+        {
+          "command": "capture noisily sdtest score_post, by(three)",
+          "lines": ["more than 2 groups found, only 2 allowed"]
+        },
+        {
+          "command": "capture noisily sdtest score_post if grp == 0, by(grp)",
+          "lines": ["1 group found, 2 required"]
+        },
+        {
+          "command": "capture noisily sdtest score_post if score_post > 1000, by(grp)",
+          "lines": ["no observations"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-describe-sdtesti",
+      "source": "sdtesti 30 5 2.5 40 6 3.1\nsdtesti 30 . 2.5 40 . 3.1\nsdtesti 30 5 2.5 40 6 3.1, xname(Treated) yname(Control_group_long)\nsdtesti 30 5 2.5 3\nsdtesti 30 . 2.5 3, level(90)\nsdtesti 30 5 2.5 3, xname(weights)\nsdtesti 30 5 2.5 40 6 0\nsdtesti 1 5 0 3\nsdtesti 30 5 2.5 40 . 3.1, yname(Short)\nsdtesti 1000000 5 2.5 2000000 6 3.1\ncapture noisily sdtesti 30 5 2.5 40 6\ncapture noisily sdtesti 30 5 -2.5 3\ncapture noisily sdtesti 1 5 2.5 3\ncapture noisily sdtesti 30.5 5 2.5 3\ncapture noisily sdtesti 30 5 2.5 40 6 3.1 7\ncapture noisily sdtesti 30 a 2.5 3\ncapture noisily sdtesti 0 5 2.5 3\ncapture noisily sdtesti -3 5 2.5 3\ncapture noisily sdtesti 30 5 2.5 -3\ncapture noisily sdtesti 30 5 . 3\ncapture noisily sdtesti 30 5 2.5 .\n",
+      "commands": [
+        {
+          "command": "sdtesti 30 5 2.5 40 6 3.1",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "         |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       x |      30           5    .4564355         2.5    4.066485    5.933515",
+            "       y |      40           6     .490153         3.1    5.008572    6.991428",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      70    5.571429    .3444872    2.882186    4.884196    6.258662",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(x) / sd(y)                                         f =   0.6504",
+            "H0: ratio = 1                                    Degrees of freedom =   29, 39",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.1156         2*Pr(F < f) = 0.2312           Pr(F > f) = 0.8844"
+          ]
+        },
+        {
+          "command": "sdtesti 30 . 2.5 40 . 3.1",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "         |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       x |      30           .    .4564355         2.5           .           .",
+            "       y |      40           .     .490153         3.1           .           .",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      70           .           .           .           .           .",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(x) / sd(y)                                         f =   0.6504",
+            "H0: ratio = 1                                    Degrees of freedom =   29, 39",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.1156         2*Pr(F < f) = 0.2312           Pr(F > f) = 0.8844"
+          ]
+        },
+        {
+          "command": "sdtesti 30 5 2.5 40 6 3.1, xname(Treated) yname(Control_group_long)",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "   Group |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            " Treated |      30           5    .4564355         2.5    4.066485    5.933515",
+            "Contro~g |      40           6     .490153         3.1    5.008572    6.991428",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      70    5.571429    .3444872    2.882186    4.884196    6.258662",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(Treated) / sd(Control_group_~g)                    f =   0.6504",
+            "H0: ratio = 1                                    Degrees of freedom =   29, 39",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.1156         2*Pr(F < f) = 0.2312           Pr(F > f) = 0.8844"
+          ]
+        },
+        {
+          "command": "sdtesti 30 5 2.5 3",
+          "lines": [
+            "One-sample test of variance",
+            "------------------------------------------------------------------------------",
+            "         |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       x |      30           5    .4564355         2.5    4.066485    5.933515",
+            "------------------------------------------------------------------------------",
+            "    sd = sd(x)                                             c = chi2 =  20.1389",
+            "H0: sd = 3                                       Degrees of freedom =       29",
+            "",
+            "     Ha: sd < 3                   Ha: sd != 3                   Ha: sd > 3",
+            "  Pr(C < c) = 0.1114         2*Pr(C < c) = 0.2229           Pr(C > c) = 0.8886"
+          ]
+        },
+        {
+          "command": "sdtesti 30 . 2.5 3, level(90)",
+          "lines": [
+            "One-sample test of variance",
+            "------------------------------------------------------------------------------",
+            "         |     Obs        Mean    Std. err.   Std. dev.   [90% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       x |      30           .    .4564355         2.5           .           .",
+            "------------------------------------------------------------------------------",
+            "    sd = sd(x)                                             c = chi2 =  20.1389",
+            "H0: sd = 3                                       Degrees of freedom =       29",
+            "",
+            "     Ha: sd < 3                   Ha: sd != 3                   Ha: sd > 3",
+            "  Pr(C < c) = 0.1114         2*Pr(C < c) = 0.2229           Pr(C > c) = 0.8886"
+          ]
+        },
+        {
+          "command": "sdtesti 30 5 2.5 3, xname(weights)",
+          "lines": [
+            "One-sample test of variance",
+            "------------------------------------------------------------------------------",
+            "   Group |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            " weights |      30           5    .4564355         2.5    4.066485    5.933515",
+            "------------------------------------------------------------------------------",
+            "    sd = sd(weights)                                       c = chi2 =  20.1389",
+            "H0: sd = 3                                       Degrees of freedom =       29",
+            "",
+            "     Ha: sd < 3                   Ha: sd != 3                   Ha: sd > 3",
+            "  Pr(C < c) = 0.1114         2*Pr(C < c) = 0.2229           Pr(C > c) = 0.8886"
+          ]
+        },
+        {
+          "command": "sdtesti 30 5 2.5 40 6 0",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "         |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       x |      30           5    .4564355         2.5    4.066485    5.933515",
+            "       y |      40           6           0           0           6           6",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      70    5.571429      .20267    1.695659    5.167113    5.975744",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(x) / sd(y)                                         f =        .",
+            "H0: ratio = 1                                    Degrees of freedom =   29, 39",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) =      .         2*Pr(F > f) =      .           Pr(F > f) =      ."
+          ]
+        },
+        {
+          "command": "sdtesti 1 5 0 3",
+          "lines": [
+            "One-sample test of variance",
+            "------------------------------------------------------------------------------",
+            "         |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       x |       1           5           .           .           .           .",
+            "------------------------------------------------------------------------------",
+            "    sd = sd(x)                                             c = chi2 =        .",
+            "H0: sd = 3                                       Degrees of freedom =        0",
+            "",
+            "     Ha: sd < 3                   Ha: sd != 3                   Ha: sd > 3",
+            "  Pr(C < c) =      .         2*Pr(C > c) =      .           Pr(C > c) =      ."
+          ]
+        },
+        {
+          "command": "sdtesti 30 5 2.5 40 . 3.1, yname(Short)",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "         |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       x |      30           5    .4564355         2.5    4.066485    5.933515",
+            "   Short |      40           .     .490153         3.1           .           .",
+            "---------+--------------------------------------------------------------------",
+            "Combined |      70           .           .           .           .           .",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(x) / sd(Short)                                     f =   0.6504",
+            "H0: ratio = 1                                    Degrees of freedom =   29, 39",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.1156         2*Pr(F < f) = 0.2312           Pr(F > f) = 0.8844"
+          ]
+        },
+        {
+          "command": "sdtesti 1000000 5 2.5 2000000 6 3.1",
+          "lines": [
+            "Variance ratio test",
+            "------------------------------------------------------------------------------",
+            "         |     Obs        Mean    Std. err.   Std. dev.   [95% conf. interval]",
+            "---------+--------------------------------------------------------------------",
+            "       x | 1000000           5       .0025         2.5      4.9951      5.0049",
+            "       y | 2000000           6     .002192         3.1    5.995704    6.004296",
+            "---------+--------------------------------------------------------------------",
+            "Combined | 3000000    5.666667    .0017041    2.951647    5.663327    5.670007",
+            "------------------------------------------------------------------------------",
+            "    ratio = sd(x) / sd(y)                                         f =   0.6504",
+            "H0: ratio = 1                             Degrees of freedom = 999999, 1999999",
+            "",
+            "    Ha: ratio < 1               Ha: ratio != 1                 Ha: ratio > 1",
+            "  Pr(F < f) = 0.0000         2*Pr(F < f) = 0.0000           Pr(F > f) = 1.0000"
+          ]
+        },
+        {
+          "command": "capture noisily sdtesti 30 5 2.5 40 6",
+          "lines": [
+            "either four arguments for a one-sample test or six arguments for a two-sample test must be specified"
+          ]
+        },
+        {
+          "command": "capture noisily sdtesti 30 5 -2.5 3",
+          "lines": ["standard deviation is negative"]
+        },
+        {
+          "command": "capture noisily sdtesti 1 5 2.5 3",
+          "lines": ["only one observation, but positive standard deviation"]
+        },
+        {
+          "command": "capture noisily sdtesti 30.5 5 2.5 3",
+          "lines": ["'30.5' found where integer expected"]
+        },
+        {
+          "command": "capture noisily sdtesti 30 5 2.5 40 6 3.1 7",
+          "lines": ["varlist not allowed"]
+        },
+        {
+          "command": "capture noisily sdtesti 30 a 2.5 3",
+          "lines": ["'a' found where number expected"]
+        },
+        {
+          "command": "capture noisily sdtesti 0 5 2.5 3",
+          "lines": ["no observations"]
+        },
+        {
+          "command": "capture noisily sdtesti -3 5 2.5 3",
+          "lines": ["number of observations is negative"]
+        },
+        {
+          "command": "capture noisily sdtesti 30 5 2.5 -3",
+          "lines": ["hypothesized standard deviation is negative"]
+        },
+        {
+          "command": "capture noisily sdtesti 30 5 . 3",
+          "lines": ["standard deviation is missing"]
+        },
+        {
+          "command": "capture noisily sdtesti 30 5 2.5 .",
+          "lines": ["hypothesized value is missing"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-describe-tabulate-generate-nolabel",
+      "source": "clear\nset obs 8\ngenerate byte region = 1 + mod(_n,3)\nlabel define reg 1 \"Northeast\" 2 \"Midwest\" 3 \"South\"\nlabel values region reg\ntabulate region, generate(r) nolabel\ndescribe r1 r2 r3\ntabulate region, generate(s)\ndescribe s1 s2 s3\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 8",
+          "lines": ["Number of observations (_N) was 0, now 8."]
+        },
+        { "command": "generate byte region = 1 + mod(_n,3)", "lines": [] },
+        {
+          "command": "label define reg 1 \"Northeast\" 2 \"Midwest\" 3 \"South\"",
+          "lines": []
+        },
+        { "command": "label values region reg", "lines": [] },
+        {
+          "command": "tabulate region, generate(r) nolabel",
+          "lines": [
+            "     region |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "          1 |          2       25.00       25.00",
+            "          2 |          3       37.50       62.50",
+            "          3 |          3       37.50      100.00",
+            "------------+-----------------------------------",
+            "      Total |          8      100.00"
+          ]
+        },
+        {
+          "command": "describe r1 r2 r3",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "r1              byte    %8.0g                 region== 1.0000",
+            "r2              byte    %8.0g                 region== 2.0000",
+            "r3              byte    %8.0g                 region== 3.0000"
+          ]
+        },
+        {
+          "command": "tabulate region, generate(s)",
+          "lines": [
+            "     region |      Freq.     Percent        Cum.",
+            "------------+-----------------------------------",
+            "  Northeast |          2       25.00       25.00",
+            "    Midwest |          3       37.50       62.50",
+            "      South |          3       37.50      100.00",
+            "------------+-----------------------------------",
+            "      Total |          8      100.00"
+          ]
+        },
+        {
+          "command": "describe s1 s2 s3",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s1              byte    %8.0g                 region==Northeast",
+            "s2              byte    %8.0g                 region==Midwest",
+            "s3              byte    %8.0g                 region==South"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

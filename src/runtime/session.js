@@ -931,6 +931,9 @@ export class Session {
       n: this.data.n,
       level: this.settings.level,
       defaultType: this.data.defaultType,
+      // How the running command's varlist reads parentheses (see
+      // expandVarlist).
+      parentheses: this.varlistParentheses ?? null,
       expression: (text, clause) => {
         this.compile(text, { assign: clause === "exp" });
       },
@@ -940,7 +943,11 @@ export class Session {
     return applySyntax(declaration, text, this.context());
   }
   varlist(text) {
-    return expandVarlist(text, this.data.names);
+    return expandVarlist(
+      text,
+      this.data.names,
+      this.varlistParentheses ?? null,
+    );
   }
 
   /**
@@ -1674,8 +1681,12 @@ export class Session {
       this.postedSample = null;
       // A function's message while an expression is evaluated, as regexs()
       // gives for a group it does not have, goes to this command's output.
-      const outerNote = this.state.note;
+      const outerNote = this.state.note,
+        // A command reads parentheses in its varlist as its own varlist
+        // does (see expandVarlist), which it says when it runs.
+        outerParentheses = this.varlistParentheses;
       this.state.note = ctx.out;
+      this.varlistParentheses = null;
       try {
         if (replayed) value = this.replay(command, body, ctx, lines);
         else if (recall) {
@@ -1736,6 +1747,7 @@ export class Session {
         throw error;
       } finally {
         this.state.note = outerNote;
+        this.varlistParentheses = outerParentheses;
         // Once the data have changed they stay changed until use, save or
         // clear, even if a later command changes them back.
         if (!READ_ONLY.has(command.name)) markChanged(this);

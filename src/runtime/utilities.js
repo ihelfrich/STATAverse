@@ -382,6 +382,29 @@ function notVariables(session, text) {
   return new StataError("invalid syntax", 198);
 }
 
+/**
+ * The names ttest and sdtest give the groups of by(): each group's first
+ * eight characters, without the blanks around them. A number is written
+ * out in full, as a macro holds it, whatever the variable's format, so 0.1
+ * stored as a float is .1000000 (shown as 1000000 once abbrev() drops the
+ * period) and 1e10 is 10000000. Its value label stands in for it unless
+ * empty. A string group is cut to eight columns of the screen, a label to
+ * eight characters.
+ */
+export function groupNames(session, by, levels) {
+  const map = isStringType(by.type)
+    ? null
+    : session.data.valueLabels.get(by.valueLabel);
+  return levels.map((value) =>
+    (typeof value === "string"
+      ? truncateColumns(value, 8)
+      : Array.from(map?.get(value) || applyFormat(value, "%18.0g").trim())
+          .slice(0, 8)
+          .join("")
+    ).trim(),
+  );
+}
+
 /** The pieces ttest and ttesti print their tables with. */
 function tPrinters(ctx, session) {
   const cell = (value) => applyFormat(stored(value), "%9.0g"),
@@ -756,24 +779,7 @@ function ttest(session, text, ctx) {
         level,
       ),
     ),
-    // Each group is named by its first eight characters, without the
-    // blanks around them. A number is written out in full, as a macro
-    // holds it, whatever the variable's format, so 0.1 stored as a float
-    // is .1000000 (shown as 1000000 once abbrev() drops the period) and
-    // 1e10 is 10000000. Its value label stands in for it unless empty.
-    map = isStringType(by.type)
-      ? null
-      : session.data.valueLabels.get(by.valueLabel),
-    // A string group is cut to eight columns of the screen, a label to
-    // eight characters.
-    [xname, yname] = levels.map((value) =>
-      (typeof value === "string"
-        ? truncateColumns(value, 8)
-        : Array.from(map?.get(value) || applyFormat(value, "%18.0g").trim())
-            .slice(0, 8)
-            .join("")
-      ).trim(),
-    );
+    [xname, yname] = groupNames(session, by, levels);
   twoSampleTable(ctx, session, printers)(
     a,
     b,

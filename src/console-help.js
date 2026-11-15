@@ -484,6 +484,10 @@ export const HELP = {
     "Tests whether two standard deviations (variances) are equal.",
     "sdtest x, by(group)",
   ],
+  sdtesti: [
+    "Variance test from numbers you type: N, mean (or .) and sd of each sample, or of one and the sd to test.",
+    "sdtesti 30 5 2.5 40 6 3.1",
+  ],
   search: [
     "Searches Stata's documentation (not included here).",
     "search topic",

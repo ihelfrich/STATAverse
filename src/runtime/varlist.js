@@ -24,7 +24,37 @@ export function resolveVariable(word, names) {
   throw new StataError(`${word} ambiguous abbreviation`, 111);
 }
 
-export function expandVarlist(text, names) {
+/**
+ * A word with a parenthesis and no operator's period, as by(g) typed
+ * without its comma or ar(1). Stata reads it by the varlist the command
+ * declares (`parentheses`): a varlist that takes factor variables
+ * ("factor") groups names in parentheses, so by(g) is the names by and g
+ * (and by is not found) and ar(1) holds a coding operator; one that takes
+ * time-series operators only refuses factor-variable operators (a message,
+ * as correlate's); any other refuses both. Returns the names to expand in
+ * its place, or throws.
+ */
+function parenthesized(word, parentheses) {
+  if (parentheses === "factor") {
+    // A group may run over several words, as (g h).
+    const pieces = word.split(/[()]/).filter(Boolean);
+    if (
+      pieces.every((piece) =>
+        /^[\p{L}_*?~][\w\u0080-\u{10FFFF}*?~-]*$/u.test(piece),
+      )
+    )
+      return pieces;
+    throw new StataError("coding operators not allowed", 198);
+  }
+  throw new StataError(
+    typeof parentheses === "string"
+      ? parentheses
+      : "factor-variable and time-series operators not allowed",
+    101,
+  );
+}
+
+export function expandVarlist(text, names, parentheses = null) {
   const out = [];
   // With no variables in memory a name or a range is Stata's "no variables
   // defined", a wildcard "variable x* not found", and _all stands for none.
@@ -39,10 +69,15 @@ export function expandVarlist(text, names) {
     // A brace ends Stata's reading of names: sum x { finds no name there.
     else if (word.startsWith("{"))
       throw new StataError("nothing found where name expected", 198);
-    // A parenthesis with no operator's period, as in ar(1), is read as
-    // Stata's recoding syntax.
+    // A parenthesis with no operator's period, as in ar(1) or by(g).
     else if (/[()]/.test(word) && !word.includes(".") && !word.includes("#"))
-      throw new StataError("coding operators not allowed", 198);
+      out.push(
+        ...expandVarlist(
+          parenthesized(word, parentheses).join(" "),
+          names,
+          parentheses,
+        ),
+      );
     else if (/^[\p{L}\p{Nd}_]*\.[\p{L}_#(]/u.test(word) || /[#()]/.test(word))
       throw new StataError(
         "factor-variable and time-series operators not allowed",

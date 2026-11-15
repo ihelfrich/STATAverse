@@ -1154,6 +1154,13 @@ function readRatios(session, text) {
       one(rest.slice(1, close));
       rest = rest.slice(close + 1).trim();
     } else {
+      // A parenthesis after a ratio standing alone, as y/x over(g) without
+      // its comma, begins another.
+      if (rest.includes("("))
+        throw new StataError(
+          "parentheses are required for multiple ratio specifications",
+          198,
+        );
       one(rest);
       rest = "";
     }

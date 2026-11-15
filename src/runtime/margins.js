@@ -479,6 +479,14 @@ function margins(session, text, ctx) {
   // r(mean): summarize): margins looks for a variable named after the
   // first statistic, as Stata's does.
   const posted = session.results.e ?? {};
+  // A command that marks every prediction unfit for margins (e(marginsnotok)
+  // _ALL), as mean, total, proportion and ratio do, is refused as Stata
+  // refuses it, also after a prefix.
+  if (posted.marginsnotok === "_ALL")
+    throw new StataError(
+      `command margins not appropriate after ${posted.cmd ?? model.command}`,
+      322,
+    );
   if (!model.columns && posted.prefix && posted.cmdname && model.names?.length)
     throw new StataError(`variable ${model.names[0]} not found`, 111);
   if (!link || !model.sample)

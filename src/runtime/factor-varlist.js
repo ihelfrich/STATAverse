@@ -83,6 +83,10 @@ function levelsOf(variable, rows = null) {
   return [...levels].sort((a, b) => a - b);
 }
 
+// A level's value label, or null when it has none.
+const valueText = (session, variable, level) =>
+  session.data.valueLabels.get(variable.valueLabel)?.get(level) ?? null;
+
 /**
  * The columns a factor-variable word stands for: { name, label, base,
  * values }, where base names the group a column belongs to (g for the
@@ -156,6 +160,7 @@ function columnsOf(session, word, rows) {
           name: spelled(terms[0]),
           base: terms[0].variable.name,
           label: `${terms[0].level} `,
+          shown: valueText(session, terms[0].variable, terms[0].level),
           single: true,
           values: product(() => null),
         },
@@ -185,6 +190,8 @@ function columnsOf(session, word, rows) {
       .join("#"),
     base,
     label: `${level} `,
+    // The level's value label, which the table shows in its place.
+    shown: terms.length === 1 ? valueText(session, free.variable, level) : null,
     level,
     values: product((term) => (term === free ? level : null)),
   }));
@@ -197,6 +204,9 @@ function columnsOf(session, word, rows) {
  */
 export function factorVariables(run, options = {}) {
   return (session, text, ctx) => {
+    // Parentheses in the varlist group names, as a varlist of factor
+    // variables reads them, or are refused with the command's message.
+    session.varlistParentheses = options.refuse ?? "factor";
     const end = varlistEnd(text),
       // i.(g h) is i.g i.h.
       listed = words(text.slice(0, end)).flatMap((word) => {
@@ -271,6 +281,7 @@ export function factorVariables(run, options = {}) {
                 base: column.base,
                 name: column.name,
                 label: column.label,
+                shown: column.shown ?? null,
                 prefix,
                 single: column.single,
                 factor: true,

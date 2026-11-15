@@ -314,6 +314,9 @@ export function numericVarlist(session, text) {
  * when given, are the observations whose values give each factor's levels.
  */
 export function design(session, text, rows, constant = true, levelRows) {
+  // A varlist of factor variables groups names in parentheses, so that
+  // by(g) typed without its comma is the names by and g.
+  session.varlistParentheses = "factor";
   // Words split at blanks outside parentheses, so that L(1 2).x is one.
   const tokens =
     text.trim().match(/(?:[^\s(]|\((?:[^()]|\([^()]*\))*\))+/g) ?? [];

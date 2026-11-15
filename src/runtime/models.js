@@ -12,6 +12,7 @@ import {
   lrtest,
 } from "./comparisons.js";
 import { regressDiagnostic } from "./diagnostics.js";
+import { meanEstat } from "./tables.js";
 import { StataError } from "./errors.js";
 import { abbreviateAmong, applyFormat } from "./format.js";
 import { chi2tail } from "./distributions.js";
@@ -1823,11 +1824,15 @@ function testparm(session, text, ctx) {
 }
 function predict(session, text, ctx) {
   const model = estimates(session);
+  const e = session.results.e ?? {};
+  // After a prefix Stata names it with the command (bootstrap:mean).
   if (model.noPredict)
-    throw new StataError(`predict is not allowed after ${model.command}`, 301);
+    throw new StataError(
+      `predict is not allowed after ${e.prefix && e.cmdname ? `${e.prefix}:${e.cmdname}` : model.command}`,
+      301,
+    );
   // A prefix's results from a command that is not an estimator (bootstrap
   // r(mean): summarize) have no fit to predict from.
-  const e = session.results.e ?? {};
   if (!model.columns && e.prefix && e.cmdname)
     throw new StataError(
       `predict is not allowed after ${e.prefix}:${e.cmdname}`,
@@ -2178,6 +2183,14 @@ function lackingEstat(model, what) {
 function estat(session, text, ctx) {
   const model = estimates(session),
     what = text.trim().split(/[\s,]/)[0];
+  // mean, total, proportion and ratio take estat vce, and mean (svy: mean
+  // too) estat sd.
+  if (
+    ((!model.svy && session.results.e?.estat_cmd === "estat_vce_only") ||
+      (model.svy && what === "sd")) &&
+    meanEstat(session, model, text, ctx)
+  )
+    return;
   if (what === "ic") {
     if (model.ll === undefined || model.command === "newey")
       throw new StataError(

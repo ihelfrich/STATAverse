@@ -26607,3 +26607,242 @@ generate w = 1 + runiform()
 generate y = 2 + 3*x + g/10 + rnormal()
 regress y x i.g
 regress y x i.g [aw=w], vce(robust)
+=== recheck-describe-mean-posted
+clear
+set seed 12345
+set obs 30
+generate y = round(runiform()*10, .01)
+generate x = round(runiform()*5, .01)
+generate g = 1 + floor(runiform()*3)
+generate w = 1 + floor(runiform()*4)
+generate c = ceil(_n/3)
+label define gl 1 "North" 2 "South" 3 "West"
+label values g gl
+mean y x
+ereturn list
+matrix list e(b)
+matrix list e(V)
+matrix list e(sd)
+matrix list e(_N)
+lincom y - x
+test y = x
+estat vce
+estat sd
+return list
+display _b[y] " " _se[y]
+estimates store m1
+mean
+estimates table m1
+capture noisily predict p
+capture noisily estat ic
+mean y, over(g)
+matrix list e(b)
+matrix list r(table)
+lincom _b[c.y@1.g] - _b[c.y@2.g]
+test _b[c.y@1.g] = _b[c.y@2.g] = _b[c.y@3.g]
+estat sd, variance
+mean y x [pw=w]
+matrix list e(V)
+estat sd
+mean y x [aw=w]
+matrix list e(V)
+mean y x [fw=w]
+matrix list e(sd)
+matrix list e(_N)
+mean y x, vce(cluster c)
+matrix list e(V)
+mean i.g
+matrix list e(b)
+lincom 1.g - 2.g
+mean y, coeflegend
+=== recheck-describe-total-posted
+clear
+set seed 12345
+set obs 30
+generate y = round(runiform()*10, .01)
+generate x = round(runiform()*5, .01)
+generate g = 1 + floor(runiform()*3)
+generate w = 1 + floor(runiform()*4)
+label define gl 1 "North" 2 "South" 3 "West"
+label values g gl
+total y
+ereturn list
+matrix list e(b)
+lincom y/30
+capture noisily estat sd
+estat vce
+total y, over(g)
+test _b[c.y@1.g] = _b[c.y@3.g]
+total y x [iw=w]
+matrix list e(V)
+=== recheck-describe-proportion-posted
+clear
+set seed 12345
+set obs 30
+generate g = 1 + floor(runiform()*3)
+generate h = runiform() < .4
+generate w = 1 + floor(runiform()*3)
+generate c = ceil(_n/3)
+label define gl 1 "North" 2 "South" 3 "West"
+label values g gl
+proportion g h
+matrix list r(table)
+matrix list e(b)
+ereturn list
+lincom 1.g - 2.g
+test 1.g = 3.g
+estat vce
+display _b[2.g] " " _se[2.g]
+proportion g h, coeflegend
+proportion, level(90)
+proportion, percent
+proportion g, noheader
+proportion g, nolabel
+proportion g, citype(normal) level(90)
+proportion g, vce(cluster c)
+proportion g h, citype(wilson)
+proportion g h, citype(exact)
+proportion g h, citype(jeffreys)
+proportion g [pw=w], citype(wilson)
+proportion g [fw=w], citype(exact)
+proportion g, percent coeflegend
+proportion g [pw=w]
+matrix list e(V)
+capture noisily estat sd
+capture noisily proportion g, citype(clopper)
+capture noisily proportion g h if h > .5 & g > 1.5
+=== recheck-describe-mean-replicated
+clear
+set seed 12345
+set obs 30
+generate y = round(runiform()*10, .01)
+generate x = round(runiform()*5, .01)
+generate g = 1 + floor(runiform()*3)
+label define gl 1 "North" 2 "South" 3 "West"
+label values g gl
+bootstrap, reps(20) seed(1): mean y x
+bootstrap, reps(20) seed(1): total y
+jackknife: mean y
+jackknife: total y, over(g)
+mean y, vce(bootstrap, reps(20) seed(1))
+mean y, vce(jackknife)
+total y, vce(bootstrap, reps(20) seed(1))
+total y, vce(jackknife)
+mean y, over(g) vce(bootstrap, reps(20) seed(2))
+bootstrap, reps(20) seed(1): proportion g
+proportion g, vce(bootstrap, reps(20) seed(1))
+proportion g, vce(jackknife)
+capture noisily predict p
+=== recheck-describe-long-names
+clear
+set seed 3
+set obs 40
+generate household_income_2023 = round(rnormal(60000,9000),1)
+generate years_of_schooling = floor(8+10*runiform())
+generate byte owns_home_flag = runiform()<.6
+generate byte longfactorvariablename = 1 + mod(_n,2)
+generate byte region = 1 + mod(_n,3)
+label define reg 1 "Northeast" 2 "Comparison group for the study" 3 "Sou"
+label values region reg
+mean household_income_2023
+mean household_income_2023, coeflegend
+total years_of_schooling household_income_2023
+proportion owns_home_flag
+proportion longfactorvariablename
+mean i.region
+mean i.longfactorvariablename
+mean i.region, nofvlabel
+summarize i.region
+summarize i.region i.longfactorvariablename
+summarize i.region, nofvlabel
+=== recheck-describe-summarize-fvlabels
+clear
+set obs 12
+generate byte g = 1 + mod(_n,6)
+label define gl 1 "Northeastern" 2 "VeryLongLabelWithoutSpaces" 3 "Abcdefghijk" 4 "Région Île-de-France" 5 "a b" 6 "東京都の中心部です"
+label values g gl
+summarize i.g
+summarize i.g, nofvlabel
+summarize 2.g
+summarize i.g, separator(2)
+summarize i.g [aw=g]
+mean i.g
+=== recheck-describe-missing-comma
+clear
+set obs 10
+generate y = _n
+generate x = mod(_n, 3)
+generate byte region = 1 + mod(_n, 2)
+capture noisily ttest y by(region)
+capture noisily tabstat y by(region)
+capture noisily tabulate y by(region)
+capture noisily sdtest y by(region)
+capture noisily summarize y by(region)
+capture noisily mean y over(region)
+capture noisily total y over(region)
+capture noisily proportion x over(region)
+capture noisily ratio y/x over(region)
+capture noisily regress y x by(region)
+capture noisily list y by(region)
+capture noisily correlate y x by(region)
+capture noisily pwcorr y x by(region)
+capture noisily ci means y by(region)
+capture noisily summarize y ar(1)
+capture noisily tabulate y x(1)
+summarize y (region)
+mean y (region)
+capture noisily logit region x by(y)
+capture noisily prtest region by(x)
+=== recheck-describe-sdtest-labels
+clear
+set seed 7
+set obs 30
+generate score_post = round(rnormal(60,10),0.1)
+generate a_rather_long_variable_name_x = round(rnormal(58,9),0.1)
+generate byte grp = _n>15
+label define g 0 "Control group" 1 "Treatment group"
+label values grp g
+generate str20 arm = cond(_n>15, "Standard curriculum arm", "  New arm")
+generate double frac = cond(_n>15, 0.1, 1e10)
+generate byte three = mod(_n,3)
+sdtest score_post == a_rather_long_variable_name_x
+sdtest a_rather_long_variable_name_x == 9
+sdtest score_post, by(grp)
+sdtest score_post, by(arm)
+sdtest score_post, by(frac)
+sdtest score_post, by(grp) level(99)
+capture noisily sdtest score_post, by(three)
+capture noisily sdtest score_post if grp == 0, by(grp)
+capture noisily sdtest score_post if score_post > 1000, by(grp)
+=== recheck-describe-sdtesti
+sdtesti 30 5 2.5 40 6 3.1
+sdtesti 30 . 2.5 40 . 3.1
+sdtesti 30 5 2.5 40 6 3.1, xname(Treated) yname(Control_group_long)
+sdtesti 30 5 2.5 3
+sdtesti 30 . 2.5 3, level(90)
+sdtesti 30 5 2.5 3, xname(weights)
+sdtesti 30 5 2.5 40 6 0
+sdtesti 1 5 0 3
+sdtesti 30 5 2.5 40 . 3.1, yname(Short)
+sdtesti 1000000 5 2.5 2000000 6 3.1
+capture noisily sdtesti 30 5 2.5 40 6
+capture noisily sdtesti 30 5 -2.5 3
+capture noisily sdtesti 1 5 2.5 3
+capture noisily sdtesti 30.5 5 2.5 3
+capture noisily sdtesti 30 5 2.5 40 6 3.1 7
+capture noisily sdtesti 30 a 2.5 3
+capture noisily sdtesti 0 5 2.5 3
+capture noisily sdtesti -3 5 2.5 3
+capture noisily sdtesti 30 5 2.5 -3
+capture noisily sdtesti 30 5 . 3
+capture noisily sdtesti 30 5 2.5 .
+=== recheck-describe-tabulate-generate-nolabel
+clear
+set obs 8
+generate byte region = 1 + mod(_n,3)
+label define reg 1 "Northeast" 2 "Midwest" 3 "South"
+label values region reg
+tabulate region, generate(r) nolabel
+describe r1 r2 r3
+tabulate region, generate(s)
+describe s1 s2 s3
