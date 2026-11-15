@@ -1141,7 +1141,8 @@
 }
 #console-datasets {
   list-style: none;
-  margin: 0;
+  /* Inset as the rest of the drawer is, off its border. */
+  margin: 0 14px 12px;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
@@ -2237,6 +2238,12 @@ body.is-dropping::after {
 .console-window[data-scheme="classic"] .console-hint {
   background: #2a2208;
   color: #ffe8b0;
+}
+/* The lines of a block typed at the command line, before its }. */
+.console-pending {
+  display: block;
+  margin-top: 6px;
+  opacity: 0.75;
 }
 .console-help-card {
   display: grid;

@@ -28,12 +28,13 @@ import { picture, typeOf } from "./console-picture.js";
 import {
   adviseRecord,
   commandParts,
+  distance,
   nearest,
   resolveCommand,
 } from "./console-hints.js";
-import { HELP, helpUrl } from "./console-help.js";
+import { HELP, LANGUAGE, helpUrl } from "./console-help.js";
 import { mountBrowser } from "./console-browse.js";
-import { parseBlocks, splitCommands } from "./runtime/dofile.js";
+import { splitCommands } from "./runtime/dofile.js";
 
 const KEY = "stataverse:console:v1",
   SCHEME_KEY = "stataverse:console:scheme",
@@ -42,6 +43,9 @@ const KEY = "stataverse:console:v1",
   FOX_KEY = "stataverse:console:fox",
   MAX_OUTPUT = 400000;
 const EXAMPLE = EXAMPLES[0].text;
+// The commands, with the loops and prefixes, that help and the Commands
+// list know.
+const KNOWN = [...COMMANDS, ...LANGUAGE];
 const $ = (id) => document.getElementById(id);
 const source = $("console-source"),
   output = $("console-output"),
@@ -364,7 +368,13 @@ function addDoFiles(files, { open = true, renameOld = false } = {}) {
   for (const file of files) {
     let name = doName(file.name),
       at = project.files.findIndex((each) => each.name === name);
-    if (at >= 0 && project.files[at].text !== file.text) {
+    // An empty file, or the example do-file as the page first shows it,
+    // holds no work of the student's and is simply replaced.
+    const spare =
+      at >= 0 &&
+      (!project.files[at].text.trim() || project.files[at].text === EXAMPLE);
+    if (spare) project.files[at].text = file.text;
+    else if (at >= 0 && project.files[at].text !== file.text) {
       const free = freeName(name);
       if (renameOld) {
         notes.push(`The ${name} that was there is kept as ${free}.`);
@@ -723,8 +733,9 @@ function showVariables(memory) {
     link.type = "button";
     link.className = "console-file-link";
     link.textContent = name;
-    link.setAttribute("aria-label", `Download ${name}`);
-    link.title = `Download ${name}`;
+    // Named as a copy to keep, not as the Download of Your files.
+    link.setAttribute("aria-label", `Save a copy of ${name} to this computer`);
+    link.title = `Save a copy of ${name} to this computer`;
     link.addEventListener("click", () => downloadFile(name));
     folder.append(...(k ? [", "] : []), link);
   });
@@ -732,7 +743,7 @@ function showVariables(memory) {
     ? `Sort, search and edit the ${memory.observations.toLocaleString("en-US")} observations`
     : "";
   $("console-memory").textContent = memory.variables.length
-    ? `${memory.observations.toLocaleString("en-US")} observations, ${memory.variables.length} variables${memory.sortedBy.length ? `, sorted by ${memory.sortedBy.join(" ")}` : ""}.`
+    ? `${memory.observations.toLocaleString("en-US")} observations, ${memory.variables.length} variable${memory.variables.length === 1 ? "" : "s"}${memory.sortedBy.length ? `, sorted by ${memory.sortedBy.join(" ")}` : ""}.`
     : "No data in memory.";
 }
 
@@ -877,7 +888,7 @@ function showHelp(name) {
     filter = $("console-filter");
   drawer.open = true;
   filter.value = name;
-  filter.dispatchEvent(new Event("input"));
+  filter.dispatchEvent(new CustomEvent("input", { detail: { only: true } }));
   const item = items[names.indexOf(name)];
   if (!item) return;
   const button = item.querySelector("button");
@@ -897,7 +908,7 @@ function focusSoon(element, tries = 20) {
 /** The plain hint under a failed command, with its help and a fix. */
 function hintNode(record) {
   const advice = adviseRecord(record, {
-    commands: COMMANDS,
+    commands: KNOWN,
     variables: memoryNow.variables,
   });
   if (!advice) return null;
@@ -1036,13 +1047,21 @@ function recordNode(record) {
   // help for it, and help alone to its contents.
   const asked = helpAsked(record);
   if (asked !== null) {
-    const name = asked && resolveCommand(asked, COMMANDS);
+    const name = asked && resolveCommand(asked, KNOWN);
     if (name) block.append(helpCard(name), "\n");
     else {
       block.append(topicCard(asked), "\n");
-      if (asked && nearest(asked, names).length) {
+      // A misspelt command is offered its right spelling; a short topic
+      // such as mi or i is not taken for a command it happens to resemble.
+      const lower = asked.toLowerCase(),
+        typo = nearest(asked, names).filter(
+          (name) =>
+            distance(lower, name.toLowerCase()) <=
+            Math.max(1, Math.floor(asked.length / 4)),
+        );
+      if (asked.length >= 3 && typo.length) {
         const hint = hintNode({
-          command: asked,
+          command: `help ${asked}`,
           lines: [`command ${asked} is unrecognized`],
           rc: 199,
         });
@@ -1381,7 +1400,7 @@ function finish(rc, commands, started, output = []) {
       rc,
       last
         ? adviseRecord(last, {
-            commands: COMMANDS,
+            commands: KNOWN,
             variables: memoryNow.variables,
           })?.text
         : undefined,
@@ -1482,8 +1501,16 @@ async function runSteps(entries, mark) {
 async function restart(message, replay = false) {
   const steps = replay ? journal.slice() : [];
   await startWorker();
+  // Files graph export made are given back after the runs are put back,
+  // so that a graph export without replace among them finds no file there.
+  const made = [...uploads].filter(([, file]) => file.made && steps.length);
   for (const [name, file] of uploads)
-    await sendUpload(name, file).catch(() => {});
+    if (!(file.made && steps.length))
+      await sendUpload(name, file).catch(() => {});
+  const giveMade = async () => {
+    for (const [name, file] of made)
+      await sendUpload(name, file).catch(() => {});
+  };
   if (!steps.length) {
     await newSession(message);
     return true;
@@ -1495,11 +1522,15 @@ async function restart(message, replay = false) {
     stop.hidden = !worker;
     for (const step of steps)
       memory = (await ask({ ...step, quiet: true })).memory ?? memory;
+    await giveMade();
   } catch (error) {
     restoring = false;
     // Stopped again while it was put back: the second Stop clears it.
     if (error.stopped) return false;
-    await newSession(message);
+    await newSession(
+      "Stopped. The session could not be put back as it was, so it was cleared: the data in memory are gone; the do-file text and Results are unchanged.",
+    );
+    await giveMade();
     return false;
   }
   restoring = false;
@@ -1810,7 +1841,7 @@ $("console-download").addEventListener("click", async () => {
 
 // ----- what runs here, with a filter -----
 // Each name opens its entry: what it does, how to write it, Stata's help.
-const names = [...new Set(COMMANDS.map((command) => command.name))].sort(),
+const names = [...new Set(KNOWN.map((command) => command.name))].sort(),
   list = $("console-commands"),
   items = names.map((name) => {
     const item = document.createElement("li"),
@@ -1834,16 +1865,38 @@ const names = [...new Set(COMMANDS.map((command) => command.name))].sort(),
     return item;
   });
 $("console-filter").addEventListener("input", (event) => {
-  const wanted = event.target.value.trim().toLowerCase();
-  // Names first; when no name holds what is typed, what the commands do.
-  const byName = names.filter((name) => name.includes(wanted)),
-    byUse = byName.length
-      ? []
-      : names.filter((name, k) => items[k].dataset.search.includes(wanted));
-  const shown = new Set(byName.length ? byName : byUse);
+  const wanted = event.target.value.trim().toLowerCase(),
+    // One command's help, opened from a hint, shows that command alone.
+    only = !!event.detail?.only;
+  // The command of that name first, then those whose names begin with or
+  // hold what is typed, then those whose description has a word that
+  // begins with it: regress before ivregress, and graph finds twoway.
+  const word = new RegExp(
+      `\\b${wanted.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+    ),
+    rank = (name, k) =>
+      name === wanted
+        ? 0
+        : name.startsWith(wanted)
+          ? 1
+          : name.includes(wanted)
+            ? 2
+            : !only && word.test(items[k].dataset.search)
+              ? 3
+              : 4;
+  const ranked = names
+    .map((name, k) => ({ name, k, rank: wanted ? rank(name, k) : 0 }))
+    .filter((each) => each.rank < 4)
+    .sort((x, y) => x.rank - y.rank || x.name.localeCompare(y.name));
+  const byName = ranked.filter((each) => each.rank < 3),
+    byUse = ranked.filter((each) => each.rank === 3),
+    shown = new Set(ranked.map((each) => each.k));
   items.forEach((item, k) => {
-    item.hidden = !!wanted && !shown.has(names[k]);
+    item.hidden = !!wanted && !shown.has(k);
   });
+  // The list is in that order while something is typed, and in the
+  // alphabet's order when the filter is empty.
+  for (const each of ranked) list.append(items[each.k]);
   const advice =
     wanted && !byName.length
       ? adviseRecord(
@@ -1852,19 +1905,19 @@ $("console-filter").addEventListener("input", (event) => {
             lines: [`command ${wanted} is unrecognized`],
             rc: 199,
           },
-          { commands: COMMANDS },
+          { commands: KNOWN },
         )
       : null;
   $("console-found").textContent = !wanted
     ? ""
     : byName.length
-      ? `${byName.length} of ${names.length} commands match.`
+      ? `${ranked.length} of ${names.length} commands match${byUse.length ? `: ${byName.length} by name, then ${byUse.length} by what they do` : ""}.`
       : `No command here is called ${wanted}.${
           byUse.length
             ? ` ${byUse.length === 1 ? "This one does" : `These ${byUse.length} do`} what you describe.`
             : advice?.suggest.length
               ? ` ${advice.text.replace(" The Commands list shows what runs here.", "")}`
-              : " It may be written differently, or not be available yet."
+              : " It may be written differently, or not be available here."
         }`;
 });
 
@@ -2039,24 +2092,61 @@ let recalled = 0,
   // The lines of a loop, program or other block typed so far: as in
   // Stata's Command window, it runs once it is closed.
   typedBlock = [];
-/** Whether text opens a block ({ or program) that it does not close. */
+/**
+ * What closes the block text leaves open: "}" for a loop or an if, "end"
+ * for a program or input, or "" when nothing is left open. A } that closes
+ * nothing is left for the run to report.
+ */
 function leftOpen(text) {
-  try {
-    parseBlocks(splitCommands(text));
-    return false;
-  } catch (error) {
-    return /^\{ without a matching \}|^program \S+ has no end/.test(
-      error.message ?? "",
-    );
+  const open = [];
+  for (const { text: line } of splitCommands(text)) {
+    if (open.at(-1) === "end") {
+      if (line === "end") open.pop();
+      continue;
+    }
+    if (
+      /^pr(?:o(?:g(?:r(?:am?)?)?)?)?\s+(?:de(?:f(?:i(?:ne?)?)?)?\s+)?[A-Za-z_]\w*\s*(?:,.*)?$/.test(
+        line,
+      ) &&
+      !/^pr\w*\s+(drop|dir|list)\b/.test(line)
+    ) {
+      open.push("end");
+      continue;
+    }
+    if (/^inp(?:ut?)?(\s|$)/.test(line)) {
+      open.push("end");
+      continue;
+    }
+    if (/^\}/.test(line)) {
+      if (open.at(-1) !== "}") return "";
+      open.pop();
+    }
+    if (/\{$/.test(line)) open.push("}");
   }
+  return open.at(-1) ?? "";
 }
-function setOpened(lines) {
+// The lines of the open block, shown at the foot of Results as Stata shows
+// them while they are typed.
+let pending = null;
+function setOpened(lines, closer = "}") {
   typedBlock = lines;
+  if (lines.length) {
+    if (!pending) {
+      pending = document.createElement("span");
+      pending.className = "console-pending";
+    }
+    pending.textContent = `${lines.map((line, k) => (k ? `  ${k + 1}. ${line}` : `. ${line}`)).join("\n")}\n`;
+    output.append(pending);
+    output.scrollTop = output.scrollHeight;
+  } else {
+    pending?.remove();
+    pending = null;
+  }
   document.querySelector(".console-dot").textContent = typedBlock.length
     ? `${typedBlock.length + 1}.`
     : ".";
   commandLine.placeholder = typedBlock.length
-    ? "the next line of the block, or } to close it"
+    ? `the next line, or ${closer} to finish`
     : "type a command, press Enter";
 }
 $("console-prompt").addEventListener("submit", (event) => {
@@ -2066,10 +2156,13 @@ $("console-prompt").addEventListener("submit", (event) => {
   if (text && history.at(-1) !== text) history.push(text);
   recalled = history.length;
   commandLine.value = "";
-  const lines = [...typedBlock, text];
-  if (leftOpen(lines.join("\n"))) {
-    setOpened(lines);
-    status.textContent = `${typedBlock[0]} is open: type its lines, then } on a line of its own to run it. Escape drops it.`;
+  const lines = [...typedBlock, text],
+    closer = leftOpen(lines.join("\n"));
+  if (closer) {
+    // As in Stata's Command window, the block runs when it is closed;
+    // until then Results shows its lines as they are typed.
+    setOpened(lines, closer);
+    status.textContent = `${typedBlock[0]} is open: type its lines, then ${closer} on a line of its own to run it. Escape drops it.`;
     return;
   }
   setOpened([]);

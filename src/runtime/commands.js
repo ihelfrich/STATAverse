@@ -813,13 +813,30 @@ function replace(session, text, ctx) {
  */
 const noEqualsInIf = (run) => (session, text, ctx) => {
   const [head] = splitAtComma(text),
-    clause = clauses(head, false).find((found) => found.kind === "if");
-  if (clause && loneEquals(clause.text)?.open === -1)
+    clause = clauses(head, false).find((found) => found.kind === "if"),
+    lone = clause && loneEquals(clause.text);
+  if (lone?.open === -1) {
+    // Stata reads what follows the = first: a string there, as in
+    // list if region = "North", is a type mismatch.
+    let string = false;
+    try {
+      string =
+        session.compile(clause.text.slice(lone.at + 1)).type !== "numeric";
+    } catch {
+      string = false;
+    }
+    if (string)
+      throw new StataError(
+        "type mismatch",
+        109,
+        "A single = assigns; to compare two values, write ==.",
+      );
     throw new StataError(
       "=exp not allowed",
       101,
       "A single = assigns; to compare two values, write ==.",
     );
+  }
   return run(session, text, ctx);
 };
 function dropKeep(keep) {
@@ -1989,6 +2006,27 @@ const EGEN = {
 const EGEN_MISSING =
   /^(any|anyvalue|diff|ends|fill|kurt|mad|mdev|mode|mtr|pc|rowmedian|rowpctile|skew)$/;
 function egen(session, text, ctx) {
+  // Words after the function's ) that are not if, in or options, as in
+  // egen m = mean(x) by(g) without its comma: egen.ado reads them as a
+  // varlist, which it does not take.
+  const call =
+    /^(?:(?:byte|int|long|float|double|str\d*)\s+)?[A-Za-z_]\w*\s*=\s*\w+\s*\(/.exec(
+      text.trim(),
+    );
+  if (call) {
+    const body = text.trim();
+    let depth = 1,
+      quote = false,
+      at = call[0].length;
+    for (; at < body.length && depth; at++) {
+      if (body[at] === '"') quote = !quote;
+      else if (!quote && body[at] === "(") depth++;
+      else if (!quote && body[at] === ")") depth--;
+    }
+    const after = body.slice(at).trim();
+    if (!depth && after && !/^(if\b|in\b|,)/.test(after))
+      throw new StataError("varlist not allowed", 101);
+  }
   const m =
     /^((?:byte|int|long|float|double|str\d*)\s+)?([A-Za-z_]\w*)\s*=\s*(\w+)\s*\(([\s\S]*?)\)\s*((?:if|in|,)[\s\S]*)?$/.exec(
       text.trim(),
@@ -2684,6 +2722,12 @@ function sysuse(session, text, ctx) {
       4,
     );
   session.data = session.data.constructor.fromRows(library[name]);
+  // Its data label, which Stata shows when it loads a dataset that has one.
+  const label = session.libraryLabels?.[name] ?? "";
+  if (label) {
+    session.data.label = label;
+    fold(`(${label})`, session.settings.linesize ?? 80).forEach(ctx.out);
+  }
   // A site dataset is as it was read: unchanged, with its name.
   settle(session.data, `${name}.dta`);
 }

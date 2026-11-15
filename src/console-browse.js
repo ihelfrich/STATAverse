@@ -317,7 +317,12 @@ export function mountBrowser({ drawer, ask, run, onOpen }) {
   });
   go.addEventListener("change", () => {
     const row = Math.floor(Number(go.value));
-    if (!(row >= 1)) return;
+    if (go.value.trim() === "") return;
+    // Rows are numbered from 1; anything else is said, not ignored.
+    if (!(row >= 1)) {
+      note.textContent = "Rows are numbered from 1: type a row from 1 on.";
+      return;
+    }
     state.from = Math.floor((row - 1) / PAGE) * PAGE;
     refresh();
   });

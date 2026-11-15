@@ -109,7 +109,7 @@ for (const fallback of [false, true])
     expect(scan.violations.map((v) => v.id)).toEqual([]);
   });
 
-test("a long do-file can be stopped, which clears the session", async ({
+test("a long do-file can be stopped, which keeps the data as they were before the command stopped", async ({
   page,
 }) => {
   await page.goto("/Console/");
@@ -117,7 +117,7 @@ test("a long do-file can be stopped, which clears the session", async ({
   await page
     .locator("#console-source")
     .fill(
-      "clear\nset obs 200000\nforvalues i = 1/3000 {\n  generate double v`i' = sqrt(_n) * `i'\n}",
+      "clear\nset obs 200000\ngenerate id = _n\nforvalues i = 1/3000 {\n  generate double v`i' = sqrt(_n) * `i'\n}",
     );
   await page.locator("#console-run").click();
   await expect(page.locator("#console-status")).toHaveText("Running…");
@@ -126,10 +126,12 @@ test("a long do-file can be stopped, which clears the session", async ({
   await stop.click();
   await expect(page.locator("#console-output")).toContainText("--Break--");
   await expect(page.locator("#console-status")).toContainText(
-    "The session was cleared",
+    "as they were before the command that was stopped",
+    { timeout: 20000 },
   );
-  await expect(page.locator("#console-memory")).toHaveText(
-    "No data in memory.",
+  // clear and set obs took effect; the loop that was stopped did not.
+  await expect(page.locator("#console-memory")).toContainText(
+    "200,000 observations, 1 variable.",
   );
   await expect(stop).toBeHidden();
   // The new session works.

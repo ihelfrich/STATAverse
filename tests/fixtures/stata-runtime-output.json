@@ -156684,6 +156684,117 @@
       ]
     },
     {
+      "id": "if-single-equals",
+      "source": "clear\nset obs 4\ngenerate str5 region = cond(_n < 3, \"North\", \"South\")\ngenerate wage = _n\ngenerate age = 20 + _n\ncapture noisily list if wage = 12\ndisplay _rc\ncapture noisily list if wage >= 2 & age = 22\ndisplay _rc\ncapture noisily list if region = \"North\"\ndisplay _rc\ncapture noisily list if wage == 2 & region = \"North\"\ndisplay _rc\ncapture noisily list if wage = 2 & region == \"North\"\ndisplay _rc\ncapture noisily list if \"North\" = region\ndisplay _rc\ncapture noisily count if region = region\ndisplay _rc\ncapture noisily keep if region = \"North\"\ndisplay _rc\ncapture noisily drop if wage = 3\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        {
+          "command": "generate str5 region = cond(_n < 3, \"North\", \"South\")",
+          "lines": []
+        },
+        { "command": "generate wage = _n", "lines": [] },
+        { "command": "generate age = 20 + _n", "lines": [] },
+        {
+          "command": "capture noisily list if wage = 12",
+          "lines": ["=exp not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily list if wage >= 2 & age = 22",
+          "lines": ["=exp not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily list if region = \"North\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily list if wage == 2 & region = \"North\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily list if wage = 2 & region == \"North\"",
+          "lines": ["=exp not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily list if \"North\" = region",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily count if region = region",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily keep if region = \"North\"",
+          "lines": ["type mismatch"]
+        },
+        { "command": "display _rc", "lines": ["109"] },
+        {
+          "command": "capture noisily drop if wage = 3",
+          "lines": ["=exp not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] }
+      ]
+    },
+    {
+      "id": "egen-option-without-comma",
+      "source": "clear\nset obs 4\ngenerate str5 region = cond(_n < 3, \"North\", \"South\")\ngenerate wage = _n\ncapture noisily egen m = mean(wage) by(region)\ndisplay _rc\ncapture noisily egen m = mean(wage) region\ndisplay _rc\ncapture noisily egen m2 = mean(wage)by(region)\ndisplay _rc\negen m3 = mean(wage) if wage > 1\negen m4 = mean(wage), by(region)\nlist\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        {
+          "command": "generate str5 region = cond(_n < 3, \"North\", \"South\")",
+          "lines": []
+        },
+        { "command": "generate wage = _n", "lines": [] },
+        {
+          "command": "capture noisily egen m = mean(wage) by(region)",
+          "lines": ["varlist not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily egen m = mean(wage) region",
+          "lines": ["varlist not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "capture noisily egen m2 = mean(wage)by(region)",
+          "lines": ["varlist not allowed"]
+        },
+        { "command": "display _rc", "lines": ["101"] },
+        {
+          "command": "egen m3 = mean(wage) if wage > 1",
+          "lines": ["(1 missing value generated)"]
+        },
+        { "command": "egen m4 = mean(wage), by(region)", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------------+",
+            "     | region   wage   m3    m4 |",
+            "     |--------------------------|",
+            "  1. |  North      1    .   1.5 |",
+            "  2. |  North      2    3   1.5 |",
+            "  3. |  South      3    3   3.5 |",
+            "  4. |  South      4    3   3.5 |",
+            "     +--------------------------+"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

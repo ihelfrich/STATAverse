@@ -165,12 +165,28 @@ export function createLogs(files) {
   /** Writes one record of Results into each log that is open and on. */
   function record(record, logs) {
     for (const log of logs) {
-      if (log.type === "smcl")
+      if (log.type === "smcl") {
+        // As Stata writes it: a blank line before each command, the lines
+        // of a loop numbered in text and their commands as commands.
+        const gap = /\{txt\}\n$/.test(log.text) ? "" : "{txt}\n",
+          echo = (record.echo ?? []).map((line) => {
+            const numbered = /^(\s*\d+)\.(.*)$/.exec(line);
+            return numbered
+              ? `{txt}${numbered[1]}{com}.${smclText(numbered[2])}\n`
+              : `${smclText(line)}\n`;
+          }),
+          lines = record.lines.map((line) =>
+            line === RULE
+              ? "{txt}{.-}\n"
+              : line === ""
+                ? "{txt}\n"
+                : `{txt}${smclText(line)}\n`,
+          );
         add(
           log,
-          `{com}. ${smclText(record.command)}\n${(record.echo ?? []).map((line) => `${smclText(line)}\n`).join("")}${record.lines.map((line) => (line === RULE ? "{txt}{.-}\n" : `{txt}${smclText(line)}\n`)).join("")}`,
+          `${gap}{com}. ${smclText(record.command)}\n${echo.join("")}${lines.join("")}`,
         );
-      else {
+      } else {
         const gap = log.text && !log.text.endsWith("\n\n") ? "\n" : "";
         add(
           log,

@@ -21685,3 +21685,41 @@ capture noisily scalar t = 1]
 display _rc
 capture noisily scalar t = (1
 display _rc
+=== if-single-equals
+clear
+set obs 4
+generate str5 region = cond(_n < 3, "North", "South")
+generate wage = _n
+generate age = 20 + _n
+capture noisily list if wage = 12
+display _rc
+capture noisily list if wage >= 2 & age = 22
+display _rc
+capture noisily list if region = "North"
+display _rc
+capture noisily list if wage == 2 & region = "North"
+display _rc
+capture noisily list if wage = 2 & region == "North"
+display _rc
+capture noisily list if "North" = region
+display _rc
+capture noisily count if region = region
+display _rc
+capture noisily keep if region = "North"
+display _rc
+capture noisily drop if wage = 3
+display _rc
+=== egen-option-without-comma
+clear
+set obs 4
+generate str5 region = cond(_n < 3, "North", "South")
+generate wage = _n
+capture noisily egen m = mean(wage) by(region)
+display _rc
+capture noisily egen m = mean(wage) region
+display _rc
+capture noisily egen m2 = mean(wage)by(region)
+display _rc
+egen m3 = mean(wage) if wage > 1
+egen m4 = mean(wage), by(region)
+list

@@ -15,8 +15,16 @@ import { parseBlocks, splitCommands } from "./runtime/dofile.js";
 import { createLogs } from "./console-log.js";
 
 const library = Object.fromEntries(
-  Object.entries(LIBRARY).map(([id, entry]) => [id, entry.data]),
-);
+    Object.entries(LIBRARY).map(([id, entry]) => [id, entry.data]),
+  ),
+  // Each dataset's data label: its title, as the .dta in a project zip has
+  // it (Stata keeps 80 characters).
+  labels = Object.fromEntries(
+    Object.entries(LIBRARY).map(([id, entry]) => [
+      id,
+      (entry.title ?? "").slice(0, 80),
+    ]),
+  );
 
 /**
  * Whether added bytes are text: no NUL in the text they decode to, and no
@@ -85,6 +93,7 @@ export function createConsoleSession() {
     stamp++;
     interactive = session.frame();
     session.library = library;
+    session.libraryLabels = labels;
     // Results as Stata's log shows them: a loop echoed once with its lines
     // numbered, do-files run by do shown with their commands.
     session.foldLoops = true;
@@ -92,8 +101,10 @@ export function createConsoleSession() {
     for (const [id, data] of Object.entries(library))
       addTextFile(session, LIBRARY[id].file, toCSV(data));
     for (const [name, file] of added) put(name, file);
-    if (dataset && library[dataset])
+    if (dataset && library[dataset]) {
       session.data = Dataset.fromRows(library[dataset]);
+      session.data.label = labels[dataset];
+    }
     return { memory: memory() };
   };
   reset();
@@ -423,15 +434,27 @@ export function createConsoleSession() {
       // its error, so that only they are shown as one; what the command or
       // loop printed before it is shown as ordinary output.
       const stopped = output.findLast((block) => block.rc);
-      if (stopped && stopped.fault === undefined)
+      if (stopped && stopped.fault === undefined) {
+        // The message's own lines, as logit's "outcome does not vary;
+        // remember:" and the two lines under it, when the record ends so.
+        const said =
+            stopping instanceof StataError &&
+            stopping.code === stopped.rc &&
+            stopping.message
+              ? stopping.message.split("\n")
+              : null,
+          before = stopped.lines.slice(0, -1);
         stopped.fault =
           stopped.lines.at(-1) !== `r(${stopped.rc});`
             ? 0
-            : stopping instanceof StataError && stopping.code === stopped.rc
-              ? stopping.message
-                ? 2
-                : 1
-              : Math.min(2, stopped.lines.length);
+            : said && before.slice(-said.length).join("\n") === said.join("\n")
+              ? said.length + 1
+              : stopping instanceof StataError && stopping.code === stopped.rc
+                ? stopping.message
+                  ? 2
+                  : 1
+                : Math.min(2, stopped.lines.length);
+      }
       // A string variable where a number was needed: what its text is, so
       // that the Console's hint offers a command that works on it.
       for (const block of output)
