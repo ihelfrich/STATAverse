@@ -26,7 +26,12 @@ import {
   splitAtComma,
 } from "./syntax.js";
 import { renderSmcl, stringEnd } from "./smcl.js";
-import { ESTIMATION_COMMANDS, coefficientSpace } from "./estimation.js";
+import {
+  ESTIMATION_COMMANDS,
+  HIDDEN,
+  HISTORICAL,
+  coefficientSpace,
+} from "./estimation.js";
 import { MODEL_COMMANDS } from "./models.js";
 import { IVREG_COMMANDS } from "./ivreg.js";
 import { numlistCommand } from "./numlist.js";
@@ -2598,9 +2603,22 @@ function returns(kind) {
       return;
     }
     if (/^list\b/.test(text)) {
+      // list takes one option, all.
+      const asked = /^list\b\s*(?:,\s*([\s\S]*))?$/.exec(text)?.[1]?.trim();
+      if (asked && !/^all$/.test(asked))
+        throw new StataError(
+          `option ${asked.split(/[\s(]/)[0]} not allowed`,
+          198,
+        );
       // Stata lists results in the order its own code stored them, which
       // differs by command; here they are in the order they were set.
-      const entries = Object.entries(target),
+      // Results Stata keeps hidden are left out, as ereturn list leaves
+      // them out.
+      const hidden = new Set([
+          ...(target[HIDDEN] ?? []),
+          ...(target[HISTORICAL] ?? []),
+        ]),
+        entries = Object.entries(target).filter(([key]) => !hidden.has(key)),
         label = (name) => `${kind}(${name})`.padStart(22),
         numbers = entries.filter(([, v]) => typeof v === "number"),
         strings = entries.filter(([, v]) => typeof v === "string" && v !== "");
@@ -2730,6 +2748,42 @@ function returns(kind) {
       }
       if (numbers.length || strings.length || (kind !== "e" && matrices.length))
         ctx.out("");
+      // all adds the results Stata keeps hidden, then those it keeps for
+      // older versions, each under Stata's heading.
+      if (asked)
+        for (const [symbol, heading] of [
+          [
+            HIDDEN,
+            "Hidden; names and contents could change in future versions of Stata",
+          ],
+          [
+            HISTORICAL,
+            "Historical; used before Stata 9.2, may exist only under version control",
+          ],
+        ]) {
+          const names = new Set(target[symbol] ?? []),
+            kept = Object.entries(target).filter(([key]) => names.has(key)),
+            scalars = kept.filter(([, v]) => typeof v === "number"),
+            macros = kept.filter(([, v]) => typeof v === "string");
+          if (!scalars.length && !macros.length) continue;
+          ctx.out(heading);
+          ctx.out("-".repeat(heading.length));
+          if (scalars.length) {
+            ctx.out("");
+            ctx.out("scalars:");
+            for (const [name, value] of scalars)
+              ctx.out(
+                `${label(name)} =  ${isMissing(value) ? "." : applyFormat(value, "%18.0g").trim()}`,
+              );
+          }
+          if (macros.length) {
+            ctx.out("");
+            ctx.out("macros:");
+            for (const [name, value] of macros)
+              ctx.out(`${label(name)} : "${value}"`);
+          }
+          ctx.out("");
+        }
       return;
     }
     if (kind === "e" && /^post\b/.test(text))

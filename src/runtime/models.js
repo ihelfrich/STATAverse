@@ -21,7 +21,9 @@ import { count } from "./reports.js";
 import { linkOf } from "./margins.js";
 import { outcomePredict } from "./outcome-margins.js";
 import {
+  HIDDEN,
   coefficientSpace,
+  omittedName,
   degreesOfFreedom,
   describeLinear,
   design,
@@ -38,13 +40,14 @@ import {
   abbreviate,
   baseLevelsAsked,
   numericVarlist,
+  stripeName,
   test as testT,
   unitConstraint,
 } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
 import { isOperated, tsTerms } from "./timeseries.js";
 import { unchangedBy } from "./data-commands.js";
-import { MISSING, isMissing } from "./values.js";
+import { MISSING, isMissing, isStringType } from "./values.js";
 import { evaluateAll } from "./expression.js";
 import {
   iterationLine,
@@ -186,6 +189,28 @@ function zTable(session, model, level, transform, named = true) {
   lines.push(rule);
   if (transform && model.constant) lines.push(transform[2]);
   return lines;
+}
+
+/**
+ * The coefficient table that coeflegend asks for: each coefficient beside
+ * the name that refers to it, _b[name], omitted ones included.
+ */
+function legendTable(session, model) {
+  const w = tableWidth(session, model, []),
+    rule = "-".repeat(66 + w),
+    stripe = coefficientSpace(model).entries.map(stripeName);
+  return [
+    rule,
+    `${abbreviate(model.depvar, w).padStart(w)} | Coefficient  Legend`,
+    `${"-".repeat(w + 1)}+${"-".repeat(64)}`,
+    ...termRows(
+      session,
+      { ...model, estimable: model.names.map(() => true) },
+      (k) => `${g(model.b[k]).padStart(11)}  _b[${stripe[k]}]`,
+      w,
+    ),
+    rule,
+  ];
 }
 
 /**
@@ -1120,7 +1145,97 @@ function fitsExactly(rows, columns, outcome) {
 export const bareWeight = (text) =>
   /(?:^|\s)\[\s*w(?:e(?:i(?:g(?:ht?)?)?)?)?\s*=/.test(splitAtComma(text)[0]);
 
+/**
+ * ivregress's line read as ivregress.ado reads it: the estimator, the
+ * outcome, the exogenous regressors before and after the one group
+ * (endogenous = instruments), and what follows (if, in and the options).
+ * Returns [, estimator, depvar, before, endogenous, instruments, after,
+ * rest]; with no group, endogenous and instruments are empty.
+ */
+function ivSpecification(text) {
+  const tooFew = () => new StataError(":\ntoo few variables specified", 102),
+    syntaxIs = (extra = "") =>
+      new StataError(
+        `invalid syntax\nsyntax is "(all instrumented variables = instrument variables)"${extra}`,
+        198,
+      ),
+    estimator = /^\s*([^\s,]*)/.exec(text)[1];
+  if (!estimator) throw tooFew();
+  if (!/^(2sls|liml|gmm)$/.test(estimator))
+    throw new StataError(`${estimator} not a valid estimator`, 198);
+  const body = text.trim().slice(estimator.length);
+  // Where the varlist ends: at a comma, or at if or in, outside brackets.
+  let depth = 0,
+    end = body.length;
+  for (let k = 0; k < body.length; k++) {
+    const c = body[k];
+    if (c === "(" || c === "[") depth++;
+    else if (c === ")" || c === "]") depth--;
+    else if (!depth && c === ",") {
+      end = k;
+      break;
+    } else if (
+      !depth &&
+      /\s/.test(c) &&
+      /^\s+(if|in)(\s|$)/.test(body.slice(k))
+    ) {
+      end = k;
+      break;
+    }
+  }
+  const list = body.slice(0, end),
+    rest = body.slice(end);
+  if (!list.trim()) throw tooFew();
+  // The groups: a parenthesis that opens a word (not i.(a b) or L(1/2).x).
+  const groups = [];
+  depth = 0;
+  for (let k = 0; k < list.length; k++) {
+    const c = list[k];
+    if (c === "(") {
+      if (!depth && (k === 0 || /\s/.test(list[k - 1])))
+        groups.push({ start: k });
+      depth++;
+    } else if (c === ")") {
+      depth--;
+      if (!depth && groups.at(-1) && groups.at(-1).end === undefined)
+        groups.at(-1).end = k;
+    }
+  }
+  if (groups.length > 1) throw syntaxIs();
+  const group = groups[0];
+  if (group && group.end === undefined) throw syntaxIs();
+  const before = group ? list.slice(0, group.start) : list,
+    after = group ? list.slice(group.end + 1) : "",
+    inner = group ? list.slice(group.start + 1, group.end) : "=",
+    [dep = ""] = before.trim().split(/\s+/);
+  if (!dep) throw new StataError("=exp not allowed", 101);
+  if (!inner.includes("=")) throw syntaxIs('\nthe equal sign "=" is required');
+  const [endogenous, instruments] = inner.split(/=(.*)/s);
+  if (group && !instruments.trim()) throw tooFew();
+  if (!endogenous.trim() && group && estimator !== "gmm")
+    throw new StataError(
+      "cannot specify additional instruments without endogenous\nregressors unless you use the GMM estimator",
+      498,
+    );
+  if (!endogenous.trim() && estimator !== "2sls")
+    throw new StataError(
+      `ivregress ${estimator} with no endogenous regressors is not available yet; ivregress 2sls takes it`,
+      198,
+    );
+  return [
+    text,
+    estimator,
+    dep,
+    before.trim().slice(dep.length),
+    endogenous,
+    instruments ?? "",
+    after,
+    rest,
+  ];
+}
+
 export function ivregress(session, text, ctx) {
+  const typed = text;
   // A weight, [pweight=w], may stand anywhere after the varlist; it is
   // taken out before the varlist is read and handed to the parser.
   let weightClause = "";
@@ -1138,19 +1253,36 @@ export function ivregress(session, text, ctx) {
       break;
     }
   }
-  const m =
-    /^\s*(2sls|liml|gmm)\s+(\S+)\s+([^()]*)\(([^=()]+)=([^()]+)\)((?:(?!\b(?:if|in)\b)[^(),])*)([\s\S]*)$/.exec(
-      text,
-    );
-  if (!m)
+  const m = ivSpecification(text);
+  // The variance and weight matrix ivregress knows; any other is
+  // incorrectly specified.
+  const vceAsked = /(?:^|[\s,])vce\s*\(([^()]*)\)/.exec(m[7])?.[1]?.trim();
+  if (
+    vceAsked !== undefined &&
+    !/^(un(a(d(j(u(s(t(ed?)?)?)?)?)?)?)?|r(o(b(u(st?)?)?)?)?|cl(u(s(t(er?)?)?)?)?\s+\S.*|boot(s(t(r(ap?)?)?)?)?\b.*|jack(k(n(i(fe?)?)?)?)?\b.*|hac\b.*)$/.test(
+      vceAsked,
+    )
+  )
     throw new StataError(
-      "ivregress needs an estimator and (endogenous = instruments)",
+      /^cl(u(s(t(er?)?)?)?)?$/.test(vceAsked)
+        ? "'' found where varname expected\noption vce() incorrectly specified"
+        : "option vce() incorrectly specified",
       198,
     );
+  const wmatrixAsked = /(?:^|[\s,])wmat(r(ix?)?)?\s*\(([^()]*)\)/
+    .exec(m[7])?.[3]
+    ?.trim();
+  if (
+    wmatrixAsked !== undefined &&
+    !/^(un(a(d(j(u(s(t(ed?)?)?)?)?)?)?)?|r(o(b(u(st?)?)?)?)?|cl(u(s(t(er?)?)?)?)?\s+\S.*|hac\b.*)$/.test(
+      wmatrixAsked,
+    )
+  )
+    throw new StataError("option wmatrix() incorrectly specified", 198);
   const [head, tail] = splitAtComma(m[7]),
     estimator = m[1],
     parsed = session.parse(
-      "[if] [in] [aweight fweight pweight iweight] [, Robust VCE(string) CLuster(string) Level(cilevel) First WMATrix(string) BASElevels ALLBASElevels | noCONStant SMALL Igmm]",
+      "[if] [in] [aweight fweight pweight iweight] [, Robust VCE(string) CLuster(string) Level(cilevel) First WMATrix(string) BASElevels ALLBASElevels noHEader COEFLegend CENTER Igmm | noCONStant SMALL]",
       `${head} ${weightClause}${tail == null ? "" : `,${tail}`}`,
     ),
     wtype = parsed.weight?.type ?? null,
@@ -1163,7 +1295,30 @@ export function ivregress(session, text, ctx) {
       instruments: m[5].trim(),
     },
     weighting = (parsed.options.wmatrix ?? "robust").trim(),
-    asked = readVce(session, parsed.options, /^un(adjusted)?$/),
+    asked = (() => {
+      // The weight matrix and GMM's own options belong to GMM, as Stata
+      // says before it reads anything else.
+      const options = parsed.options;
+      if (estimator === "2sls" && options.wmatrix !== undefined)
+        throw new StataError(
+          "cannot specify option wmatrix() with 2SLS estimator",
+          198,
+        );
+      if (estimator === "liml" && options.wmatrix !== undefined)
+        throw new StataError(
+          `option wmatrix(${options.wmatrix.trim()}) not allowed`,
+          198,
+        );
+      for (const option of ["igmm", "center"])
+        if (options[option] && estimator !== "gmm")
+          throw new StataError(
+            estimator === "2sls"
+              ? `may only specify option ${option} with GMM estimator`
+              : `option ${option} not allowed`,
+            198,
+          );
+      return readVce(session, parsed.options, /^un(adjusted)?$/);
+    })(),
     cluster = asked.cluster,
     robust =
       asked.robust ||
@@ -1375,30 +1530,86 @@ export function ivregress(session, text, ctx) {
     b = solve(inverse, rhs);
     kClass = { kappa, inverse, MX };
   } else if (estimator === "gmm") {
-    const first = residualsOf(twoStage),
-      rss1 = first.reduce((t, e) => t + e * e, 0),
+    const robustWeights = /^r/.test(weighting),
+      // center takes each moment's mean out of the robust weight matrix.
+      centered = !!parsed.options.center && robustWeights,
       zx = cross(Z, X),
       zy = Z[0].map((_, a) => Z.reduce((t, row, i) => t + row[a] * y[i], 0)),
-      momentCovariance = (e) =>
-        Z[0].map((_, a) =>
+      momentCovariance = (e) => {
+        if (!centered)
+          return Z[0].map((_, a) =>
+            Z[0].map(
+              (_, c) =>
+                Z.reduce((t, row, i) => t + e[i] * e[i] * row[a] * row[c], 0) /
+                n,
+            ),
+          );
+        const means = Z[0].map(
+          (_, a) => Z.reduce((t, row, i) => t + row[a] * e[i], 0) / n,
+        );
+        return Z[0].map((_, a) =>
           Z[0].map(
             (_, c) =>
-              Z.reduce((t, row, i) => t + e[i] * e[i] * row[a] * row[c], 0) / n,
+              Z.reduce(
+                (t, row, i) =>
+                  t + (row[a] * e[i] - means[a]) * (row[c] * e[i] - means[c]),
+                0,
+              ) / n,
           ),
-        ),
-      S = /^r/.test(weighting)
-        ? momentCovariance(first)
-        : cross(Z, Z).map((row) => row.map((v) => (v * rss1) / n / n)),
-      W = invertSymmetric(S);
-    if (!W) throw new StataError("the weight matrix is singular", 506);
-    const xzW = multiply(
-        zx[0].map((_, a) => zx.map((row) => row[a])),
-        W,
-      ),
-      A = invertSymmetric(multiply(xzW, zx));
-    if (!A) throw new StataError("the model is not identified", 481);
-    b = solve(A, solve(xzW, zy));
-    gmm = { W, A, xzW, momentCovariance };
+        );
+      },
+      weightFrom = (e) => {
+        const rss1 = e.reduce((t, v) => t + v * v, 0),
+          S = robustWeights
+            ? momentCovariance(e)
+            : cross(Z, Z).map((row) => row.map((v) => (v * rss1) / n / n)),
+          W = invertSymmetric(S);
+        if (!W) throw new StataError("the weight matrix is singular", 506);
+        const xzW = multiply(
+            zx[0].map((_, a) => zx.map((row) => row[a])),
+            W,
+          ),
+          A = invertSymmetric(multiply(xzW, zx));
+        if (!A) throw new StataError("the model is not identified", 481);
+        return { W, A, xzW, b: solve(A, solve(xzW, zy)) };
+      };
+    let step = weightFrom(residualsOf(twoStage)),
+      iterations = 1;
+    // igmm iterates until neither the coefficients nor the weight matrix
+    // change by more than 1e-6 (Stata's mreldif), logging each step.
+    if (parsed.options.igmm) {
+      const change = (now, before) =>
+        now
+          .flat()
+          .reduce(
+            (most, v, k) =>
+              Math.max(
+                most,
+                Math.abs(v - before.flat()[k]) /
+                  (Math.abs(before.flat()[k]) + 1),
+              ),
+            0,
+          );
+      for (iterations = 1; iterations <= 16000; iterations++) {
+        const next = weightFrom(residualsOf(step.b)),
+          db = change(next.b, step.b),
+          dW = change(next.W, step.W);
+        ctx.out(
+          `Iteration ${iterations}: Change in beta = ${applyFormat(db, "%10.3e")}   change in W = ${applyFormat(dW, "%10.3e")}`,
+        );
+        step = next;
+        if (db < 1e-6 && dW < 1e-6) break;
+      }
+    }
+    b = step.b;
+    gmm = {
+      W: step.W,
+      A: step.A,
+      xzW: step.xzW,
+      momentCovariance,
+      centered,
+      iterations,
+    };
   }
   const residuals = residualsOf(b),
     rss = residuals.reduce((t, e, i) => t + weightAt(i) * e * e, 0),
@@ -1426,6 +1637,11 @@ export function ivregress(session, text, ctx) {
         row.map((v) => v * n),
       );
     } else V = gmm.A.map((row) => row.map((v) => v * n));
+    // e(S), the moment covariance at the final residuals, summed.
+    if (robust)
+      gmm.S = gmm
+        .momentCovariance(residuals)
+        .map((row) => row.map((v) => v * n));
     const moments = Z[0].map(
       (_, a) => Z.reduce((t, row, i) => t + row[a] * residuals[i], 0) / n,
     );
@@ -1537,25 +1753,101 @@ export function ivregress(session, text, ctx) {
     side = (label, value) => `${label.padEnd(16)}=${value.padStart(11)}`;
   Object.assign(model, { chi2, p });
   session.estimates = model;
+  // e() in the order Stata 19 posts it under version 17, with the lists of
+  // variables Stata keeps hidden (e(insts), e(instd)) beside it.
+  const stripe = (list) => list.map((c) => c.name),
+    exogNames = stripe(exogenousColumns),
+    instNames = stripe(instrumentColumns),
+    // Z's columns are the exogenous regressors, the instruments and the
+    // constant; Stata's e(S) and e(W) put the constant between the two.
+    zOrder = [
+      ...exogNames.map((_, k) => k),
+      exogNames.length + instNames.length,
+      ...instNames.map((_, k) => exogNames.length + k),
+    ],
+    zNames = [...exogNames, "_cons", ...instNames],
+    zMatrix = (M) => ({
+      rowNames: zNames,
+      colNames: zNames,
+      values: zOrder.map((r) => zOrder.map((c) => (M[r][c] + M[c][r]) / 2)),
+    }),
+    // (Not coefficientSpace(), which would keep a layout ivreg changes.)
+    coefficientStripe = namesOut.map((name, k) =>
+      model.estimable[k] ? name : omittedName(name),
+    ),
+    conventional =
+      !gmm && !kClass && robust
+        ? at.map((r) => at.map((c) => (r >= 0 && c >= 0 ? bread[r][c] : 0)))
+        : null,
+    hidden = {
+      ...(estimator === "2sls" ? { cmd2: "ivregress_18" } : {}),
+      robust_epilog: "ivregress_epilog",
+      robust_prolog: "ivregress_prolog",
+      marginsprop: "nolinearize",
+      insts: [...exogNames, ...instNames].join(" "),
+      instd: endogenous.join(" "),
+      idtype:
+        instruments.length > endogenous.length
+          ? "overidentified"
+          : "justidentified",
+    },
+    afterEstimator = typed.replace(/^\s*\S+/, "");
   session.results.e = {
+    ...(gmm ? { J: gmm.J } : { kappa: kClass ? kClass.kappa : 1 }),
+    rss,
     N: n,
     df_m: model.df_m,
-    chi2,
-    p: model.deficient ? MISSING : p,
-    r2: model.r2,
     rmse: model.rmse,
-    rss,
     mss: model.mss,
+    r2: model.r2,
+    r2_a: 1 - ((1 - model.r2) * (n - 1)) / (n - model.rank),
+    chi2,
+    // With a variance of less than full rank Stata posts e(p) missing;
+    // otherwise it posts none.
+    ...(model.deficient ? { p: MISSING } : {}),
+    ...(estimator === "2sls" ? {} : { df_r: MISSING }),
+    k_endog: endogenous.length,
+    iterations: gmm ? gmm.iterations : 0,
+    ...(cluster ? { N_clust: clusters } : {}),
     rank: model.rank,
+    // Under version 17, ivregress 2sls runs ivregress_18, which keeps
+    // the line as typed after a second space; the others clean it.
+    cmdline:
+      estimator === "2sls"
+        ? `ivregress 2sls ${afterEstimator}`
+        : `ivregress ${estimator} ${afterEstimator.trim().replace(/\s+/g, " ")}`,
     cmd: "ivregress",
-    depvar: dep,
+    estat_cmd: "ivregress_estat",
+    ...(gmm ? { wmatrix: /^r/.test(weighting) ? "robust" : "unadjusted" } : {}),
     vce: model.vce,
-    estimator,
+    ...(cluster ? { clustvar: cluster.name } : {}),
     ...(robust ? { vcetype: "Robust" } : {}),
-    ...(cluster ? { N_clust: clusters, clustvar: cluster.name } : {}),
-    ...(kClass ? { kappa: kClass.kappa } : {}),
-    ...(gmm ? { J: gmm.J } : {}),
-    ...(wtype ? { wtype, wexp: model.wexp } : {}),
+    ...(wtype ? { wexp: model.wexp, wtype } : {}),
+    estimator,
+    footnote: "ivreg_footnote",
+    marginsnotok: "Residuals SCores",
+    marginsok: "XB default",
+    predict: "ivregress_p",
+    depvar: dep,
+    exogr: exogNames.join(" "),
+    exog: [...exogNames, ...instNames].join(" "),
+    endog: endogenous.join(" "),
+    title: model.title,
+    ...(gmm?.centered ? { moments: "centered" } : {}),
+    properties: "b V",
+    ...(conventional
+      ? {
+          "matrix:V_modelbased": {
+            rowNames: coefficientStripe,
+            colNames: coefficientStripe,
+            values: conventional,
+          },
+        }
+      : {}),
+    ...(gmm && robust ? { "matrix:S": zMatrix(gmm.S) } : {}),
+    ...(gmm ? { "matrix:W": zMatrix(gmm.W) } : {}),
+    ...hidden,
+    [HIDDEN]: Object.keys(hidden),
   };
   for (const c of listed.endogenous)
     if (c.collinear)
@@ -1569,7 +1861,9 @@ export function ivregress(session, text, ctx) {
       );
     firstStage(session, model.iv, parsed, ctx);
   }
-  ctx.out("");
+  // noheader leaves out the header and the blank lines about it.
+  const header = parsed.options.header !== false;
+  if (header) ctx.out("");
   const right = [
       ["Number of obs", count(n)],
       [`Wald chi2(${model.df_m})`, applyFormat(chi2, "%9.2f").trim()],
@@ -1596,11 +1890,15 @@ export function ivregress(session, text, ctx) {
           ]
         : []),
     ];
-  for (let k = 0; k < Math.max(left.length, right.length); k++)
-    ctx.out(
-      right[k] ? `${(left[k] ?? "").padEnd(50)}${side(...right[k])}` : left[k],
-    );
-  ctx.out("");
+  if (header) {
+    for (let k = 0; k < Math.max(left.length, right.length); k++)
+      ctx.out(
+        right[k]
+          ? `${(left[k] ?? "").padEnd(50)}${side(...right[k])}`
+          : left[k],
+      );
+    ctx.out("");
+  }
   // The note ends where the table does.
   if (cluster)
     ctx.out(
@@ -1611,7 +1909,10 @@ export function ivregress(session, text, ctx) {
         66 + tableWidth(session, model, []),
       ),
     );
-  zTable(session, model, parsed.options.level, null, false).forEach(ctx.out);
+  (parsed.options.coeflegend
+    ? legendTable(session, model)
+    : zTable(session, model, parsed.options.level, null, false)
+  ).forEach(ctx.out);
   // The lists are a paragraph as wide as the table less two (the line,
   // if narrower), continued twelve columns in.
   const limit =
@@ -1629,8 +1930,12 @@ export function ivregress(session, text, ctx) {
       });
       ctx.out(line);
     };
-  paragraph("Endogenous: ", endogenous);
-  paragraph("Exogenous:  ", [...exogenous, ...instruments]);
+  // With no endogenous regressors, 2SLS is OLS, and Stata says so.
+  if (!endogenous.length) ctx.out("(no endogenous regressors)");
+  else {
+    paragraph("Endogenous: ", endogenous);
+    paragraph("Exogenous:  ", [...exogenous, ...instruments]);
+  }
   ctx.out("");
 }
 
@@ -1653,12 +1958,20 @@ function testparmTerms(session, head) {
   const component = (word, inInteraction) => {
       const m = /^(i|c|(\d+)b?n?)\.(.+)$/i.exec(word),
         operator = m?.[1].toLowerCase(),
-        target = (m ? m[3] : word).replace(/^\((.*)\)$/, "$1");
-      return session.varlist(target).map((variable) => ({
-        variable,
-        factor: operator ? operator !== "c" : inInteraction,
-        level: m?.[2] === undefined ? null : Number(m[2]),
-      }));
+        target = (m ? m[3] : word).replace(/^\((.*)\)$/, "$1"),
+        factor = operator ? operator !== "c" : inInteraction;
+      return session.varlist(target).map((variable) => {
+        if (factor && isStringType(session.data.get(variable).type))
+          throw new StataError(
+            `${variable}:  string variables may not be used as factor variables`,
+            109,
+          );
+        return {
+          variable,
+          factor,
+          level: m?.[2] === undefined ? null : Number(m[2]),
+        };
+      });
     },
     terms = [];
   for (const token of head.match(/(?:[^\s(]|\([^)]*\))+/g) ?? []) {
@@ -2214,10 +2527,17 @@ function estat(session, text, ctx) {
   } else if (what === "vif") {
     if (model.command !== "regress")
       throw new StataError(`estat ${what} not valid`, 321);
-    // Each variable's spread over the estimation sample, where a lag has
-    // the rows its operator leaves.
-    const s2 = model.rss / model.dfResidual,
-      rows = model.sample,
+    const { options } = session.parse(
+        "[, UNCentered NOSORT]",
+        text.trim().slice(what.length),
+      ),
+      uncentered = !!options.uncentered;
+    if (!model.constant && !uncentered)
+      throw new StataError(
+        "not appropriate after regress, nocons;\nuse option uncentered to get uncentered VIFs",
+        301,
+      );
+    const rows = model.sample,
       vifs = [];
     if (!rows.length) {
       ctx.out("");
@@ -2225,38 +2545,32 @@ function estat(session, text, ctx) {
       ctx.out("-------------+----------------------");
       throw new StataError("no observations", 2000);
     }
-    model.names.forEach((name, k) => {
-      if (name === "_cons" || !model.estimable[k]) return;
-      const values = rows
-          .map(model.columns[k].value)
-          .filter((v) => !isMissing(v)),
-        mean = values.reduce((a, b) => a + b, 0) / values.length,
-        ss = values.reduce((t, v) => t + (v - mean) ** 2, 0);
-      vifs.push([name, (model.V[k][k] * ss) / s2]);
-    });
-    // Once observations of the sample are dropped, e(V) no longer gives
-    // them: vif.ado regresses each regressor on the others over the
-    // observations of e(sample) left, and VIF is 1/(1 - R2), which is
-    // SST_k times the kth diagonal of the inverse of the centred, weighted
-    // cross products.
-    if (model.reducedSample) {
-      const used = model.names
-          .map((name, k) => k)
-          .filter((k) => model.names[k] !== "_cons" && model.estimable[k]),
-        w = model.weights ?? rows.map(() => 1),
-        total = w.reduce((t, v) => t + v, 0),
-        x = used.map((k) => {
-          const values = rows.map(model.columns[k].value),
-            m = values.reduce((t, v, r) => t + w[r] * v, 0) / total;
-          return values.map((v) => v - m);
-        }),
-        A = x.map((a) =>
-          x.map((b) => a.reduce((t, v, r) => t + w[r] * v * b[r], 0)),
-        ),
-        inverse = invertSymmetric(A);
-      if (inverse)
-        used.forEach((k, j) => (vifs[j][1] = A[j][j] * inverse[j][j]));
+    // vif.ado regresses each regressor on the others over e(sample), with
+    // the fit's weights and whatever its variance: VIF is 1/(1 - R2), the
+    // kth diagonal of the weighted cross products times that of their
+    // inverse. They are centred unless uncentered asks for regressions
+    // without a constant, which then has a VIF of its own.
+    const used = model.names
+        .map((name, k) => k)
+        .filter((k) => model.names[k] !== "_cons" && model.estimable[k]),
+      w = model.weights ?? rows.map(() => 1),
+      total = w.reduce((t, v) => t + v, 0),
+      x = used.map((k) => {
+        const values = rows.map(model.columns[k].value);
+        if (uncentered) return values;
+        const m = values.reduce((t, v, r) => t + w[r] * v, 0) / total;
+        return values.map((v) => v - m);
+      });
+    used.forEach((k) => vifs.push([model.names[k], MISSING]));
+    if (uncentered && model.constant) {
+      x.push(rows.map(() => 1));
+      vifs.push(["_cons", MISSING]);
     }
+    const A = x.map((a) =>
+        x.map((b) => a.reduce((t, v, r) => t + w[r] * v * b[r], 0)),
+      ),
+      inverse = invertSymmetric(A);
+    if (inverse) vifs.forEach((v, j) => (v[1] = A[j][j] * inverse[j][j]));
     // vif.ado sorts by VIF, largest first, unless the model has factor
     // variables. It keeps each VIF in a float variable.
     const factors = model.columns.some(
@@ -2265,7 +2579,7 @@ function estat(session, text, ctx) {
     );
     // vif.ado sorts the float values, largest first, ties by name.
     vifs.forEach((v) => (v[1] = Math.fround(v[1])));
-    if (!factors)
+    if (!factors && !options.nosort)
       vifs.sort(
         (a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0),
       );
@@ -2585,7 +2899,7 @@ function estat(session, text, ctx) {
       P_0p: share(fp, tp + fp),
       P_1n: share(fn, fn + tn),
     };
-  } else if (ivDiagnostic(session, model, what, ctx)) {
+  } else if (ivDiagnostic(session, model, what, ctx, text)) {
     // Printed by the diagnostic.
   } else if (!regressDiagnostic(session, model, what, text, ctx)) {
     // A subcommand Stata has here that the browser lacks is refused as
@@ -2644,6 +2958,17 @@ function estimatesAction(session, text, ctx) {
       // none when the data are not the fit's (read in since).
       marks = data.esampleOf === model ? data.esample : null,
       order = [...data.sortedBy];
+    // The active results learn the name they are stored under, as the
+    // hidden e(_estimates_name) that ereturn list, all shows.
+    const active = session.results.e;
+    if (active && Object.keys(active).length) {
+      delete active._estimates_name;
+      active._estimates_name = name;
+      active[HIDDEN] = [
+        ...(active[HIDDEN] ?? []).filter((key) => key !== "_estimates_name"),
+        "_estimates_name",
+      ];
+    }
     stored.set(name, { model, e: { ...session.results.e }, title });
     // The active results are known by the name they were last stored or
     // restored under, which estimates replay heads them with.

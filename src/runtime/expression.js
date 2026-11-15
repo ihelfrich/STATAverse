@@ -255,18 +255,30 @@ function tokenize(source) {
       tokens.at(-1).missingCode = true;
       i += m[0].length;
     } else if (
-      (m = /^\[\s*([^\]]+?)\s*\]\s*(_b|_se)\[\s*([^\]]+?)\s*\]/.exec(rest))
+      (m = /^\[\s*([^\]]+?)\s*\]\s*(_b|_se|_coef)\[\s*([^\]]+?)\s*\]/.exec(
+        rest,
+      ))
     ) {
-      // [eq]_b[x]: a coefficient of one equation of the last model.
+      // [eq]_b[x]: a coefficient of one equation of the last model; _coef
+      // is Stata's older name for _b.
       push(
         "coefficient",
-        { kind: m[2], name: `${m[1]}:${m[3]}`, bracketed: true },
+        {
+          kind: m[2] === "_coef" ? "_b" : m[2],
+          name: `${m[1]}:${m[3]}`,
+          bracketed: true,
+        },
         i,
       );
       i += m[0].length;
-    } else if ((m = /^(_b|_se)\[\s*([^\]]+?)\s*\]/.exec(rest))) {
-      // _b[x] and _se[x]: a coefficient of the last model and its error.
-      push("coefficient", { kind: m[1], name: m[2] }, i);
+    } else if ((m = /^(_b|_se|_coef)\[\s*([^\]]+?)\s*\]/.exec(rest))) {
+      // _b[x] (or _coef[x]) and _se[x]: a coefficient of the last model
+      // and its error.
+      push(
+        "coefficient",
+        { kind: m[1] === "_coef" ? "_b" : m[1], name: m[2] },
+        i,
+      );
       i += m[0].length;
     } else if (c === "[" && tokens.at(-1)?.type === "number")
       // A number cannot be subscripted: 2[y]x is 2 invalid name.

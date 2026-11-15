@@ -523,7 +523,7 @@ const PREFIX_COMMANDS = new Set([
 ]);
 // The options a replay takes: those that change how the fit is shown.
 const REPLAY_OPTIONS =
-  /^(l(e(v(el?)?)?)?|or|irr|rrr|eform|hr|beta|nohe(a(d(er?)?)?)?|notable|nocnsr(e(p(o(rt?)?)?)?)?|noomit(t(ed?)?)?|vsquish|base(l(e(v(e(ls?)?)?)?)?)?|allbase(l(e(v(e(ls?)?)?)?)?)?|noempty(c(e(l(ls?)?)?)?)?|cformat|pformat|sformat|coefl(e(g(e(nd?)?)?)?)?|nofvl(a(b(el?)?)?)?|nolstretch)$/;
+  /^(l(e(v(el?)?)?)?|or|irr|rrr|eform|hr|beta|nohe(a(d(er?)?)?)?|notable|noci|nopv(a(l(u(es?)?)?)?)?|fvwrap|fvwrapon|nocnsr(e(p(o(rt?)?)?)?)?|noomit(t(ed?)?)?|vsquish|base(l(e(v(e(ls?)?)?)?)?)?|allbase(l(e(v(e(ls?)?)?)?)?)?|noempty(c(e(l(ls?)?)?)?)?|cformat|pformat|sformat|coefl(e(g(e(nd?)?)?)?)?|nofvl(a(b(el?)?)?)?|nolstretch)$/;
 // Commands that leave the data as an earlier fit saw them, so that the fit
 // need not keep a copy of them yet (see dispatch).
 const KEEP_DATA = new Set([
@@ -709,9 +709,58 @@ function absentVariable(name) {
   };
 }
 
-// The e() results whose scalars have been posted again by a command that
-// holds the estimates (see dispatch).
-const heldScalars = new WeakSet();
+// The order in which ereturn list shows e() once commands that hold the
+// estimates have posted them again (see dispatch): the keys as the fit
+// stored them, and whether the scalars (s) and the macros (m) now list in
+// reverse. It is kept on e() itself, so that estimates store keeps it.
+const HELD_ORDER = Symbol("held order");
+
+/**
+ * e() with its scalars and macros in the order a hold left them: reversed
+ * from the fit's order or not, each list on its own. The matrices after
+ * e(b) and e(V) go with the macros. areg's own scalars, which come before
+ * those of the regression it runs, stay a run of their own: with the
+ * macros reversed the regression's come first, reversed, and areg's after
+ * them; with the scalars reversed areg's are reversed and the
+ * regression's follow as they were, as recorded from Stata 19. Other keys
+ * keep their place after them, the hidden list and the order itself
+ * carried over.
+ */
+function heldOrder(e, s, m) {
+  // Results set since the fit (as e(_estimates_name)) come after its own.
+  const kept = e[HELD_ORDER]?.keys ?? [],
+    keys = [...kept, ...Object.keys(e).filter((key) => !kept.includes(key))],
+    numbers = keys.filter((key) => typeof e[key] === "number"),
+    strings = keys.filter((key) => typeof e[key] === "string"),
+    others = keys.filter(
+      (key) => typeof e[key] !== "number" && typeof e[key] !== "string",
+    ),
+    split = numbers.includes("k_absorb")
+      ? numbers.indexOf("k_absorb") + 1
+      : numbers.length,
+    own = numbers.slice(0, split),
+    posted = numbers.slice(split),
+    fixed = others.filter((key) => key === "matrix:b" || key === "matrix:V"),
+    rest = others.filter((key) => !fixed.includes(key)),
+    order = [
+      ...(s && m
+        ? [...numbers].reverse()
+        : s
+          ? [...own.reverse(), ...posted]
+          : m
+            ? [...posted.reverse(), ...own]
+            : numbers),
+      ...(m ? strings.reverse() : strings),
+      ...fixed,
+      ...(m ? rest.reverse() : rest),
+    ],
+    out = Object.fromEntries(
+      order.filter((key) => key in e).map((key) => [key, e[key]]),
+    );
+  for (const symbol of Object.getOwnPropertySymbols(e)) out[symbol] = e[symbol];
+  out[HELD_ORDER] = { keys, s, m };
+  return out;
+}
 
 /**
  * What an r-class program returned, as r() holds it: return list shows the
@@ -1867,6 +1916,7 @@ export class Session {
         );
       let value;
       const before = this.estimates,
+        eBefore = this.results.e,
         // Where the lines of the fit start: after by's heading for the last
         // group, so that a replay shows that group's fit.
         // (A command run by another may pass an object with push only.)
@@ -1999,26 +2049,73 @@ export class Session {
         } else if (this.data.esampleOf !== model)
           markSample(this, model, model.sample);
       }
-      // Stata's estat ic, ovtest, imtest, hettest and vif, and lincom, hold
-      // the estimates while they work and post them again, and e()'s
-      // scalars then list in the reverse of the order the fit stored them.
+      // Stata's estat ic, ovtest, imtest, hettest and vif, lincom, margins
+      // and estimates restore hold the estimates while they work and post
+      // them again, which changes the order ereturn list shows them in, as
+      // recorded from Stata 19. After lincom and the estat tests the
+      // scalars list in reverse; after estimates restore, too, with the
+      // macros as the fit stored them. margins reverses the macros alone,
+      // or, run again, gives the order restore gives.
       const e = this.results.e;
-      if (
-        e &&
-        !heldScalars.has(e) &&
-        (command.name === "lincom" ||
-          (command.name === "estat" &&
-            /^\s*(ic|ovt\w*|imt\w*|hett\w*|vif)\b/.test(body)))
-      ) {
-        const entries = Object.entries(e),
-          numbers = entries.filter(([, v]) => typeof v === "number").reverse(),
-          reordered = Object.fromEntries([
-            ...numbers,
-            ...entries.filter(([, v]) => typeof v !== "number"),
-          ]);
-        heldScalars.add(reordered);
-        this.results.e = reordered;
-        if (this.meanTotalResults?.e === e) this.meanTotalResults.e = reordered;
+      if (e && Object.keys(e).length) {
+        const held = e[HELD_ORDER] ?? { s: 0, m: 0 },
+          name = command.name;
+        let next = null;
+        if (
+          e === eBefore &&
+          (name === "lincom" ||
+            (name === "estat" &&
+              /^\s*(ic|ovt\w*|imt\w*|hett\w*|vif)\b/.test(body)))
+        )
+          next = held.s ? null : [1, held.m];
+        else if (
+          name === "margins" &&
+          e === eBefore &&
+          !/,[\s\S]*\bpost\b/.test(body)
+        ) {
+          // Each step leaves the macros reversed, or, from there, the
+          // scalars; from the fit's own order a model with factor
+          // variables goes straight to reversed scalars. Derivatives of a
+          // model without them take two steps.
+          // After ivregress the scalars end reversed, the macros not.
+          const factors = !!model?.columns?.some(
+              (c) =>
+                c?.term?.components?.some((p) => p.factor) ||
+                /#/.test(c?.name ?? ""),
+            ),
+            derivative = /\b(dydx|eyex|dyex|eydx)\s*\(/.test(body);
+          let state = held.s ? "C" : held.m ? "B" : "A";
+          for (let k = !factors && derivative ? 2 : 1; k > 0; k--)
+            state =
+              state === "B" ? "C" : state === "C" ? "B" : factors ? "C" : "B";
+          next =
+            model?.command === "ivregress"
+              ? [1, 0]
+              : state === "B"
+                ? [0, 1]
+                : [1, 0];
+        } else if (
+          name === "estimates" &&
+          /^\s*res(t(o(re?)?)?)?\b/.test(body)
+        ) {
+          // Restoring the results already active reverses the scalars of
+          // a fit not yet held and leaves any other order alone; restoring
+          // others steps their order as margins does, the stored copy
+          // with them.
+          if (model === before) next = held.s || held.m ? null : [1, 0];
+          else next = held.s ? [0, 1] : held.m ? [1, 0] : [0, 1];
+        }
+        if (next) {
+          const reordered = heldOrder(e, ...next);
+          this.results.e = reordered;
+          const restored =
+            name === "estimates" &&
+            /^\s*res\w*\s+([A-Za-z_]\w*)/.exec(body)?.[1];
+          if (restored && this.storedEstimates?.get(restored))
+            this.storedEstimates.get(restored).e = { ...reordered };
+          if (this.meanTotalResults?.e === e)
+            this.meanTotalResults.e = reordered;
+        }
       }
       // The observations the fit used, known by their identities, which
       // a later sort or drop does not change (see inFitLayout).
@@ -2187,15 +2284,12 @@ export class Session {
       shownWith = typedOptions.some(display);
     // Shown as the fit was, unless another estimator's fit is shown its
     // own way (logit after logistic).
-    const table = (lines) =>
-      noHeader
-        ? lines.slice(
-            Math.max(
-              0,
-              lines.findIndex((line) => /^-+$/.test(line)),
-            ),
-          )
-        : lines;
+    // With notable as well there is no table, and nothing is left.
+    const table = (lines) => {
+      if (!noHeader) return lines;
+      const at = lines.findIndex((line) => /^-+$/.test(line));
+      return at < 0 ? [] : lines.slice(at);
+    };
     if (!options && !shownWith && command.name === replay.command) {
       for (const line of ["", ...table(replay.lines)]) ctx.out(line);
       return;

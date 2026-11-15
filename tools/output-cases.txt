@@ -29867,3 +29867,656 @@ summarize i(1 3).g
 summarize i(1/3).g
 regress y i(1 3).g
 list i(1 3).g in 1
+=== recheck-linear-hc-weights
+clear
+set obs 120
+set seed 5101
+generate x = rnormal()
+generate z = runiform()
+generate w = 1 + floor(runiform()*4)
+generate y = 1 + 2*x + z + rnormal()*(1 + x^2)
+regress y x z [aw=w], vce(hc2)
+regress y x z [aw=w], vce(hc3)
+regress y x z [pw=w], vce(hc2)
+regress y x z [iw=w], vce(hc3)
+regress y x z [fw=w], vce(hc3)
+capture noisily regress y x z [pw=w], vce(hc3)
+display _rc
+=== recheck-linear-estat-vif
+clear
+set obs 150
+set seed 5102
+generate x1 = rnormal()
+generate x2 = .6*x1 + rnormal()
+generate x3 = runiform()
+generate w = 1 + floor(runiform()*3)
+generate c = 1 + floor(runiform()*10)
+generate y = 1 + x1 + x2 + x3 + rnormal()
+quietly regress y x1 x2 x3 [aw=w]
+estat vif
+estat vif, uncentered
+estat vif, uncentered nosort
+quietly regress y x1 x2 x3 [pw=w]
+estat vif
+quietly regress y x1 x2 x3, vce(cluster c)
+estat vif
+return list
+capture noisily estat vif, junk
+display _rc
+capture noisily estat vif x1
+display _rc
+quietly regress y x1 x2 x3, noconstant
+capture noisily estat vif
+display _rc
+estat vif, uncentered
+=== recheck-linear-beta-weights
+clear
+set obs 100
+set seed 5103
+generate x = rnormal()
+generate z = rnormal()
+generate w = 1 + floor(runiform()*5)
+generate y = 1 + x - z + rnormal()
+regress y x z [aw=w], beta
+matrix list e(beta)
+regress y x z [pw=w], beta
+regress y x z [fw=w], beta
+=== recheck-linear-areg-predict
+clear
+set obs 90
+set seed 5104
+generate g = 1 + floor(runiform()*6)
+generate x = rnormal()
+generate w = 1 + floor(runiform()*4)
+generate y = g + x + rnormal()
+quietly areg y x [aw=w] if g != 3, absorb(g)
+predict r, residuals
+predict d, d
+predict xbd, xbd
+predict dr, dresiduals
+summarize r d xbd dr
+describe r d xbd dr
+capture noisily predict q, d xb
+display _rc
+quietly regress y x
+capture noisily predict q, d
+display _rc
+=== recheck-linear-margins-weights
+clear
+set obs 140
+set seed 5105
+generate f = runiform() < .4
+generate x = 8 + floor(runiform()*10)
+generate w = .5 + runiform()
+generate y = 2 + x + 3*f + .5*x*f + rnormal()
+quietly regress y c.x##i.f [aw=w]
+margins, atmeans
+quietly regress y c.x##i.f [pw=w]
+margins, at((mean) _all x=12)
+margins, at(x=generate(x+1))
+margins, at(x=generate(x*1.1) f=(0 1))
+margins, dydx(f) at(x=gen(x-1))
+capture noisily margins, at(f=generate(f))
+display _rc
+=== recheck-linear-iv-estat
+clear
+set obs 200
+set seed 5106
+generate z1 = rnormal()
+generate z2 = rnormal()
+generate z3 = rnormal()
+generate u = rnormal()
+generate x = rnormal()
+generate h = z1 + z2 + .5*z3 + u + rnormal()
+generate y = 1 + h + x + u + rnormal()
+quietly ivregress 2sls y x (h = z1 z2 z3)
+estat firststage, all
+capture noisily estat firststage, junk
+display _rc
+capture noisily estat firststage x
+display _rc
+capture noisily estat endogenous x
+display _rc
+capture noisily estat endogenous, junk
+display _rc
+estat endogenous h
+estat overid, forcenonrobust
+capture noisily estat overid, lags(1)
+display _rc
+quietly ivregress 2sls y x (h = z1 z2 z3), vce(robust)
+estat firststage, all
+quietly ivregress gmm y x (h = z1 z2 z3)
+estat overid
+capture noisily estat overid, junk
+display _rc
+quietly ivregress gmm y x (h = z1 z2 z3), wmatrix(unadjusted)
+estat overid
+display r(J_df) " " %9.0g r(HansenJ) " " %9.0g r(p_HansenJ)
+quietly ivregress liml y x (h = z1 z2 z3)
+capture noisily estat overid, junk
+display _rc
+=== recheck-linear-nlcom-returns
+clear
+set obs 80
+set seed 5107
+generate x = rnormal()
+generate z = rnormal()
+generate y = 1 + 2*x + z + rnormal()
+quietly regress y x z
+nlcom _b[x]/_b[z]
+return list
+matrix list r(table)
+nlcom (ratio: _b[x]/_b[z]) (product: _b[x]*_b[z]), level(90)
+matrix list r(b)
+matrix list r(V)
+=== recheck-linear-iv-areg-results
+clear
+set obs 160
+set seed 5108
+generate z1 = rnormal()
+generate z2 = rnormal()
+generate x = rnormal()
+generate g = 1 + floor(runiform()*5)
+generate h = z1 + z2 + rnormal()
+generate y = 1 + h + x + rnormal()
+quietly ivregress 2sls y x (h = z1 z2)
+display "[" e(endog) "] [" e(exog) "] [" e(exogr) "] [" e(instd) "] [" e(insts) "] " e(k_endog) " " e(kappa) " " e(iterations)
+display "[" e(cmdline) "] [" e(estat_cmd) "] [" e(footnote) "] [" e(marginsnotok) "] [" e(predict) "]"
+quietly ivregress liml y x (h = z1 z2)
+display "[" e(cmdline) "] " e(df_r) " " e(k_endog)
+quietly ivregress gmm y x (h = z1 z2)
+display "[" e(wmatrix) "] " e(iterations) " " e(df_r)
+quietly ivregress 2sls y x (h = z1 z2), vce(robust)
+matrix list e(V_modelbased)
+quietly areg y x, absorb(g)
+display "[" e(cmdline) "] [" e(predict) "] [" e(footnote) "] [" e(marginsnotok) "] " e(sum_w) " " e(rc) " [" e(model) "] [" e(estmethod) "] [" e(title2) "]"
+quietly areg y x, absorb(g) vce(robust)
+matrix list e(V_modelbased)
+quietly areg y x, absorb(g) vce(cluster g)
+display "[" e(marginsnotok) "] " e(sum_w) " " e(mss) " " e(p)
+=== recheck-linear-meanonly
+clear
+set obs 30
+set seed 5109
+generate x = rnormal(5, 2)
+generate w = 1 + floor(runiform()*3)
+summarize x, meanonly
+return list
+summarize x [aw=w], meanonly
+return list
+summarize x if x > 100, meanonly
+return list
+summarize x
+return list
+=== recheck-linear-regress-display
+clear
+set obs 200
+set seed 4021
+generate educ = 8 + floor(runiform()*10)
+generate region = 1 + floor(runiform()*4)
+label define reg 1 "North" 2 "South" 3 "East" 4 "West"
+label values region reg
+generate female = runiform() < .5
+generate male = 1 - female
+generate wage = 5 + .8*educ + 2*female + region + rnormal()*3
+generate educ2 = 2*educ
+generate one = 1
+generate school = 1 + floor(runiform()*12)
+regress wage educ i.region, coeflegend
+regress wage educ i.region, noheader
+regress wage educ, notable
+regress wage educ i.region, cformat(%9.3f)
+regress wage educ, pformat(%5.2f) sformat(%8.3f)
+regress wage educ i.region, vsquish
+regress wage educ educ2 female, noomitted
+regress wage educ, depname(y)
+regress wage educ i.region, noci
+regress wage educ, nopvalues
+capture noisily regress wage educ, noci nopvalues
+display _rc
+regress wage educ i.region, nofvlabel
+regress wage educ one, hascons
+regress wage educ female male, hascons
+regress wage educ female, hascons
+regress wage educ, noconstant tsscons
+regress wage educ, mse1
+regress wage educ, mse1 vce(robust)
+regress wage educ i.region, noemptycells
+regress wage educ, nolstretch
+regress wage educ, vce(robust) noheader
+regress wage educ, vce(cluster school) noheader
+regress wage educ, vce(robust) coeflegend
+regress wage educ, vce(robust) noci
+regress wage educ, beta noheader
+regress wage educ i.region, beta cformat(%9.3f)
+regress wage educ i.region, eform(exp b)
+regress wage educ i.region, eform(exp b) noci
+capture noisily regress wage educ, eform(Exponentiated)
+display _rc
+regress wage educ, cformat(%9.2f) pformat(%4.2f) sformat(%7.2f) noci
+regress wage educ i.region, coeflegend baselevels
+regress wage educ i.region, noci vsquish nofvlabel depname(pay) level(90)
+regress wage educ, nopvalues level(99.5)
+regress wage educ educ2, coeflegend
+regress
+regress, coeflegend
+regress, noheader cformat(%8.3f)
+regress, noci
+regress, vsquish
+capture noisily regress, depname(y)
+display _rc
+regress wage educ, cformat(%12.3f)
+capture noisily regress wage educ, cformat(%s)
+display _rc
+=== recheck-linear-coef-synonym
+clear
+set obs 50
+set seed 3
+generate x = rnormal()
+generate y = 2 + x + rnormal()
+quietly regress y x
+display _coef[x]
+display _coef[_cons] + _b[x]
+capture noisily display [y]_coef[x]
+generate p = _coef[_cons] + _coef[x]*x
+summarize p
+lincom _coef[x] - 1
+=== recheck-linear-string-factor
+clear
+set obs 60
+set seed 5111
+generate x = rnormal()
+generate str5 s = cond(runiform() < .5, "north", "south")
+generate y = x + rnormal()
+quietly regress y x
+capture noisily testparm i.s
+display _rc
+capture noisily margins s
+display _rc
+=== recheck-linear-ivregress-specs
+clear
+set obs 100
+set seed 5
+generate z1 = rnormal()
+generate z2 = rnormal()
+generate z3 = rnormal()
+generate educ = rnormal()
+generate hours = z1 + z2 + rnormal()
+generate exper = z3 + rnormal()
+generate wage = 1 + hours + educ + rnormal()
+capture noisily ivregress 2sls wage educ (hours = )
+display _rc
+capture noisily ivregress foo wage (hours = z1)
+display _rc
+capture noisily ivregress wage educ (hours = z1)
+display _rc
+ivregress 2sls wage educ hours
+capture noisily ivregress 2sls wage educ (hours z1)
+display _rc
+capture noisily ivregress 2sls wage (= z1)
+display _rc
+capture noisily ivregress 2sls
+display _rc
+capture noisily ivregress 2sls wage educ (hours = z1 z2), vce(hc3)
+display _rc
+capture noisily ivregress 2sls wage educ (hours = z1 z2), vce(ols)
+display _rc
+capture noisily ivregress gmm wage educ (hours = z1 z2), wmatrix(junk)
+display _rc
+capture noisily ivregress 2sls wage educ (hours = z1 z2) (exper = z3)
+display _rc
+capture noisily ivregress 2sls (hours = z1)
+display _rc
+capture noisily ivregress 2SLS wage (hours = z1)
+display _rc
+=== recheck-linear-cluster-rank
+clear
+set obs 60
+set seed 5112
+generate g = ceil(_n/3)
+generate c = ceil(g/4)
+forvalues k = 1/6 {
+generate x`k' = rnormal()
+}
+generate y = g/5 + x1 - x2 + rnormal()
+areg y x1-x6, absorb(g) vce(cluster c)
+display e(df_m) " " e(rank)
+quietly regress y x1 i.g, vce(cluster g)
+display e(df_m) " " e(rank)
+=== recheck-linear-summarize-precision
+clear
+set obs 199
+set seed 5113
+generate x = exp(rnormal(2, .6))
+quietly summarize x
+return list
+display %21.0g r(Var)
+=== recheck2-linear-hc-vce
+clear
+set obs 300
+set seed 2026
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate cl = 1+floor(runiform()*15)
+generate w = 0.5+runiform()*2
+generate y = 1 + 2*x1 - x2 + invnormal(runiform())*2
+regress y x1 x2, vce(hc2)
+display e(vce) "|" e(vcetype)
+margins, atmeans
+regress y x1 x2 [aw=w], vce(hc3)
+display e(vce) "|" e(vcetype)
+margins
+regress y x1 x2, hc2
+display e(vce) "|" e(vcetype)
+regress y x1 x2, hc3
+regress y x1 x2, robust hc3
+display e(vce) "|" e(vcetype)
+regress y x1 x2 [pw=w], hc3
+display e(vce) "|" e(vcetype)
+regress y x1 x2, hc3 vce(robust)
+display e(vce) "|" e(vcetype)
+quietly regress y x1 x2, hc2 hc3
+display e(vce) "|" e(vcetype)
+quietly regress y x1 x2, hc2 cluster(cl)
+display e(vce) "|" e(vcetype)
+capture noisily regress y x1 x2, hc2 vce(cluster cl)
+display _rc
+=== recheck2-linear-iweights
+clear
+set obs 300
+set seed 2026
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate w = 0.5+runiform()*2
+generate y = 1 + 2*x1 - x2 + invnormal(runiform())*2
+regress y x1 x2 [iw=w]
+display e(N) " " e(df_r) " " e(df_m) " " e(rmse) " " e(r2_a) " " e(ll)
+regress y x1 x2 [iw=w], beta
+generate w5 = w/100
+regress y x1 x2 [iw=w5]
+display e(N) " " e(df_r) " " e(rmse) " " e(r2_a) " " e(F) " " e(ll)
+=== recheck2-linear-display-options
+clear
+set obs 300
+set seed 2026
+generate g = 1+floor(runiform()*6)
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate x3 = runiform()*10
+generate z1 = invnormal(runiform())
+generate z2 = invnormal(runiform())
+generate d = runiform()<.4
+generate y = 1 + 2*x1 - x2 + .3*x3 + invnormal(runiform())*2 + g*.5
+capture noisily regress y x1 x2, beta nopvalues
+display _rc
+capture noisily regress y x1 x2, beta noci
+display _rc
+regress y x1 x2, beta coeflegend
+regress y x1, tsscons noconstant
+display e(mss) " " e(r2) " " e(r2_a) " " e(F)
+regress y z1 z2, tsscons noconstant
+regress y x1 x3 g, tsscons noconstant
+regress y x1, hascons noconstant
+generate d2 = g==2
+generate x4 = x1
+regress y x1 x2 x1, noomitted
+regress y x1 x2 x1 x3 i.g, noomitted
+regress y x1 x2 x4, noomitted noconstant
+regress y d2 i.g x1, noomitted
+regress y x1 x2 x4 i.d, noomitted
+regress y x1 x2 x1, noomitted vsquish
+regress y x1 i.g x1, noomitted
+=== recheck2-linear-r2-precision
+clear
+set obs 300
+set seed 2026
+generate g = 1+floor(runiform()*6)
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate x3 = runiform()*10
+generate w = 0.5+runiform()*2
+generate fw = 1+floor(runiform()*4)
+generate y = 1 + 2*x1 - x2 + .3*x3 + invnormal(runiform())*2 + g*.5
+quietly regress y x1 i.g
+display %21.0g e(r2) " " %21.0g e(mss) " " %21.0g e(F)
+display %21.0g e(r2_a) " " %21.0g e(ll_0)
+quietly regress y x1 x2
+display %21.0g e(r2) " " %21.0g e(mss) " " %21.0g e(F)
+display %21.0g e(r2_a) " " %21.0g e(ll_0)
+quietly regress y x1, noconstant
+display %21.0g e(r2) " " %21.0g e(mss) " " %21.0g e(F)
+quietly regress y x1 x2 [aw=w]
+display %21.0g e(r2) " " %21.0g e(mss) " " %21.0g e(F)
+display %21.0g e(ll_0)
+quietly regress y x1 x2 [fw=fw]
+display %21.0g e(r2) " " %21.0g e(mss) " " %21.0g e(F)
+display %21.0g e(ll_0)
+quietly regress y x1 x2 [iw=w]
+display %21.0g e(r2) " " %21.0g e(mss) " " %21.0g e(F)
+=== recheck2-linear-margins-at
+clear
+set obs 300
+set seed 2026
+generate g = 1+floor(runiform()*6)
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate w = 0.5+runiform()*2
+generate fw = 1+floor(runiform()*4)
+generate s = cond(runiform() < .4, "a", "b")
+generate y = 1 + 2*x1 - x2 + invnormal(runiform())*2 + g*.5
+regress y x1 x2 [aw=w]
+margins, at(x1=0) at(x1=1)
+margins, at(x1=1) at(x1=generate(x1-1))
+margins, at(x1=generate(x1+1)) at(x1=generate(x1-1))
+regress y x1 x2
+foreach e in "x1+" "nosuch" "x1*" "s" "x1 x2" "" "ln(x1)" {
+capture noisily margins, at(x2=generate(`e'))
+display _rc
+}
+margins, at(x2=generate((x1+1)) x1=2) at(x1=0) at(x2=(1 2))
+margins, at(x1=0) at(x1=1) at((mean) _all)
+margins, dydx(x1) at(x1=0) at(x1=1)
+margins, at(x1=0) at(x1=1) at(x2=generate(x2*2) x1=3) vsquish noatlegend
+regress y c.x1##i.g x2
+margins g, at(x1=0) at(x1=1)
+margins, at(x1=(0 1)) at(x2=0) atmeans
+=== recheck2-linear-dydx-atmeans
+clear
+set obs 300
+set seed 2026
+generate g = 1+floor(runiform()*6)
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate fw = 1+floor(runiform()*4)
+generate w = 0.5+runiform()*2
+generate d = runiform()<.4
+generate y = 1 + 2*x1 - x2 + invnormal(runiform())*2 + g*.5
+generate yb = y > 5
+regress y c.x1##i.g x2 [fw=fw]
+margins, dydx(x1) atmeans
+margins, dydx(*) atmeans
+margins, dydx(x1 x2) atmeans at(x2=1)
+regress y c.x1##i.d c.x2##i.g
+margins, dydx(*) atmeans
+margins, dydx(x1) atmeans at(x1=(0 1))
+logit yb c.x1##i.d i.g
+margins, dydx(x1) atmeans
+regress y c.x1##c.x2##i.d
+margins, dydx(x1) atmeans
+regress y c.x1##i.g x2 [aw=w]
+margins g, dydx(x1) atmeans
+margins, dydx(x1) atmeans at(g=2)
+=== recheck2-linear-predict-robust
+clear
+set obs 300
+set seed 2026
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate cl = 1+floor(runiform()*15)
+generate w = 0.5+runiform()*2
+generate fw = 1+floor(runiform()*4)
+generate y = 1 + 2*x1 - x2 + invnormal(runiform())*2
+local stats leverage hat cooksd rstudent rstandard stdf stdr dfits welsch
+local stats `stats' covratio dfbeta(x1)
+local fits `"", vce(robust)" ", vce(hc2)" ", vce(hc3)" "[pw=w]""'
+local fits `"`fits' ", vce(cluster cl)" "[aw=w], vce(hc2)""'
+local fits `"`fits' "[fw=fw], vce(robust)" ", hc2""'
+foreach f of local fits {
+quietly regress y x1 x2 `f'
+foreach s of local stats {
+capture noisily predict zz, `s'
+display "`s' " _rc
+capture drop zz
+}
+}
+quietly regress y x1 x2 [fw=fw]
+predict lev, leverage
+summarize lev
+=== recheck2-linear-ivregress-options
+clear
+set obs 300
+set seed 2026
+generate cl = 1+floor(runiform()*15)
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate z1 = invnormal(runiform())
+generate z2 = invnormal(runiform())
+generate w = 0.5+runiform()*2
+generate en = x1 + z1*.8 + z2*.5 + invnormal(runiform())
+generate y = 1 + 2*x1 - x2 + en + invnormal(runiform())*2
+capture noisily ivregress 2sls y (en = z1 z2), wmatrix(robust)
+display _rc
+capture noisily ivregress 2sls y (en = z1 z2), wmatrix(unadjusted)
+display _rc
+capture noisily ivregress liml y (en = z1 z2), wmatrix(unadjusted)
+display _rc
+capture noisily ivregress liml y (en = z1 z2), wmatrix(cluster cl)
+display _rc
+capture noisily ivregress 2sls y (en = z1 z2), igmm
+display _rc
+capture noisily ivregress liml y (en = z1 z2), igmm
+display _rc
+capture noisily ivregress 2sls y (en = z1 z2), center
+display _rc
+capture noisily ivregress liml y (en = z1 z2), center
+display _rc
+capture noisily ivregress 2sls y (en = z1 z2) x1, vce(cluster)
+display _rc
+ivregress 2sls y x2 (en = z1 z2), noheader
+ivregress 2sls y x2 (en = z1 z2), coeflegend
+ivregress 2sls y x2 (en = z1 z2) [aw=w], vce(robust) noheader
+ivregress gmm y x2 (en = z1 z2), coeflegend
+ivregress 2sls y x2 (en = z1 z2), noheader coeflegend
+ivregress gmm y x2 (en = z1 z2), center
+display e(moments)
+ivregress gmm y x2 (en = z1 z2), wmatrix(unadjusted) center
+ivregress gmm y x2 (en = z1 z2), igmm
+display e(iterations)
+quietly regress y x1 x2
+nlcom _b[x1]^2, noheader
+nlcom (a: _b[x1]^2) (b: _b[x2]/_b[x1]), noheader
+=== recheck2-linear-iv-diagnostics
+clear
+set obs 300
+set seed 2026
+generate g = 1+floor(runiform()*6)
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate x3 = runiform()*10
+generate z1 = invnormal(runiform())
+generate z2 = invnormal(runiform())
+generate w = 0.5+runiform()*2
+generate fw = 1+floor(runiform()*4)
+generate en = x1 + z1*.8 + z2*.5 + invnormal(runiform())
+generate y = 1 + 2*x1 - x2 + .3*x3 + en + invnormal(runiform())*2 + g*.5
+quietly ivregress 2sls y x2 (en = z1 z2)
+estat firststage, all
+quietly ivregress 2sls y x2 (en = z1 z2), vce(robust)
+estat firststage, all forcenonrobust
+estat endog
+estat overid
+quietly ivregress 2sls y x3 (en x1 = z1 z2 x2)
+estat firststage
+estat firststage, all
+estat endog en
+estat endog
+quietly ivregress 2sls y x3 (en x1 = z1 z2 x2), vce(robust)
+estat firststage, all
+capture noisily estat endog en
+estat endog en, forcenonrobust
+estat endog
+estat overid
+quietly ivregress 2sls y x2 (en = z1 z2) [aw=w]
+estat firststage, all
+capture noisily estat endog
+display _rc
+estat endog, forceweights
+capture noisily estat overid
+estat overid, forceweights
+quietly ivregress 2sls y x2 (en = z1 z2) [fw=fw]
+estat firststage, all
+estat endog
+estat overid
+quietly ivregress 2sls y x2 (en = z1 z2) [pw=w]
+estat firststage
+capture noisily estat endog
+estat endog, forceweights
+estat overid, forceweights
+quietly ivregress 2sls y x2 (en = z1 z2) [iw=w]
+capture noisily estat overid
+estat firststage
+estat endog, forceweights
+estat overid, forceweights
+quietly ivregress 2sls y x3 (en x1 = z1 z2 x2) [aw=w]
+estat firststage, all
+estat endog x1, forceweights
+estat overid, forceweights
+quietly ivregress 2sls y x3 (en x1 = z1 z2 x2) [pw=w]
+estat firststage, all
+estat endog, forceweights
+estat overid, forceweights
+quietly ivregress 2sls y (en x1 x3 = z1 z2 x2 g)
+estat firststage, all
+estat endog x3 en
+quietly ivregress 2sls y (en x1 x3 = z1 z2 x2 g), vce(robust)
+estat firststage, forcenonrobust
+estat endog
+estat overid
+=== recheck2-linear-ereturn-all
+clear
+set obs 300
+set seed 2026
+generate g = 1+floor(runiform()*6)
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate y = 1 + 2*x1 - x2 + invnormal(runiform())*2 + g*.5
+regress y x1 x2
+ereturn list, all
+quietly regress y x1 i.g
+quietly margins g
+estimates store m1
+quietly regress y x1
+estimates restore m1
+ereturn list, all
+capture noisily ereturn list, junk
+display _rc
+=== recheck2-linear-matrix-list
+clear
+set obs 300
+set seed 2026
+generate g = 1+floor(runiform()*6)
+generate x1 = invnormal(runiform())
+generate y = 1 + 2*x1 + invnormal(runiform())*2 + g*.5
+quietly regress y i.g x1, beta
+matrix list e(beta)
+matrix list e(b)
+matrix A = (1.123456789, 2.123456789, 3.123456789, 4.123456789)
+matrix A = A, (5.123456789, 6.123456789, 7.123456789)
+matrix rownames A = longrowname
+set linesize 80
+matrix list A
+set linesize 89
+matrix list A
+set linesize 90
+matrix list A
+set linesize 200

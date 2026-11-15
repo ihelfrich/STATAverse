@@ -240,15 +240,18 @@ function evaluateAt(session, model, expression) {
   });
   return { value: at, gradient };
 }
-const sandwich = (G, V) =>
-  G.map((a) =>
-    G.map((b) =>
-      a.reduce(
-        (t, ai, i) => t + ai * b.reduce((u, bj, j) => u + V[i][j] * bj, 0),
+// G V G', computed once for each pair so that it is exactly symmetric.
+const sandwich = (G, V) => {
+  const out = G.map(() => new Array(G.length).fill(0));
+  G.forEach((a, r) => {
+    for (let c = 0; c <= r; c++)
+      out[r][c] = out[c][r] = a.reduce(
+        (t, ai, i) => t + ai * G[c].reduce((u, bj, j) => u + V[i][j] * bj, 0),
         0,
-      ),
-    ),
-  );
+      );
+  });
+  return out;
+};
 /** "(a) (b)" or a single expression, as a list. */
 function expressions(head) {
   const text = head.trim();
@@ -271,10 +274,11 @@ function expressions(head) {
 function nlcom(session, text, ctx) {
   const model = estimates(session),
     [head, optionText] = splitAtComma(text),
-    level = session.parse(
-      "[, Level(cilevel) | POST ITERate(integer 100)]",
+    options = session.parse(
+      "[, Level(cilevel) noHEader | POST ITERate(integer 100)]",
       optionText === null ? "" : "," + optionText,
-    ).options.level,
+    ).options,
+    level = options.level,
     items = expressions(head).map((item, k) => {
       const m = /^\s*([A-Za-z_]\w*)\s*:\s*([\s\S]+)$/.exec(item);
       return m
@@ -288,9 +292,12 @@ function nlcom(session, text, ctx) {
     ),
     critical = invnormal(1 - (1 - level / 100) / 2);
   ctx.out("");
-  for (const item of items)
-    ctx.out(`${item.name.padStart(12)}: ${item.expression}`);
-  ctx.out("");
+  // noheader leaves out the lines that name each expression.
+  if (options.header !== false) {
+    for (const item of items)
+      ctx.out(`${item.name.padStart(12)}: ${item.expression}`);
+    ctx.out("");
+  }
   ctx.out(RULE);
   ctx.out(
     `${(/\s/.test(model.depvar) ? "" : model.depvar).padStart(12)} | Coefficient  Std. err.      z    P>|z|     [${g(level)}% conf. interval]`,
@@ -306,11 +313,35 @@ function nlcom(session, text, ctx) {
   });
   ctx.out(RULE);
   ctx.out("");
+  // nlcom leaves r(b), r(V) and r(table), its rows named c1 as Stata
+  // names them, and the table's z statistics with no degrees of freedom.
+  const names = items.map((item) => item.name),
+    b = results.map((r) => r.value),
+    columns = b.map((value, k) => {
+      const se = Math.sqrt(V[k][k]),
+        z = value / se;
+      return [
+        value,
+        se,
+        z,
+        2 * normal(-Math.abs(z)),
+        value - critical * se,
+        value + critical * se,
+        MISSING,
+        critical,
+        0,
+      ];
+    });
   session.results.r = {
     level,
     N: model.N,
-    estimate: results[0].value,
-    se: Math.sqrt(V[0][0]),
+    "matrix:table": {
+      rowNames: ["b", "se", "z", "pvalue", "ll", "ul", "df", "crit", "eform"],
+      colNames: names,
+      values: Array.from({ length: 9 }, (_, r) => columns.map((c) => c[r])),
+    },
+    "matrix:b": { rowNames: ["c1"], colNames: names, values: [b] },
+    "matrix:V": { rowNames: names, colNames: names, values: V },
   };
 }
 

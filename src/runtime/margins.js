@@ -11,7 +11,8 @@ import { abbreviate, estimates, quadratic } from "./estimation.js";
 import { parseNumlist } from "./numlist.js";
 import { draw, titleOf } from "./graphics.js";
 import { count, labelled } from "./reports.js";
-import { MISSING, isMissing } from "./values.js";
+import { MISSING, isMissing, isStringType } from "./values.js";
+import { evaluateAll } from "./expression.js";
 import { outcomeMargins } from "./outcome-margins.js";
 import { zColumn } from "./models.js";
 import { contrastTables, distribution } from "./contrast.js";
@@ -197,6 +198,11 @@ export function marginTermsOf(session, text, factors) {
     const found = session.varlist(word.replace(/^i\./, ""));
     if (found.length !== 1)
       throw new StataError(`${word}: one factor variable is needed here`, 198);
+    if (isStringType(session.data.get(found[0]).type))
+      throw new StataError(
+        `${found[0]}:  string variables may not be used as factor variables`,
+        109,
+      );
     if (!factors.has(found[0]))
       throw new StataError(
         `factor ${found[0]} not found in list of covariates`,
@@ -506,6 +512,45 @@ function margins(session, text, ctx) {
       "e(sample) does not identify the estimation sample",
       322,
     );
+  // at() may be given more than once, each a setting (or a set of them)
+  // of its own: they are read in turn and their settings listed in order.
+  const atTexts = [];
+  {
+    const [head, tail] = splitAtComma(text);
+    if (tail !== null) {
+      let rest = "",
+        k = 0;
+      const found = [];
+      while (k < tail.length) {
+        const m = /(^|[\s,])at\s*\(/.exec(tail.slice(k));
+        if (!m) break;
+        const start = k + m.index + m[1].length,
+          open = k + m.index + m[0].length - 1;
+        let depth = 0,
+          end = -1;
+        for (let c = open; c < tail.length; c++) {
+          if (tail[c] === "(") depth++;
+          else if (tail[c] === ")" && --depth === 0) {
+            end = c;
+            break;
+          }
+        }
+        if (end < 0) break;
+        found.push([start, end, tail.slice(open + 1, end)]);
+        k = end + 1;
+      }
+      if (found.length > 1) {
+        let last = 0;
+        for (const [start, end, inner] of found) {
+          rest += tail.slice(last, start);
+          last = end + 1;
+          atTexts.push(inner);
+        }
+        rest += tail.slice(last);
+        text = `${head}, ${rest} at(${atTexts[0]})`;
+      }
+    }
+  }
   const [mean, slope, curve] = link,
     parsed = session.parse(
       "[anything] [if] [in] [, DYdx(string) AT(string) ATMeans OVER(varlist) Level(cilevel) VSQuish noATLegend | noSE POST EYex(string) DYex(string) EYdx(string) PWcompare CONTrast VCE(string) PRedict(string) EXPression(string)]",
@@ -556,11 +601,6 @@ function margins(session, text, ctx) {
       [...new Set(rows.map((i) => factors.get(name).data[i]))].sort(
         (a, b) => a - b,
       ),
-    interacted = new Set(
-      model.columns
-        .filter((c) => (c.term.components?.length ?? 1) > 1)
-        .flatMap((c) => c.term.variables.map((v) => v.name)),
-    ),
     columnMeans = model.names.map((name, j) =>
       name === "_cons"
         ? 1
@@ -588,12 +628,13 @@ function margins(session, text, ctx) {
   const getter = (i, fixed) => (variable) => {
     const value = fixed.get(variable.name);
     if (value === undefined) return variable.data[i];
+    if (value.generate) return value.generate[i];
     return Math.fround(
       value === "mean" ? variableMeans.get(variable.name) : value,
     );
   };
-  // The share of the sample at a level of a factor, in float as Stata
-  // holds a mean.
+  // The weighted share of the sample at a level of a factor, in float as
+  // Stata holds a mean.
   const shares = new Map(),
     shareOf = (variable, level) => {
       const key = `${variable.name} ${level}`;
@@ -601,7 +642,11 @@ function margins(session, text, ctx) {
         shares.set(
           key,
           Math.fround(
-            rows.filter((i) => variable.data[i] === level).length / n,
+            rows.reduce(
+              (t, i) =>
+                variable.data[i] === level ? t + weightOf(position.get(i)) : t,
+              0,
+            ) / total,
           ),
         );
       return shares.get(key);
@@ -638,9 +683,39 @@ function margins(session, text, ctx) {
   // Derivative of each column with respect to one continuous variable.
   const slopeRow = (i, fixed, variable) => {
     const get = getter(i, fixed);
-    return model.names.map((name, j) =>
-      name === "_cons" ? 0 : model.columns[j].partial(get, variable),
-    );
+    return model.names.map((name, j) => {
+      if (name === "_cons") return 0;
+      const column = model.columns[j],
+        parts = column.term.components ?? [];
+      // In an interaction with a factor held at its means, the factor
+      // enters as its share at the level, as in row() above.
+      if (
+        parts.length > 1 &&
+        parts.some((p) => p.factor && fixed.get(p.variable.name) === "mean")
+      ) {
+        let share = 1,
+          k = 0;
+        const continuous = [];
+        for (const part of parts)
+          if (part.factor) {
+            const level = column.levels[k++];
+            share *=
+              fixed.get(part.variable.name) === "mean"
+                ? shareOf(part.variable, level)
+                : Number(get(part.variable) === level);
+          } else continuous.push(part);
+        let total = 0;
+        continuous.forEach((c, at) => {
+          if (c.variable !== variable) return;
+          total += continuous.reduce(
+            (t, other, m) => (m === at ? t : t * get(other.variable)),
+            1,
+          );
+        });
+        return share * total;
+      }
+      return column.partial(get, variable);
+    });
   };
   const xb = (r) => r.reduce((t, v, j) => t + v * model.b[j], 0);
   // Average of a function of each row, with its gradient in b.
@@ -846,33 +921,20 @@ function margins(session, text, ctx) {
   // at(): each variable takes one value or a list; sets are their product.
   const base = new Map();
   if (options.atmeans) {
-    // Effects are not yet taken with a factor in an interaction held at
-    // its means.
-    if (
-      options.dydx &&
-      covariates.some(
-        (name) =>
-          factors.has(name) &&
-          interacted.has(name) &&
-          !(
-            marginTerms.length &&
-            marginTerms.every((term) => term.includes(name))
-          ),
-      )
-    )
-      throw new StataError(
-        "margins, dydx() atmeans is not available yet when a factor variable is in an interaction",
-        322,
-      );
     for (const name of covariates) base.set(name, "mean");
   }
   let sets = [new Map(base)];
   // The at() variables as typed, which is the order marginsplot takes them
   // in; the settings are numbered with the variables in the model's order
   // instead, the last varying fastest, whatever order at() names them in.
-  const atNames = [];
-  if (options.at) {
+  const atNames = [],
+    atList = atTexts.length ? atTexts : options.at ? [options.at] : [],
+    allSets = [];
+  for (const atText of atList) {
     const entries = [],
+      named = (name) => {
+        if (!atNames.includes(name)) atNames.push(name);
+      },
       notCovariate = (word) =>
         new StataError(
           `invalid at() option;\nvariable ${word} not found in list of covariates`,
@@ -892,7 +954,7 @@ function margins(session, text, ctx) {
     // a name alone, which takes the statistic in force, the mean unless
     // one was given. A word that fits none is read as a name: at(x = 1 2)
     // finds no variable 2.
-    let rest = options.at.trim(),
+    let rest = atText.trim(),
       m;
     while (rest) {
       if ((m = /^\(\s*([^()]*?)\s*\)\s*/.exec(rest))) {
@@ -911,6 +973,64 @@ function margins(session, text, ctx) {
       } else if ((m = /^([A-Za-z_][\w*?~-]*)\s*=\s*/.exec(rest))) {
         const name = covariate(m[1]);
         rest = rest.slice(m[0].length);
+        // generate(exp) sets the variable to an expression's value in each
+        // observation, as at(x = generate(x + 1)) asks.
+        const made = /^gen(e(r(a(te?)?)?)?)?\s*\(/.exec(rest);
+        if (made) {
+          let depth = 0,
+            end = -1;
+          for (let c = made[0].length - 1; c < rest.length; c++) {
+            if (rest[c] === "(") depth++;
+            else if (rest[c] === ")" && --depth === 0) {
+              end = c;
+              break;
+            }
+          }
+          if (end < 0) throw new StataError("invalid at() option", 198);
+          const text = rest.slice(made[0].length, end).trim();
+          if (factors.has(name))
+            throw new StataError(
+              "invalid at() option;\ninvalid at() specification;\nsuboption generate() not allowed with factor variables",
+              198,
+            );
+          // Stata reads the expression with its blanks taken out: one that
+          // is not an expression is an invalid name, or a variable not
+          // found when it looks like one.
+          if (!text) throw new StataError("invalid syntax", 198);
+          let compiled;
+          try {
+            compiled = session.compile(text);
+          } catch (error) {
+            if (!(error instanceof StataError) || error.code === 109)
+              throw error;
+            const joined = text.replace(/\s+/g, "");
+            throw /^[A-Za-z_]\w*$/.test(joined)
+              ? new StataError(`${joined} not found`, 111)
+              : new StataError(`${text} invalid name`, 198);
+          }
+          if (compiled.type !== "numeric")
+            throw new StataError("type mismatch", 109);
+          const generated = evaluateAll(compiled, session.data.n);
+          if (rows.some((i) => isMissing(generated[i]))) {
+            // Stata's second sentence wraps at the line size.
+            const width = session.settings?.linesize ?? 79,
+              lines = [""];
+            for (const word of "missing values within the estimation sample are not allowed to result from generate() within the at() option".split(
+              " ",
+            ))
+              if (lines.at(-1) && `${lines.at(-1)} ${word}`.length > width)
+                lines.push(word);
+              else lines[lines.length - 1] += lines.at(-1) ? ` ${word}` : word;
+            throw new StataError(
+              `detected missing values in at(${m[1]}=generate((${text})));\n${lines.join("\n")}`,
+              459,
+            );
+          }
+          entries.push([name, [{ generate: generated, text }]]);
+          named(name);
+          rest = rest.slice(end + 1).trimStart();
+          continue;
+        }
         const value = /^(\((?:[^()]|\([^()]*\))*\)|[^\s()]+)\s*/.exec(rest);
         if (!value)
           throw new StataError(
@@ -918,7 +1038,7 @@ function margins(session, text, ctx) {
             7,
           );
         entries.push([name, parseNumlist(value[1].replace(/^\(|\)$/g, ""))]);
-        atNames.push(name);
+        named(name);
         m = value;
       } else {
         m = /^[^\s()=]+\s*/.exec(rest) ?? [rest];
@@ -938,12 +1058,13 @@ function margins(session, text, ctx) {
         for (const name of names) {
           if (entries.some(([seen]) => seen === name)) continue;
           entries.push([name, ["mean"]]);
-          atNames.push(name);
+          named(name);
         }
       }
       rest = rest.slice(m[0].length);
     }
-    if (!atNames.length) throw new StataError("invalid at() option", 198);
+    if (!entries.length) throw new StataError("invalid at() option", 198);
+    let own = [new Map(base)];
     entries
       .map((entry, j) => [entry, j])
       .sort(
@@ -951,11 +1072,13 @@ function margins(session, text, ctx) {
           covariates.indexOf(a[0]) - covariates.indexOf(b[0]) || i - j,
       )
       .forEach(([[name, values]]) => {
-        sets = sets.flatMap((set) =>
+        own = own.flatMap((set) =>
           values.map((value) => new Map(set).set(name, value)),
         );
       });
+    allSets.push(...own);
   }
+  if (allSets.length) sets = allSets;
   // over(): the margins within each group the variables define.
   const overNames = [options.over ?? []].flat(),
     overOf = new Map(overNames.map((name) => [name, session.data.get(name)]));
@@ -999,6 +1122,7 @@ function margins(session, text, ctx) {
   // dydx() factor that at() fixes, when another is left free, as Stata 19
   // titles dydx(*) at(age=30 educ=2) with female free.
   const allFixed = (set) => {
+    // A value at() generates counts as fixed, as Stata titles it.
     const free = covariates.filter((name) => !set.has(name));
     return (
       !free.length ||
@@ -1291,18 +1415,21 @@ function margins(session, text, ctx) {
               : model.command === "mixed"
                 ? "Linear prediction, fixed portion"
                 : "Linear prediction",
+    // regress, vce(hc2) and vce(hc3) name their kind of robust variance.
     vce =
-      {
-        ols: "OLS",
-        iid: "IID",
-        robust: model.command === "newey" ? "Newey–West" : "Robust",
-        cluster: "Robust",
-        oim: "OIM",
-        unadjusted: "Unadjusted",
-        conventional: "Conventional",
-        bootstrap: "Bootstrap",
-        jackknife: "Jackknife",
-      }[model.vce] ?? "OLS";
+      model.hcKind && model.vce === "robust"
+        ? `Robust ${model.hcKind.toUpperCase()}`
+        : ({
+            ols: "OLS",
+            iid: "IID",
+            robust: model.command === "newey" ? "Newey–West" : "Robust",
+            cluster: "Robust",
+            oim: "OIM",
+            unadjusted: "Unadjusted",
+            conventional: "Conventional",
+            bootstrap: "Bootstrap",
+            jackknife: "Jackknife",
+          }[model.vce] ?? "OLS");
   // A factor variable held at its means is shown level by level, each level
   // at the share of observations in it, as Stata shows it.
   const meanLevels = (name) =>
@@ -1333,7 +1460,9 @@ function margins(session, text, ctx) {
           value:
             value === "mean"
               ? g(columnMeans[model.names.indexOf(name)])
-              : g(value),
+              : value.generate
+                ? value.text
+                : g(value),
           note: value === "mean" ? " (mean)" : "",
           hidden,
         },
@@ -1533,7 +1662,11 @@ function margins(session, text, ctx) {
   // typed, whose value varies; each combination of the other varying ones
   // and the level of the factor is one line, named "experience=5, male",
   // the level by its value label when it has one, else as female=0.
-  const varies = (name) => new Set(sets.map((set) => set.get(name))).size > 1,
+  // Only a variable given a number in every setting can be an axis; one
+  // held at its mean or generated in some is not (several at() options).
+  const varies = (name) =>
+      sets.every((set) => typeof set.get(name) === "number") &&
+      new Set(sets.map((set) => set.get(name))).size > 1,
     varying = atNames.find(varies),
     bySet = !dydx && varying && values.every((r) => r.set),
     others = atNames.filter((name) => name !== varying && varies(name)),

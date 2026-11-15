@@ -5,6 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Session } from "../src/runtime/session.js";
+import { HIDDEN } from "../src/runtime/estimation.js";
 import { createConsoleSession } from "../src/console-session.js";
 
 const close = (actual, expected, tolerance = 1e-12) =>
@@ -28,32 +29,42 @@ gen y = x + runiform()
 
 test("regress stores e() as Stata's regress does, in its order", () => {
   const { s } = run(`${DATA}quietly regress y x`);
-  assert.deepEqual(Object.keys(s.results.e), [
-    "N",
-    "sum_w",
-    "df_m",
-    "df_r",
-    "F",
-    "r2",
-    "rmse",
-    "mss",
-    "rss",
-    "r2_a",
-    "ll",
-    "ll_0",
-    "rank",
-    "cmdline",
-    "title",
-    "marginsok",
-    "vce",
-    "depvar",
-    "cmd",
-    "properties",
-    "predict",
-    "model",
-    "estat_cmd",
-    "matrix:beta",
+  // The results Stata keeps hidden, which ereturn list, all shows.
+  assert.deepEqual(s.results.e[HIDDEN], [
+    "marginsprop",
+    "_r_z_abs__CL",
+    "_r_z__CL",
   ]);
+  const hidden = s.results.e[HIDDEN];
+  assert.deepEqual(
+    Object.keys(s.results.e).filter((key) => !hidden.includes(key)),
+    [
+      "N",
+      "sum_w",
+      "df_m",
+      "df_r",
+      "F",
+      "r2",
+      "rmse",
+      "mss",
+      "rss",
+      "r2_a",
+      "ll",
+      "ll_0",
+      "rank",
+      "cmdline",
+      "title",
+      "marginsok",
+      "vce",
+      "depvar",
+      "cmd",
+      "properties",
+      "predict",
+      "model",
+      "estat_cmd",
+      "matrix:beta",
+    ],
+  );
   const e = s.results.e;
   close(e.F, 49.75446740124721);
   close(e.r2, 0.5669736125655077);
