@@ -39,6 +39,7 @@ import {
   abbreviate,
   baseLevelsAsked,
   numericVarlist,
+  stripeName,
   test as testT,
   unitConstraint,
 } from "./estimation.js";
@@ -187,6 +188,28 @@ function zTable(session, model, level, transform, named = true) {
   lines.push(rule);
   if (transform && model.constant) lines.push(transform[2]);
   return lines;
+}
+
+/**
+ * The coefficient table that coeflegend asks for: each coefficient beside
+ * the name that refers to it, _b[name], omitted ones included.
+ */
+function legendTable(session, model) {
+  const w = tableWidth(session, model, []),
+    rule = "-".repeat(66 + w),
+    stripe = coefficientSpace(model).entries.map(stripeName);
+  return [
+    rule,
+    `${abbreviate(model.depvar, w).padStart(w)} | Coefficient  Legend`,
+    `${"-".repeat(w + 1)}+${"-".repeat(64)}`,
+    ...termRows(
+      session,
+      { ...model, estimable: model.names.map(() => true) },
+      (k) => `${g(model.b[k]).padStart(11)}  _b[${stripe[k]}]`,
+      w,
+    ),
+    rule,
+  ];
 }
 
 /**
@@ -1239,7 +1262,12 @@ export function ivregress(session, text, ctx) {
       vceAsked,
     )
   )
-    throw new StataError("option vce() incorrectly specified", 198);
+    throw new StataError(
+      /^cl(u(s(t(er?)?)?)?)?$/.test(vceAsked)
+        ? "'' found where varname expected\noption vce() incorrectly specified"
+        : "option vce() incorrectly specified",
+      198,
+    );
   const wmatrixAsked = /(?:^|[\s,])wmat(r(ix?)?)?\s*\(([^()]*)\)/
     .exec(m[7])?.[3]
     ?.trim();
@@ -1253,7 +1281,7 @@ export function ivregress(session, text, ctx) {
   const [head, tail] = splitAtComma(m[7]),
     estimator = m[1],
     parsed = session.parse(
-      "[if] [in] [aweight fweight pweight iweight] [, Robust VCE(string) CLuster(string) Level(cilevel) First WMATrix(string) BASElevels ALLBASElevels | noCONStant SMALL Igmm]",
+      "[if] [in] [aweight fweight pweight iweight] [, Robust VCE(string) CLuster(string) Level(cilevel) First WMATrix(string) BASElevels ALLBASElevels noHEader COEFLegend CENTER Igmm | noCONStant SMALL]",
       `${head} ${weightClause}${tail == null ? "" : `,${tail}`}`,
     ),
     wtype = parsed.weight?.type ?? null,
@@ -1266,7 +1294,30 @@ export function ivregress(session, text, ctx) {
       instruments: m[5].trim(),
     },
     weighting = (parsed.options.wmatrix ?? "robust").trim(),
-    asked = readVce(session, parsed.options, /^un(adjusted)?$/),
+    asked = (() => {
+      // The weight matrix and GMM's own options belong to GMM, as Stata
+      // says before it reads anything else.
+      const options = parsed.options;
+      if (estimator === "2sls" && options.wmatrix !== undefined)
+        throw new StataError(
+          "cannot specify option wmatrix() with 2SLS estimator",
+          198,
+        );
+      if (estimator === "liml" && options.wmatrix !== undefined)
+        throw new StataError(
+          `option wmatrix(${options.wmatrix.trim()}) not allowed`,
+          198,
+        );
+      for (const option of ["igmm", "center"])
+        if (options[option] && estimator !== "gmm")
+          throw new StataError(
+            estimator === "2sls"
+              ? `may only specify option ${option} with GMM estimator`
+              : `option ${option} not allowed`,
+            198,
+          );
+      return readVce(session, parsed.options, /^un(adjusted)?$/);
+    })(),
     cluster = asked.cluster,
     robust =
       asked.robust ||
@@ -1478,30 +1529,86 @@ export function ivregress(session, text, ctx) {
     b = solve(inverse, rhs);
     kClass = { kappa, inverse, MX };
   } else if (estimator === "gmm") {
-    const first = residualsOf(twoStage),
-      rss1 = first.reduce((t, e) => t + e * e, 0),
+    const robustWeights = /^r/.test(weighting),
+      // center takes each moment's mean out of the robust weight matrix.
+      centered = !!parsed.options.center && robustWeights,
       zx = cross(Z, X),
       zy = Z[0].map((_, a) => Z.reduce((t, row, i) => t + row[a] * y[i], 0)),
-      momentCovariance = (e) =>
-        Z[0].map((_, a) =>
+      momentCovariance = (e) => {
+        if (!centered)
+          return Z[0].map((_, a) =>
+            Z[0].map(
+              (_, c) =>
+                Z.reduce((t, row, i) => t + e[i] * e[i] * row[a] * row[c], 0) /
+                n,
+            ),
+          );
+        const means = Z[0].map(
+          (_, a) => Z.reduce((t, row, i) => t + row[a] * e[i], 0) / n,
+        );
+        return Z[0].map((_, a) =>
           Z[0].map(
             (_, c) =>
-              Z.reduce((t, row, i) => t + e[i] * e[i] * row[a] * row[c], 0) / n,
+              Z.reduce(
+                (t, row, i) =>
+                  t + (row[a] * e[i] - means[a]) * (row[c] * e[i] - means[c]),
+                0,
+              ) / n,
           ),
-        ),
-      S = /^r/.test(weighting)
-        ? momentCovariance(first)
-        : cross(Z, Z).map((row) => row.map((v) => (v * rss1) / n / n)),
-      W = invertSymmetric(S);
-    if (!W) throw new StataError("the weight matrix is singular", 506);
-    const xzW = multiply(
-        zx[0].map((_, a) => zx.map((row) => row[a])),
-        W,
-      ),
-      A = invertSymmetric(multiply(xzW, zx));
-    if (!A) throw new StataError("the model is not identified", 481);
-    b = solve(A, solve(xzW, zy));
-    gmm = { W, A, xzW, momentCovariance };
+        );
+      },
+      weightFrom = (e) => {
+        const rss1 = e.reduce((t, v) => t + v * v, 0),
+          S = robustWeights
+            ? momentCovariance(e)
+            : cross(Z, Z).map((row) => row.map((v) => (v * rss1) / n / n)),
+          W = invertSymmetric(S);
+        if (!W) throw new StataError("the weight matrix is singular", 506);
+        const xzW = multiply(
+            zx[0].map((_, a) => zx.map((row) => row[a])),
+            W,
+          ),
+          A = invertSymmetric(multiply(xzW, zx));
+        if (!A) throw new StataError("the model is not identified", 481);
+        return { W, A, xzW, b: solve(A, solve(xzW, zy)) };
+      };
+    let step = weightFrom(residualsOf(twoStage)),
+      iterations = 1;
+    // igmm iterates until neither the coefficients nor the weight matrix
+    // change by more than 1e-6 (Stata's mreldif), logging each step.
+    if (parsed.options.igmm) {
+      const change = (now, before) =>
+        now
+          .flat()
+          .reduce(
+            (most, v, k) =>
+              Math.max(
+                most,
+                Math.abs(v - before.flat()[k]) /
+                  (Math.abs(before.flat()[k]) + 1),
+              ),
+            0,
+          );
+      for (iterations = 1; iterations <= 16000; iterations++) {
+        const next = weightFrom(residualsOf(step.b)),
+          db = change(next.b, step.b),
+          dW = change(next.W, step.W);
+        ctx.out(
+          `Iteration ${iterations}: Change in beta = ${applyFormat(db, "%10.3e")}   change in W = ${applyFormat(dW, "%10.3e")}`,
+        );
+        step = next;
+        if (db < 1e-6 && dW < 1e-6) break;
+      }
+    }
+    b = step.b;
+    gmm = {
+      W: step.W,
+      A: step.A,
+      xzW: step.xzW,
+      momentCovariance,
+      centered,
+      iterations,
+    };
   }
   const residuals = residualsOf(b),
     rss = residuals.reduce((t, e, i) => t + weightAt(i) * e * e, 0),
@@ -1678,6 +1785,10 @@ export function ivregress(session, text, ctx) {
       marginsprop: "nolinearize",
       insts: [...exogNames, ...instNames].join(" "),
       instd: endogenous.join(" "),
+      idtype:
+        instruments.length > endogenous.length
+          ? "overidentified"
+          : "justidentified",
     },
     afterEstimator = typed.replace(/^\s*\S+/, "");
   session.results.e = {
@@ -1695,7 +1806,7 @@ export function ivregress(session, text, ctx) {
     ...(model.deficient ? { p: MISSING } : {}),
     ...(estimator === "2sls" ? {} : { df_r: MISSING }),
     k_endog: endogenous.length,
-    iterations: gmm ? 1 : 0,
+    iterations: gmm ? gmm.iterations : 0,
     ...(cluster ? { N_clust: clusters } : {}),
     rank: model.rank,
     // Under version 17, ivregress 2sls runs ivregress_18, which keeps
@@ -1721,6 +1832,7 @@ export function ivregress(session, text, ctx) {
     exog: [...exogNames, ...instNames].join(" "),
     endog: endogenous.join(" "),
     title: model.title,
+    ...(gmm?.centered ? { moments: "centered" } : {}),
     properties: "b V",
     ...(conventional
       ? {
@@ -1748,7 +1860,9 @@ export function ivregress(session, text, ctx) {
       );
     firstStage(session, model.iv, parsed, ctx);
   }
-  ctx.out("");
+  // noheader leaves out the header and the blank lines about it.
+  const header = parsed.options.header !== false;
+  if (header) ctx.out("");
   const right = [
       ["Number of obs", count(n)],
       [`Wald chi2(${model.df_m})`, applyFormat(chi2, "%9.2f").trim()],
@@ -1775,11 +1889,15 @@ export function ivregress(session, text, ctx) {
           ]
         : []),
     ];
-  for (let k = 0; k < Math.max(left.length, right.length); k++)
-    ctx.out(
-      right[k] ? `${(left[k] ?? "").padEnd(50)}${side(...right[k])}` : left[k],
-    );
-  ctx.out("");
+  if (header) {
+    for (let k = 0; k < Math.max(left.length, right.length); k++)
+      ctx.out(
+        right[k]
+          ? `${(left[k] ?? "").padEnd(50)}${side(...right[k])}`
+          : left[k],
+      );
+    ctx.out("");
+  }
   // The note ends where the table does.
   if (cluster)
     ctx.out(
@@ -1790,7 +1908,10 @@ export function ivregress(session, text, ctx) {
         66 + tableWidth(session, model, []),
       ),
     );
-  zTable(session, model, parsed.options.level, null, false).forEach(ctx.out);
+  (parsed.options.coeflegend
+    ? legendTable(session, model)
+    : zTable(session, model, parsed.options.level, null, false)
+  ).forEach(ctx.out);
   // The lists are a paragraph as wide as the table less two (the line,
   // if narrower), continued twelve columns in.
   const limit =
@@ -2824,6 +2945,17 @@ function estimatesAction(session, text, ctx) {
       // none when the data are not the fit's (read in since).
       marks = data.esampleOf === model ? data.esample : null,
       order = [...data.sortedBy];
+    // The active results learn the name they are stored under, as the
+    // hidden e(_estimates_name) that ereturn list, all shows.
+    const active = session.results.e;
+    if (active && Object.keys(active).length) {
+      delete active._estimates_name;
+      active._estimates_name = name;
+      active[HIDDEN] = [
+        ...(active[HIDDEN] ?? []).filter((key) => key !== "_estimates_name"),
+        "_estimates_name",
+      ];
+    }
     stored.set(name, { model, e: { ...session.results.e }, title });
     // The active results are known by the name they were last stored or
     // restored under, which estimates replay heads them with.

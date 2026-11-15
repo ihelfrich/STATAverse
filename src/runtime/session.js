@@ -713,20 +713,42 @@ const HELD_ORDER = Symbol("held order");
 
 /**
  * e() with its scalars and macros in the order a hold left them: reversed
- * from the fit's order or not, each list on its own. Other keys keep their
- * place after them, the hidden list and the order itself carried over.
+ * from the fit's order or not, each list on its own. The matrices after
+ * e(b) and e(V) go with the macros. areg's own scalars, which come before
+ * those of the regression it runs, stay a run of their own: with the
+ * macros reversed the regression's come first, reversed, and areg's after
+ * them; with the scalars reversed areg's are reversed and the
+ * regression's follow as they were, as recorded from Stata 19. Other keys
+ * keep their place after them, the hidden list and the order itself
+ * carried over.
  */
 function heldOrder(e, s, m) {
-  const keys = e[HELD_ORDER]?.keys ?? Object.keys(e),
+  // Results set since the fit (as e(_estimates_name)) come after its own.
+  const kept = e[HELD_ORDER]?.keys ?? [],
+    keys = [...kept, ...Object.keys(e).filter((key) => !kept.includes(key))],
     numbers = keys.filter((key) => typeof e[key] === "number"),
     strings = keys.filter((key) => typeof e[key] === "string"),
     others = keys.filter(
       (key) => typeof e[key] !== "number" && typeof e[key] !== "string",
     ),
+    split = numbers.includes("k_absorb")
+      ? numbers.indexOf("k_absorb") + 1
+      : numbers.length,
+    own = numbers.slice(0, split),
+    posted = numbers.slice(split),
+    fixed = others.filter((key) => key === "matrix:b" || key === "matrix:V"),
+    rest = others.filter((key) => !fixed.includes(key)),
     order = [
-      ...(s ? numbers.reverse() : numbers),
+      ...(s && m
+        ? [...numbers].reverse()
+        : s
+          ? [...own.reverse(), ...posted]
+          : m
+            ? [...posted.reverse(), ...own]
+            : numbers),
       ...(m ? strings.reverse() : strings),
-      ...others,
+      ...fixed,
+      ...(m ? rest.reverse() : rest),
     ],
     out = Object.fromEntries(
       order.filter((key) => key in e).map((key) => [key, e[key]]),
@@ -1811,6 +1833,7 @@ export class Session {
           // scalars; from the fit's own order a model with factor
           // variables goes straight to reversed scalars. Derivatives of a
           // model without them take two steps.
+          // After ivregress the scalars end reversed, the macros not.
           const factors = !!model?.columns?.some(
               (c) =>
                 c?.term?.components?.some((p) => p.factor) ||
@@ -1821,12 +1844,31 @@ export class Session {
           for (let k = !factors && derivative ? 2 : 1; k > 0; k--)
             state =
               state === "B" ? "C" : state === "C" ? "B" : factors ? "C" : "B";
-          next = state === "B" ? [0, 1] : [1, 0];
-        } else if (name === "estimates" && /^\s*res(t(o(re?)?)?)?\b/.test(body))
-          next = [1, 0];
+          next =
+            model?.command === "ivregress"
+              ? [1, 0]
+              : state === "B"
+                ? [0, 1]
+                : [1, 0];
+        } else if (
+          name === "estimates" &&
+          /^\s*res(t(o(re?)?)?)?\b/.test(body)
+        ) {
+          // Restoring the results already active reverses the scalars of
+          // a fit not yet held and leaves any other order alone; restoring
+          // others steps their order as margins does, the stored copy
+          // with them.
+          if (model === before) next = held.s || held.m ? null : [1, 0];
+          else next = held.s ? [0, 1] : held.m ? [1, 0] : [0, 1];
+        }
         if (next) {
           const reordered = heldOrder(e, ...next);
           this.results.e = reordered;
+          const restored =
+            name === "estimates" &&
+            /^\s*res\w*\s+([A-Za-z_]\w*)/.exec(body)?.[1];
+          if (restored && this.storedEstimates?.get(restored))
+            this.storedEstimates.get(restored).e = { ...reordered };
           if (this.meanTotalResults?.e === e)
             this.meanTotalResults.e = reordered;
         }

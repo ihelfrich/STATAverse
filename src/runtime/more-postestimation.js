@@ -274,10 +274,11 @@ function expressions(head) {
 function nlcom(session, text, ctx) {
   const model = estimates(session),
     [head, optionText] = splitAtComma(text),
-    level = session.parse(
-      "[, Level(cilevel) | POST ITERate(integer 100)]",
+    options = session.parse(
+      "[, Level(cilevel) noHEader | POST ITERate(integer 100)]",
       optionText === null ? "" : "," + optionText,
-    ).options.level,
+    ).options,
+    level = options.level,
     items = expressions(head).map((item, k) => {
       const m = /^\s*([A-Za-z_]\w*)\s*:\s*([\s\S]+)$/.exec(item);
       return m
@@ -291,9 +292,12 @@ function nlcom(session, text, ctx) {
     ),
     critical = invnormal(1 - (1 - level / 100) / 2);
   ctx.out("");
-  for (const item of items)
-    ctx.out(`${item.name.padStart(12)}: ${item.expression}`);
-  ctx.out("");
+  // noheader leaves out the lines that name each expression.
+  if (options.header !== false) {
+    for (const item of items)
+      ctx.out(`${item.name.padStart(12)}: ${item.expression}`);
+    ctx.out("");
+  }
   ctx.out(RULE);
   ctx.out(
     `${(/\s/.test(model.depvar) ? "" : model.depvar).padStart(12)} | Coefficient  Std. err.      z    P>|z|     [${g(level)}% conf. interval]`,

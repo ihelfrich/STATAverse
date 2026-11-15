@@ -862,7 +862,8 @@ function list(session, text, ctx) {
       ) + 2,
     stub = greatest(rows.map((n) => Math.max(n.label.length, n.stub ?? 0))),
     linesize = session.settings?.linesize ?? 80,
-    perPanel = Math.max(1, Math.floor((linesize - stub) / width)),
+    // A panel's lines stay shorter than the line size, as Stata keeps them.
+    perPanel = Math.max(1, Math.floor((linesize - 1 - stub) / width)),
     heads = [
       ...(parts.some((p) => p.equation) ? ["equation"] : []),
       ...(parts.some((p) => p.operator) ? ["operator"] : []),

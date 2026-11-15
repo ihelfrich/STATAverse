@@ -799,7 +799,32 @@ export function fit(session, parsed, by) {
     cluster = clusterMatch
       ? session.data.get(session.varlist(clusterMatch[1])[0])
       : null,
-    hc = /^hc[23]$/.exec(vceText.trim())?.[0] ?? null,
+    // regress's old options hc2 and hc3 ask for those variances, unless
+    // robust, cluster() or, without vce(), sampling weights ask for the
+    // plain robust one. Beside vce(), hc2 wins over hc3 whichever of the
+    // two names it, and e(vce) is the old option's name, as in Stata 19.
+    oldHc =
+      (options.hc2 || options.hc3) &&
+      !options.robust &&
+      !options.cluster &&
+      !(options.vce === undefined && parsed.weight?.type === "pweight")
+        ? options.hc2
+          ? "hc2"
+          : "hc3"
+        : null;
+  if (oldHc && cluster)
+    throw new StataError(
+      `only one of options vce(cluster) or ${oldHc} is allowed`,
+      198,
+    );
+  const typedHc = /^hc[23]$/.exec(vceText.trim())?.[0] ?? null,
+    hc = oldHc
+      ? oldHc === "hc2" || typedHc === "hc2"
+        ? "hc2"
+        : "hc3"
+      : typedHc,
+    // Both old options name both, as Stata's e(vce) does.
+    vceName = oldHc ? (options.hc2 && options.hc3 ? "hc2 hc3" : oldHc) : hc,
     robust =
       !!cluster ||
       !!hc ||
@@ -816,10 +841,12 @@ export function fit(session, parsed, by) {
     );
   let obs = cluster ? sample.filter((i) => !noCluster(cluster, i)) : sample,
     w = null,
+    raw = null,
     sumW;
   const wtype = parsed.weight?.type;
   if (wtype) {
     const all = evaluateAll(session.compile(parsed.weight.exp), session.data.n);
+    raw = all;
     obs = obs.filter((i) => !isMissing(all[i]) && all[i] !== 0);
     // regress leaves out the observations whose frequency, analytic or
     // sampling weight is negative, as it leaves out zero weights; only
@@ -936,13 +963,59 @@ export function fit(session, parsed, by) {
     rank = kept.length + (constant ? 1 : 0),
     dfModel = kept.length,
     dfResidual = n - rank,
-    tss = cross(yc, yc),
+    // The total sum of squares as Stata's regress sums it: in plain double
+    // precision, in order, about the mean summed the same way, so that
+    // e(mss), e(r2) and e(F) agree with Stata's to the last digit.
+    // The mean is taken with the weights as given, each squared deviation
+    // with the weight the fit uses (a frequency weight once per row); with
+    // rescaled (analytic or sampling) weights Stata refines the mean by a
+    // second pass.
+    tss = (() => {
+      const once = wtype === "fweight",
+        rescaled = !!w && !counted && !once,
+        each = (visit) => {
+          for (let k = 0; k < obs.length; k++) {
+            const i = obs[k];
+            if (once) {
+              if (!k || obs[k - 1] !== i) visit(raw[i], raw[i], y[k]);
+            } else
+              visit(
+                raw ? raw[i] : 1,
+                w ? (rescaled ? (raw[i] * obs.length) / sumW : w[k]) : 1,
+                y[k],
+              );
+          }
+        };
+      let centre = 0,
+        weights = 0,
+        total = 0;
+      if (constant) {
+        each((given, _, v) => {
+          centre += given * v;
+          weights += given;
+        });
+        centre /= weights;
+        if (rescaled) {
+          let shift = 0;
+          each((given, _, v) => (shift += given * (v - centre)));
+          centre += shift / weights;
+        }
+      }
+      each((_, used, v) => (total += used * (v - centre) * (v - centre)));
+      return total;
+    })(),
     // With as many parameters as observations, or an outcome the
     // regressors fit exactly, the residual sum of squares is 0, not
     // rounding noise: Stata's sweep treats what is left of y, as of any
     // column, as zero below a relative tolerance.
     noise = cross(residuals, residuals),
-    rss = dfResidual > 0 && noise > 1e-13 * tss ? noise : 0,
+    // The constant alone leaves the total sum of squares.
+    rss =
+      !kept.length && constant
+        ? tss
+        : dfResidual > 0 && noise > 1e-13 * tss
+          ? noise
+          : 0,
     mss = tss - rss;
   // (Z'Z)^-1 for Z = [kept columns, 1], assembled from the centred inverse.
   const size = rank,
@@ -1035,7 +1108,12 @@ export function fit(session, parsed, by) {
       ),
     );
   }
-  const dfTest = cluster ? clusters - 1 : dfResidual;
+  // Importance weights that do not sum to a whole number count the whole
+  // observations below their sum, as Stata's e(N) and e(df_r) do; the
+  // variance, F, root MSE and adjusted R-squared keep the sum itself.
+  const wholeN = counted ? Math.floor(n) : n,
+    wholeDf = counted ? wholeN - rank : dfResidual,
+    dfTest = cluster ? clusters - 1 : wholeDf;
   // A robust variance can have less than full rank, as with fewer clusters
   // than coefficients. Stata then leaves F missing and takes e(rank) and
   // the model degrees of freedom (that rank less the constant) from it. A
@@ -1067,6 +1145,10 @@ export function fit(session, parsed, by) {
   if (dfModel === 0 && dfResidual > 0 && constant && !shortRank) F = 0;
   // An exact fit gives 0/0 or x/0: Stata shows such an F as missing.
   if (!Number.isFinite(F)) F = MISSING;
+  // Analytic weights enter Stata's likelihood as precisions: each
+  // observation adds half the log of its (rescaled) weight.
+  const precision =
+    wtype === "aweight" && w ? 0.5 * w.reduce((t, v) => t + Math.log(v), 0) : 0;
   // Coefficients in the order of the design, with base and omitted columns
   // held at zero, then the constant. Positions go by column, not name: a
   // variable named twice has two columns of one name, one of them omitted.
@@ -1098,7 +1180,7 @@ export function fit(session, parsed, by) {
     columns,
     constant,
     estimable: names.map((_, k) => position.has(k)),
-    N: n,
+    N: wholeN,
     df_m: shortRank ? Math.max(0, vRank - (constant ? 1 : 0)) : dfModel,
     df_r: dfTest,
     rank: vRank,
@@ -1106,24 +1188,24 @@ export function fit(session, parsed, by) {
     rss,
     mss,
     tss,
-    r2: tss ? mss / tss : MISSING,
+    // R-squared is 1 - RSS/TSS, as Stata computes it.
+    r2: tss ? 1 - rss / tss : MISSING,
     // With no residual degrees of freedom (N equal to the parameters) the
     // adjusted R-squared is missing and the root MSE is 0, as in Stata.
     r2_a:
       tss && dfResidual > 0
-        ? 1 - ((1 - mss / tss) * (n - (constant ? 1 : 0))) / dfResidual
+        ? 1 - ((rss / tss) * (wholeN - (constant ? 1 : 0))) / dfResidual
         : MISSING,
     rmse: dfResidual > 0 ? Math.sqrt(rss / dfResidual) : 0,
-    // Analytic weights enter Stata's likelihood as precisions: each
-    // observation adds half the log of its (rescaled) weight.
     ll:
       rss > 0
-        ? -0.5 * n * (Math.log(2 * Math.PI) + Math.log(rss / n) + 1) +
-          (wtype === "aweight" && w
-            ? 0.5 * w.reduce((t, v) => t + Math.log(v), 0)
-            : 0)
+        ? -0.5 * wholeN * (Math.log(2 * Math.PI) + Math.log(rss / wholeN) + 1) +
+          precision
         : MISSING,
+    precision,
     vce: cluster ? "cluster" : robust ? "robust" : "ols",
+    // e(vce) after vce(hc2), vce(hc3) or the old options hc2 and hc3.
+    ...(vceName && !cluster ? { vceName, hcKind: hc } : {}),
     sumW,
     wtype,
     // Each sample row's analytic, sampling or importance weight (rescaled),
@@ -1140,7 +1222,7 @@ export function fit(session, parsed, by) {
     clusters,
     clusterName: cluster?.name,
     sample: obs,
-    dfResidual,
+    dfResidual: wholeDf,
     level: options.level,
   };
 }
@@ -1662,7 +1744,9 @@ export const hooks = { resamplingVce: null };
 function regressFit(session, parsed, ctx) {
   try {
     const options = parsed.options;
-    if (options.hascons && options.constant !== false) {
+    // hascons with noconstant is hascons: when the regressors span no
+    // constant, regress fits one after all.
+    if (options.hascons) {
       // hascons: the regressors hold a constant of their own, so regress
       // adds none, but measures the fit about the mean. When they span no
       // constant Stata says so and fits one after all.
@@ -1678,7 +1762,15 @@ function regressFit(session, parsed, ctx) {
       if (spansConstant(own)) return centred(session, own, true);
       ctx.out("note: option hascons false.");
     }
-    const model = fit(session, { ...parsed, positiveWeights: true }, null);
+    const model = fit(
+      session,
+      {
+        ...parsed,
+        options: options.hascons ? { ...options, constant: true } : options,
+        positiveWeights: true,
+      },
+      null,
+    );
     // tsscons measures a fit without a constant about the mean.
     if (options.tsscons && !model.constant)
       return centred(session, model, false);
@@ -1719,7 +1811,7 @@ function regress(session, text, ctx) {
   )
     return;
   const parsed = session.parse(
-      "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta CLuster(string) BASElevels ALLBASElevels noHEader NOTABle COEFLegend CFORMAT(string) PFORMAT(string) SFORMAT(string) VSQUISH NOOMITted NOEMPTYcells DEPname(string) NOCI NOPValues NOFVLABel FVWRAP(string) FVWRAPON(string) NOLSTRETCH HAScons TSScons MSE1 EForm(string) | ABSorb(varname)]",
+      "anything [if] [in] [aweight fweight pweight iweight] [, noCONStant Robust VCE(string) Level(cilevel) Beta CLuster(string) BASElevels ALLBASElevels noHEader NOTABle COEFLegend CFORMAT(string) PFORMAT(string) SFORMAT(string) VSQUISH NOOMITted NOEMPTYcells DEPname(string) NOCI NOPValues NOFVLABel FVWRAP(string) FVWRAPON(string) NOLSTRETCH HAScons TSScons MSE1 EForm(string) HC2 HC3 | ABSorb(varname)]",
       text,
     ),
     display = regressDisplay(parsed.options, ctx),
@@ -1817,6 +1909,15 @@ function regress(session, text, ctx) {
     left.forEach((line, k) => ctx.out(line.padEnd(48) + side[k]));
     ctx.out("");
   } else if (clusterNote && display.table) ctx.out(clusterNote);
+  // beta has no room beside noci or nopvalues: Stata says so once the
+  // header is shown (coeflegend, which replaces all three, is no conflict).
+  if (display.table && display.beta && !display.legend)
+    for (const option of ["nopvalues", "noci"])
+      if (display[option])
+        throw new StataError(
+          `only one of options beta or ${option} is allowed`,
+          198,
+        );
   if (display.table)
     regressTable(session, model, level, display, noBeta).forEach(ctx.out);
   ctx.out("");
@@ -1973,14 +2074,31 @@ function regressTable(session, model, level, display, noBeta) {
         w,
         fixed,
         display.beta ? "0".padStart(45) : "",
-      ).filter(
-        (line) =>
-          !(display.vsquish && line === gap) &&
-          !(display.noomitted && /\|\s+\S+\s+\(omitted\)/.test(line)) &&
-          !(display.noempty && /\|\s+\S+\s+\(empty\)/.test(line)) &&
-          // The constant Stata keeps at zero after hascons is not shown.
-          !(model.hiddenCons && new RegExp(`^\\s*_cons \\|`).test(line)),
-      );
+      )
+        // noomitted leaves a blank row where an omitted variable stood,
+        // though not two in a row nor one at the end; an omitted level of
+        // a factor (its label is followed by two blanks) leaves nothing.
+        .map((line) =>
+          display.noomitted && /^\s*\S+ \|\s+\S+\s+\(omitted\)/.test(line)
+            ? gap
+            : line,
+        )
+        .filter(
+          (line, j, all) =>
+            !(
+              line === gap &&
+              display.noomitted &&
+              (all[j - 1] === gap || j === all.length - 1 || j === 0)
+            ),
+        )
+        .filter(
+          (line) =>
+            !(display.vsquish && line === gap) &&
+            !(display.noomitted && /\|\s+\S+\s+\(omitted\)/.test(line)) &&
+            !(display.noempty && /\|\s+\S+\s+\(empty\)/.test(line)) &&
+            // The constant Stata keeps at zero after hascons is not shown.
+            !(model.hiddenCons && new RegExp(`^\\s*_cons \\|`).test(line)),
+        );
     return [
       rule,
       ...heads,
@@ -2035,14 +2153,18 @@ function centred(session, model, hascons) {
     tss = compensated(rows.length, (r) => weight(r) * (y[rows[r]] - mean) ** 2),
     n = model.N,
     dfR = model.dfResidual,
-    mss = tss - model.rss;
+    // A fit worse than the mean leaves no model sum of squares and no
+    // R-squared, as Stata's regress shows it.
+    worse = tss - model.rss < 0,
+    mss = worse ? 0 : tss - model.rss;
   Object.assign(model, {
     tss,
     mss,
-    r2: tss ? mss / tss : MISSING,
+    r2: tss && !worse ? mss / tss : MISSING,
     centred: true,
   });
-  model.r2_a = dfR > 0 && tss ? 1 - ((1 - model.r2) * (n - 1)) / dfR : MISSING;
+  model.r2_a =
+    dfR > 0 && tss && !worse ? 1 - ((1 - model.r2) * (n - 1)) / dfR : MISSING;
   if (model.vce === "ols") {
     model.df_m = Math.max(0, model.rank - 1);
     model.F = model.df_m > 0 ? mss / model.df_m / (model.rss / dfR) : 0;
@@ -2089,13 +2211,21 @@ function regressResults(session, model, text, parsed) {
     ...((model.constant || model.hasConstant) &&
     !isMissing(model.ll) &&
     !isMissing(model.r2)
-      ? { ll_0: model.ll + (model.N / 2) * Math.log(1 - model.r2) }
+      ? {
+          // The likelihood of the constant alone, from the total sum of
+          // squares as Stata's regress computes it.
+          ll_0:
+            -0.5 *
+              model.N *
+              (Math.log(2 * Math.PI) + Math.log(model.tss / model.N) + 1) +
+            (model.precision ?? 0),
+        }
       : {}),
     rank: model.rank,
     cmdline: `regress ${text.trim()}`,
     title: "Linear regression",
     marginsok: "XB default",
-    vce: model.vce,
+    vce: model.vceName ?? model.vce,
     depvar: model.depvar,
     cmd: "regress",
     properties: "b V",
@@ -2135,6 +2265,11 @@ function regressResults(session, model, text, parsed) {
           },
         }
       : {}),
+    // What ereturn list, all shows as hidden.
+    marginsprop: "minus",
+    _r_z_abs__CL: "|t|",
+    _r_z__CL: "t",
+    [HIDDEN]: ["marginsprop", "_r_z_abs__CL", "_r_z__CL"],
   };
 }
 
@@ -2263,6 +2398,22 @@ export function predict(session, text, ctx) {
         `option ${extra[0]} is only available after regress`,
         198,
       );
+    // A robust fit has none of these. After vce(hc2) or vce(hc3) Stata's
+    // regress names hat, which leverage, DFITS, Welsch's distance, COVRATIO
+    // and DFBETA all take from it (DFBETA first asks for an unweighted fit).
+    if (model.vce === "robust" || model.vce === "cluster") {
+      if (model.vceName && model.vce === "robust") {
+        if (!(model.wtype && extra[0] === "dfbeta"))
+          throw new StataError(
+            `option ${/^(leverage|hat|dfits|welsch|covratio|dfbeta)$/.test(extra[0]) ? "hat" : extra[0]} not allowed`,
+            198,
+          );
+      } else
+        throw new StataError(
+          `option ${extra[0] === "dfbeta" ? "dfbeta()" : extra[0]} not allowed after robust estimation`,
+          198,
+        );
+    }
     // What a weighted fit cannot give: DFBETAs after any weights, and the
     // statistics of a left-out observation after analytic weights.
     if (model.wtype && extra[0] === "dfbeta")
@@ -2653,6 +2804,8 @@ export function coefficientSpace(model) {
  * display e(instd) shows them, ereturn list does not.
  */
 export const HIDDEN = Symbol.for("stataverse.hidden-results");
+/** Likewise the results Stata keeps only for older versions' sake. */
+export const HISTORICAL = Symbol.for("stataverse.historical-results");
 
 export const stripeName = (entry) => {
   const name = entry.omitted ? omittedName(entry.name) : entry.name;
