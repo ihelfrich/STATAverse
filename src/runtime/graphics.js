@@ -32,14 +32,27 @@ import {
   polynomialFit,
 } from "./smoothers.js";
 
-const WIDTH = 640,
-  HEIGHT = 460,
-  PLOT = { left: 72, right: 24, top: 44, bottom: 64 },
+// The canvas a graph is drawn on. A panel of by() is drawn on a canvas of
+// its own proportions (atSize), so that it fills its place and its text is
+// not shrunk with it.
+let WIDTH = 640,
+  HEIGHT = 460;
+const PLOT = { left: 72, right: 24, top: 44, bottom: 64 },
   COLORS = ["#1a476f", "#90353b", "#55752f", "#e37e00", "#6e8e84", "#c10534"];
 /** The lengths of the plot's axes, in pixels, of a graph with no subtitle,
  * note or caption: the category axis of graph bar and box runs across the
  * width, that of graph hbar down the height. */
 export const CANVAS = { width: WIDTH, height: HEIGHT, colors: COLORS };
+/** What make() draws, drawn on a canvas of the given size. */
+function atSize(width, height, make) {
+  const was = [WIDTH, HEIGHT];
+  [WIDTH, HEIGHT] = [width, height];
+  try {
+    return make();
+  } finally {
+    [WIDTH, HEIGHT] = was;
+  }
+}
 export const PLOT_SPANS = {
   width: WIDTH - PLOT.left - PLOT.right,
   height: HEIGHT - PLOT.top - PLOT.bottom,
@@ -356,6 +369,49 @@ function legendPlaces(x, texts) {
 }
 
 /**
+ * The grid tile() lays graphs out in: its columns and rows, the room its
+ * titles and legend take, and the size of each graph's place.
+ */
+function tileCells(
+  count,
+  {
+    cols,
+    rows,
+    title,
+    subtitle,
+    xTitle,
+    yTitle,
+    note,
+    caption,
+    legend = null,
+    places = null,
+  },
+) {
+  if (!places) {
+    if (!cols && !rows) cols = Math.ceil(Math.sqrt(count));
+    if (!cols) cols = Math.ceil(count / rows);
+    rows = Math.ceil(count / cols);
+  }
+  // by()'s one legend for all the panels, { layers, legend }, in a row
+  // below the axis title.
+  const key = legend ? legendParts(legend.layers, legend.legend, 0, 0) : [],
+    top = (title ? 32 : 0) + (subtitle ? 18 : 0),
+    left = yTitle ? 24 : 0,
+    below = (note ? 18 : 0) + (caption ? 18 : 0) + (key.length ? 20 : 0),
+    bottom = (xTitle ? 22 : 0) + below;
+  return {
+    cols,
+    rows,
+    key,
+    top,
+    left,
+    below,
+    bottom,
+    cellW: (WIDTH - left) / cols,
+    cellH: (HEIGHT - top - bottom) / rows,
+  };
+}
+/**
  * Several drawn graphs on one canvas of the usual size, in a grid of cols
  * columns, with optional overall titles, axis titles, note and caption.
  */
@@ -375,23 +431,27 @@ function tile(
     places = null,
   },
 ) {
-  if (!places) {
-    if (!cols && !rows) cols = Math.ceil(Math.sqrt(svgs.length));
-    if (!cols) cols = Math.ceil(svgs.length / rows);
-    rows = Math.ceil(svgs.length / cols);
-  }
-  // by()'s one legend for all the panels, { layers, legend }, in a row
-  // below the axis title.
-  const key = legend ? legendParts(legend.layers, legend.legend, 0, 0) : [],
-    top = (title ? 32 : 0) + (subtitle ? 18 : 0),
-    left = yTitle ? 24 : 0,
-    below = (note ? 18 : 0) + (caption ? 18 : 0) + (key.length ? 20 : 0),
-    bottom = (xTitle ? 22 : 0) + below,
-    cellW = (WIDTH - left) / cols,
-    cellH = (HEIGHT - top - bottom) / rows,
-    scale = Math.min(cellW / WIDTH, cellH / HEIGHT),
-    w = WIDTH * scale,
-    h = HEIGHT * scale,
+  const {
+      cols: across,
+      top,
+      left,
+      below,
+      bottom,
+      cellW,
+      cellH,
+      key,
+    } = tileCells(svgs.length, {
+      cols,
+      rows,
+      title,
+      subtitle,
+      xTitle,
+      yTitle,
+      note,
+      caption,
+      legend,
+      places,
+    }),
     parts = [
       `<rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="#ffffff"/>`,
     ];
@@ -403,7 +463,16 @@ function tile(
   svgs.forEach((svg, k) => {
     // places, when given, put each in its row and column (by()'s holes()
     // and colfirst); otherwise they fill the rows in turn.
-    const at = places?.[k] ?? { row: Math.floor(k / cols), col: k % cols },
+    // Each is as large as its place allows, in its own proportions.
+    const [, vw = WIDTH, vh = HEIGHT] =
+        /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg)?.map(Number) ?? [],
+      scale = Math.min(cellW / vw, cellH / vh),
+      w = vw * scale,
+      h = vh * scale,
+      at = places?.[k] ?? {
+        row: Math.floor(k / across),
+        col: k % across,
+      },
       x = left + at.col * cellW + (cellW - w) / 2,
       y = top + at.row * cellH + (cellH - h) / 2;
     parts.push(
@@ -715,59 +784,8 @@ function byPanels(
     ownY = o.rescale || o.yrescale,
     layout = byLayout(panels.length, o),
     styles = looks.styles ?? {},
-    overall = by.looks;
-  return tile(
-    panels.map((p, k) => {
-      const own = ownX || ownY ? scaleOf(p.layers) : common,
-        { xRange, xSpan } = ownX ? own : common,
-        { yRange, ySpan } = ownY ? own : common,
-        at = layout.places[k],
-        // As Stata labels the panels: y in the leftmost panel of each row,
-        // x in each panel with none below it (with noedgelabel, only in
-        // the bottom row), and both in every panel with ixaxes and iyaxes
-        // or when that axis is rescaled.
-        axes = {
-          y:
-            !!(o.iyaxes || ownY) ||
-            !layout.places.some((q) => q.row === at.row && q.col < at.col),
-          x:
-            !!(o.ixaxes || ownX) ||
-            (o.noedgelabel
-              ? at.row === layout.bottom
-              : !layout.places.some((q) => q.col === at.col && q.row > at.row)),
-        };
-      return draw({
-        layers: p.layers.length ? p.layers : [{ points: [], label: "" }],
-        xTitle: "",
-        yTitle: "",
-        title: looks.title,
-        // subtitle("") leaves the panels without their names.
-        subtitle: looks.subtitle ?? p.label,
-        note: looks.note,
-        caption: looks.caption,
-        styles: {
-          title: styles.title,
-          subtitle: styles.subtitle,
-          note: styles.note,
-          caption: styles.caption,
-        },
-        xRange,
-        yRange,
-        xSpan,
-        ySpan,
-        axes,
-        xLines: looks.xLines,
-        yLines: looks.yLines,
-        xTicks: looks.xTicks,
-        yTicks: looks.yTicks,
-        legend: looks.legend?.on ? looks.legend : { off: true },
-        allowEmpty: true,
-        // Smaller panels get fewer labels: Stata asks for about four.
-        tickCount: 4,
-        panel: true,
-      });
-    }),
-    {
+    overall = by.looks,
+    tiling = {
       cols: layout.cols,
       rows: layout.rows,
       places: layout.places,
@@ -794,6 +812,74 @@ function byPanels(
             legend: { ...(looks.legend ?? {}), off: false, on: by.legendOn },
           },
     },
+    // Each panel is drawn on a canvas of its place's proportions, at a
+    // size that keeps its text legible, as Stata's by() panels keep it:
+    // its text shrinks far less than the panel does (two panels side by
+    // side, each half the graph's width, keep four fifths of its size).
+    { cellW, cellH } = tileCells(panels.length, tiling),
+    // Many small panels shrink further, so that each still has a plot
+    // inside its margins and titles (about 220 by 230 of the canvas).
+    shrink = Math.min(
+      1,
+      Math.min(cellW / WIDTH, cellH / HEIGHT) ** 0.3,
+      cellW / 220,
+      cellH / 230,
+    ),
+    size = [cellW / shrink, cellH / shrink].map((v) => Number(v.toFixed(2)));
+  return tile(
+    panels.map((p, k) => {
+      const own = ownX || ownY ? scaleOf(p.layers) : common,
+        { xRange, xSpan } = ownX ? own : common,
+        { yRange, ySpan } = ownY ? own : common,
+        at = layout.places[k],
+        // As Stata labels the panels: y in the leftmost panel of each row,
+        // x in each panel with none below it (with noedgelabel, only in
+        // the bottom row), and both in every panel with ixaxes and iyaxes
+        // or when that axis is rescaled.
+        axes = {
+          y:
+            !!(o.iyaxes || ownY) ||
+            !layout.places.some((q) => q.row === at.row && q.col < at.col),
+          x:
+            !!(o.ixaxes || ownX) ||
+            (o.noedgelabel
+              ? at.row === layout.bottom
+              : !layout.places.some((q) => q.col === at.col && q.row > at.row)),
+        };
+      const panel = () =>
+        draw({
+          layers: p.layers.length ? p.layers : [{ points: [], label: "" }],
+          xTitle: "",
+          yTitle: "",
+          title: looks.title,
+          // subtitle("") leaves the panels without their names.
+          subtitle: looks.subtitle ?? p.label,
+          note: looks.note,
+          caption: looks.caption,
+          styles: {
+            title: styles.title,
+            subtitle: styles.subtitle,
+            note: styles.note,
+            caption: styles.caption,
+          },
+          xRange,
+          yRange,
+          xSpan,
+          ySpan,
+          axes,
+          xLines: looks.xLines,
+          yLines: looks.yLines,
+          xTicks: looks.xTicks,
+          yTicks: looks.yTicks,
+          legend: looks.legend?.on ? looks.legend : { off: true },
+          allowEmpty: true,
+          // Smaller panels get fewer labels: Stata asks for about four.
+          tickCount: 4,
+          panel: true,
+        });
+      return atSize(size[0], size[1], panel);
+    }),
+    tiling,
   );
 }
 
@@ -1084,6 +1170,12 @@ export function draw({
       });
   });
   if (title) parts.push(placedText(title, styles.title, "middle", 24, 16));
+  // A panel of by() has its name on a shaded strip across its plot, as
+  // Stata draws it (the scheme's bluish gray).
+  if (subtitle && panel && !styles.subtitle?.position)
+    parts.push(
+      `<rect x="${P.left}" y="${(title ? 42 : 24) - 15}" width="${n(w)}" height="20" fill="#d9e6eb"/>`,
+    );
   if (subtitle)
     parts.push(
       placedText(subtitle, styles.subtitle, "middle", title ? 42 : 24, 13),

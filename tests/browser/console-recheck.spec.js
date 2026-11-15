@@ -52,13 +52,258 @@ test("Stop drops the commands waiting behind the run", async ({ page }) => {
     { timeout: 20000 },
   );
   await stop.click();
-  await expect(page.locator("#console-status")).toContainText("Stopped on line", {
-    timeout: 30000,
-  });
+  await expect(page.locator("#console-status")).toContainText(
+    "Stopped on line",
+    {
+      timeout: 30000,
+    },
+  );
   await page.locator("#console-source").fill("display 6 * 7");
   await page.locator("#console-run").click();
   await expect(page.locator("#console-output")).toContainText("42");
   await expect(page.locator("#console-output")).not.toContainText(
     '. display "after"',
   );
+});
+
+// ----- the console group's findings -----
+
+async function type(page, command) {
+  const line = page.locator("#console-command");
+  await expect(line).toBeEnabled();
+  await line.fill(command);
+  await line.press("Enter");
+  await expect(page.locator("#console-status")).not.toHaveText("Running…");
+}
+async function menu(page) {
+  const more = page.locator("#console-more");
+  if ((await more.getAttribute("open")) === null)
+    await more.locator("summary").click();
+}
+const csv = (name, text) => ({
+  name,
+  mimeType: "text/csv",
+  buffer: Buffer.from(text),
+});
+
+test("F14: a long error message is broken at the linesize as Stata breaks it", async ({
+  page,
+}) => {
+  await ready(page);
+  // Stata 19 at linesize 40: use prints a paragraph whose later lines are
+  // indented by four, append a line cut after "> ".
+  await type(page, "set linesize 40");
+  await type(page, "capture noisily use nosuchfile_long_name_here.dta, clear");
+  await expect(
+    page
+      .locator("#console-output .console-record")
+      .last()
+      .locator(".console-error"),
+  ).toHaveText("file nosuchfile_long_name_here.dta not\n    found\n");
+  await type(
+    page,
+    "capture noisily append using nosuchfile_long_name_here.dta",
+  );
+  await expect(
+    page
+      .locator("#console-output .console-record")
+      .last()
+      .locator(".console-error"),
+  ).toHaveText("file nosuchfile_long_name_here.dta not f\n> ound\n");
+  await type(page, "use nosuchfile_long_name_here.dta, clear");
+  await expect(
+    page
+      .locator("#console-output .console-record")
+      .last()
+      .locator(".console-error"),
+  ).toHaveText("file nosuchfile_long_name_here.dta not\n    found\nr(601);\n");
+});
+
+test("F154: a new graph is scrolled into view with its height", async ({
+  page,
+}) => {
+  await ready(page);
+  await type(page, "sysuse study, clear");
+  await type(page, "summarize hours score");
+  await type(page, "regress score hours");
+  await type(page, "scatter score hours");
+  const graph = page.locator("#console-output .console-graph").last();
+  await expect(graph).toBeVisible();
+  // The image has its height before it is decoded, and the newest record
+  // (command and graph) fits in Results, so all of it is in view.
+  const { top, bottom, paneTop, paneBottom } = await graph.evaluate((img) => {
+    const r = img.getBoundingClientRect(),
+      pane = document.getElementById("console-output").getBoundingClientRect();
+    return {
+      top: r.top,
+      bottom: r.bottom,
+      paneTop: pane.top,
+      paneBottom: pane.bottom,
+    };
+  });
+  expect(top).toBeGreaterThanOrEqual(paneTop - 1);
+  expect(bottom).toBeLessThanOrEqual(paneBottom + 1);
+  expect(await graph.getAttribute("height")).toBe("460");
+});
+
+test("F155: a 79-column table fits in Results at 1280 pixels", async ({
+  page,
+}, info) => {
+  if (info.project.name === "desktop")
+    await page.setViewportSize({ width: 1280, height: 900 });
+  await ready(page);
+  await type(page, "sysuse study, clear");
+  await type(page, "regress score hours attendance");
+  const fit = await page.locator("#console-output").evaluate((out) => ({
+    client: out.clientWidth,
+    scroll: out.scrollWidth,
+    size: getComputedStyle(out).fontSize,
+  }));
+  if (info.project.name === "desktop") {
+    expect(fit.scroll).toBeLessThanOrEqual(fit.client);
+    expect(parseFloat(fit.size)).toBeGreaterThanOrEqual(10.5);
+  } else {
+    // A phone keeps readable text and scrolls the table sideways.
+    expect(fit.size).toBe("12px");
+  }
+  // The page itself never scrolls sideways.
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("F156: of files added together, the first is loaded and named", async ({
+  page,
+}) => {
+  await ready(page);
+  await page
+    .locator("#console-file")
+    .setInputFiles([
+      csv("first.csv", "a,b\n1,2\n3,4\n"),
+      csv("second.csv", "c\n5\n6\n7\n"),
+    ]);
+  await expect(page.locator("#console-status")).toContainText(
+    "first.csv is in memory now",
+  );
+  await expect(page.locator("#console-memory")).toContainText(
+    "2 observations, 2 variables",
+  );
+});
+
+test("F161: Insert a command names the file the student added", async ({
+  page,
+}) => {
+  await ready(page);
+  const source = page.locator("#console-source");
+  await source.fill("");
+  await page
+    .locator("#console-file")
+    .setInputFiles(csv("grades.csv", "x\n1\n"));
+  await expect(page.locator("#console-status")).toContainText("grades.csv");
+  await menu(page);
+  await page.locator("#console-insert").selectOption({
+    label:
+      'Read a CSV file you added: import delimited using "myfile.csv", clear',
+  });
+  await expect(source).toHaveValue(
+    'import delimited using "grades.csv", clear\n',
+  );
+  // With no .dta added, the placeholder is selected to be typed over.
+  await menu(page);
+  await page.locator("#console-insert").selectOption({
+    label: 'Open a .dta file you added: use "myfile.dta", clear',
+  });
+  expect(
+    await source.evaluate((box) =>
+      box.value.slice(box.selectionStart, box.selectionEnd),
+    ),
+  ).toBe("myfile.dta");
+});
+
+test("F162 and F163: Ctrl+Enter runs the command; Up keeps the draft", async ({
+  page,
+}) => {
+  await ready(page);
+  const line = page.locator("#console-command");
+  await line.fill("display 2+2");
+  await line.press("ControlOrMeta+Enter");
+  await expect(commands(page).last()).toHaveText(". display 2+2");
+  await expect(line).toHaveValue("");
+  await type(page, "display 3");
+  await line.fill("list in 1/2");
+  await line.press("ArrowUp");
+  await expect(line).toHaveValue("display 3");
+  await line.press("ArrowUp");
+  await expect(line).toHaveValue("display 2+2");
+  await line.press("ArrowDown");
+  await line.press("ArrowDown");
+  await expect(line).toHaveValue("list in 1/2");
+});
+
+test("F164: one failed command has no commands before it", async ({ page }) => {
+  await ready(page);
+  await type(page, "summarize wagez");
+  await expect(page.locator("#console-status")).toHaveText(
+    /^Stopped at an error, return code 111\.$/,
+  );
+  await page
+    .locator("#console-source")
+    .fill("sysuse study, clear\nsummarize wagez\n");
+  await page.locator("#console-run").click();
+  await expect(page.locator("#console-status")).toContainText(
+    "Stopped at an error, return code 111. Commands before it took effect.",
+  );
+});
+
+test("F165: by() panels keep their text readable", async ({ page }) => {
+  await ready(page);
+  await type(page, "sysuse study, clear");
+  await type(page, "scatter score hours, by(group)");
+  const sizes = await page
+    .locator("#console-output .console-graph")
+    .last()
+    .evaluate((img) => {
+      const svg = decodeURIComponent(img.src.split(",")[1]),
+        panels = [
+          ...svg.matchAll(
+            /<svg x="[\d.]+" y="[\d.]+" width="([\d.]+)" height="[\d.]+" xmlns="[^"]+" viewBox="0 0 ([\d.]+) [\d.]+"/g,
+          ),
+        ];
+      return panels.map((m) => Number(m[1]) / Number(m[2]));
+    });
+  expect(sizes.length).toBeGreaterThan(1);
+  // A panel's 12-point text is drawn at least at 0.7 of the graph's.
+  for (const shrink of sizes) expect(shrink).toBeGreaterThanOrEqual(0.7);
+});
+
+test("F166: nothing is drawn over the bottom of the Results window", async ({
+  page,
+}) => {
+  await ready(page);
+  await page.locator("#console-command").scrollIntoViewIfNeeded();
+  const cover = await page.evaluate(() => {
+    const drawers = document.querySelector(".console-drawers"),
+      window = document
+        .querySelector(".console-window")
+        .getBoundingClientRect(),
+      style = getComputedStyle(drawers);
+    return {
+      shadow: style.boxShadow,
+      gap: drawers.getBoundingClientRect().top - window.bottom,
+    };
+  });
+  expect(cover.shadow).toBe("none");
+  expect(cover.gap).toBeGreaterThanOrEqual(0);
+});
+
+test("F167: the page declares an icon and logs no errors", async ({ page }) => {
+  const errors = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  await ready(page);
+  await expect(page.locator('link[rel="icon"]')).toHaveCount(1);
+  expect(errors).toEqual([]);
 });
