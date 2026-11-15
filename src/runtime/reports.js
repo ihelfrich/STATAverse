@@ -1636,7 +1636,9 @@ export function list(session, text, ctx) {
   );
   if (lineGiven && (options.linesize < 30 || options.linesize > 255))
     throw new StataError("linesize() must be between 30 and 255", 198);
-  if (!rows.length) return;
+  // With observations but no variables (set obs on an empty dataset), Stata
+  // lists nothing and succeeds.
+  if (!rows.length || !variables.length) return;
   const linesize = options.linesize || session.settings.linesize || 80,
     noobs = options.noobs,
     margin = noobs ? "  " : "     ",

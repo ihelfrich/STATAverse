@@ -1115,7 +1115,14 @@ function reshapeTab(session, ctx, spec, values, text) {
     levels = [...new Set(present)]
       .sort((a, b) => a - b)
       .map((v) => formatNumber(v));
-    // Tab finds the values with tabulate, which leaves r(N) and r(r).
+    // Tab finds the values with tabulate, which leaves r(N) and r(r). With
+    // no value to tabulate (a stub that matches only names whose suffix is
+    // not a number) it stops before anything is changed.
+    if (!levels.length)
+      throw new StataError(
+        `variable ${spec.j} contains all missing values`,
+        498,
+      );
     session.results.r = { N: present.length, r: levels.length };
   } else {
     levels = [...new Set(values.filter((v) => v !== ""))].sort((a, b) =>
