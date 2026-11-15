@@ -4,7 +4,7 @@
 // after macro substitution; ctx carries the by-groups, the current macro
 // frame and out(line) for results.
 import { least, greatest } from "./extremes.js";
-import { Signal, StataError } from "./errors.js";
+import { Signal, StataError, errorLine } from "./errors.js";
 import { standardMessage } from "./error-messages.js";
 import { evaluateAll } from "./expression.js";
 import { macroWords, isMacroName } from "./macros.js";
@@ -563,7 +563,7 @@ function checkQuotes(word) {
  * is rendered at the line size. An error carries what display had
  * written before it as partial, which Stata prints ahead of the message.
  */
-export function displayText(session, text, asMacro = false) {
+export function displayText(session, text, asMacro = false, errors = null) {
   const items = displayItems(text);
   let out = "";
   // The text of the item at k, and the index of the item after it.
@@ -676,9 +676,25 @@ export function displayText(session, text, asMacro = false) {
       next,
     ];
   };
+  // Which lines are printed in the error style (as error, or in red, as
+  // old do-files write it) and nothing else, for `errors` when given.
+  let inError = false,
+    line = 0;
+  const styled = [];
   try {
     for (let k = 0; k < items.length;) {
+      const word = items[k],
+        style = items[k + 1];
+      if (word === "as" && typeof style === "string")
+        inError = /^err(or?)?$/.test(style);
+      else if (word === "in" && typeof style === "string" && !/^s/.test(style))
+        inError = /^r(ed?)?$/.test(style);
       const [shown, next] = item(k);
+      shown.split("\n").forEach((part, n) => {
+        if (n) line++;
+        if (part.trim())
+          (styled[line] ??= {})[inError ? "error" : "other"] = true;
+      });
       out += shown;
       k = next;
     }
@@ -686,7 +702,18 @@ export function displayText(session, text, asMacro = false) {
     if (error instanceof StataError) error.partial = out;
     throw error;
   }
-  return asMacro ? out : renderSmcl(out, session.settings.linesize ?? 79);
+  if (asMacro) return out;
+  const width = session.settings.linesize ?? 79,
+    shown = renderSmcl(out, width);
+  if (errors && styled.some((each) => each?.error)) {
+    const flags = out.split("\n").flatMap((part, n) =>
+      renderSmcl(part, width)
+        .split("\n")
+        .map(() => !!styled[n]?.error && !styled[n]?.other),
+    );
+    if (flags.length === shown.split("\n").length) errors.push(...flags);
+  }
+  return shown;
 }
 
 // ----- generate and replace -----
@@ -3213,8 +3240,14 @@ export const COMMANDS = [
   command("numlist", 7, numlistCommand),
   command("display", 2, (session, text, ctx) => {
     let shown;
+    const errors = [];
     try {
-      shown = displayText(session, text);
+      shown = displayText(
+        session,
+        text,
+        false,
+        session.markErrors ? errors : null,
+      );
     } catch (error) {
       // Stata has printed the items before the one in error, and its
       // message goes on from where they end.
@@ -3230,7 +3263,11 @@ export const COMMANDS = [
         error.hint,
       );
     }
-    for (const line of shown.split("\n")) ctx.out(line);
+    shown
+      .split("\n")
+      .forEach((line, k) =>
+        ctx.out(errors[k] ? errorLine(session, line) : line),
+      );
   }),
   command("scalar", 3, scalar),
   command("local", 3, (session, text, ctx) =>

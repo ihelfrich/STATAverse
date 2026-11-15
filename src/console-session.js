@@ -3,16 +3,17 @@
 import { Session } from "./runtime/session.js";
 import { Dataset } from "./runtime/store.js";
 import { addTextFile } from "./runtime/delimited.js";
-import { StataError } from "./runtime/errors.js";
+import { ERROR_MARK, StataError } from "./runtime/errors.js";
 import { toCSV } from "./datasets.js";
 import { LIBRARY } from "./console-datasets.js";
 import { readDta, writeDta } from "./console-dta.js";
 import { binaryKind, checkForeign } from "./runtime/foreign.js";
 import { applyFormat } from "./runtime/format.js";
 import { isMissing, parseNumber } from "./runtime/values.js";
-import { echoOf } from "./runtime/echo.js";
+import { echoOf, expandTabs, gapEchoes } from "./runtime/echo.js";
 import { parseBlocks, splitCommands } from "./runtime/dofile.js";
 import { createLogs, isLogMark } from "./console-log.js";
+import { changed } from "./runtime/data-commands.js";
 
 /**
  * What ends a run that is put back after Stop at the point where Stop
@@ -69,6 +70,9 @@ export function createConsoleSession() {
   };
   const memory = () => ({
     observations: session.data.n,
+    // Whether the data differ from what was last saved or loaded, as
+    // c(changed) says, so that the page can ask before replacing them.
+    changed: changed(session),
     sortedBy: [...session.data.sortedBy],
     files: [...(session.files ?? new Map()).keys()].sort(),
     variables: session.data.variables.map(
@@ -106,6 +110,8 @@ export function createConsoleSession() {
     // Results as Stata's log shows them: a loop echoed once with its lines
     // numbered, do-files run by do shown with their commands.
     session.foldLoops = true;
+    // Lines in Stata's error style are marked, to be shown in red.
+    session.markErrors = true;
     // Each site dataset is also there as a CSV file, as lessons expect.
     for (const [id, data] of Object.entries(library))
       addTextFile(session, LIBRARY[id].file, toCSV(data));
@@ -328,6 +334,8 @@ export function createConsoleSession() {
       let commands = 0,
         last = 0;
       session.opened = null;
+      // The files in the folder before the run, to tell which it wrote.
+      const before = new Map(session.files ?? []);
       // The commands of the run, one at a time. Before each, what the ones
       // before it printed goes to `stream`, so that a run ended by Stop
       // keeps what it printed; and while one runs, what its inner commands
@@ -347,12 +355,35 @@ export function createConsoleSession() {
       logs.start();
       session.log = (text, ctx) => logs.command(text, ctx);
       const lines = source.replace(/\r\n?/g, "\n").split("\n");
+      // The last line of the source echoed so far. Stata echoes every line
+      // of a do-file as it reads it: a command as typed, with its comments
+      // and each line it goes on to after >, and the blank lines, comments
+      // and #delimit lines between commands, which run nothing.
+      let echoed = 0,
+        semicolon = false;
+      const typed = (n) => expandTabs(lines[n - 1] ?? "").trimEnd();
+      const between = (to) => {
+        if (to > echoed)
+          for (const unit of gapEchoes(lines, echoed + 1, to)) {
+            // After #delimit ;, a blank line is part of the command that
+            // follows it and is not echoed.
+            if (semicolon && !unit.command.trim()) continue;
+            if (unit.lines.length) semicolon = unit.lines[0].endsWith(";");
+            top.push({ ...unit, rc: 0, comment: true });
+          }
+        echoed = Math.max(echoed, to);
+      };
       session.runNodes = function (nodes, frame, output) {
         if (top)
           return Session.prototype.runNodes.call(this, nodes, frame, output);
         top = output;
         for (let k = 0; k < nodes.length; k++) {
-          const node = nodes[k];
+          const node = nodes[k],
+            // A command that begins on a line of its own is echoed as typed;
+            // one that follows another on its line (after a ; of #delimit)
+            // is shown as read.
+            own = node.line > echoed;
+          between(node.line - 1);
           logs.take(top, logged, top.length);
           logs.settle();
           logged = top.length;
@@ -364,7 +395,14 @@ export function createConsoleSession() {
                   node.end || node.line,
                   node.kind === "program" ? 1 : 2,
                 )
-              : { command: node.text ?? "", echo: [] };
+              : node.kind === "command" && own
+                ? {
+                    command: typed(node.line),
+                    echo: lines
+                      .slice(node.line, node.end ?? node.line)
+                      .map((line) => `> ${expandTabs(line).trimEnd()}`),
+                  }
+                : { command: node.text ?? "", echo: [] };
           current = { ...shown, line: node.line, from: top.length, lines: [] };
           if (stream) {
             stream({
@@ -379,8 +417,32 @@ export function createConsoleSession() {
             pending = [];
           }
           stop();
-          Session.prototype.runNodes.call(this, [node], frame, output);
+          try {
+            Session.prototype.runNodes.call(this, [node], frame, output);
+          } finally {
+            // The command's own record shows it as typed; what it was read
+            // as is kept for the hints.
+            const record = top[current.from];
+            if (
+              node.kind === "command" &&
+              own &&
+              record &&
+              record.command === node.text &&
+              !record.echo?.length &&
+              (shown.command !== node.text || shown.echo.length)
+            ) {
+              record.text = node.text;
+              record.command = shown.command;
+              record.echo = shown.echo;
+            }
+            echoed = Math.max(echoed, node.end ?? node.line);
+          }
         }
+        // Comments after the last command; blank lines at the end of the
+        // file are not shown.
+        let end = lines.length;
+        while (end > echoed && !lines[end - 1].trim()) end--;
+        between(end);
       };
       // The error a command stopped at, for what the Console says of it.
       session.dispatch = function (...args) {
@@ -417,7 +479,15 @@ export function createConsoleSession() {
         if (endless) this.steps = 0;
         if (stream) {
           // What the command running now has printed, its last lines.
-          pending.push(...entry.lines.filter((line) => !isLogMark(line)));
+          pending.push(
+            ...entry.lines
+              .filter((line) => !isLogMark(line))
+              .map((line) =>
+                line.startsWith(ERROR_MARK)
+                  ? line.slice(ERROR_MARK.length)
+                  : line,
+              ),
+          );
           if (pending.length > 2000) pending = pending.slice(-1000);
         }
         if (stopAfter >= 0 && current) current.lines.push(...entry.lines);
@@ -520,10 +590,32 @@ export function createConsoleSession() {
         );
       logs.take(output, logged, output.length);
       logs.settle();
+      // The lines in the error style: which they are, and their text.
+      for (const block of output)
+        if (block.lines.some((line) => line.startsWith(ERROR_MARK))) {
+          block.errorLines = [];
+          block.lines = block.lines.map((line, k) => {
+            if (!line.startsWith(ERROR_MARK)) return line;
+            block.errorLines.push(k);
+            return line.slice(ERROR_MARK.length);
+          });
+        }
       // Graphs written by graph export, for the page to turn into files.
       const made = session.exported ?? [];
       session.exported = [];
-      return { output, rc, made, memory: memory() };
+      // Files that save, export, putexcel or a log wrote: on disk in Stata,
+      // they stay when the session is cleared, as the student's own do,
+      // and the page keeps them as it keeps those.
+      const written = [];
+      for (const [name, file] of session.files ?? [])
+        if (
+          before.get(name) !== file &&
+          !made.some((graph) => graph.name === name)
+        ) {
+          written.push(name);
+          added.set(name, file);
+        }
+      return { output, rc, made, written, memory: memory() };
     },
   };
 }

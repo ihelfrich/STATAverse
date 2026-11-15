@@ -126,9 +126,10 @@ function request(r) {
 }
 /**
  * The browser's IndexedDB for this site, with one store of files by name:
- * { name, blob, made, at }. Resolves to null where IndexedDB is not
- * available, as in some private windows; the page then keeps files for the
- * visit only.
+ * { name, blob, made, written, at }: made for a graph graph export drew,
+ * written for a file save, export or a log wrote. Resolves to null where
+ * IndexedDB is not available, as in some private windows; the page then
+ * keeps files for the visit only.
  */
 export async function openShelf(database = "stataverse-console-files") {
   try {
@@ -145,9 +146,15 @@ export async function openShelf(database = "stataverse-console-files") {
           .filter((file) => file && typeof file.name === "string" && file.blob)
           .sort((a, b) => (a.at ?? 0) - (b.at ?? 0));
       },
-      put(name, blob, made = false) {
+      put(name, blob, made = false, written = false) {
         return request(
-          store("readwrite").put({ name, blob, made, at: Date.now() }),
+          store("readwrite").put({
+            name,
+            blob,
+            made,
+            written,
+            at: Date.now(),
+          }),
         );
       },
       remove(name) {

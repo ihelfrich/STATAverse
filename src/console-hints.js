@@ -376,7 +376,12 @@ const oneLine = (record) =>
  * loop or a block has no fix: the change belongs in the do-file.
  */
 export function adviseRecord(record, context = {}) {
-  const advice = advise(record, context);
+  // A command echoed as typed, its comments and continuation lines with
+  // it, is advised on as it was read (record.text).
+  const advice = advise(
+    record?.text ? { ...record, command: record.text } : record,
+    context,
+  );
   if (advice?.fix && !oneLine(record)) delete advice.fix;
   return advice;
 }
@@ -643,6 +648,26 @@ function advise(record, { commands = [], variables = [] }) {
       help: "sysuse",
       suggest: [],
     };
+  // graph export with no graph drawn: no file is missing.
+  if (rc === 601 && /^no Graph window open/m.test(message))
+    return {
+      text: "graph export saves the graph drawn last, and none has been drawn in this session. Draw it first, as with scatter y x or histogram x, then export it.",
+      help,
+      suggest: [],
+    };
+  // reshape's own r(9): i() does not name one row per unit.
+  if (rc === 9 && command === "reshape")
+    return {
+      text: "i() must name variables that take a different value in each observation of the data as they are now (one row per unit in wide data). duplicates report lists the repeated values; reshape error lists the problem observations.",
+      help,
+      suggest: [],
+    };
+  // The general hints for 601 and 9 are for a missing file and a false
+  // assert: an r(601) or r(9) that is neither gets no hint, rather than one
+  // that sends the student looking for the wrong thing.
+  if (rc === 601 && !/^(file|worksheet) .* not found/m.test(message))
+    return null;
+  if (rc === 9 && !/^assertion is false/m.test(message)) return null;
   const general = RC_HINTS[rc];
   return general ? { text: general, help, suggest: [] } : null;
 }

@@ -2,7 +2,7 @@
 // programs, and the control flow of a do-file. Commands themselves are in
 // commands.js; this file decides which command runs, under which prefixes,
 // and what happens when one fails.
-import { Signal, StataError } from "./errors.js";
+import { Signal, StataError, errorLine } from "./errors.js";
 import { Dataset } from "./store.js";
 import { splitCommands, parseBlocks } from "./dofile.js";
 import { expandMacros, isMacroName, macroWords } from "./macros.js";
@@ -1225,6 +1225,19 @@ export class Session {
     } catch (error) {
       this.quietDepth = quietDepth;
       if (!(error instanceof StataError)) {
+        // capture exit # sets _rc to # and goes on, in a do-file, a loop
+        // or a program alike, as Stata does; exit with no code still ends
+        // the do-file.
+        if (
+          error instanceof Signal &&
+          error.kind === "exit" &&
+          flags.capture &&
+          error.code
+        ) {
+          this.rc = error.code;
+          put([], 0);
+          return;
+        }
         if (error instanceof Signal) {
           put(lines, 0);
           throw error;
@@ -1237,9 +1250,13 @@ export class Session {
         before = flags.quiet ? [] : lines;
       if (flags.capture) {
         this.rc = error.code;
+        // The message is shown in the error style, as Stata shows it.
         put(
           flags.noisy && !reported
-            ? [...before, ...(error.message ? [error.message] : [])]
+            ? [
+                ...before,
+                ...(error.message ? [errorLine(this, error.message)] : []),
+              ]
             : [],
           0,
         );
@@ -1283,6 +1300,9 @@ export class Session {
       if (/^cap(t(u(re?)?)?)?$/.test(word)) {
         notAfterBy("capture");
         flags.capture = true;
+        // capture is silent under a noisily before it: noisily capture x
+        // prints nothing, as in Stata; capture noisily x prints.
+        flags.noisy = false;
         rest = after.trim();
       } else if (/^qui(e(t(ly?)?)?)?$/.test(word)) {
         notAfterBy("quietly");

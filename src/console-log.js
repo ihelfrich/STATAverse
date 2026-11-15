@@ -10,7 +10,7 @@
 // is shown, says where the command's own lines begin and where they end.
 // The log is then written line by line in the order Results shows them, and
 // each log begins and ends where its command stood, even inside a loop.
-import { StataError } from "./runtime/errors.js";
+import { ERROR_MARK, StataError } from "./runtime/errors.js";
 
 const MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" "),
   FOLDER = "/stataverse",
@@ -358,10 +358,14 @@ export function createLogs(files) {
         fault = record.rc ? (record.fault ?? 2) : 0,
         plain = lines.filter((line) => !isLogMark(line)).length;
       // A blank line before each command, as Results shows one: none when
-      // what came before already ended with one, as a table does.
-      for (const log of live)
-        if (log.writing && !/(^|\n)(\{txt\})?\n$/.test(log.text))
+      // what came before already ended with one, as a table does, or was a
+      // comment or a blank line of the do-file, which Stata echoes with no
+      // blank line after it.
+      for (const log of live) {
+        if (log.writing && !log.tight && !/(^|\n)(\{txt\})?\n$/.test(log.text))
           add(log, log.type === "smcl" ? "{txt}\n" : "\n");
+        log.tight = !!record.comment;
+      }
       put(`. ${record.command}`, null, (log, line) =>
         render(log, line.slice(2), "command"),
       );
@@ -382,8 +386,11 @@ export function createLogs(files) {
           }
           continue;
         }
-        const kind = shown++ >= plain - fault ? "error" : "out";
-        put(line, skip, (log, each) => render(log, each, kind));
+        // A line in the error style (display as error) is {err} in SMCL.
+        const marked = line.startsWith(ERROR_MARK),
+          text = marked ? line.slice(ERROR_MARK.length) : line,
+          kind = shown++ >= plain - fault || marked ? "error" : "out";
+        put(text, skip, (log, each) => render(log, each, kind));
       }
       record.lines = lines.filter((line) => !isLogMark(line));
     }

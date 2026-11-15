@@ -4,7 +4,21 @@
 // #delimit. parseBlocks then groups braces and program ... end into a tree
 // the session walks.
 
-/** Logical commands with the line each one started on. */
+/**
+ * Whether a comment line goes on to the next line, as a * comment does when
+ * it ends in /// with a blank before it; a // comment earlier on the line
+ * takes the /// with it, as Stata reads it.
+ */
+export function commentGoesOn(line, first = true) {
+  const body = /^(.*?)\s\/\/\/\s*$/.exec(line)?.[1];
+  if (body === undefined) return false;
+  return !/(^|\s)\/\//.test(first ? body.replace(/^\s*\*/, "") : body);
+}
+
+/**
+ * Logical commands with the line each one started on and the line it ended
+ * on (`end`), so that the Console can echo it as typed.
+ */
 export function splitCommands(source) {
   const text = source.replace(/\r\n?/g, "\n"),
     out = [];
@@ -17,7 +31,7 @@ export function splitCommands(source) {
     comment = 0,
     // Where the text after the last /// starts, while a command goes on.
     continuedAt = null;
-  const flush = () => {
+  const flush = (end = line) => {
     continuedAt = null;
     // Runs of blanks are kept as typed: a string literal such as "  a" keeps
     // its blanks, and commands that echo what was typed, such as tab1's
@@ -25,7 +39,11 @@ export function splitCommands(source) {
     // become single blanks.
     const command = current.replace(/\s/g, " ").trim();
     if (command && !/^\*/.test(command))
-      out.push({ text: command, line: startLine });
+      out.push({
+        text: command,
+        line: startLine,
+        end: Math.max(end, startLine),
+      });
     current = "";
   };
   const atCommandStart = () => current.trim() === "";
@@ -75,15 +93,25 @@ export function splitCommands(source) {
       if (continued) {
         current += " ";
         continuedAt = current.length;
-      } else if (delimiter === "\n") flush();
+      } else if (delimiter === "\n") flush(line - 1);
       else current += " ";
     } else if (c === "*" && atCommandStart() && delimiter === "\n") {
-      // A line that begins with * is a comment.
-      while (i < text.length && text[i] !== "\n") i++;
+      // A line that begins with * is a comment, and one that ends in ///
+      // takes the next line with it.
+      let from = i,
+        first = true;
+      for (;;) {
+        while (i < text.length && text[i] !== "\n") i++;
+        if (i >= text.length || !commentGoesOn(text.slice(from, i), first))
+          break;
+        line++;
+        from = ++i;
+        first = false;
+      }
       line++;
       current = "";
     } else if (c === "\n") {
-      if (delimiter === "\n") flush();
+      if (delimiter === "\n") flush(line - 1);
       else current += " ";
     } else if (c === ";" && delimiter === ";") flush();
     else {
@@ -119,7 +147,7 @@ export function parseBlocks(commands) {
   const block = (closing) => {
     const nodes = [];
     while (at < commands.length) {
-      const { text, line } = commands[at];
+      const { text, line, end: last } = commands[at];
       // A } that closes nothing is a command of its own, as Stata reads it,
       // and fails when it is reached; so does an end outside a program.
       if (text.startsWith("}") && closing === "}") {
@@ -163,7 +191,8 @@ export function parseBlocks(commands) {
           rowLines.push(commands[at].line);
           rows.push(commands[at++].text);
         }
-        const unclosed = at >= commands.length;
+        const unclosed = at >= commands.length,
+          end = commands[at]?.line;
         at++;
         nodes.push({
           kind: "input",
@@ -171,6 +200,7 @@ export function parseBlocks(commands) {
           rows,
           rowLines,
           line,
+          ...(end ? { end } : {}),
           ...(unclosed ? { unclosed } : {}),
         });
       } else if (OPENS.test(text)) {
@@ -186,7 +216,7 @@ export function parseBlocks(commands) {
           ...(unclosed ? { unclosed } : {}),
           ...(more ? { trailing: true } : {}),
         });
-      } else nodes.push({ kind: "command", text, line });
+      } else nodes.push({ kind: "command", text, line, end: last ?? line });
     }
     // A block the file never closes: Stata reads to the end of the file
     // and stops there with r(612), having run none of it.

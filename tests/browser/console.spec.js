@@ -819,8 +819,16 @@ test("a line of the do-file and what it printed point at each other", async ({
   await expect(page.locator(".console-error").last()).toBeInViewport();
   // Table rules are drawn, and are still text.
   await expect(page.locator(".console-rule").first()).toHaveText(/^-{4,}/);
-  // Clearing the session clears the marks.
+  // Clearing the session clears the marks. The do-file changed the data,
+  // so the page asks first, as Stata warns before changed data are lost.
+  const asked = [];
+  page.once("dialog", (dialog) => {
+    asked.push(dialog.message());
+    dialog.accept();
+  });
   await menu(page, "#console-reset");
+  await expect.poll(() => asked.length).toBe(1);
+  expect(asked[0]).toContain("changed since they were last saved");
   await expect(page.locator(".gutter-line[data-state]")).toHaveCount(0);
   await expect(page.locator("#console-fault")).toBeHidden();
   const results = await new AxeBuilder({ page }).analyze();

@@ -47,6 +47,35 @@ import {
 import { noCluster, refuseVce } from "./vce.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
+
+/**
+ * The cross-products of columns, weighted by `w` when given: entry (a, b)
+ * is the sum over observations, in order, of w[i] * a[i] * b[i]. One pass
+ * over the rows, skipping zeros (as indicators mostly are), instead of one
+ * pass over the data for each pair of columns.
+ */
+function crossProducts(columns, w) {
+  const k = columns.length,
+    n = k ? columns[0].length : 0,
+    sums = new Float64Array(k * k),
+    row = new Float64Array(k);
+  for (let i = 0; i < n; i++) {
+    for (let a = 0; a < k; a++) row[a] = columns[a][i];
+    const weight = w ? w[i] : 1;
+    for (let a = 0; a < k; a++) {
+      const v = w ? weight * row[a] : row[a];
+      if (v === 0) continue;
+      const at = a * k;
+      for (let b = a; b < k; b++) sums[at + b] += v * row[b];
+    }
+  }
+  return Array.from({ length: k }, (_, a) =>
+    Array.from({ length: k }, (_, b) =>
+      a <= b ? sums[a * k + b] : sums[b * k + a],
+    ),
+  );
+}
+
 export const RULE = "-".repeat(78);
 
 // ----- small dense linear algebra -----
@@ -491,18 +520,42 @@ export function design(session, text, rows, constant = true, levelRows) {
   // A factor's base is its first level, when it has more than one.
   const isBase = (variable, level) =>
     levelsOf.get(variable).length > 1 && level === baseOf.get(variable);
-  // Columns already accepted, orthogonalised, to test later ones against.
-  const basis = [];
+  // Columns already accepted, to test later ones against: what is left of
+  // a column once they are partialled out, from its cross-products with
+  // them and the Cholesky factor of theirs. A column of zeros and ones, as
+  // a factor's indicator is, is multiplied only where it is not zero, so
+  // that a factor with many levels costs little.
+  const basis = [],
+    factor = [];
   const independent = (column) => {
-    let rest = sample.map(column.value);
-    const original = rest.reduce((t, v) => t + v * v, 0);
-    for (const q of basis) {
-      const weight = rest.reduce((t, v, k) => t + v * q.vector[k], 0) / q.norm;
-      rest = rest.map((v, k) => v - weight * q.vector[k]);
+    const m = sample.length,
+      values = new Float64Array(m),
+      nonzero = [];
+    let original = 0;
+    for (let k = 0; k < m; k++) {
+      const v = (values[k] = column.value(sample[k]));
+      if (v !== 0) {
+        nonzero.push(k);
+        original += v * v;
+      }
     }
-    const norm = rest.reduce((t, v) => t + v * v, 0);
-    if (!(original > 0 && norm > 1e-9 * original)) return false;
-    basis.push({ vector: rest, norm });
+    const sparse = nonzero.length < m / 4,
+      size = basis.length,
+      r = new Float64Array(size);
+    let left = original;
+    for (let j = 0; j < size; j++) {
+      const other = basis[j];
+      let dot = 0;
+      if (sparse) for (const k of nonzero) dot += values[k] * other[k];
+      else for (let k = 0; k < m; k++) dot += values[k] * other[k];
+      const row = factor[j];
+      for (let i = 0; i < j; i++) dot -= row[i] * r[i];
+      r[j] = dot / row[j];
+      left -= r[j] * r[j];
+    }
+    if (!(original > 0 && left > 1e-9 * original)) return false;
+    basis.push(values);
+    factor.push([...r, Math.sqrt(left)]);
     return true;
   };
   if (constant) independent({ value: () => 1 });
@@ -547,12 +600,10 @@ export function design(session, text, rows, constant = true, levelRows) {
             )
             .join("#"),
           value: (i) => {
+            for (let k = 0; k < factors.length; k++)
+              if (factors[k].variable.data[i] !== cell[k]) return 0;
             let product = 1;
-            factors.forEach((c, k) => {
-              if (c.variable.data[i] !== cell[k]) product = 0;
-            });
-            if (product)
-              for (const c of continuous) product *= c.variable.data[i];
+            for (const c of continuous) product *= c.variable.data[i];
             return product;
           },
           evaluate: (get) => {
@@ -777,8 +828,14 @@ export function fit(session, parsed, by) {
       w
         ? a.reduce((t, v, i) => t + w[i] * v * b[i], 0)
         : a.reduce((t, v, i) => t + v * b[i], 0),
-    original = xc.map((column) => cross(column, column)),
-    remaining = xc.map((column) => column.slice()),
+    // The cross-products of the centred columns, each summed over the
+    // observations in order as cross() sums it, in one pass over the data.
+    gram = crossProducts(xc, w),
+    original = xc.map((_, k) => gram[k][k]),
+    // What is left of each column's cross-products once the columns chosen
+    // so far are partialled out: the inner products of the residuals of
+    // Gram-Schmidt, without forming the residuals.
+    remaining = gram.map((row) => row.slice()),
     chosen = new Set(),
     factorList = columns.some(
       (c) => c.levels || !c.term?.variable || /#|(^|#)\d+[bno]*\./.test(c.name),
@@ -786,12 +843,13 @@ export function fit(session, parsed, by) {
     set = new Set(
       factorList ? active.flatMap((c, k) => (c.collinear ? [k] : [])) : [],
     );
+  const open = (k) => !chosen.has(k) && !set.has(k);
   for (;;) {
     let best = -1,
       size = 0;
-    remaining.forEach((column, k) => {
-      if (chosen.has(k) || set.has(k)) return;
-      const norm = cross(column, column);
+    remaining.forEach((row, k) => {
+      if (!open(k)) return;
+      const norm = row[k];
       if (norm > 1e-11 * original[k] && norm > size * (1 + 1e-12)) {
         best = k;
         size = norm;
@@ -800,10 +858,11 @@ export function fit(session, parsed, by) {
     if (best < 0) break;
     chosen.add(best);
     const pivot = remaining[best].slice();
-    remaining.forEach((column, k) => {
-      if (chosen.has(k) || set.has(k)) return;
-      const weight = cross(column, pivot) / size;
-      remaining[k] = column.map((v, i) => v - weight * pivot[i]);
+    remaining.forEach((row, k) => {
+      if (!open(k)) return;
+      const weight = pivot[k] / size;
+      for (let j = 0; j < row.length; j++)
+        if (open(j)) row[j] -= weight * pivot[j];
     });
   }
   const kept = xc.map((_, k) => k).filter((k) => chosen.has(k));
@@ -811,7 +870,7 @@ export function fit(session, parsed, by) {
     if (!chosen.has(k)) column.omitted = true;
   });
   for (const column of columns) if (column.forcedOmit) column.omitted = true;
-  const s = kept.map((a) => kept.map((b) => cross(xc[a], xc[b]))),
+  const s = kept.map((a) => kept.map((b) => gram[a][b])),
     a = kept.length ? invertSymmetric(s) : [];
   if (!a) throw new StataError("the regressors are too collinear to fit", 198);
   const xy = kept.map((k) => cross(xc[k], yc)),

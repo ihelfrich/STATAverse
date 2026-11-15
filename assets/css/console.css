@@ -336,7 +336,9 @@
 }
 .console-graph {
   display: block;
-  width: min(100%, 640px);
+  /* As wide as Results shows, not as its widest line: a long command
+     widens its record, and the graph would run past the window. */
+  width: min(100%, 100cqi, 640px);
   height: auto;
   margin: 8px 0;
   border: 1px solid var(--results-rule);
@@ -2194,7 +2196,12 @@ body.is-dropping::after {
   opacity: 1;
 }
 @media (hover: none) {
+  /* On a touch screen the buttons are always shown, so they follow the
+     command instead of covering the end of a long one. */
   .console-tools {
+    position: static;
+    margin-left: 2ch;
+    vertical-align: middle;
     opacity: 1;
   }
 }
