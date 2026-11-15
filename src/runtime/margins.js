@@ -1084,6 +1084,8 @@ function margins(session, text, ctx) {
         oim: "OIM",
         unadjusted: "Unadjusted",
         conventional: "Conventional",
+        bootstrap: "Bootstrap",
+        jackknife: "Jackknife",
       }[model.vce] ?? "OLS";
   // A factor variable held at its means is shown level by level, each level
   // at the share of observations in it, as Stata shows it.

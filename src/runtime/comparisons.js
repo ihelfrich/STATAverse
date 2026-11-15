@@ -57,7 +57,8 @@ export function lrtest(session, text, ctx) {
   if (!names.length || names.length > 2)
     throw new StataError("lrtest takes one or two stored models", 198);
   if (names.length === 1) names.push(".");
-  const [a, b] = names.map((name) => entry(session, name).model);
+  const entries = names.map((name) => entry(session, name)),
+    [a, b] = entries.map((found) => found.model);
   for (const model of [a, b])
     if (model.ll === undefined || isMissing(model.ll))
       throw new StataError(
@@ -85,6 +86,15 @@ export function lrtest(session, text, ctx) {
   const reml = mixed === 2 && (a.reml || b.reml);
   const [small, large] = a.rank <= b.rank ? [a, b] : [b, a],
     df = large.rank - small.rank;
+  // Any two estimators, as streg's distributions (ereg, weibull), are
+  // compared only with force; e(cmd) names them, the larger model first.
+  const cmdOf = (model) =>
+    entries.find((found) => found.model === model)?.e?.cmd ?? model.command;
+  if (cmdOf(a) !== cmdOf(b) && !/\bforce\b/.test(options ?? ""))
+    throw new StataError(
+      `test involves different estimators: ${cmdOf(large)} vs. ${cmdOf(small)}`,
+      498,
+    );
   if (!df)
     throw new StataError(
       "df(unrestricted) = df(restricted) = " + large.rank,
