@@ -74,11 +74,13 @@ function reference(inner, env) {
     env.locals.set(m[1], String(Number(before) + (m[2] === "++" ? 1 : -1)));
     return before;
   }
-  if (!/^[A-Za-z_0-9]{1,31}$/.test(text)) return "";
+  if (!isLocalName(text)) return "";
   return env.locals.get(text) ?? "";
 }
 
 export const isMacroName = (name) => NAME.test(name) && name.length <= 31;
+/** A local's name may start with a digit, as `1' does. */
+export const isLocalName = (name) => /^[\p{L}\p{N}_]{1,31}$/u.test(name);
 
 /** Splits a macro list into words; "quoted words" and `"compound"' stay whole. */
 export function macroWords(text) {

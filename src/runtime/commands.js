@@ -7,7 +7,7 @@ import { least, greatest } from "./extremes.js";
 import { Signal, StataError, errorLine } from "./errors.js";
 import { standardMessage } from "./error-messages.js";
 import { evaluateAll } from "./expression.js";
-import { macroWords, isMacroName } from "./macros.js";
+import { macroWords, isLocalName, isMacroName } from "./macros.js";
 import {
   abbreviateAmong,
   abbreviateName,
@@ -177,8 +177,14 @@ function numericColumn(session, name) {
   if (isStringType(variable.type)) throw new StataError("type mismatch", 109);
   return variable.data;
 }
-function setMacro(map, name, value) {
-  if (!isMacroName(name)) throw invalid(`${name} invalid name`);
+/**
+ * A local's name is letters, digits and _, at most 31 of them, and Stata
+ * names a bad one as it keeps it, with _ before it; a global's starts with
+ * a letter or _.
+ */
+function setMacro(map, name, value, global = false) {
+  if (global ? !isMacroName(name) : !isLocalName(name))
+    throw invalid(`${global ? "" : "_"}${name} invalid name`);
   if (value === "") map.delete(name);
   else map.set(name, value);
 }
@@ -199,8 +205,10 @@ const macroValue = (session, value) =>
 
 /** local and global share one parser: name = exp, name "text", name : fcn. */
 function defineMacro(session, frame, map, text) {
+  const global = map === session.globals;
   let m;
-  if ((m = /^(\+\+|--)\s*(\w+)$/.exec(text.trim()))) {
+  if ((m = /^(\+\+|--)\s*([\p{L}\p{N}_]+)$/u.exec(text.trim()))) {
+    if (!global && !isLocalName(m[2])) throw invalid(`_${m[2]} invalid name`);
     // Stata increments a local that exists; one never set is an error.
     if (map === frame?.locals && !map.has(m[2]))
       throw new StataError(`local macro \`${m[2]}' not found`, 111);
@@ -208,7 +216,9 @@ function defineMacro(session, frame, map, text) {
     return void map.set(m[2], macroValue(session, value));
   }
   // Only the prefix forms increment: local n++ stores the text "++".
-  m = /^(\w+)\s*(?:(=|:)\s*([\s\S]*)|([\s\S]*))?$/.exec(text.trim());
+  m = /^([\p{L}\p{N}_]+)\s*(?:(=|:)\s*([\s\S]*)|([\s\S]*))?$/u.exec(
+    text.trim(),
+  );
   if (!m) throw invalid();
   const name = m[1];
   if (m[2] === "=") {
@@ -217,11 +227,12 @@ function defineMacro(session, frame, map, text) {
       map,
       name,
       macroValue(session, session.scalar(m[3], { assign: true })),
+      global,
     );
   }
   if (m[2] === ":")
-    return setMacro(map, name, extendedFunction(session, frame, m[3]));
-  setMacro(map, name, unquoteMacro(m[4] ?? ""));
+    return setMacro(map, name, extendedFunction(session, frame, m[3]), global);
+  setMacro(map, name, unquoteMacro(m[4] ?? ""), global);
 }
 
 // The first words of Stata's extended macro functions.
@@ -264,11 +275,8 @@ export function extendedFunction(session, frame, source) {
       : chars.map(([name]) => name).join(" ");
   }
   if (/^data\s+l(a(b(el?)?)?)?$/.test(text)) return data.label;
-  if ((m = /^l(?:a(?:b(?:el?)?)?)?\s+(\S+)\s+(\S+)$/.exec(text))) {
-    const map = data.valueLabels.get(m[1]),
-      value = session.scalar(m[2]);
-    return map?.get(value) ?? formatNumber(value);
-  }
+  if ((m = /^l(?:a(?:b(?:el?)?)?)?(?:\s+([\s\S]*))?$/.exec(text)))
+    return labelFunction(session, m[1] ?? "");
   if ((m = /^(?:length|strlen)\s+(local|global)\s+(\w+)$/.exec(text)))
     return String(
       byteLength(
@@ -277,18 +285,13 @@ export function extendedFunction(session, frame, source) {
     );
   if ((m = /^di(?:s(?:p(?:l(?:ay?)?)?)?)?\s+([\s\S]*)$/.exec(text)))
     return displayText(session, m[1], true);
-  if ((m = /^subinstr\s+(local|global)\s+(\w+)\s+([\s\S]*)$/.exec(text))) {
-    const [args, options = ""] = m[3].split(/,(?=[^"]*$)/),
-      words = macroWords(args),
-      source =
-        (m[1] === "local" ? frame.locals : session.globals).get(m[2]) ?? "";
-    if (words.length !== 2) throw invalid();
-    const [from, to] = words.map((w) => w.text);
-    if (from === "") return source;
-    return /\ball\b/.test(options)
-      ? source.split(from).join(to)
-      : source.replace(from, () => to);
-  }
+  if ((m = /^subinstr\s+(local|global)\s+(\w+)\s+([\s\S]*)$/.exec(text)))
+    return subinstrFunction(
+      session,
+      frame,
+      (m[1] === "local" ? frame.locals : session.globals).get(m[2]) ?? "",
+      m[3],
+    );
   if ((m = /^list\s+([\s\S]*)$/.exec(text)))
     return listFunction(frame, m[1].trim());
   const word = text.split(/\s/)[0];
@@ -301,6 +304,113 @@ export function extendedFunction(session, frame, source) {
     198,
   );
 }
+/**
+ * : subinstr local name "from" "to" [, all word count(local|global name)]:
+ * the first occurrence of from, or all of them, replaced by to; with
+ * word, only those standing as words between blanks.
+ */
+function subinstrFunction(session, frame, source, text) {
+  const [args, options = ""] = text.split(/,(?=[^"]*$)/),
+    words = macroWords(args);
+  if (words.length > 2) throw new StataError("varlist not allowed", 101);
+  if (words.length !== 2 || !words.every((w) => w.quoted)) throw invalid();
+  const [from, to] = words.map((w) => w.text);
+  if (from === "") throw invalid();
+  let all = false,
+    word = false,
+    count = null;
+  for (const option of optionWords(options)) {
+    let o;
+    if (option === "all") all = true;
+    else if (/^w(o(r(d)?)?)?$/.test(option)) word = true;
+    else if ((o = /^c(o(u(nt?)?)?)?\((.*)\)$/.exec(option))) {
+      const target = /^\s*(loc(?:al?)?|glo(?:b(?:al?)?)?)\s+(\S+)\s*$/.exec(
+        o[4],
+      );
+      if (!target || !isMacroName(target[2])) throw invalid();
+      count = target;
+    } else throw new StataError(`option ${option} not allowed`, 198);
+  }
+  let out = "",
+    at = 0,
+    replaced = 0;
+  for (;;) {
+    let found = source.indexOf(from, at);
+    if (word)
+      while (
+        found >= 0 &&
+        !(
+          (found === 0 || source[found - 1] === " ") &&
+          (found + from.length === source.length ||
+            source[found + from.length] === " ")
+        )
+      )
+        found = source.indexOf(from, found + 1);
+    if (found < 0 || (replaced && !all)) break;
+    out += source.slice(at, found) + to;
+    at = found + from.length;
+    replaced++;
+  }
+  out += source.slice(at);
+  if (count)
+    (count[1].startsWith("l") ? frame.locals : session.globals).set(
+      count[2],
+      String(replaced),
+    );
+  return out;
+}
+
+/** The options after a comma, each word or name(...) one item. */
+function optionWords(text) {
+  const out = [];
+  let depth = 0,
+    start = -1;
+  for (let i = 0; i <= text.length; i++) {
+    const c = text[i] ?? " ";
+    if (c === "(") depth++;
+    else if (c === ")") depth = Math.max(0, depth - 1);
+    if (/\s/.test(c) && !depth) {
+      if (start >= 0) out.push(text.slice(start, i));
+      start = -1;
+    } else if (start < 0) start = i;
+  }
+  return out;
+}
+
+/**
+ * : label lblname # [length] [, strict], or (varname) for the label the
+ * variable carries: the label of #, or # itself when it has none (nothing
+ * under strict). : label lblname maxlength is the length of its longest
+ * label.
+ */
+function labelFunction(session, text) {
+  const [args, options = ""] = text.split(/,(?=[^"]*$)/),
+    words = args.trim().split(/\s+/).filter(Boolean);
+  let strict = false;
+  for (const option of optionWords(options)) {
+    if (/^str(i(ct?)?)?$/.test(option)) strict = true;
+    else throw new StataError(`option ${option} not allowed`, 198);
+  }
+  if (words.length > 3) throw new StataError("varlist not allowed", 101);
+  if (words.length < 2) throw invalid();
+  const owner = /^\((.*)\)$/.exec(words[0]),
+    name = owner
+      ? session.data.get(session.varlist(owner[1])[0]).valueLabel
+      : words[0],
+    map = session.data.valueLabels.get(name);
+  if (words[1] === "maxlength" && words.length === 2)
+    return String(
+      Math.max(0, ...[...(map?.values() ?? [])].map((t) => [...t].length)),
+    );
+  const NUMBER = /^(?:[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?|\.[a-z]?)$/i;
+  if (!NUMBER.test(words[1]) || (words[2] && !/^\d+$/.test(words[2])))
+    throw invalid();
+  const value = session.scalar(words[1]),
+    label = map?.get(value);
+  if (label === undefined) return strict ? "" : formatNumber(value);
+  return words[2] ? [...label].slice(0, Number(words[2])).join("") : label;
+}
+
 function listFunction(frame, text) {
   const words = (name) =>
     macroWords(frame.locals.get(name) ?? "").map((w) => w.text);
@@ -1854,9 +1964,19 @@ function gettoken(session, text, ctx) {
   }
   const value = source.map.get(source.name) ?? "",
     found = firstToken(value, parse, quotes);
-  setMacro(targets[0].map, targets[0].name, found ? found.token : "");
+  setMacro(
+    targets[0].map,
+    targets[0].name,
+    found ? found.token : "",
+    targets[0].map === session.globals,
+  );
   if (targets[1])
-    setMacro(targets[1].map, targets[1].name, found ? found.rest : "");
+    setMacro(
+      targets[1].map,
+      targets[1].name,
+      found ? found.rest : "",
+      targets[1].map === session.globals,
+    );
 }
 /**
  * xi: indicator variables for i.varname terms, _I + the first nine
@@ -2035,7 +2155,16 @@ function syntaxCommand(session, text, ctx) {
     ctx.frame.locals.delete(name);
   for (const [name, value] of Object.entries(result.locals))
     if (value !== "") ctx.frame.locals.set(name, value);
+  // A varlist that may hold factor variables or time-series operators
+  // clears s(), then says which it held.
+  if (result.operators) {
+    session.results.s = {};
+    if (result.operators.fv) session.results.s.fvops = "true";
+    if (result.operators.ts) session.results.s.tsops = "true";
+  }
 }
+// The macros ereturn local added to an estimation's e(), oldest first.
+const addedMacros = new WeakMap();
 // return, ereturn and sreturn. Inside an r-class program, return stages its
 // results and r() becomes them when the program ends; ereturn and sreturn
 // change e() and s() at once, so later lines and a failure see them. Setting
@@ -2094,9 +2223,19 @@ function returns(kind) {
         label = (name) => `${kind}(${name})`.padStart(22),
         numbers = entries.filter(([, v]) => typeof v === "number"),
         strings = entries.filter(([, v]) => typeof v === "string" && v !== "");
-      // An e-class program's macros list newest first.
-      if (kind === "e" && !session.estimates && programResults.has(target))
+      // s() and an e-class program's macros list newest first, a macro
+      // set again as the newest. Macros added to an estimation's e() come
+      // before the command's own, the newest first.
+      if (
+        kind === "s" ||
+        (kind === "e" && !session.estimates && programResults.has(target))
+      )
         strings.reverse();
+      else if (kind === "e" && addedMacros.has(target)) {
+        const added = addedMacros.get(target),
+          rank = (key) => added.indexOf(key) + 1;
+        strings.sort(([a], [b]) => rank(b) - rank(a));
+      }
       if (numbers.length) {
         ctx.out("");
         ctx.out("scalars:");
@@ -2219,15 +2358,23 @@ function returns(kind) {
       if (kind === "e") programResults.add(target);
       return;
     }
-    if ((m = /^sca(?:l(?:ar?)?)?\s+(\w+)\s*=\s*([\s\S]+)$/.exec(text)))
-      target[m[1]] = session.scalar(m[2]);
-    else if ((m = /^loc(?:al?)?\s+([\s\S]+)$/.exec(text))) {
+    if ((m = /^sca(?:l(?:ar?)?)?\s+(\w+)\s*=\s*([\s\S]+)$/.exec(text))) {
+      const value = session.scalar(m[2]);
+      // A scalar set again lists as the newest: first in r(), last in e().
+      if (staged || kind === "e") delete target[m[1]];
+      target[m[1]] = value;
+    } else if ((m = /^loc(?:al?)?\s+([\s\S]+)$/.exec(text))) {
       const holder = new Map();
       defineMacro(session, ctx.frame, holder, m[1]);
       for (const [name, value] of holder) {
-        // A macro set again lists as the newest, as Stata lists e().
-        if (kind === "e") delete target[name];
+        // A macro set again lists as the newest, as Stata lists them.
+        delete target[name];
         target[name] = value;
+        if (kind === "e" && session.estimates)
+          addedMacros.set(target, [
+            ...(addedMacros.get(target) ?? []).filter((key) => key !== name),
+            name,
+          ]);
       }
       if (kind === "e" && owner) programResults.add(target);
     } else throw invalid();
@@ -2512,11 +2659,13 @@ function egen(session, text, ctx) {
       tail,
     );
   } catch (error) {
-    // A variable by() names that is not there, as egen.ado reports it.
+    // A variable by() names that is not there, as egen.ado reports it
+    // (syntax may have said so already).
     if (
       error instanceof StataError &&
       error.code === 111 &&
-      /\bby\s*\(/.test(tail)
+      /\bby\s*\(/.test(tail) &&
+      !error.message.endsWith("(error in option by())")
     )
       throw new StataError(`${error.message}\n(error in option by())`, 111);
     throw error;

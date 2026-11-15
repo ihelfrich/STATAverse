@@ -184878,6 +184878,884 @@
       ]
     },
     {
+      "id": "recheck-program-expansion-errors",
+      "source": "clear\nset obs 1\ngenerate x = 2\ndisplay \"start\"\ndisplay \"a`=1+'b\"\ndisplay \"c`=nosuch'd\"\nlocal m \"e`=x*'f\"\ndisplay \"[`m']\"\nquietly display \"q`=1+'q\"\ncapture display \"c`=1+'c\"\ndisplay _rc\ncapture noisily display \"n`=1+'n\"\ndisplay \"[`:variable label nosuch']\"\ndisplay \"[`:type x']\"\nforvalues i = 1/2 {\n  display \"loop `i' `=1+'\"\n}\nif `=1+' 1 {\n  display \"if ran\"\n}\nlocal k : word count `=1+'\ndisplay \"k=`k'\"\ndisplay \"after\"\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "generate x = 2", "lines": [] },
+        { "command": "display \"start\"", "lines": ["start"] },
+        { "command": "display \"a`=1+'b\"", "lines": ["invalid syntax", "ab"] },
+        {
+          "command": "display \"c`=nosuch'd\"",
+          "lines": ["nosuch not found", "cd"]
+        },
+        { "command": "local m \"e`=x*'f\"", "lines": ["invalid syntax"] },
+        { "command": "display \"[`m']\"", "lines": ["[ef]"] },
+        {
+          "command": "quietly display \"q`=1+'q\"",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture display \"c`=1+'c\"",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display _rc", "lines": ["0"] },
+        {
+          "command": "capture noisily display \"n`=1+'n\"",
+          "lines": ["invalid syntax", "nn"]
+        },
+        {
+          "command": "display \"[`:variable label nosuch']\"",
+          "lines": ["variable nosuch not found", "[]"]
+        },
+        { "command": "display \"[`:type x']\"", "lines": ["[float]"] },
+        {
+          "command": "forvalues i = 1/2 {",
+          "lines": [
+            "  2.   display \"loop `i' `=1+'\"",
+            "  3. }",
+            "invalid syntax",
+            "loop 1",
+            "invalid syntax",
+            "loop 2"
+          ]
+        },
+        { "command": "if `=1+' 1 {", "lines": ["invalid syntax"] },
+        { "command": "display \"if ran\"", "lines": ["if ran"] },
+        { "command": "}", "lines": [] },
+        {
+          "command": "local k : word count `=1+'",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "display \"k=`k'\"", "lines": ["k=0"] },
+        { "command": "display \"after\"", "lines": ["after"] }
+      ]
+    },
+    {
+      "id": "recheck-program-subinstr-label",
+      "source": "local v \"lwage wage  age wage\"\nlocal s : subinstr local v \"wage\" \"\", word\ndisplay \"[`s']\"\nlocal s : subinstr local v \"wage\" \"W\", word all count(local n)\ndisplay \"[`s'] n=`n'\"\nlocal s : subinstr local v \"wage\" \"W\", count(local n)\ndisplay \"[`s'] n=`n'\"\nlocal s : subinstr local v \"zzz\" \"W\", all count(global G)\ndisplay \"[`s'] G=$G\"\nlocal s : subinstr local v \"a\" \"\", all word\ndisplay \"[`s']\"\ncapture noisily local s : subinstr local v \"a\" \"b\", nosuch\ncapture noisily local s : subinstr local v \"a\" \"b\", count(n)\ncapture noisily local s : subinstr local v \"\" \"b\", all\ncapture noisily local s : subinstr local v a b, all\nlocal s : subinstr local v \"a\" \"b\", wo all cou(local c2)\ndisplay \"`c2' `s'\"\nclear\nset obs 3\ngenerate region = _n\ngenerate other = _n\nlabel define reg 1 \"North\" 2 \"Southeast\" 3 \"W\"\nlabel values region reg\nlocal a : label (region) 2\ndisplay \"[`a']\"\nlocal a : label (reg) 2\ndisplay \"[`a']\"\nlocal a : label (other) 2\ndisplay \"[`a']\"\nlocal a : label (region) 7, strict\ndisplay \"[`a']\"\nlocal a : label reg 2 4\ndisplay \"[`a']\"\nlocal a : label reg 2.5\ndisplay \"[`a']\"\nlocal b : label reg maxlength\ndisplay \"[`b']\"\nlocal b : label nosuch 3\ndisplay \"[`b']\"\nlabel define reg .a \"Missing A\", add\nlocal b : label reg .a\ndisplay \"[`b']\"\ncapture noisily local b : label reg 1, nosuch\ncapture noisily local b : label reg abc\ncapture noisily local b : label reg 1 2 3\n",
+      "commands": [
+        { "command": "local v \"lwage wage  age wage\"", "lines": [] },
+        {
+          "command": "local s : subinstr local v \"wage\" \"\", word",
+          "lines": []
+        },
+        { "command": "display \"[`s']\"", "lines": ["[lwage   age wage]"] },
+        {
+          "command": "local s : subinstr local v \"wage\" \"W\", word all count(local n)",
+          "lines": []
+        },
+        {
+          "command": "display \"[`s'] n=`n'\"",
+          "lines": ["[lwage W  age W] n=2"]
+        },
+        {
+          "command": "local s : subinstr local v \"wage\" \"W\", count(local n)",
+          "lines": []
+        },
+        {
+          "command": "display \"[`s'] n=`n'\"",
+          "lines": ["[lW wage  age wage] n=1"]
+        },
+        {
+          "command": "local s : subinstr local v \"zzz\" \"W\", all count(global G)",
+          "lines": []
+        },
+        {
+          "command": "display \"[`s'] G=$G\"",
+          "lines": ["[lwage wage  age wage] G=0"]
+        },
+        {
+          "command": "local s : subinstr local v \"a\" \"\", all word",
+          "lines": []
+        },
+        { "command": "display \"[`s']\"", "lines": ["[lwage wage  age wage]"] },
+        {
+          "command": "capture noisily local s : subinstr local v \"a\" \"b\", nosuch",
+          "lines": ["option nosuch not allowed"]
+        },
+        {
+          "command": "capture noisily local s : subinstr local v \"a\" \"b\", count(n)",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily local s : subinstr local v \"\" \"b\", all",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily local s : subinstr local v a b, all",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "local s : subinstr local v \"a\" \"b\", wo all cou(local c2)",
+          "lines": []
+        },
+        {
+          "command": "display \"`c2' `s'\"",
+          "lines": ["0 lwage wage  age wage"]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate region = _n", "lines": [] },
+        { "command": "generate other = _n", "lines": [] },
+        {
+          "command": "label define reg 1 \"North\" 2 \"Southeast\" 3 \"W\"",
+          "lines": []
+        },
+        { "command": "label values region reg", "lines": [] },
+        { "command": "local a : label (region) 2", "lines": [] },
+        { "command": "display \"[`a']\"", "lines": ["[Southeast]"] },
+        { "command": "local a : label (reg) 2", "lines": [] },
+        { "command": "display \"[`a']\"", "lines": ["[Southeast]"] },
+        { "command": "local a : label (other) 2", "lines": [] },
+        { "command": "display \"[`a']\"", "lines": ["[2]"] },
+        { "command": "local a : label (region) 7, strict", "lines": [] },
+        { "command": "display \"[`a']\"", "lines": ["[]"] },
+        { "command": "local a : label reg 2 4", "lines": [] },
+        { "command": "display \"[`a']\"", "lines": ["[Sout]"] },
+        { "command": "local a : label reg 2.5", "lines": [] },
+        { "command": "display \"[`a']\"", "lines": ["[2.5]"] },
+        { "command": "local b : label reg maxlength", "lines": [] },
+        { "command": "display \"[`b']\"", "lines": ["[9]"] },
+        { "command": "local b : label nosuch 3", "lines": [] },
+        { "command": "display \"[`b']\"", "lines": ["[3]"] },
+        { "command": "label define reg .a \"Missing A\", add", "lines": [] },
+        { "command": "local b : label reg .a", "lines": [] },
+        { "command": "display \"[`b']\"", "lines": ["[Missing A]"] },
+        {
+          "command": "capture noisily local b : label reg 1, nosuch",
+          "lines": ["option nosuch not allowed"]
+        },
+        {
+          "command": "capture noisily local b : label reg abc",
+          "lines": ["invalid syntax"]
+        },
+        {
+          "command": "capture noisily local b : label reg 1 2 3",
+          "lines": ["varlist not allowed"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-program-prefixed-if",
+      "source": "clear\nset obs 2\ngenerate x = _n\nquietly if 1 {\n    noisily display \"q if\"\n    display \"hidden\"\n}\ndisplay \"after1\"\ncapture if 1 {\n    display \"c if\"\n    nosuchcmd\n}\ndisplay \"rc=\" _rc\nquietly if x[1] == 2 {\n    noisily display \"first\"\n}\nelse display \"inline else\"\ncapture quietly if x[2] == 2 {\n    noisily display \"second\"\n    generate y = 1\n    generate y = 2\n}\ndisplay \"rc=\" _rc\ndisplay \"end\"\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "quietly if 1 {", "lines": ["q if"] },
+        { "command": "display \"after1\"", "lines": ["after1"] },
+        { "command": "capture if 1 {", "lines": [] },
+        { "command": "display \"rc=\" _rc", "lines": ["rc=199"] },
+        { "command": "quietly if x[1] == 2 {", "lines": [] },
+        { "command": "else display \"inline else\"", "lines": ["inline else"] },
+        { "command": "capture quietly if x[2] == 2 {", "lines": ["second"] },
+        { "command": "display \"rc=\" _rc", "lines": ["rc=110"] },
+        { "command": "display \"end\"", "lines": ["end"] }
+      ]
+    },
+    {
+      "id": "recheck-program-foreach-lists",
+      "source": "clear\nset obs 1\ngenerate z1 = 1\nlocal e\ncapture noisily foreach v of varlist `e' {\n  display \"`v'\"\n}\ndisplay _rc\ncapture noisily foreach v of numlist `e' {\n  display \"`v'\"\n}\ndisplay _rc\ncapture noisily foreach v of newlist z2 z2 {\n  display \"`v'\"\n}\ncapture noisily foreach v of newlist z3 z1 {\n  display \"`v'\"\n}\ncapture noisily foreach v of newlist 1bad {\n  display \"`v'\"\n}\nforeach v of newlist z3-z5 {\n  display \"`v'\"\n}\ngenerate a = 1\ngenerate b = 2\ngenerate c = 3\ncapture noisily summarize c-a\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 1",
+          "lines": ["Number of observations (_N) was 0, now 1."]
+        },
+        { "command": "generate z1 = 1", "lines": [] },
+        { "command": "local e", "lines": [] },
+        {
+          "command": "capture noisily foreach v of varlist `e' {",
+          "lines": [
+            "  2.   display \"`v'\"",
+            "  3. }",
+            "varlist required",
+            "",
+            "} is not a valid command name"
+          ]
+        },
+        { "command": "display _rc", "lines": ["199"] },
+        {
+          "command": "capture noisily foreach v of numlist `e' {",
+          "lines": [
+            "  2.   display \"`v'\"",
+            "  3. }",
+            "invalid numlist has too few elements",
+            "",
+            "} is not a valid command name"
+          ]
+        },
+        { "command": "display _rc", "lines": ["199"] },
+        {
+          "command": "capture noisily foreach v of newlist z2 z2 {",
+          "lines": [
+            "  2.   display \"`v'\"",
+            "  3. }",
+            "variable z2 already defined",
+            "",
+            "} is not a valid command name"
+          ]
+        },
+        {
+          "command": "capture noisily foreach v of newlist z3 z1 {",
+          "lines": [
+            "  2.   display \"`v'\"",
+            "  3. }",
+            "variable z1 already defined",
+            "",
+            "} is not a valid command name"
+          ]
+        },
+        {
+          "command": "capture noisily foreach v of newlist 1bad {",
+          "lines": [
+            "  2.   display \"`v'\"",
+            "  3. }",
+            "1bad invalid name",
+            "",
+            "} is not a valid command name"
+          ]
+        },
+        {
+          "command": "foreach v of newlist z3-z5 {",
+          "lines": ["  2.   display \"`v'\"", "  3. }", "z3", "z4", "z5"]
+        },
+        { "command": "generate a = 1", "lines": [] },
+        { "command": "generate b = 2", "lines": [] },
+        { "command": "generate c = 3", "lines": [] },
+        {
+          "command": "capture noisily summarize c-a",
+          "lines": ["variables out of order"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-program-syntax-fv-ts",
+      "source": "clear\nset obs 6\ngenerate region = mod(_n, 3) + 1\ngenerate educ = _n\ngenerate wage = _n * 2\ngenerate t = _n\ngenerate s = \"a\"\nprogram define pf\n    syntax varlist(fv)\n    display \"[`varlist']\"\nend\nprogram define pt\n    syntax varlist(ts)\n    display \"[`varlist']\"\nend\nprogram define pb\n    syntax varlist(fv ts)\n    display \"[`varlist']\"\nend\ncapture noisily pt L.wage\ntsset t\ncapture noisily pf educ i.reg\ncapture noisily pf ed-wage i.region\ncapture noisily pf c.educ#i.region\ncapture noisily pf i.region##c.educ\ncapture noisily pf i.(region educ)\ncapture noisily pf 2.region\ncapture noisily pf L.wage\ncapture noisily pf i.s\ncapture noisily pf educ#region\ncapture noisily pf c.educ##c.educ\ncapture noisily pt L.wa\ncapture noisily pt L(1/2).wage\ncapture noisily pt DL.wage\ncapture noisily pt L(0/1).wage\ncapture noisily pt i.region\ncapture noisily pt L.s\ncapture noisily pb L.wage#i.region\ncapture noisily pb L(1/2).wage##i.region\nprogram ps\n    syntax varlist(fv ts)\n    sreturn list\nend\nps i.region L.wage\nps educ\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        { "command": "generate region = mod(_n, 3) + 1", "lines": [] },
+        { "command": "generate educ = _n", "lines": [] },
+        { "command": "generate wage = _n * 2", "lines": [] },
+        { "command": "generate t = _n", "lines": [] },
+        { "command": "generate s = \"a\"", "lines": [] },
+        {
+          "command": "program define pf",
+          "lines": [
+            "  1.     syntax varlist(fv)",
+            "  2.     display \"[`varlist']\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "program define pt",
+          "lines": [
+            "  1.     syntax varlist(ts)",
+            "  2.     display \"[`varlist']\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "program define pb",
+          "lines": [
+            "  1.     syntax varlist(fv ts)",
+            "  2.     display \"[`varlist']\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "capture noisily pt L.wage",
+          "lines": ["time variable not set"]
+        },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 6", "        Delta: 1 unit"]
+        },
+        {
+          "command": "capture noisily pf educ i.reg",
+          "lines": ["[educ i.region]"]
+        },
+        {
+          "command": "capture noisily pf ed-wage i.region",
+          "lines": ["[educ wage i.region]"]
+        },
+        {
+          "command": "capture noisily pf c.educ#i.region",
+          "lines": ["[i.region#c.educ]"]
+        },
+        {
+          "command": "capture noisily pf i.region##c.educ",
+          "lines": ["[i.region educ i.region#c.educ]"]
+        },
+        {
+          "command": "capture noisily pf i.(region educ)",
+          "lines": ["[i.region i.educ]"]
+        },
+        { "command": "capture noisily pf 2.region", "lines": ["[i2.region]"] },
+        {
+          "command": "capture noisily pf L.wage",
+          "lines": ["time-series operators not allowed"]
+        },
+        {
+          "command": "capture noisily pf i.s",
+          "lines": ["s:  string variables may not be used as factor variables"]
+        },
+        {
+          "command": "capture noisily pf educ#region",
+          "lines": ["[i.educ#i.region]"]
+        },
+        {
+          "command": "capture noisily pf c.educ##c.educ",
+          "lines": ["[educ c.educ#c.educ]"]
+        },
+        { "command": "capture noisily pt L.wa", "lines": ["[L.wage]"] },
+        {
+          "command": "capture noisily pt L(1/2).wage",
+          "lines": ["[L.wage L2.wage]"]
+        },
+        { "command": "capture noisily pt DL.wage", "lines": ["[LD.wage]"] },
+        {
+          "command": "capture noisily pt L(0/1).wage",
+          "lines": ["[wage L.wage]"]
+        },
+        {
+          "command": "capture noisily pt i.region",
+          "lines": ["factor-variable operators not allowed"]
+        },
+        {
+          "command": "capture noisily pt L.s",
+          "lines": ["s:  may not use time-series operators on string variables"]
+        },
+        {
+          "command": "capture noisily pb L.wage#i.region",
+          "lines": ["[iL.wage#i.region]"]
+        },
+        {
+          "command": "capture noisily pb L(1/2).wage##i.region",
+          "lines": [
+            "[iL.wage iL2.wage i.region iL.wage#i.region iL2.wage#i.region]"
+          ]
+        },
+        {
+          "command": "program ps",
+          "lines": [
+            "  1.     syntax varlist(fv ts)",
+            "  2.     sreturn list",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "ps i.region L.wage",
+          "lines": [
+            "macros:",
+            "              s(tsops) : \"true\"",
+            "              s(fvops) : \"true\""
+          ]
+        },
+        { "command": "ps educ", "lines": [] }
+      ]
+    },
+    {
+      "id": "recheck-program-syntax-options",
+      "source": "clear\nset obs 5\ngenerate x = _n\ngenerate y = _n^2\nprogram o4\n    syntax [, by(varname) Level(real 95) Nm(name) V(varlist) NL(numlist) CI(cilevel)]\n    display \"ok `by'\"\nend\ncapture noisily o4, by(nosuch)\ncapture noisily o4, by(x y)\ncapture noisily o4, nm(a b)\ncapture noisily o4, nl(a)\ncapture noisily o4, ci(5)\ncapture noisily o4, ci(abc)\ncapture noisily o4, l(abc)\ncapture noisily o4, by()\nprogram o5\n    syntax [, Reps(integer 50) Level(real 95) *]\n    display \"reps=`reps' level=`level' rest=`options'\"\nend\no5, reps(2.5)\no5, r(abc) lev(abc)\nprogram p7\n    syntax [, CUToff(real 0.5) Reps(integer 5)]\nend\ncapture noisily p7, cut(abc)\ncapture noisily p7, r(1.5)\ncapture noisily list x, sep(2.5)\ncapture noisily tabstat x, by(nosuch)\ncapture noisily tabstat x, by(x y)\ncapture noisily egen m = mean(x), by(nosuch)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 5",
+          "lines": ["Number of observations (_N) was 0, now 5."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate y = _n^2", "lines": [] },
+        {
+          "command": "program o4",
+          "lines": [
+            "  1.     syntax [, by(varname) Level(real 95) Nm(name) V(varlist) NL(numlist) CI(cilevel)]",
+            "  2.     display \"ok `by'\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "capture noisily o4, by(nosuch)",
+          "lines": ["variable nosuch not found", "(error in option by())"]
+        },
+        {
+          "command": "capture noisily o4, by(x y)",
+          "lines": ["by():  too many variables specified"]
+        },
+        {
+          "command": "capture noisily o4, nm(a b)",
+          "lines": ["option nm():  too many names specified"]
+        },
+        {
+          "command": "capture noisily o4, nl(a)",
+          "lines": ["nl() invalid -- invalid numlist"]
+        },
+        {
+          "command": "capture noisily o4, ci(5)",
+          "lines": ["level() must be between 10 and 99.99 inclusive"]
+        },
+        {
+          "command": "capture noisily o4, ci(abc)",
+          "lines": ["abc found where number expected"]
+        },
+        {
+          "command": "capture noisily o4, l(abc)",
+          "lines": ["option l() incorrectly specified"]
+        },
+        { "command": "capture noisily o4, by()", "lines": ["ok"] },
+        {
+          "command": "program o5",
+          "lines": [
+            "  1.     syntax [, Reps(integer 50) Level(real 95) *]",
+            "  2.     display \"reps=`reps' level=`level' rest=`options'\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "o5, reps(2.5)",
+          "lines": ["reps=50 level=95 rest=reps(2.5)"]
+        },
+        {
+          "command": "o5, r(abc) lev(abc)",
+          "lines": ["reps=50 level=95 rest=r(abc) lev(abc)"]
+        },
+        {
+          "command": "program p7",
+          "lines": [
+            "  1.     syntax [, CUToff(real 0.5) Reps(integer 5)]",
+            "  2. end"
+          ]
+        },
+        {
+          "command": "capture noisily p7, cut(abc)",
+          "lines": ["option cut() incorrectly specified"]
+        },
+        {
+          "command": "capture noisily p7, r(1.5)",
+          "lines": ["option r() incorrectly specified"]
+        },
+        {
+          "command": "capture noisily list x, sep(2.5)",
+          "lines": ["option sep() incorrectly specified"]
+        },
+        {
+          "command": "capture noisily tabstat x, by(nosuch)",
+          "lines": ["variable nosuch not found", "(error in option by())"]
+        },
+        {
+          "command": "capture noisily tabstat x, by(x y)",
+          "lines": ["by():  too many variables specified"]
+        },
+        {
+          "command": "capture noisily egen m = mean(x), by(nosuch)",
+          "lines": ["variable nosuch not found", "(error in option by())"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-program-matrix-names-list",
+      "source": "matrix T = (1, 2 \\ 3, 4 \\ 5, 6)\nmatrix rownames T = a b\nmatrix colnames T = onlyone\nmatrix list T\ncapture noisily matrix colnames T = x y z\nmatrix A = (1, 2.5 \\ 3, 4)\nmatrix S = (1, 2 \\ 2, 5)\nmatrix list A, title(\"Summary\")\nmatrix list A, format(%9.3f) title(My matrix)\nmatrix list A, noheader\nmatrix list A, nonames\nmatrix list A, noblank\nmatrix list S, nohalf\nmatrix list A, nob noh\ncapture noisily matrix list A, bogus\n",
+      "commands": [
+        { "command": "matrix T = (1, 2 \\ 3, 4 \\ 5, 6)", "lines": [] },
+        { "command": "matrix rownames T = a b", "lines": [] },
+        { "command": "matrix colnames T = onlyone", "lines": [] },
+        {
+          "command": "matrix list T",
+          "lines": [
+            "T[3,2]",
+            "   onlyone  onlyone",
+            "a        1        2",
+            "b        3        4",
+            "b        5        6"
+          ]
+        },
+        {
+          "command": "capture noisily matrix colnames T = x y z",
+          "lines": ["conformability error"]
+        },
+        { "command": "matrix A = (1, 2.5 \\ 3, 4)", "lines": [] },
+        { "command": "matrix S = (1, 2 \\ 2, 5)", "lines": [] },
+        {
+          "command": "matrix list A, title(\"Summary\")",
+          "lines": [
+            "A[2,2]:  Summary",
+            "     c1   c2",
+            "r1    1  2.5",
+            "r2    3    4"
+          ]
+        },
+        {
+          "command": "matrix list A, format(%9.3f) title(My matrix)",
+          "lines": [
+            "A[2,2]:  My matrix",
+            "       c1     c2",
+            "r1  1.000  2.500",
+            "r2  3.000  4.000"
+          ]
+        },
+        {
+          "command": "matrix list A, noheader",
+          "lines": ["     c1   c2", "r1    1  2.5", "r2    3    4"]
+        },
+        {
+          "command": "matrix list A, nonames",
+          "lines": ["A[2,2]", "    1  2.5", "    3    4"]
+        },
+        {
+          "command": "matrix list A, noblank",
+          "lines": ["A[2,2]", "     c1   c2", "r1    1  2.5", "r2    3    4"]
+        },
+        {
+          "command": "matrix list S, nohalf",
+          "lines": [
+            "symmetric S[2,2]",
+            "    c1  c2",
+            "r1   1   2",
+            "r2   2   5"
+          ]
+        },
+        {
+          "command": "matrix list A, nob noh",
+          "lines": ["     c1   c2", "r1    1  2.5", "r2    3    4"]
+        },
+        {
+          "command": "capture noisily matrix list A, bogus",
+          "lines": ["option bogus not allowed"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-program-return-order",
+      "source": "sreturn clear\nprogram sp1, sclass\n    sreturn local a \"first\"\n    sreturn local b \"second\"\n    sreturn local c \"third\"\n    sreturn local a \"again\"\nend\nsp1\nsreturn list\nprogram rp1, rclass\n    return local a \"first\"\n    return local b \"second\"\n    return scalar x = 1\n    return scalar y = 2\n    return local c \"third\"\n    return local a \"again\"\n    return scalar x = 3\nend\nrp1\nreturn list\nclear\nset obs 10\ngenerate x = _n\ngenerate y = 2 * x + mod(_n, 3)\nregress y x\nprogram addt, eclass\n    ereturn local tag \"mine\"\n    ereturn local tag2 \"two\"\n    ereturn scalar extra = 5\nend\naddt\nereturn list\n",
+      "commands": [
+        { "command": "sreturn clear", "lines": [] },
+        {
+          "command": "program sp1, sclass",
+          "lines": [
+            "  1.     sreturn local a \"first\"",
+            "  2.     sreturn local b \"second\"",
+            "  3.     sreturn local c \"third\"",
+            "  4.     sreturn local a \"again\"",
+            "  5. end"
+          ]
+        },
+        { "command": "sp1", "lines": [] },
+        {
+          "command": "sreturn list",
+          "lines": [
+            "macros:",
+            "                  s(a) : \"again\"",
+            "                  s(c) : \"third\"",
+            "                  s(b) : \"second\""
+          ]
+        },
+        {
+          "command": "program rp1, rclass",
+          "lines": [
+            "  1.     return local a \"first\"",
+            "  2.     return local b \"second\"",
+            "  3.     return scalar x = 1",
+            "  4.     return scalar y = 2",
+            "  5.     return local c \"third\"",
+            "  6.     return local a \"again\"",
+            "  7.     return scalar x = 3",
+            "  8. end"
+          ]
+        },
+        { "command": "rp1", "lines": [] },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(x) =  3",
+            "                  r(y) =  2",
+            "",
+            "macros:",
+            "                  r(a) : \"again\"",
+            "                  r(c) : \"third\"",
+            "                  r(b) : \"second\""
+          ]
+        },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 10",
+          "lines": ["Number of observations (_N) was 0, now 10."]
+        },
+        { "command": "generate x = _n", "lines": [] },
+        { "command": "generate y = 2 * x + mod(_n, 3)", "lines": [] },
+        {
+          "command": "regress y x",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =        10",
+            "-------------+----------------------------------   F(1, 8)         =    432.00",
+            "       Model |  318.109091         1  318.109091   Prob > F        =    0.0000",
+            "    Residual |  5.89090909         8  .736363636   R-squared       =    0.9818",
+            "-------------+----------------------------------   Adj R-squared   =    0.9795",
+            "       Total |         324         9          36   Root MSE        =    .85812",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.963636   .0944755    20.78   0.000     1.745775    2.181497",
+            "       _cons |        1.2   .5862051     2.05   0.075    -.1517913    2.551791",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "program addt, eclass",
+          "lines": [
+            "  1.     ereturn local tag \"mine\"",
+            "  2.     ereturn local tag2 \"two\"",
+            "  3.     ereturn scalar extra = 5",
+            "  4. end"
+          ]
+        },
+        { "command": "addt", "lines": [] },
+        {
+          "command": "ereturn list",
+          "lines": [
+            "scalars:",
+            "                  e(N) =  10",
+            "              e(sum_w) =  10",
+            "               e(df_m) =  1",
+            "               e(df_r) =  8",
+            "                  e(F) =  432.0000000000001",
+            "                 e(r2) =  .9818181818181818",
+            "               e(rmse) =  .858116330321033",
+            "                e(mss) =  318.1090909090909",
+            "                e(rss) =  5.89090909090909",
+            "               e(r2_a) =  .9795454545454545",
+            "                 e(ll) =  -11.54351151987579",
+            "               e(ll_0) =  -31.58017744603814",
+            "               e(rank) =  2",
+            "              e(extra) =  5",
+            "",
+            "macros:",
+            "               e(tag2) : \"two\"",
+            "                e(tag) : \"mine\"",
+            "            e(cmdline) : \"regress y x\"",
+            "              e(title) : \"Linear regression\"",
+            "          e(marginsok) : \"XB default\"",
+            "                e(vce) : \"ols\"",
+            "             e(depvar) : \"y\"",
+            "                e(cmd) : \"regress\"",
+            "         e(properties) : \"b V\"",
+            "            e(predict) : \"regres_p\"",
+            "              e(model) : \"ols\"",
+            "          e(estat_cmd) : \"regress_estat\"",
+            "",
+            "matrices:",
+            "                  e(b) :  1 x 2",
+            "                  e(V) :  2 x 2",
+            "               e(beta) :  1 x 1",
+            "",
+            "functions:",
+            "             e(sample)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-program-levelsof",
+      "source": "clear\nset obs 8\ngenerate double d = _n / 7\ngenerate float f = _n / 7\ngenerate double huge = 1e20 * _n\ngenerate tiny = 1e-8 * _n\ngenerate y = mod(_n, 3)\nreplace y = . in 1\nreplace y = .a in 2\ngenerate s = cond(mod(_n, 2), \"b\", \"a\")\nreplace s = \"\" in 3\nlevelsof d\nlevelsof f, separate(,)\nlevelsof huge\nlevelsof tiny\nlevelsof y, missing\nlevelsof y, matcell(F) matrow(R)\nmatrix list F\nmatrix list R\nreturn list\nlevelsof y, missing matcell(G) matrow(H)\nmatrix list H\nlevelsof s, matcell(S)\nmatrix list S\ncapture noisily levelsof s, matrow(S)\nlevelsof s, missing\nlevelsof y if y > 5\nreturn list\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 8",
+          "lines": ["Number of observations (_N) was 0, now 8."]
+        },
+        { "command": "generate double d = _n / 7", "lines": [] },
+        { "command": "generate float f = _n / 7", "lines": [] },
+        { "command": "generate double huge = 1e20 * _n", "lines": [] },
+        { "command": "generate tiny = 1e-8 * _n", "lines": [] },
+        { "command": "generate y = mod(_n, 3)", "lines": [] },
+        {
+          "command": "replace y = . in 1",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "replace y = .a in 2",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "generate s = cond(mod(_n, 2), \"b\", \"a\")",
+          "lines": []
+        },
+        {
+          "command": "replace s = \"\" in 3",
+          "lines": ["(1 real change made)"]
+        },
+        {
+          "command": "levelsof d",
+          "lines": [
+            ".1428571428571428 .2857142857142857 .4285714285714285 .5714285714285714 .7142857142857143 .8571428571428571 1 1.142857142857143"
+          ]
+        },
+        {
+          "command": "levelsof f, separate(,)",
+          "lines": [
+            ".1428571492433548,.2857142984867096,.4285714328289032,.5714285969734192,.7142857313156128,.8571428656578064,1,1.142857193946838"
+          ]
+        },
+        {
+          "command": "levelsof huge",
+          "lines": [
+            "1.00000000000000e+20 2.00000000000000e+20 3.00000000000000e+20 4.00000000000000e+20 5.00000000000000e+20 6.00000000000000e+20 7.00000000000000e+20 8.00000000000000e+20"
+          ]
+        },
+        {
+          "command": "levelsof tiny",
+          "lines": [
+            "9.99999993923e-09 1.99999998785e-08 2.99999989295e-08 3.99999997569e-08 5.00000005843e-08 5.99999978590e-08 6.99999986864e-08 7.99999995138e-08"
+          ]
+        },
+        { "command": "levelsof y, missing", "lines": ["0 1 2 . .a"] },
+        { "command": "levelsof y, matcell(F) matrow(R)", "lines": ["0 1 2"] },
+        {
+          "command": "matrix list F",
+          "lines": ["F[3,1]", "    c1", "r1   2", "r2   2", "r3   2"]
+        },
+        {
+          "command": "matrix list R",
+          "lines": ["R[3,1]", "    c1", "r1   0", "r2   1", "r3   2"]
+        },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  6",
+            "                  r(r) =  3",
+            "",
+            "macros:",
+            "             r(levels) : \"0 1 2\""
+          ]
+        },
+        {
+          "command": "levelsof y, missing matcell(G) matrow(H)",
+          "lines": ["0 1 2 . .a"]
+        },
+        {
+          "command": "matrix list H",
+          "lines": [
+            "H[5,1]",
+            "    c1",
+            "r1   0",
+            "r2   1",
+            "r3   2",
+            "r4   .",
+            "r5  .a"
+          ]
+        },
+        { "command": "levelsof s, matcell(S)", "lines": ["`\"a\"' `\"b\"'"] },
+        {
+          "command": "matrix list S",
+          "lines": ["S[2,1]", "    c1", "r1   4", "r2   3"]
+        },
+        {
+          "command": "capture noisily levelsof s, matrow(S)",
+          "lines": ["option matrow not allowed with string variable"]
+        },
+        {
+          "command": "levelsof s, missing",
+          "lines": ["`\"\"' `\"a\"' `\"b\"'"]
+        },
+        { "command": "levelsof y if y > 5", "lines": [] },
+        {
+          "command": "return list",
+          "lines": [
+            "scalars:",
+            "                  r(N) =  0",
+            "                  r(r) =  0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck-program-macro-list",
+      "source": "local a \"x    y   z\"\nmacro list _a\nglobal B \"p     q\"\nmacro list B\nlocal b `\"  lead  \"q  r\"  trail  \"'\nmacro list _b\n",
+      "commands": [
+        { "command": "local a \"x    y   z\"", "lines": [] },
+        { "command": "macro list _a", "lines": ["_a:             x y z"] },
+        { "command": "global B \"p     q\"", "lines": [] },
+        { "command": "macro list B", "lines": ["B:              p q"] },
+        { "command": "local b `\"  lead  \"q  r\"  trail  \"'", "lines": [] },
+        {
+          "command": "macro list _b",
+          "lines": ["_b:              lead \"q r\" trail"]
+        }
+      ]
+    },
+    {
+      "id": "recheck-program-delimit",
+      "source": "#delimit ;\ndisplay \"one\" ; display \"two\" ; display \"three\" ;\ndisplay \"semi;colon\" ; display \"x\" ;\ndisplay \"a\" ; // comment\ndisplay \"long\"\n  \"er\" ; display \"next\" ;\nlocal q = 1 ; local r = 2 ; display `q' + `r' ;\n#delimit cr\ndisplay \"done\"\n",
+      "commands": [
+        { "command": "#delimit ;", "lines": ["delimiter now ;"] },
+        { "command": "display \"one\" ;", "lines": ["one"] },
+        { "command": "display \"two\" ;", "lines": ["two"] },
+        { "command": "display \"three\" ;", "lines": ["three"] },
+        { "command": "display \"semi;colon\" ;", "lines": ["semi;colon"] },
+        { "command": "display \"x\" ;", "lines": ["x"] },
+        { "command": "display \"a\" ;", "lines": ["a"] },
+        {
+          "command": "// commentdisplay \"long\"  \"er\" ;",
+          "lines": ["longer"]
+        },
+        { "command": "display \"next\" ;", "lines": ["next"] },
+        { "command": "local q = 1 ;", "lines": [] },
+        { "command": "local r = 2 ;", "lines": [] },
+        { "command": "display `q' + `r' ;", "lines": ["3"] },
+        { "command": "#delimit cr", "lines": ["delimiter now cr"] },
+        { "command": "display \"done\"", "lines": ["done"] }
+      ]
+    },
+    {
+      "id": "recheck-program-local-names",
+      "source": "local 1bad x\ndisplay \"`1bad'\"\ncapture noisily local abcdefghijabcdefghijabcdefghij12 bad\ncapture noisily local abcdefghijabcdefghijabcdefghij12 = 1\ncapture noisily tempvar abcdefghijabcdefghijabcdefghij12\ncapture noisily local ++abcdefghijabcdefghijabcdefghij12\ncapture noisily args abcdefghijabcdefghijabcdefghij12\ncapture noisily global 1bad x\n",
+      "commands": [
+        { "command": "local 1bad x", "lines": [] },
+        { "command": "display \"`1bad'\"", "lines": ["x"] },
+        {
+          "command": "capture noisily local abcdefghijabcdefghijabcdefghij12 bad",
+          "lines": ["_abcdefghijabcdefghijabcdefghij12 invalid name"]
+        },
+        {
+          "command": "capture noisily local abcdefghijabcdefghijabcdefghij12 = 1",
+          "lines": ["_abcdefghijabcdefghijabcdefghij12 invalid name"]
+        },
+        {
+          "command": "capture noisily tempvar abcdefghijabcdefghijabcdefghij12",
+          "lines": ["_abcdefghijabcdefghijabcdefghij12 invalid name"]
+        },
+        {
+          "command": "capture noisily local ++abcdefghijabcdefghijabcdefghij12",
+          "lines": ["_abcdefghijabcdefghijabcdefghij12 invalid name"]
+        },
+        {
+          "command": "capture noisily args abcdefghijabcdefghijabcdefghij12",
+          "lines": ["_abcdefghijabcdefghijabcdefghij12 invalid name"]
+        },
+        {
+          "command": "capture noisily global 1bad x",
+          "lines": ["1bad invalid name"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

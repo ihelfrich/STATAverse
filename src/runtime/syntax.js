@@ -217,6 +217,17 @@ export function parseDeclaration(declaration) {
 }
 
 const notAllowed = (what) => new StataError(`${what} not allowed`, 101);
+// The kinds of option for which an empty argument, as by(), is the same as
+// not giving the option at all.
+const EMPTY_IS_UNSET = new Set([
+  "name",
+  "namelist",
+  "varlist",
+  "varname",
+  "numlist",
+  "cilevel",
+  "passthru",
+]);
 
 /**
  * Where a single = (not part of ==, !=, ~=, <= or >=) stands in an
@@ -475,6 +486,22 @@ function newVariables(text, context) {
   return { names, types, typed, labels };
 }
 
+/**
+ * The names of foreach ... of newlist: each a valid name of at most 32
+ * characters, none a variable already there, none twice.
+ */
+export function newVariableNames(text, existing) {
+  for (const word of text.split(/\s+/))
+    if (/^[A-Za-z_]\w*$/.test(word) && word.length > 32)
+      throw new StataError(`${word} invalid varname`, 198);
+  const { names } = newVariables(text, { names: existing });
+  names.forEach((name, k) => {
+    if (names.indexOf(name) < k)
+      throw new StataError(`variable ${name} already defined`, 110);
+  });
+  return names;
+}
+
 function existingVariables(text, specs, context) {
   const names = expandVarlist(text, context.names);
   for (const name of names) {
@@ -490,6 +517,188 @@ function existingVariables(text, specs, context) {
       throw new StataError("type mismatch", 109);
   }
   return names;
+}
+
+// ----- varlist(fv) and varlist(ts) -----
+
+/** Splits text at blanks, or at a separator, outside parentheses. */
+function topSplit(text, separator = null) {
+  const out = [];
+  let depth = 0,
+    current = "";
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === "(") depth++;
+    else if (c === ")") depth = Math.max(0, depth - 1);
+    if (!depth && (separator ? text.startsWith(separator, i) : /\s/.test(c))) {
+      if (separator) {
+        out.push(current);
+        i += separator.length - 1;
+      } else if (current) out.push(current);
+      current = "";
+      continue;
+    }
+    current += c;
+  }
+  if (separator || current) out.push(current);
+  return out;
+}
+
+// An operator before the period: a factor-variable part (i, ibn, ib2,
+// ib(first), i(1 2), b2, 2, 2bn, c, co, o) then time-series ones (L2, D,
+// L(1/2), ...), either of them perhaps missing.
+const OPERATOR =
+  /^(ibn|ib\d+|ib\([^)]*\)|i\([^)]*\)|i|b\d+|\d+bn|\d+b|\d+|co|c|o)?((?:[LFDSlfds](?:\d+|\([^)]*\))?)*)$/;
+
+/**
+ * One part of a factor-variable or time-series term, as i.g, L2.x, cL.x,
+ * i.(g h) or L(1/2).x: the members it stands for, each { fv, ts, name },
+ * fv the factor operator (null for none) and ts the time-series ones in
+ * Stata's order.
+ */
+function operatorMembers(part, resolve) {
+  if (/^\(.*\)$/.test(part))
+    return topSplit(part.slice(1, -1)).flatMap((inner) =>
+      operatorMembers(inner, resolve),
+    );
+  const segments = topSplit(part, "."),
+    target = segments.pop();
+  let fv = null,
+    chains = [[]];
+  for (const segment of segments) {
+    const m = OPERATOR.exec(segment);
+    if (!m || !segment) throw new StataError("invalid syntax", 198);
+    if (m[1]) fv = m[1];
+    for (const [, letter, count] of m[2].matchAll(
+      /([LFDSlfds])(\d+|\([^)]*\))?/g,
+    )) {
+      const counts = count?.startsWith("(")
+        ? parseNumlist(count.slice(1, -1))
+        : [count === undefined ? 1 : Number(count)];
+      chains = chains.flatMap((chain) =>
+        counts.map((k) => [...chain, [letter.toUpperCase(), k]]),
+      );
+    }
+  }
+  // L(0/1).x is x and L.x; LD.x and DL.x are the same, written LD.
+  const spelled = chains.map((chain) =>
+    ["L", "F", "D", "S"]
+      .map((letter) => {
+        const k = chain
+          .filter(([l]) => l === letter)
+          .reduce((t, [, n]) => t + n, 0);
+        return k === 0 ? "" : k === 1 ? letter : `${letter}${k}`;
+      })
+      .join(""),
+  );
+  const names = /^\(.*\)$/.test(target)
+    ? topSplit(target.slice(1, -1))
+    : [target];
+  return names.flatMap((name) => {
+    const stray = /[^\w\u0080-\u{10FFFF}]/u.exec(name);
+    if (stray) throw new StataError(`${stray[0]} invalid name`, 198);
+    if (!name) throw new StataError("invalid syntax", 198);
+    const variable = resolve(name);
+    return spelled.map((ts) => ({ fv, ts, name: variable }));
+  });
+}
+
+/**
+ * The varlist of a program whose syntax allows factor variables (fv) or
+ * time-series operators (ts), written as Stata's syntax leaves it in
+ * `varlist': names in full, c.x alone as x, 2.g alone as i2.g, a bare
+ * variable in an interaction a factor one, the factors of an interaction
+ * before its continuous parts, a##b as a b a#b, and each term once.
+ */
+function operatorVarlist(text, specs, context, found = {}) {
+  const out = [],
+    resolve = (name) => expandVarlist(name, context.names)[0],
+    check = (member, factor) => {
+      const type = context.types?.[member.name];
+      if (factor && !specs.fv)
+        throw new StataError("factor-variable operators not allowed", 101);
+      if (member.ts && !specs.ts)
+        throw new StataError("time-series operators not allowed", 101);
+      if (factor && isStringType(type))
+        throw new StataError(
+          `${member.name}:  string variables may not be used as factor variables`,
+          109,
+        );
+      if (member.ts && isStringType(type))
+        throw new StataError(
+          `${member.name}:  may not use time-series operators on string variables`,
+          109,
+        );
+      if (member.ts && !context.timeSet)
+        throw new StataError("time variable not set", 111);
+      if (factor) found.fv = true;
+      if (member.ts) found.ts = true;
+    },
+    spell = (fv, member) =>
+      fv || member.ts ? `${fv ?? ""}${member.ts}.${member.name}` : member.name,
+    // A term alone: c. is dropped and a level gets i before it.
+    alone = (member) => {
+      check(member, member.fv !== null);
+      return spell(
+        member.fv === "c"
+          ? null
+          : /^\d+$/.test(member.fv ?? "")
+            ? `i${member.fv}`
+            : member.fv,
+        member,
+      );
+    },
+    interaction = (members) => {
+      const parts = members.map((member) => ({
+        member,
+        fv: member.fv ?? "i",
+      }));
+      for (const part of parts) check(part.member, true);
+      return [
+        ...parts.filter((part) => part.fv !== "c"),
+        ...parts.filter((part) => part.fv === "c"),
+      ]
+        .map((part) => spell(part.fv, part.member))
+        .join("#");
+    },
+    product = (lists) =>
+      lists.reduce(
+        (all, list) => all.flatMap((done) => list.map((one) => [...done, one])),
+        [[]],
+      ),
+    push = (term) => {
+      if (!out.includes(term)) out.push(term);
+    };
+  for (const word of topSplit(text)) {
+    // A plain word is read as any varlist is: abbreviations, ranges and
+    // wildcards.
+    if (!/[.#()]/.test(word)) {
+      for (const name of existingVariables(word, specs, context)) push(name);
+      continue;
+    }
+    const groups = topSplit(word, "##").map((group) =>
+      topSplit(group, "#").map((part) => operatorMembers(part, resolve)),
+    );
+    if (groups.some((group) => group.some((members) => !members.length)))
+      throw new StataError("invalid syntax", 198);
+    if (groups.length === 1) {
+      for (const members of product(groups[0]))
+        push(members.length === 1 ? alone(members[0]) : interaction(members));
+      continue;
+    }
+    // a##b##c: every combination of the groups, in the order of binary
+    // counting; a bare variable there is a factor one.
+    for (let mask = 1; mask < 1 << groups.length; mask++)
+      for (const members of product(
+        groups.filter((_, k) => mask & (1 << k)).flat(),
+      ))
+        push(
+          members.length === 1
+            ? alone({ ...members[0], fv: members[0].fv ?? "i" })
+            : interaction(members),
+        );
+  }
+  return out;
 }
 
 function nameList(text) {
@@ -556,9 +765,26 @@ function matchOption(name, declared) {
   return null;
 }
 
-function optionValue(option, argument, context) {
+/**
+ * An option's argument read as its declaration says. Stata names the
+ * option as it was typed (cut() for CUToff), and a number that is not one
+ * is an error a * in the declaration takes instead (error.passes).
+ */
+function optionValue(option, argument, context, typed = option.name) {
   const invalid = () =>
-    new StataError(`option ${option.name}() incorrectly specified`, 198);
+    Object.assign(
+      new StataError(`option ${typed}() incorrectly specified`, 198),
+      { passes: true },
+    );
+  // An error in a varlist, name or numlist is told as being in the option.
+  const within = (read, wrap) => {
+    try {
+      return read();
+    } catch (error) {
+      if (error instanceof StataError) error.message = wrap(error.message);
+      throw error;
+    }
+  };
   const text = argument.trim();
   switch (option.kind) {
     case "integer":
@@ -566,12 +792,17 @@ function optionValue(option, argument, context) {
       return { local: String(Number(text)), value: Number(text) };
     case "real":
     case "cilevel": {
-      if (!/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(text))
-        throw invalid();
+      if (!/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(text)) {
+        if (option.kind === "real") throw invalid();
+        throw Object.assign(
+          new StataError(`${text} found where number expected`, 198),
+          { passes: true },
+        );
+      }
       const value = Number(text);
       if (option.kind === "cilevel" && !(value >= 10 && value <= 99.99))
         throw new StataError(
-          `${option.name}() must be between 10 and 99.99 inclusive`,
+          "level() must be between 10 and 99.99 inclusive",
           198,
         );
       return { local: formatNumber(value), value };
@@ -588,7 +819,10 @@ function optionValue(option, argument, context) {
       const names = nameList(text);
       if (!names.length) throw invalid();
       if (option.kind === "name" && names.length > 1)
-        throw new StataError("too many names specified", 103);
+        throw new StataError(
+          `option ${typed}():  too many names specified`,
+          103,
+        );
       return {
         local: names.join(" "),
         value: option.kind === "name" ? names[0] : names,
@@ -596,17 +830,23 @@ function optionValue(option, argument, context) {
     }
     case "varlist":
     case "varname": {
-      const names = expandVarlist(text, context.names);
+      const names = within(
+        () => expandVarlist(text, context.names),
+        (message) => `${message}\n(error in option ${typed}())`,
+      );
       if (!names.length) throw invalid();
       if (option.kind === "varname" && names.length > 1)
-        throw new StataError("too many variables specified", 103);
+        throw new StataError(`${typed}():  too many variables specified`, 103);
       return {
         local: names.join(" "),
         value: option.kind === "varname" ? names[0] : names,
       };
     }
     case "numlist": {
-      const numbers = parseNumlist(text);
+      const numbers = within(
+        () => parseNumlist(text),
+        (message) => `${typed}() invalid -- ${message}`,
+      );
       if (!numbers.length) throw invalid();
       return { local: numbers.map(formatNumber).join(" "), value: numbers };
     }
@@ -690,8 +930,13 @@ export function applySyntax(declaration, text, context) {
     }
   } else {
     let names;
+    // Whether the varlist had factor variables or time-series operators,
+    // which a program's syntax reports in s(fvops) and s(tsops).
+    if (position.specs.fv || position.specs.ts) result.operators = {};
     if (leading) {
-      names = existingVariables(leading, position.specs, context);
+      names = result.operators
+        ? operatorVarlist(leading, position.specs, context, result.operators)
+        : existingVariables(leading, position.specs, context);
       // _all with no variables in memory is a list of none, which Stata's
       // drop, keep, describe, order, sort and the others accept.
       if (names.length || !/^\s*_all\s*$/.test(leading))
@@ -787,8 +1032,8 @@ export function applySyntax(declaration, text, context) {
       );
     if (seen.has(option))
       throw new StataError(`option ${option.name} not allowed`, 198);
-    seen.add(option);
     if (option.kind === "flag" || option.kind === "off") {
+      seen.add(option);
       if (item.argument !== undefined)
         throw new StataError(`option ${item.name}() not allowed`, 198);
       if (on) {
@@ -799,9 +1044,19 @@ export function applySyntax(declaration, text, context) {
     } else {
       if (item.argument === undefined)
         throw new StataError(`option ${item.name} incorrectly specified`, 198);
-      const { local, value } = optionValue(option, item.argument, context);
-      locals[option.name] = local;
-      result.options[option.name] = value;
+      // An empty argument, as by(), is the option not given.
+      if (!item.argument.trim() && EMPTY_IS_UNSET.has(option.kind)) continue;
+      let read;
+      try {
+        read = optionValue(option, item.argument, context, item.name);
+      } catch (error) {
+        if (!(decl.star && error.passes)) throw error;
+        extra.push(item.word);
+        continue;
+      }
+      seen.add(option);
+      locals[option.name] = read.local;
+      result.options[option.name] = read.value;
     }
   }
   for (const option of decl.options) {

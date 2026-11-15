@@ -26607,3 +26607,309 @@ generate w = 1 + runiform()
 generate y = 2 + 3*x + g/10 + rnormal()
 regress y x i.g
 regress y x i.g [aw=w], vce(robust)
+=== recheck-program-expansion-errors
+clear
+set obs 1
+generate x = 2
+display "start"
+display "a`=1+'b"
+display "c`=nosuch'd"
+local m "e`=x*'f"
+display "[`m']"
+quietly display "q`=1+'q"
+capture display "c`=1+'c"
+display _rc
+capture noisily display "n`=1+'n"
+display "[`:variable label nosuch']"
+display "[`:type x']"
+forvalues i = 1/2 {
+  display "loop `i' `=1+'"
+}
+if `=1+' 1 {
+  display "if ran"
+}
+local k : word count `=1+'
+display "k=`k'"
+display "after"
+=== recheck-program-subinstr-label
+local v "lwage wage  age wage"
+local s : subinstr local v "wage" "", word
+display "[`s']"
+local s : subinstr local v "wage" "W", word all count(local n)
+display "[`s'] n=`n'"
+local s : subinstr local v "wage" "W", count(local n)
+display "[`s'] n=`n'"
+local s : subinstr local v "zzz" "W", all count(global G)
+display "[`s'] G=$G"
+local s : subinstr local v "a" "", all word
+display "[`s']"
+capture noisily local s : subinstr local v "a" "b", nosuch
+capture noisily local s : subinstr local v "a" "b", count(n)
+capture noisily local s : subinstr local v "" "b", all
+capture noisily local s : subinstr local v a b, all
+local s : subinstr local v "a" "b", wo all cou(local c2)
+display "`c2' `s'"
+clear
+set obs 3
+generate region = _n
+generate other = _n
+label define reg 1 "North" 2 "Southeast" 3 "W"
+label values region reg
+local a : label (region) 2
+display "[`a']"
+local a : label (reg) 2
+display "[`a']"
+local a : label (other) 2
+display "[`a']"
+local a : label (region) 7, strict
+display "[`a']"
+local a : label reg 2 4
+display "[`a']"
+local a : label reg 2.5
+display "[`a']"
+local b : label reg maxlength
+display "[`b']"
+local b : label nosuch 3
+display "[`b']"
+label define reg .a "Missing A", add
+local b : label reg .a
+display "[`b']"
+capture noisily local b : label reg 1, nosuch
+capture noisily local b : label reg abc
+capture noisily local b : label reg 1 2 3
+=== recheck-program-prefixed-if
+clear
+set obs 2
+generate x = _n
+quietly if 1 {
+    noisily display "q if"
+    display "hidden"
+}
+display "after1"
+capture if 1 {
+    display "c if"
+    nosuchcmd
+}
+display "rc=" _rc
+quietly if x[1] == 2 {
+    noisily display "first"
+}
+else display "inline else"
+capture quietly if x[2] == 2 {
+    noisily display "second"
+    generate y = 1
+    generate y = 2
+}
+display "rc=" _rc
+display "end"
+=== recheck-program-foreach-lists
+clear
+set obs 1
+generate z1 = 1
+local e
+capture noisily foreach v of varlist `e' {
+  display "`v'"
+}
+display _rc
+capture noisily foreach v of numlist `e' {
+  display "`v'"
+}
+display _rc
+capture noisily foreach v of newlist z2 z2 {
+  display "`v'"
+}
+capture noisily foreach v of newlist z3 z1 {
+  display "`v'"
+}
+capture noisily foreach v of newlist 1bad {
+  display "`v'"
+}
+foreach v of newlist z3-z5 {
+  display "`v'"
+}
+generate a = 1
+generate b = 2
+generate c = 3
+capture noisily summarize c-a
+=== recheck-program-syntax-fv-ts
+clear
+set obs 6
+generate region = mod(_n, 3) + 1
+generate educ = _n
+generate wage = _n * 2
+generate t = _n
+generate s = "a"
+program define pf
+    syntax varlist(fv)
+    display "[`varlist']"
+end
+program define pt
+    syntax varlist(ts)
+    display "[`varlist']"
+end
+program define pb
+    syntax varlist(fv ts)
+    display "[`varlist']"
+end
+capture noisily pt L.wage
+tsset t
+capture noisily pf educ i.reg
+capture noisily pf ed-wage i.region
+capture noisily pf c.educ#i.region
+capture noisily pf i.region##c.educ
+capture noisily pf i.(region educ)
+capture noisily pf 2.region
+capture noisily pf L.wage
+capture noisily pf i.s
+capture noisily pf educ#region
+capture noisily pf c.educ##c.educ
+capture noisily pt L.wa
+capture noisily pt L(1/2).wage
+capture noisily pt DL.wage
+capture noisily pt L(0/1).wage
+capture noisily pt i.region
+capture noisily pt L.s
+capture noisily pb L.wage#i.region
+capture noisily pb L(1/2).wage##i.region
+program ps
+    syntax varlist(fv ts)
+    sreturn list
+end
+ps i.region L.wage
+ps educ
+=== recheck-program-syntax-options
+clear
+set obs 5
+generate x = _n
+generate y = _n^2
+program o4
+    syntax [, by(varname) Level(real 95) Nm(name) V(varlist) NL(numlist) CI(cilevel)]
+    display "ok `by'"
+end
+capture noisily o4, by(nosuch)
+capture noisily o4, by(x y)
+capture noisily o4, nm(a b)
+capture noisily o4, nl(a)
+capture noisily o4, ci(5)
+capture noisily o4, ci(abc)
+capture noisily o4, l(abc)
+capture noisily o4, by()
+program o5
+    syntax [, Reps(integer 50) Level(real 95) *]
+    display "reps=`reps' level=`level' rest=`options'"
+end
+o5, reps(2.5)
+o5, r(abc) lev(abc)
+program p7
+    syntax [, CUToff(real 0.5) Reps(integer 5)]
+end
+capture noisily p7, cut(abc)
+capture noisily p7, r(1.5)
+capture noisily list x, sep(2.5)
+capture noisily tabstat x, by(nosuch)
+capture noisily tabstat x, by(x y)
+capture noisily egen m = mean(x), by(nosuch)
+=== recheck-program-matrix-names-list
+matrix T = (1, 2 \ 3, 4 \ 5, 6)
+matrix rownames T = a b
+matrix colnames T = onlyone
+matrix list T
+capture noisily matrix colnames T = x y z
+matrix A = (1, 2.5 \ 3, 4)
+matrix S = (1, 2 \ 2, 5)
+matrix list A, title("Summary")
+matrix list A, format(%9.3f) title(My matrix)
+matrix list A, noheader
+matrix list A, nonames
+matrix list A, noblank
+matrix list S, nohalf
+matrix list A, nob noh
+capture noisily matrix list A, bogus
+=== recheck-program-return-order
+sreturn clear
+program sp1, sclass
+    sreturn local a "first"
+    sreturn local b "second"
+    sreturn local c "third"
+    sreturn local a "again"
+end
+sp1
+sreturn list
+program rp1, rclass
+    return local a "first"
+    return local b "second"
+    return scalar x = 1
+    return scalar y = 2
+    return local c "third"
+    return local a "again"
+    return scalar x = 3
+end
+rp1
+return list
+clear
+set obs 10
+generate x = _n
+generate y = 2 * x + mod(_n, 3)
+regress y x
+program addt, eclass
+    ereturn local tag "mine"
+    ereturn local tag2 "two"
+    ereturn scalar extra = 5
+end
+addt
+ereturn list
+=== recheck-program-levelsof
+clear
+set obs 8
+generate double d = _n / 7
+generate float f = _n / 7
+generate double huge = 1e20 * _n
+generate tiny = 1e-8 * _n
+generate y = mod(_n, 3)
+replace y = . in 1
+replace y = .a in 2
+generate s = cond(mod(_n, 2), "b", "a")
+replace s = "" in 3
+levelsof d
+levelsof f, separate(,)
+levelsof huge
+levelsof tiny
+levelsof y, missing
+levelsof y, matcell(F) matrow(R)
+matrix list F
+matrix list R
+return list
+levelsof y, missing matcell(G) matrow(H)
+matrix list H
+levelsof s, matcell(S)
+matrix list S
+capture noisily levelsof s, matrow(S)
+levelsof s, missing
+levelsof y if y > 5
+return list
+=== recheck-program-macro-list
+local a "x    y   z"
+macro list _a
+global B "p     q"
+macro list B
+local b `"  lead  "q  r"  trail  "'
+macro list _b
+=== recheck-program-delimit
+#delimit ;
+display "one" ; display "two" ; display "three" ;
+display "semi;colon" ; display "x" ;
+display "a" ; // comment
+display "long"
+  "er" ; display "next" ;
+local q = 1 ; local r = 2 ; display `q' + `r' ;
+#delimit cr
+display "done"
+=== recheck-program-local-names
+local 1bad x
+display "`1bad'"
+capture noisily local abcdefghijabcdefghijabcdefghij12 bad
+capture noisily local abcdefghijabcdefghijabcdefghij12 = 1
+capture noisily tempvar abcdefghijabcdefghijabcdefghij12
+capture noisily local ++abcdefghijabcdefghijabcdefghij12
+capture noisily args abcdefghijabcdefghijabcdefghij12
+capture noisily global 1bad x

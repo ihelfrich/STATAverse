@@ -12,6 +12,7 @@ import {
   clauses,
   equalsOperands,
   loneEquals,
+  newVariableNames,
   splitAtComma,
 } from "./syntax.js";
 import { numlistText, parseNumlist } from "./numlist.js";
@@ -92,6 +93,9 @@ const READ_ONLY = new Set([
 const PREFIX_WORD =
     /^(?:(cap(?:t(?:u(?:re?)?)?)?)|(qui(?:e(?:t(?:ly?)?)?)?)|(n(?:o(?:i(?:s(?:i(?:ly?)?)?)?)?)?))(?:\s+|$)/,
   LOOP_HEADER = /^(?:foreach|forv(?:a(?:l(?:u(?:es?)?)?)?)?|while)\s/,
+  // An if under a prefix, as quietly if exp {, is a prefixed block that
+  // runs when exp is true.
+  IF_HEADER = /^if\s/,
   // The headers that open a block: a loop, if, else, or none ({ alone).
   BLOCK_HEADER =
     /^(?:$|(?:foreach|forv(?:a(?:l(?:u(?:es?)?)?)?)?|while|if|else)(?:\s|$))/;
@@ -931,6 +935,7 @@ export class Session {
       n: this.data.n,
       level: this.settings.level,
       defaultType: this.data.defaultType,
+      timeSet: !!this.panel?.time,
       expression: (text, clause) => {
         this.compile(text, { assign: clause === "exp" });
       },
@@ -1059,13 +1064,18 @@ export class Session {
                 ? String(this.settings.level)
                 : undefined),
       },
-      evaluate: (text) => {
-        const value = this.scalar(text);
-        return typeof value === "string"
-          ? value
-          : applyFormat(value, "%18.0g").trim();
-      },
-      extended: (text) => extendedFunction(this, frame, text),
+      // An error in `=exp' or `:fcn' does not stop the command: Stata
+      // prints its message, the reference expands to nothing, and the
+      // command runs on what is left.
+      evaluate: (text) =>
+        this.softly(() => {
+          const value = this.scalar(text);
+          return typeof value === "string"
+            ? value
+            : applyFormat(value, "%18.0g").trim();
+        }),
+      extended: (text) =>
+        this.softly(() => extendedFunction(this, frame, text)),
       result: (kind, name) => {
         if (kind === "c") return this.scope().system(name) ?? "";
         const value = this.results[kind]?.[name];
@@ -1078,6 +1088,23 @@ export class Session {
   }
   expand(text, frame) {
     return expandMacros(text, this.macroEnv(frame));
+  }
+  softly(evaluate) {
+    try {
+      return evaluate();
+    } catch (error) {
+      if (!(error instanceof StataError)) throw error;
+      if (error.message) (this.expansionNotes ??= []).push(error.message);
+      return "";
+    }
+  }
+  /** The messages of the references that failed in the last expansion. */
+  takeNotes() {
+    const notes = (this.expansionNotes ?? []).map((note) =>
+      errorLine(this, note),
+    );
+    this.expansionNotes = [];
+    return notes;
   }
 
   runNodes(nodes, frame, output) {
@@ -1276,7 +1303,15 @@ export class Session {
     // is passed over) as any block is, and that line then stops the file.
     const trailing = node.trailing;
     try {
-      if (prefixes.any) {
+      if (prefixes.any && prefixes.rest) {
+        // noisily if exp {: the if decides whether the body runs.
+        const inner = { ...node, header: prefixes.rest, ran: false };
+        try {
+          this.runBlock(inner, frame, output);
+        } finally {
+          node.ran = inner.ran;
+        }
+      } else if (prefixes.any) {
         node.ran = true;
         this.runNodes(node.body, frame, output);
       } else
@@ -1365,7 +1400,8 @@ export class Session {
         !this.inProgram &&
         !this.folding &&
         (LOOP_HEADER.test(prefixes.rest + " ") ||
-          (!prefixes.rest && prefixes.silent));
+          ((!prefixes.rest || IF_HEADER.test(prefixes.rest)) &&
+            prefixes.silent));
     if (
       !fold &&
       this.foldLoops &&
@@ -1376,7 +1412,7 @@ export class Session {
       !node.unclosed &&
       node.end > node.line &&
       (prefixes.any
-        ? !prefixes.rest && !prefixes.silent
+        ? (!prefixes.rest || IF_HEADER.test(prefixes.rest)) && !prefixes.silent
         : /^(?:if\s|else(?:\s|$)|$)/.test(node.header.trim()))
     )
       return this.echoedBlock(node, prefixes, frame, output);
@@ -1454,8 +1490,13 @@ export class Session {
 
   /** One command line, with its prefixes. Errors stop the run unless captured. */
   runLine(raw, frame, output, inherited = {}) {
-    const text = this.expand(raw, frame).trim();
-    if (!text) return;
+    this.expansionNotes = [];
+    const text = this.expand(raw, frame).trim(),
+      notes = this.takeNotes();
+    if (!text) {
+      if (notes.length) this.record(output, raw, notes, 0);
+      return;
+    }
     const at = this.line,
       lines = [],
       quietDepth = this.quietDepth ?? 0,
@@ -1470,7 +1511,7 @@ export class Session {
     // the file sets flags.leadAt to where the record belongs, and reports
     // its own errors there.
     const put = (shown, rc, graph) => {
-      this.record(output, raw, shown, rc, graph, at);
+      this.record(output, raw, [...notes, ...shown], rc, graph, at);
       if (flags.leadAt !== undefined && flags.leadAt < output.length - 1)
         output.splice(flags.leadAt, 0, output.pop());
     };
@@ -1511,7 +1552,9 @@ export class Session {
                 ...before,
                 ...(error.message ? [errorLine(this, error.message)] : []),
               ]
-            : [],
+            : error.loud
+              ? [errorLine(this, error.message)]
+              : [],
           0,
         );
         return;
@@ -2188,10 +2231,14 @@ export class Session {
     const prefixes = prefixesOf(node.header);
     if (
       prefixes.any &&
-      (!prefixes.rest || LOOP_HEADER.test(prefixes.rest + " "))
+      (!prefixes.rest ||
+        LOOP_HEADER.test(prefixes.rest + " ") ||
+        IF_HEADER.test(prefixes.rest))
     )
       return this.prefixedBlock(node, prefixes, frame, output);
+    this.expansionNotes = [];
     const header = this.expand(node.header, frame).trim();
+    this.blockNotes(node, output);
     let m;
     const body = () => {
       node.ran = true;
@@ -2250,10 +2297,18 @@ export class Session {
       });
       frame.locals.delete(m[1]);
     } else if ((m = /^while\s+(.*)$/.exec(header))) {
+      // The condition is read again before each pass after the first.
+      let text = null;
+      const holds = () => {
+        if (text === null) text = m[1];
+        else {
+          text = this.expand(node.header, frame).trim().slice(5);
+          this.blockNotes(node, output);
+        }
+        return this.condition(text);
+      };
       loop(() => {
-        while (
-          this.condition(this.expand(node.header, frame).trim().slice(5))
-        ) {
+        while (holds()) {
           if (++this.steps > MAX_STEPS)
             throw new StataError(
               "this loop ran longer than the browser allows",
@@ -2292,6 +2347,20 @@ export class Session {
   }
 
   /**
+   * The messages of what failed in a block's header, shown under it: on
+   * its own record when the do-file echoes it, else on a record of the
+   * header's.
+   */
+  blockNotes(node, output) {
+    const notes = this.takeNotes();
+    if (!notes.length) return;
+    const header = output.at(-1);
+    if (header?.ends === node.end && header.line === node.line)
+      header.lines.push(...notes);
+    else this.record(output, `${node.header} {`, notes, 0);
+  }
+
+  /**
    * quietly { }, capture { } and noisily { }, and a loop with such prefixes
    * (quietly foreach ... {). Inside a quiet block only noisily prints, and
    * errors. capture keeps an error from stopping the do-file; after a
@@ -2319,7 +2388,7 @@ export class Session {
         for (const record of inner) if (keep(record)) output.push(record);
         throw error;
       }
-      this.rc = prefixes.rest ? 0 : error.code;
+      this.rc = LOOP_HEADER.test(prefixes.rest + " ") ? 0 : error.code;
       // The error is reported only with noisily, and without its r().
       const failed = inner.findLast((record) => record.rc);
       if (failed) {
@@ -2394,11 +2463,25 @@ export class Session {
           "",
       ).map((w) => w.text);
     }
-    if (/^var(l(i(st?)?)?)?$/.test(kind)) return this.varlist(rest);
+    // An empty list is an error for the variable and number lists.
+    const required = (list, message, code) => {
+      if (!list.length) throw new StataError(message, code);
+      return list;
+    };
+    if (/^var(l(i(st?)?)?)?$/.test(kind))
+      return required(this.varlist(rest), "varlist required", 100);
     if (/^new(l(i(st?)?)?)?$/.test(kind))
-      return rest.split(/\s+/).filter(Boolean);
+      return required(
+        newVariableNames(rest, this.data.names),
+        "varlist required",
+        100,
+      );
     if (/^num(l(i(st?)?)?)?$/.test(kind))
-      return parseNumlist(rest).map(numlistText);
+      return required(
+        parseNumlist(rest).map(numlistText),
+        "invalid numlist has too few elements",
+        122,
+      );
     throw new StataError("invalid syntax", 198);
   }
 

@@ -58,7 +58,7 @@ export function expandVarlist(text, names) {
         throw new StataError(`${word} invalid name`, 198);
       const first = names.indexOf(resolveVariable(ends[0], names)),
         last = names.indexOf(resolveVariable(ends[1], names));
-      if (last < first) throw notFound(word);
+      if (last < first) throw new StataError("variables out of order", 111);
       out.push(...names.slice(first, last + 1));
     } else if (/[*?~]/.test(word)) {
       const matches = names.filter((name) => pattern(word).test(name));

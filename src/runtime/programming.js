@@ -363,11 +363,14 @@ export function ereturnDisplay(session, text, ctx) {
   postedTable(session, e, level, ctx);
 }
 
-/** A macro as macro list shows it: the name, then its value from column 17. */
+/**
+ * A macro as macro list shows it: the name, then its value from column 17,
+ * each run of blanks in it one blank.
+ */
 function macroLines(name, value, linesize) {
   const lines = [],
     width = Math.max(20, linesize - 16),
-    words = value.split(" ");
+    words = value.replace(/\s+/g, " ").trimEnd().split(" ");
   let head = `${name}:`;
   if (head.length > 15) {
     lines.push(head);
@@ -379,9 +382,9 @@ function macroLines(name, value, linesize) {
     head = "";
     current = "";
   };
-  for (const word of words) {
+  for (const [k, word] of words.entries()) {
     if (current && current.length + 1 + word.length > width) flush();
-    current = current ? `${current} ${word}` : word;
+    current = current || k === 1 ? `${current} ${word}` : word;
   }
   flush();
   return lines;

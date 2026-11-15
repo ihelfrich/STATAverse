@@ -15,6 +15,7 @@ import {
   isMissing,
   isName,
   isStringType,
+  missingValue,
 } from "./values.js";
 import { evaluateAll } from "./expression.js";
 import { FUNCTIONS as SCALAR_FUNCTIONS } from "./functions.js";
@@ -822,19 +823,22 @@ const rowLabel = (name) => {
  * by a blank line. A symmetric matrix shows its lower triangle.
  */
 function list(session, text, ctx) {
-  const [head, optionText = ""] = text.split(/,(.*)/s),
+  const [head, optionText] = splitAtComma(text),
     name = head.trim(),
-    // format() sets how the cells are shown; the other options of matrix
-    // list are not here yet.
-    asked = optionText.trim(),
-    formatted = /^f(?:o(?:r(?:m(?:at?)?)?)?)?\(\s*(%[^)\s]+)\s*\)$/.exec(asked),
-    cellFormat = formatted ? formatted[1] : "%10.0g";
-  if (asked && !formatted)
-    throw new StataError(
-      `matrix list option ${asked} is not available yet; format() is`,
-      198,
-    );
-  if (formatted && !isFormat(cellFormat))
+    // noblank leaves out the blank line before the listing, noheader the
+    // A[r,c] line, nonames the row and column names; nohalf shows both
+    // halves of a symmetric matrix, nodotz shows .z as blank.
+    options =
+      optionText === null
+        ? {}
+        : session.parse(
+            "[, noBlank noHAlf noHeader noNames Format(string) TItle(string) nodotz]",
+            `, ${optionText}`,
+          ).options,
+    cellFormat = options.format?.trim() || "%10.0g",
+    title = options.title ?? "",
+    showNames = options.names !== false;
+  if (!isFormat(cellFormat))
     throw new StataError(`invalid format ${cellFormat}`, 120);
   const result = /^([er])\((\w+)\)$/.exec(name),
     matrix = result
@@ -849,10 +853,17 @@ function list(session, text, ctx) {
       values.length >= 1 &&
       values.every((row, i) => row.every((v, j) => v === values[j][i])),
     cells = values.map((row) =>
-      row.map((v) => applyFormat(v, cellFormat).trim()),
+      row.map((v) =>
+        options.dotz && v === missingValue("z")
+          ? ""
+          : applyFormat(v, cellFormat).trim(),
+      ),
     ),
     parts = colNames.map(columnParts),
-    rows = rowNames.map(rowLabel),
+    rows = rowNames.map((row) =>
+      showNames ? rowLabel(row) : { label: "", stub: 0 },
+    ),
+    half = symmetric && options.half !== false,
     width =
       Math.max(
         greatest(cells.flat().map((cell) => cell.length)),
@@ -868,16 +879,17 @@ function list(session, text, ctx) {
       ...(parts.some((p) => p.operator) ? ["operator"] : []),
       "name",
     ];
-  ctx.out("");
-  ctx.out(
-    `${symmetric ? "symmetric " : ""}${name}[${values.length},${colNames.length}]`,
-  );
+  if (options.blank !== false) ctx.out("");
+  if (options.header !== false)
+    ctx.out(
+      `${symmetric ? "symmetric " : ""}${name}[${values.length},${colNames.length}]${title ? `:  ${title}` : ""}`,
+    );
   for (let first = 0; first < colNames.length; first += perPanel) {
     const last = Math.min(colNames.length, first + perPanel);
     if (first) ctx.out("");
     // The equation and operator parts end one column right of the name.
     // A name with parentheses, as var(_cons), ends one column right too.
-    for (const head of heads) {
+    for (const head of showNames ? heads : []) {
       let line = "";
       parts.slice(first, last).forEach((p, k) => {
         const text = p[head],
@@ -890,12 +902,12 @@ function list(session, text, ctx) {
       ctx.out(line.trimEnd());
     }
     cells.forEach((row, i) => {
-      if (symmetric && i < first) return;
+      if (half && i < first) return;
       if (rows[i].before) ctx.out(rows[i].before);
       ctx.out(
         rows[i].label.padStart(stub) +
           row
-            .slice(first, symmetric ? Math.min(last, i + 1) : last)
+            .slice(first, half ? Math.min(last, i + 1) : last)
             .map((cell) => cell.padStart(width))
             .join(""),
       );
@@ -932,8 +944,11 @@ function matrixCommand(session, text, ctx) {
     const names = parts[2].trim().split(/\s+/).filter(Boolean),
       rows = m[1].startsWith("row"),
       count = rows ? matrix.values.length : matrix.colNames.length;
-    if (names.length !== count)
-      throw new StataError("conformability error", 503);
+    // Too many names is an error; too few, and the last is used again;
+    // none changes nothing.
+    if (names.length > count) throw new StataError("conformability error", 503);
+    if (!names.length) return;
+    while (names.length < count) names.push(names.at(-1));
     if (rows) matrix.rowNames = names;
     else matrix.colNames = names;
     return;
