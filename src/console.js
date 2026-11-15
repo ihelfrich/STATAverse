@@ -37,6 +37,7 @@ import { HELP, LANGUAGE, helpUrl } from "./console-help.js";
 import { mountBrowser } from "./console-browse.js";
 import { splitCommands } from "./runtime/dofile.js";
 import { commandLines } from "./runtime/echo.js";
+import { errorText } from "./console-wrap.js";
 
 const KEY = "stataverse:console:v1",
   SCHEME_KEY = "stataverse:console:scheme",
@@ -854,6 +855,14 @@ function graphOf(graph) {
       : graph.svg.replace(/(<svg[^>]*>)/, `$1${DRAWN}`);
   figure.className = "console-graph";
   figure.alt = graph.description;
+  // The image takes its height before it is decoded, from its proportions,
+  // so that Results can scroll a new graph into view as soon as it is
+  // added rather than to where an empty image ends.
+  const box = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(graph.svg);
+  if (box) {
+    figure.width = Math.round(Number(box[1]));
+    figure.height = Math.round(Number(box[2]));
+  }
   figure.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   return figure;
 }
@@ -863,8 +872,24 @@ function graphOf(graph) {
  * output that ends with one already, as a table does.
  */
 const recordText = (record) =>
-  [...commandLines(record, record.width), ...record.lines].join("\n") +
+  [...commandLines(record, record.width), ...shownLines(record)].join("\n") +
   (record.comment || record.lines.at(-1) === "" ? "" : "\n");
+/** How many lines at the end of a record are its error. */
+const faultOf = (record) =>
+  record.rc ? Math.min(record.lines.length, record.fault ?? 2) : 0;
+/**
+ * A record's lines as Results shows them: an error message wider than the
+ * linesize is broken as Stata breaks it (each line stays one entry).
+ */
+function shownLines(record) {
+  const red = new Set(record.errorLines ?? []),
+    from = record.lines.length - faultOf(record);
+  return record.lines.map((line, k) =>
+    k >= from || red.has(k)
+      ? errorText(line, record.width ?? 79, record.command).join("\n")
+      : line,
+  );
+}
 /** A short name for a command, for the labels of its buttons. */
 const brief = (command) =>
   command.length > 40 ? `${command.slice(0, 38)}…` : command;
@@ -1062,11 +1087,10 @@ function recordNode(record) {
   if (record.lines.length) {
     // Only the error is shown as one: what a loop or a command printed
     // before it failed is ordinary output, as in Stata.
-    const fault = record.rc
-        ? Math.min(record.lines.length, record.fault ?? 2)
-        : 0,
-      printed = record.lines.slice(0, record.lines.length - fault),
-      wrong = record.lines.slice(record.lines.length - fault);
+    const fault = faultOf(record),
+      shown = shownLines(record),
+      printed = shown.slice(0, shown.length - fault),
+      wrong = shown.slice(shown.length - fault);
     const lines = document.createElement("span");
     lines.className = "console-lines";
     // Lines the command printed in Stata's error style, as display as
@@ -1455,11 +1479,17 @@ async function perform(text, origin) {
 /** The commands a run ran: its records, less the comments it echoed. */
 const ran = (result) =>
   result.output.filter((record) => !record.comment).length;
-function finish(rc, commands, started, output = []) {
+/**
+ * Whether commands of a run that stopped at an error finished before it:
+ * those a loop, a program or a do-file ran count, the one that failed and
+ * a captured one do not.
+ */
+const tookEffect = (result) => (result.finished ?? ran(result) - 1) > 0;
+function finish(rc, commands, started, output = [], before = commands > 1) {
   const seconds = ((performance.now() - started) / 1000).toFixed(2),
     missing = rc === 601 ? missingFile(output) : "";
   status.textContent = rc
-    ? `Stopped at an error, return code ${rc}. Commands before it took effect.`
+    ? `Stopped at an error, return code ${rc}.${before ? " Commands before it took effect." : ""}`
     : `Ran ${commands} command${commands === 1 ? "" : "s"} in ${seconds} seconds.`;
   if (missing) {
     // Files are found without regard to case, as Stata finds them on macOS
@@ -1520,7 +1550,8 @@ async function execute(text = source.value, what = "do-file") {
   // Every do-file of the project is there for do, run and include.
   await shareFiles();
   const result = await perform(text, origin);
-  if (result) finish(result.rc, ran(result), started, result.output);
+  if (result)
+    finish(result.rc, ran(result), started, result.output, tookEffect(result));
   return result;
 }
 
@@ -1540,9 +1571,17 @@ async function runSteps(entries, mark) {
     mark(entry.id, "running");
     const result = await perform(entry.lines.join("\n"), { step: entry.id });
     if (!result) return mark(entry.id, "error");
+    const earlier = commands > 0;
     commands += ran(result);
     mark(entry.id, result.rc ? "error" : "done", result);
-    if (result.rc) return finish(result.rc, commands, started, result.output);
+    if (result.rc)
+      return finish(
+        result.rc,
+        commands,
+        started,
+        result.output,
+        earlier || tookEffect(result),
+      );
     const terms = entry.guard ? [] : map.termsOf(entry.id);
     if (terms.length) {
       const estimates = {};
@@ -1862,12 +1901,46 @@ insert.addEventListener("change", () => {
     item = SNIPPETS.find((group) => group.group === name)?.items[index];
   insert.value = "";
   if (!item) return;
-  // The pattern goes on a line of its own, at the cursor.
-  const { selectionStart: at, value } = source,
+  // A pattern that opens a file the student added names the one added
+  // last of that kind; with none added, its placeholder is selected, to be
+  // typed over.
+  const placeholder = /myfile\.(csv|dta)/.exec(item[1]),
+    own = placeholder
+      ? [...uploads]
+          .filter(
+            ([name, file]) =>
+              !file.made &&
+              !name.includes('"') &&
+              (placeholder[1] === "dta"
+                ? /\.dta$/i.test(name)
+                : /\.(csv|tsv|txt)$/i.test(name)),
+          )
+          .sort((a, b) => !a[1].written - !b[1].written)
+          .at(-1)?.[0]
+      : undefined,
+    text = own ? item[1].replace(placeholder[0], own) : item[1];
+  // The pattern goes on a line of its own: at the cursor when it is at the
+  // start of a line, otherwise under the line it is in, which is kept
+  // whole.
+  const { selectionStart: cursor, value } = source,
+    end = value.indexOf("\n", cursor),
+    at =
+      cursor === 0 || value[cursor - 1] === "\n"
+        ? cursor
+        : end < 0
+          ? value.length
+          : end + 1,
     before = at > 0 && value[at - 1] !== "\n" ? "\n" : "";
   source.setSelectionRange(at, at);
-  typeInto(`${before}${item[1]}\n`, false);
-  status.textContent = `Inserted "${item[0]}". Change the names to your own.`;
+  typeInto(`${before}${text}\n`, false);
+  if (own)
+    status.textContent = `Inserted "${item[0]}" for ${own}, the last ${placeholder[1] === "dta" ? ".dta" : "text"} file you added.`;
+  else if (placeholder) {
+    const from = at + before.length + placeholder.index;
+    source.setSelectionRange(from, from + placeholder[0].length);
+    status.textContent = `Inserted "${item[0]}". Type the name of your file over ${placeholder[0]}, and add the file in Data.`;
+  } else
+    status.textContent = `Inserted "${item[0]}". Change the names to your own.`;
 });
 
 // ----- copying the results -----
@@ -2254,6 +2327,8 @@ const history = [],
   // project zip carries the files they used.
   ranTyped = [];
 let recalled = 0,
+  // What was being typed when Up first recalled an earlier command.
+  draft = "",
   // The lines of a loop, program or other block typed so far: as in
   // Stata's Command window, it runs once it is closed.
   typedBlock = [];
@@ -2320,6 +2395,7 @@ $("console-prompt").addEventListener("submit", (event) => {
   if (!text && !typedBlock.length) return;
   if (text && history.at(-1) !== text) history.push(text);
   recalled = history.length;
+  draft = "";
   commandLine.value = "";
   const lines = [...typedBlock, text],
     closer = leftOpen(lines.join("\n"));
@@ -2359,15 +2435,27 @@ commandLine.addEventListener("keydown", (event) => {
     setOpened([]);
     return;
   }
-  // Up and Down walk through the commands typed here, as in Stata.
+  // Ctrl or ⌘ + Enter runs the do-file from the editor; here, where Enter
+  // runs the command, it runs the command too rather than doing nothing.
+  if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+    event.preventDefault();
+    $("console-prompt").requestSubmit();
+    return;
+  }
+  // Up and Down walk through the commands typed here, as in Stata. What
+  // was being typed is kept, and Down past the newest command brings it
+  // back, as a shell does.
   if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
   if (!history.length) return;
   event.preventDefault();
+  if (recalled === history.length) draft = commandLine.value;
   recalled = Math.max(
     0,
     Math.min(history.length, recalled + (event.key === "ArrowUp" ? -1 : 1)),
   );
-  commandLine.value = history[recalled] ?? "";
+  commandLine.value = history[recalled] ?? draft;
+  const end = commandLine.value.length;
+  commandLine.setSelectionRange(end, end);
 });
 // ----- the student's own files -----
 // Kept on the page as well as in the session, so that they can go into a
@@ -2569,7 +2657,8 @@ window.addEventListener("beforeunload", (event) => {
 async function takeFiles(list) {
   const notes = [],
     scripts = [];
-  let loaded = "";
+  let loaded = "",
+    loadedName = "";
   // A file added during a run is taken when the run ends.
   if (isRunning) {
     status.textContent = `${list.map((file) => file.name).join(", ")} will be added when the run ends.`;
@@ -2621,6 +2710,8 @@ async function takeFiles(list) {
             : null,
         );
       if (big) status.textContent = `Read ${file.name}.`;
+      // A file added again is the last added, as the status says.
+      uploads.delete(name);
       uploads.set(name, { blob: file, made: false });
       const kept = await shelve(name, file);
       showVariables(result.memory);
@@ -2633,7 +2724,12 @@ async function takeFiles(list) {
         notes.push(
           `${name} could not be kept in this browser (its storage is full), so it is here for this visit only.`,
         );
-      loaded = loadCommand(name) || loaded;
+      // When several are added together, the first that can be loaded is
+      // the one loaded, and the note names it.
+      if (!loaded && loadCommand(name)) {
+        loaded = loadCommand(name);
+        loadedName = name;
+      }
     } catch (error) {
       notes.push(`${file.name}: ${error.message}.`);
     }
@@ -2660,8 +2756,8 @@ async function takeFiles(list) {
     const ran = await execute(`${loaded}\ndescribe`, "command");
     notes.push(
       ran && !ran.rc
-        ? "It is in memory now; the command that loaded it is in Results."
-        : `The command that loads it, ${loaded}, stopped at an error; see Results.`,
+        ? `${loadedName} is in memory now; the command that loaded it is in Results.`
+        : `The command that loads ${loadedName}, ${loaded}, stopped at an error; see Results.`,
     );
   }
   if (notes.length) status.textContent = notes.join(" ");

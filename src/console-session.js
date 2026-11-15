@@ -333,6 +333,9 @@ export function createConsoleSession() {
     ) {
       stamp++;
       let commands = 0,
+        // Commands, a loop's and a program's own among them, that finished
+        // without an error: what took effect before a run stopped.
+        finished = 0,
         last = 0;
       session.opened = null;
       // The files in the folder before the run, to tell which it wrote.
@@ -493,6 +496,9 @@ export function createConsoleSession() {
           this.overMissing = null;
         }
         commands++;
+        // A command captured, or a do-file reporting its error on the
+        // line that failed, is recorded with 0 but did not finish.
+        if (!args[3] && !failure) finished++;
         // In the worker, where Stop can end any run, a run is not cut short
         // after a fixed number of commands: a long loop runs to its end.
         if (endless) this.steps = 0;
@@ -673,7 +679,7 @@ export function createConsoleSession() {
           written.push(name);
           added.set(name, file);
         }
-      return { output, rc, made, written, memory: memory() };
+      return { output, rc, made, written, memory: memory(), finished };
     },
   };
 }

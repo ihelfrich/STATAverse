@@ -381,7 +381,7 @@ test("mlabel() writes the value in the variable's display format", () => {
 const panelNames = (svg) =>
   panels(svg).map(
     (panel) =>
-      /<text x="320" y="24" text-anchor="middle"[^>]*>([^<]*)</.exec(
+      /<text x="[\d.]+" y="24" text-anchor="middle"[^>]*>([^<]*)</.exec(
         panel,
       )?.[1] ?? null,
   );
