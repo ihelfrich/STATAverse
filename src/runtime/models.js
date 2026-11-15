@@ -2114,6 +2114,20 @@ const missingNote = (ctx, missing, plural = false) => {
 };
 
 /**
+ * Whether ml score makes a score at observation i: it evaluates the fit's
+ * weight expression again and leaves out an observation whose weight is
+ * missing or zero, in or out of the estimation sample.
+ */
+export function scoreWeighted(session, model) {
+  if (!model.wexp) return () => true;
+  const weight = evaluateAll(
+    session.compile(model.wexp.replace(/^\s*=\s*/, "")),
+    session.data.n,
+  );
+  return (i) => !isMissing(weight[i]) && weight[i] !== 0;
+}
+
+/**
  * The equation scores, d lnL / d xb and (after nbreg) d lnL / d lnalpha,
  * one variable each: equations[k](y, xb) for observations whose
  * regressors are all there. ml score, which makes them after poisson,
@@ -2122,10 +2136,15 @@ const missingNote = (ctx, missing, plural = false) => {
 function generateScores(session, model, parsed, ctx, equations) {
   const data = session.data,
     outcome = data.get(model.depvar).data,
-    columns = parsed.varlist.map(() => new Array(data.n).fill(MISSING));
+    columns = parsed.varlist.map(() => new Array(data.n).fill(MISSING)),
+    // ml score leaves out an observation whose weight is missing or zero;
+    // logit's and probit's own scores do not.
+    weighted = ["logit", "probit"].includes(model.kind)
+      ? () => true
+      : scoreWeighted(session, model);
   session.select(parsed, null, (i) => {
     const at = indexAt(model, i);
-    if (!at) return;
+    if (!at || !weighted(i)) return;
     columns.forEach((values, k) => {
       const v = equations[k](outcome[i], at.xb);
       values[i] = Number.isFinite(v) ? v : MISSING;
@@ -2274,8 +2293,11 @@ function countProbability(session, model, parsed, ctx, text, nb) {
         return { number: Number(token), text: token };
       try {
         const variable = data.get(session.varlist(token)[0]);
-        if (!/^str/.test(variable.type))
-          return { variable, text: variable.name };
+        // A string variable is a variable to tpredict_p2, and a type
+        // mismatch where it is used.
+        if (/^str/.test(variable.type))
+          return { string: true, text: variable.name };
+        return { variable, text: variable.name };
       } catch (error) {
         if (!(error instanceof StataError)) throw error;
       }
@@ -2380,12 +2402,20 @@ function countProbability(session, model, parsed, ctx, text, nb) {
           `upper bound of ${ub.text} must be an integer`,
           198,
         );
-      if (lb.number !== undefined && ub.number < lb.number)
+      // tpredict_p2 compares with a variable's first observation, as an
+      // if command does, and a missing value there is past any bound.
+      const first = lb.variable
+        ? data.n
+          ? lb.variable.data[0]
+          : undefined
+        : lb.number;
+      if (first !== undefined && (isMissing(first) || ub.number < first))
         throw new StataError(
           `upper bound of ${ub.text} must be greater than or equal to the lower bound of ${lb.text}`,
           198,
         );
     } else if (ub.other) throw new StataError(`${ub.text} not found`, 111);
+    if (lb.string || ub.string) throw new StataError("type mismatch", 109);
     for (const i of keep) {
       const a = valueOf(lb, i),
         b = valueOf(ub, i);
@@ -2419,7 +2449,8 @@ function countProbability(session, model, parsed, ctx, text, nb) {
         throw new StataError("argument must be nonnegative", 198);
       if (!Number.isInteger(n.number))
         throw new StataError("argument must be an integer", 198);
-    } else if (!n.variable)
+    } else if (n.string) throw new StataError("type mismatch", 109);
+    else if (!n.variable)
       throw new StataError("argument must be a number or variable", 198);
     for (const i of keep) {
       const k = valueOf(n, i);

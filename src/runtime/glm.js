@@ -562,6 +562,11 @@ function fitGlm(session, parsed, familyName, linkName, notes, ctx, asked) {
       clusterName: asked.cluster?.name,
       kind: "glm",
       link: linkName,
+      // margins takes a continuous variable's effect after glm by Stata's
+      // numerical chain rule (margins-chain.js), stepping the constant, as
+      // Stata does after glm, so that the effect and its standard error
+      // carry that step's error as Stata's do.
+      chainEffects: true,
       sample: f.sample,
       // The weight type and expression, and each observation's weight in
       // the order of sample, which margins averages by.
@@ -1104,8 +1109,17 @@ function predictGlm(session, text, ctx, model) {
       if (keep.some((i) => !isMissing(y[i]) && !Number.isInteger(y[i])))
         ctx.out(`note: ${name} has noninteger values`);
     }
-    const values = new Array(data.n).fill(MISSING);
+    // ml score evaluates the weight again and leaves out an observation
+    // whose weight is missing or zero.
+    const values = new Array(data.n).fill(MISSING),
+      weight = model.wexp
+        ? evaluateAll(
+            session.compile(model.wexp.replace(/^\s*=\s*/, "")),
+            data.n,
+          )
+        : null;
     for (const i of keep) {
+      if (weight && (isMissing(weight[i]) || weight[i] === 0)) continue;
       const p = at(i);
       if (p && !isMissing(y[i]))
         values[i] = clean((p.dmu * (y[i] - p.mu)) / (p.v * model.phi));

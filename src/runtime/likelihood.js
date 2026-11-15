@@ -49,6 +49,30 @@ function wrapped(session, ctx, text, indent = 6) {
 }
 
 /**
+ * The equation name mlogit gives an outcome, as _labels2eqnames makes it:
+ * the value itself when it has no label (or its label is the value), and
+ * otherwise the label's first 32 characters made a name by ustrtoname(),
+ * each character a name may not hold becoming _ ("By car" is By_car,
+ * "2 wheels" 2_wheels), with a leading _ only where a 32-character result
+ * would not be a name.
+ */
+export function equationName(session, variable, value) {
+  const value_ = labelled(session, variable, value, false),
+    map = session.data.valueLabels.get(variable.valueLabel),
+    lab = map?.has(value) ? [...map.get(value)].slice(0, 32).join("") : null,
+    words = (s) => s.trim().split(/\s+/).join(" ");
+  if (lab === null || !lab.length || words(lab) === words(value_))
+    return value_;
+  const name = (prefix) => {
+    const chars = [...lab].map((c) => (/[\p{L}\p{Nd}_]/u.test(c) ? c : "_"));
+    if (prefix && /^[0-9]/.test(chars[0])) chars.unshift("_");
+    return chars.slice(0, 32).join("");
+  };
+  const tag = name(false);
+  return [...tag].length === 32 && /^[0-9]/.test(tag) ? name(true) : tag;
+}
+
+/**
  * A fit's coefficients as termRows and tableWidth take a model's, with the
  * base levels the options ask to show, whose labels widen the table too.
  */
@@ -151,7 +175,12 @@ export function frame(
       ...(constant ? [active.length] : []),
     ];
   if (!sample.length) throw new StataError("no observations", 2000);
-  if (asked.weight && sample.some((i) => asked.weight[i] < 0))
+  // An importance weight may be negative, as glm takes it.
+  if (
+    asked.weight &&
+    asked.wtype !== "iweight" &&
+    sample.some((i) => asked.weight[i] < 0)
+  )
     throw new StataError("negative weights encountered", 402);
   return {
     // Each observation's sampling weight, or null.
@@ -486,6 +515,171 @@ function noneUncensored(states, ctx) {
 }
 
 /**
+ * tobit_p's CalcP, CalcE and CalcY: the probability that the outcome lies
+ * in (a,b), its mean there, and the mean of the outcome censored at a and
+ * b, at index xb and standard deviation s; a missing bound is none.
+ */
+function tobitMean(kind, xb, a, b, s) {
+  const probability = (lo, hi) =>
+      isMissing(lo) && isMissing(hi)
+        ? 1
+        : isMissing(hi)
+          ? normal(-(lo - xb) / s)
+          : isMissing(lo)
+            ? normal((hi - xb) / s)
+            : normal((hi - xb) / s) - normal((lo - xb) / s),
+    expected = () => {
+      const L = (a - xb) / s,
+        U = (b - xb) / s;
+      return isMissing(a) && isMissing(b)
+        ? xb
+        : isMissing(b)
+          ? xb + (s * density(L)) / normal(-L)
+          : isMissing(a)
+            ? xb - (s * density(U)) / normal(U)
+            : xb - (s * (density(U) - density(L))) / (normal(U) - normal(L));
+    };
+  if (kind === "pr") return probability(a, b);
+  if (kind === "e") return expected();
+  const E = expected(),
+    p = probability(a, b),
+    p2 = probability(MISSING, a);
+  return isMissing(a) && isMissing(b)
+    ? E
+    : isMissing(b)
+      ? p * E + (1 - p) * a
+      : isMissing(a)
+        ? p * E + (1 - p) * b
+        : p * E + p2 * a + (1 - p - p2) * b;
+}
+
+/**
+ * The first or second derivative of f at x, by central differences with a
+ * step small beside scale (the distance over which f bends) refined by
+ * Richardson extrapolation, which leaves an error far below the digits
+ * margins shows.
+ */
+function richardson(f, x, scale, order = 1) {
+  const at = (h) =>
+      order === 1
+        ? (f(x + h) - f(x - h)) / (2 * h)
+        : (f(x + h) - 2 * f(x) + f(x - h)) / (h * h),
+    h = (order === 1 ? 1e-3 : 4e-3) * scale;
+  return (4 * at(h / 2) - at(h)) / 3;
+}
+
+/**
+ * What margins may predict after tobit: xb (the default) and, for an
+ * interval (a,b) of numbers or ., pr(), e() and ystar(), as tobit_p makes
+ * them. Each but xb depends on the variance of the error too, so it brings
+ * its derivatives in var(e.depvar) and the variance of the coefficients
+ * bordered by that parameter's; Stata then refers to the normal.
+ */
+function tobitMargins(session, model) {
+  const depvar = model.depvar,
+    aux = model.auxiliary,
+    V = [
+      ...model.V.map((row, r) => [...row, aux.cross[0][r]]),
+      [...aux.cross[0], aux.V[0][0]],
+    ];
+  return {
+    choose: (text) => {
+      const [head, options = null] = splitAtComma(text),
+        found =
+          options === null
+            ? null
+            : /(^|[\s,])pr(?:e(?:d(?:i(?:ct?)?)?)?)?\(((?:[^()]|\([^()]*\))*)\)/.exec(
+                options,
+              );
+      if (!found) return null;
+      const inner = found[2].trim(),
+        rest = `${head}, ${options.slice(0, found.index)}${found[1]}${options.slice(found.index + found[0].length)}`,
+        predict = `predict(${inner})`;
+      if (/^xb$/.test(inner))
+        return { text: rest, predict, expression: "Linear prediction" };
+      if (/^std[pf]$/.test(inner))
+        throw new StataError(
+          "prediction is a function of possibly stochastic quantities other than e(b)",
+          498,
+        );
+      const m = /^(e|pr?|ys(?:t(?:ar?)?)?)\s*\((.*)\)$/.exec(inner);
+      if (!m)
+        throw new StataError(
+          `option ${inner.replace(/\(.*$/, "()")} not allowed`,
+          198,
+        );
+      const kind = m[1] === "e" ? "e" : m[1].startsWith("p") ? "pr" : "ystar",
+        parts = m[2].split(",");
+      if (parts.length !== 2) throw new StataError("invalid syntax", 198);
+      const bound = (written) => {
+        const token = written.trim();
+        if (token === ".") return { value: MISSING, text: "." };
+        if (/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(token))
+          return { value: Number(token), text: token };
+        let variable = null;
+        try {
+          variable = session.data.get(session.varlist(token)[0]);
+        } catch (error) {
+          if (!(error instanceof StataError)) throw error;
+        }
+        if (variable)
+          throw new StataError(
+            `a variable as a bound of ${kind}() is not available with margins in the browser yet`,
+            198,
+            "Give the bound as a number, or use predict to make the prediction for each observation.",
+          );
+        throw new StataError("invalid syntax", 198);
+      };
+      const lo = bound(parts[0]),
+        hi = bound(parts[1]),
+        a = lo.value,
+        b = hi.value;
+      if (!isMissing(a) && !isMissing(b) && a > b)
+        throw new StataError("", 198);
+      const title = isMissing(a)
+          ? isMissing(b)
+            ? ""
+            : `${depvar}<${hi.text}`
+          : isMissing(b)
+            ? `${depvar}>${lo.text}`
+            : `${lo.text}<${depvar}<${hi.text}`,
+        expression =
+          kind === "pr"
+            ? `Pr(${title || depvar})`
+            : kind === "e"
+              ? title
+                ? `E(${depvar}|${title})`
+                : `E(${depvar})`
+              : title
+                ? `E(${depvar}*|${title})`
+                : `E(${depvar})`,
+        sigma = model.sigma,
+        // The prediction at index e and standard deviation s; its
+        // derivatives in the variance are those in s over 2s.
+        f = (e, s = sigma) => tobitMean(kind, e, a, b, s),
+        inSigma = (g) => (e) =>
+          richardson((s) => g(e, s), sigma, sigma) / (2 * sigma);
+      return {
+        text: rest,
+        predict,
+        expression,
+        dist: "z",
+        link: [
+          (e) => f(e),
+          (e) => richardson((x) => f(x), e, sigma),
+          (e) => richardson((x) => f(x), e, sigma, 2),
+        ],
+        aux: {
+          mean: inSigma(f),
+          slope: inSigma((e, s) => richardson((x) => f(x, s), e, sigma)),
+        },
+        V,
+      };
+    },
+  };
+}
+
+/**
  * predict after tobit, as tobit_p and regre_p2 make it: xb (the default),
  * stdp, stdf, and for an interval (a,b) the probability pr(a,b), the
  * truncated mean e(a,b) and the censored mean ystar(a,b); a bound is a
@@ -645,8 +839,10 @@ function predictTobit(session, text, ctx, model) {
       } catch (error) {
         if (!(error instanceof StataError)) throw error;
       }
-      if (variable && !/^str/.test(variable.type))
-        return { variable, text: variable.name };
+      // A string variable reaches regre_p2's arithmetic as it is.
+      if (variable && /^str/.test(variable.type))
+        throw new StataError("type mismatch", 109);
+      if (variable) return { variable, text: variable.name };
     }
     let value = null;
     try {
@@ -683,37 +879,7 @@ function predictTobit(session, text, ctx, model) {
         ? `${depvar}>${lb.text}`
         : `${lb.text}<${depvar}<${ub.text}`,
     // CalcP, CalcE and CalcY at index xb for bounds a and b.
-    probability = (xb, a, b) =>
-      isMissing(a) && isMissing(b)
-        ? 1
-        : isMissing(b)
-          ? normal(-(a - xb) / s)
-          : isMissing(a)
-            ? normal((b - xb) / s)
-            : normal((b - xb) / s) - normal((a - xb) / s),
-    expected = (xb, a, b) => {
-      const L = (a - xb) / s,
-        U = (b - xb) / s;
-      return isMissing(a) && isMissing(b)
-        ? xb
-        : isMissing(b)
-          ? xb + (s * density(L)) / normal(-L)
-          : isMissing(a)
-            ? xb - (s * density(U)) / normal(U)
-            : xb - (s * (density(U) - density(L))) / (normal(U) - normal(L));
-    },
-    censored = (xb, a, b) => {
-      const E = expected(xb, a, b),
-        p = probability(xb, a, b),
-        p2 = probability(xb, MISSING, a);
-      return isMissing(a) && isMissing(b)
-        ? E
-        : isMissing(b)
-          ? p * E + (1 - p) * a
-          : isMissing(a)
-            ? p * E + (1 - p) * b
-            : p * E + p2 * a + (1 - p - p2) * b;
-    };
+    mean = (xb, a, b) => tobitMean(kind, xb, a, b, s);
   for (const i of keep) {
     const a = valueOf(lb, i),
       b = valueOf(ub, i);
@@ -723,13 +889,7 @@ function predictTobit(session, text, ctx, model) {
     }
     const p = at(i);
     if (!p) continue;
-    values[i] = clean(
-      (kind === "pr" ? probability : kind === "e" ? expected : censored)(
-        p.xb,
-        a,
-        b,
-      ),
-    );
+    values[i] = clean(mean(p.xb, a, b));
   }
   note(
     make(
@@ -980,6 +1140,7 @@ function tobit(session, text, ctx) {
       sigma: Math.sqrt(variance),
       limits: { lower, upper },
       predictor: (s, t, c) => predictTobit(s, t, c, model),
+      margins: null,
       baseLevels: baseLevelsAsked(options),
       // var(e.depvar) as test and lincom reach it, [/]var(e.wage).
       auxiliary: {
@@ -990,6 +1151,7 @@ function tobit(session, text, ctx) {
         V: [[V[k][k]]],
       },
     };
+  model.margins = tobitMargins(session, model);
   session.estimates = model;
   session.results.e = {
     N: n,
@@ -1565,7 +1727,7 @@ function mlogit(session, text, ctx) {
     rank = full.V.filter((row, j) => row[j] !== 0).length,
     dfModel = rank - (constant ? others.length : 0),
     chi2 = isMissing(ll0) ? MISSING : 2 * (full.ll - ll0),
-    label = (j) => labelled(session, f.dependent, outcomes[j]),
+    label = (j) => equationName(session, f.dependent, outcomes[j]),
     names = others.flatMap((j) => f.names.map((name) => `${label(j)}:${name}`)),
     model = {
       command: "mlogit",
@@ -1586,7 +1748,7 @@ function mlogit(session, text, ctx) {
       vce: "oim",
       kind: "mlogit",
       // Every outcome's equation name in order, and which one is the base.
-      equations: outcomes.map((_, j) => String(label(j))),
+      equations: outcomes.map((_, j) => label(j)),
       baseEquation: base,
       // The outcome each equation is for, by which [#]name may name it.
       outcomeValues: outcomes,
@@ -1617,6 +1779,8 @@ function mlogit(session, text, ctx) {
     p: isMissing(chi2) || dfModel <= 0 ? MISSING : chi2tail(dfModel, chi2),
     r2_p: isMissing(ll0) ? MISSING : 1 - full.ll / ll0,
     k_out: outcomes.length,
+    // The equation names, which outcome() and [eq] take.
+    eqnames: model.equations.join(" "),
     baseout: outcomes[base],
     ibaseout: base + 1,
     // Every outcome has an equation, the base one included.
@@ -1649,9 +1813,8 @@ function mlogit(session, text, ctx) {
   ctx.out("");
   // The equations are named by outcome, so their names count in the first
   // column's width and the dependent variable does not; it, and a name too
-  // long, are abbreviated. Stata names an equation by its outcome's label
-  // with spaces made underscores, cut to 32 characters.
-  const equation = (j) => String(label(j)).replace(/ /g, "_").slice(0, 32),
+  // long, are abbreviated.
+  const equation = label,
     w = tableWidth(
       session,
       tableModel(f),
@@ -2132,14 +2295,43 @@ export function maximizeNR(
   }
 }
 
+/**
+ * What nbreg's dispersion() asks for, read as syntax [, Mean Constant]
+ * reads it: mean, which is the default, or constant, which is not here yet.
+ */
+function dispersionOf(text) {
+  let mean = false,
+    constant = false;
+  for (const word of (text ?? "").trim().split(/\s+/).filter(Boolean)) {
+    if (/^m(e(an?)?)?$/.test(word)) mean = true;
+    else if (/^c(o(n(s(t(a(nt?)?)?)?)?)?)?$/.test(word)) constant = true;
+    else throw new StataError(`option ${word} not allowed`, 198);
+  }
+  if (constant && mean)
+    throw new StataError(
+      "must choose either mean or constant for option dispersion()",
+      198,
+    );
+  if (constant)
+    throw new StataError(
+      "option dispersion(constant) is not available in the browser yet",
+      198,
+      "nbreg fits the mean-dispersion model, dispersion(mean), here; fit the constant-dispersion model in Stata.",
+    );
+  return "mean";
+}
+
 function nbreg(session, text, ctx) {
   const parsed = session.parse(
-      "anything [if] [in] [fweight pweight iweight] [, Level(cilevel) noLOg IRr noCONStant Robust VCE(string) CLuster(string) BASElevels ALLBASElevels | Dispersion(string) EXPosure(varname) OFFset(varname)]",
+      "anything [if] [in] [fweight pweight iweight] [, Level(cilevel) noLOg IRr noCONStant Robust VCE(string) CLuster(string) BASElevels ALLBASElevels Dispersion(string) | EXPosure(varname) OFFset(varname)]",
       text,
     ),
     options = parsed.options,
+    // dispersion(mean), the default, is the model fitted here.
     asked =
-      (numericVarlist(session, parsed.anything), requested(session, parsed)),
+      (dispersionOf(options.dispersion),
+      numericVarlist(session, parsed.anything),
+      requested(session, parsed)),
     constant = options.constant !== false,
     f = notAllZero(
       twoOrMore(frame(session, parsed, constant, constant, false, asked)),

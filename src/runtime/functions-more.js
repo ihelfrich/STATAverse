@@ -1110,9 +1110,11 @@ export const MORE_FUNCTIONS = {
   binomialtail: three((n, k, p) => binomialtail(whole(n), whole(k), p)),
   invbinomial: three((n, k, p) => invbinomial(whole(n), whole(k), p)),
   invbinomialtail: three((n, k, p) => invbinomialtail(whole(n), whole(k), p)),
-  poissonp: two((m, k) => poissonp(m, whole(k))),
-  poisson: two((m, k) => poisson(m, whole(k))),
-  poissontail: two((m, k) => poissontail(m, whole(k))),
+  // A negative count, however close to zero, is missing; a count is
+  // otherwise truncated to a whole number.
+  poissonp: two((m, k) => (k < 0 ? MISSING : poissonp(m, whole(k)))),
+  poisson: two((m, k) => (k < 0 ? MISSING : poisson(m, whole(k)))),
+  poissontail: two((m, k) => (k < 0 ? MISSING : poissontail(m, whole(k)))),
   invpoisson: two((k, p) => invpoisson(whole(k), p)),
   invpoissontail: two((k, q) => invpoissontail(whole(k), q)),
   hypergeometricp: {
@@ -1236,11 +1238,13 @@ export const MORE_FUNCTIONS = {
   weibullphden: WEIBULLPH.den,
   invweibullph: WEIBULLPH.inverse,
   invweibullphtail: WEIBULLPH.inverseTail,
-  nbinomialp: three((n, k, p) => nbinomialp(n, whole(k), p)),
+  nbinomialp: three((n, k, p) =>
+    k < 0 ? MISSING : nbinomialp(n, whole(k), p),
+  ),
   nbinomial: three((n, k, p) =>
     n > 0 && p > 0 && p <= 1
       ? k < 0
-        ? 0
+        ? MISSING
         : p === 1
           ? 1
           : ibeta(n, whole(k) + 1, p)
@@ -1248,11 +1252,13 @@ export const MORE_FUNCTIONS = {
   ),
   nbinomialtail: three((n, k, p) =>
     n > 0 && p > 0 && p <= 1
-      ? whole(k) <= 0
-        ? 1
-        : p === 1
-          ? 0
-          : ibeta(whole(k), n, 1 - p)
+      ? k < 0
+        ? MISSING
+        : whole(k) <= 0
+          ? 1
+          : p === 1
+            ? 0
+            : ibeta(whole(k), n, 1 - p)
       : MISSING,
   ),
 

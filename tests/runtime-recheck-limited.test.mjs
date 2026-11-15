@@ -218,3 +218,186 @@ generate double lw = 1 + .1*x + .4*e2 if works`);
     );
   }
 });
+
+// ----- second re-check -----
+// The expected values were recorded from Stata 19 in the same way, with
+// the data above and these additions.
+const MORE = `${DATA}
+generate w = mod(_n,3)
+replace w = . in 1
+generate byte t = 1 + (x + f + 2*u > 2) + (x + f + 2*u > 3.4)
+generate byte mode = cond(t == 1, 1, cond(t == 2, 5, 9))
+label define md 1 "By car" 5 "Bus-line" 9 "2 wheels"
+label values mode md
+generate float xf = x
+generate double hc = max(10, min(h, 50))`;
+
+test("ml score leaves out the observations whose weight is missing or zero", () => {
+  const s = run(`${MORE}
+quietly poisson c x f [fweight=w]
+predict double s1, score
+quietly glm d x f [iweight=w], family(binomial) link(probit)
+predict double s2, score
+quietly logit d x f [fweight=w]
+predict double s3, score`);
+  for (const [name, mean] of [
+    ["s1", -0.039796118919349463],
+    ["s2", -0.0061606227305207274],
+  ]) {
+    s.run(`quietly summarize ${name}`);
+    assert.equal(s.results.r.N, 133);
+    close(s.results.r.mean, mean);
+  }
+  // logit's own score fills every observation.
+  s.run("quietly summarize s3");
+  assert.equal(s.results.r.N, 200);
+});
+
+test("mlogit names an outcome by its equation name, and predicts stddp", () => {
+  const s = run(`${MORE}
+quietly mlogit mode x f
+predict double m1, stddp outcome(5,9)
+predict double m2, outcome(Bus_line)`);
+  close(value(s, "m1"), 0.7310904586477839917, 1e-12);
+  close(value(s, "m1", 1), 0.8034120898745372719, 1e-12);
+  assert.equal(s.data.get("m1").label, "stddp(5,9)");
+  close(value(s, "m2"), 0.0108165384275878407, 1e-12);
+  assert.equal(s.data.get("m2").label, "Pr(mode==Bus_line)");
+  for (const [command, message, rc] of [
+    ["predict q1, outcome(By car)", /outcome By car not found/, 303],
+    ["predict q2, outcome(By_car 2_wheels)", /equation #0 not found/, 303],
+    ["margins, predict(outcome(By car))", /outcome By car not found/, 303],
+    ["predict q3, stddp outcome(5)", /second outcome not found/, 303],
+    ["predict q4, stddp", /option stddp requires the outcome\(\) option/, 198],
+    ["predict q5, xb stdp", /only one of options xb or stdp is allowed/, 198],
+  ]) {
+    const result = printed(s, command);
+    assert.equal(result.rc, rc, command);
+    assert.match(result.text, message, command);
+  }
+  assert.equal(printed(s, "margins, predict(outcome(By_car))").rc, 0);
+});
+
+test("margins after mlogit, ologit and oprobit take the gradient analytically and fix covariates in float", () => {
+  const s = run(`${MORE}
+quietly mlogit mode x f
+quietly margins, dydx(x) predict(outcome(2_wheels))`);
+  close(s.results.r["matrix:b"].values[0][0], 0.2199848912959896652, 1e-12);
+  close(
+    Math.sqrt(s.results.r["matrix:V"].values[0][0]),
+    0.0065710025124494234,
+    1e-12,
+  );
+  s.run(`quietly ologit t x f
+quietly margins, dydx(x) predict(outcome(2))`);
+  close(
+    Math.sqrt(s.results.r["matrix:V"].values[0][0]),
+    0.0081365034714169452,
+    1e-12,
+  );
+  s.run("quietly margins, at(x=1.3) predict(outcome(3))");
+  close(
+    Math.sqrt(s.results.r["matrix:V"].values[0][0]),
+    0.0469523013969120259,
+    1e-12,
+  );
+  s.run(`quietly oprobit t xf f
+quietly margins, atmeans predict(outcome(1))`);
+  close(s.results.r["matrix:b"].values[0][0], 0.0009753916149588004, 1e-12);
+  // #k must be a whole number from 1.
+  s.run("quietly ologit t x f");
+  for (const command of [
+    "predict p, outcome(#0)",
+    "predict p, outcome(#1.5)",
+    "margins, predict(outcome(#-1))",
+  ]) {
+    const result = printed(s, command);
+    assert.equal(result.rc, 111, command);
+    assert.match(
+      result.text,
+      /outcome\(\) must be either a value of t\nor #1, #2, \.\.\./,
+    );
+  }
+});
+
+test("pr() after poisson leaves negative counts missing and checks the first lower bound", () => {
+  const s = run(`${MORE}
+quietly poisson c x f
+generate double n2 = mod(_n,4) - 1.5
+predict double pn, pr(n2)
+generate str3 sv = "a"
+generate double n4 = mod(_n,3)
+replace n4 = . in 1`);
+  s.run("quietly summarize pn");
+  assert.equal(s.results.r.N, 0);
+  const bound = printed(s, "predict q, pr(n4, 2)");
+  assert.equal(bound.rc, 198);
+  assert.match(
+    bound.text,
+    /upper bound of 2 must be greater than or equal to the lower bound of n4/,
+  );
+  assert.equal(printed(s, "predict q, pr(sv)").rc, 109);
+  assert.equal(printed(s, "predict q, pr(1, sv)").rc, 109);
+  // A negative count, however near zero, is missing to each function.
+  for (const f of [
+    "poissonp(2,-.5)",
+    "poisson(2,-.5)",
+    "poissontail(2,-.5)",
+    "nbinomialp(2,-.5,.5)",
+    "nbinomial(2,-.5,.5)",
+    "nbinomialtail(2,-.5,.5)",
+  ])
+    assert.equal(scalar(s, `missing(${f})`), 1, f);
+  close(scalar(s, "poissonp(2,1.5)"), 0.2706705664732254);
+});
+
+test("nbreg takes dispersion(mean), its default", () => {
+  const s = run(`${MORE}\nquietly nbreg c x f, dispersion(mean)`);
+  close(scalar(s, "_b[x]"), 0.3554463407438169797);
+  close(s.results.e.alpha, 0.2112170583879867947);
+  assert.equal(printed(s, "nbreg c x f, dispersion(foo)").rc, 198);
+});
+
+test("margins after tobit predicts e(), ystar() and pr()", () => {
+  const s = run(`${MORE}\nquietly tobit hc x f, ll(10) ul(50)`);
+  for (const [prediction, b, se] of [
+    ["ystar(10,50)", 44.88969052859179243, 0.2760651560112873937],
+    ["e(10,.)", 49.28316592064666679, 0.6476667162541892564],
+    ["pr(20,40)", 0.228304575716595487, 0.0131125340038494888],
+  ]) {
+    const result = printed(s, `margins, predict(${prediction})`);
+    assert.equal(result.rc, 0, result.text);
+    close(s.results.r["matrix:b"].values[0][0], b, 1e-10);
+    close(Math.sqrt(s.results.r["matrix:V"].values[0][0]), se, 1e-8);
+  }
+  assert.match(
+    printed(s, "margins, predict(ystar(10,50))").text,
+    /Expression: E\(hc\*\|10<hc<50\), predict\(ystar\(10,50\)\)/,
+  );
+  // The effect is Stata's to 1e-9; its standard error is the exact delta
+  // method's, where Stata's numerical derivatives can move the fourth digit.
+  s.run("quietly margins, dydx(x) predict(e(10,.))");
+  close(s.results.r["matrix:b"].values[0][0], 7.711651616649581875, 1e-9);
+  assert.equal(printed(s, "margins, predict(stdp)").rc, 498);
+});
+
+test("margins' effects after glm follow Stata's numerical chain rule", () => {
+  const s = run(`${MORE}
+quietly glm h x f, link(log)
+quietly margins, dydx(x)`);
+  close(s.results.r["matrix:b"].values[0][0], 7.961933785657611118, 1e-12);
+  close(
+    Math.sqrt(s.results.r["matrix:V"].values[0][0]),
+    0.3731659640203764949,
+    1e-9,
+  );
+});
+
+test("glm takes negative importance weights, as Stata's does", () => {
+  const s = run(`${DATA}
+generate double iw = mod(_n,3) - .5
+quietly glm d x f [iweight=iw], family(binomial) link(probit)`);
+  close(s.results.e.ll, -39.18971481, 1e-9);
+  close(scalar(s, "_b[x]"), 1.034534, 1e-6);
+  close(scalar(s, "_se[f]"), 0.3785075, 1e-6);
+});

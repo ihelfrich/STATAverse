@@ -26980,3 +26980,225 @@ display e(df_m) " " e(df_r) " " e(rank)
 glm d x if z, family(binomial) vce(cluster z) nolog
 tobit y x x3, ll(0) vce(cluster g) nolog
 display e(df_m) " " e(df_r) " " e(rank)
+=== recheck2-limited-scores-zero-weights
+clear
+set seed 7311
+set obs 300
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double u = runiform()
+generate byte d = (x - 2 + f + ln(u/(1-u))) > 0
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+generate double h = 30 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)
+generate w = mod(_n,3)
+replace w = . in 1/4
+generate double iw = w - .5*(w==1)
+generate pw = w + .5
+replace pw = . in 5
+quietly poisson c x f [fweight=w]
+predict a1, score
+quietly poisson c x f [iweight=iw]
+predict a2, score
+quietly poisson c x f [pweight=pw]
+predict a3, score
+quietly nbreg c x f [pweight=w]
+predict a4 a5, scores
+quietly glm c x f [fweight=w], family(poisson)
+predict a6, score
+quietly glm c x f [aweight=pw], family(poisson)
+predict a7, score
+quietly glm d x f [iweight=iw], family(binomial) link(probit)
+predict a8, score
+quietly glm h x f [aweight=pw]
+predict a9, score
+quietly logit d x f [fweight=w]
+predict a10, score
+quietly probit d x f [pweight=pw]
+predict a11, score
+quietly tobit h x f [pweight=w], ll(30)
+predict a12 a13, scores
+quietly poisson c x f [fweight=w] if x > 1
+predict a14, score
+predict a15 if x < 3, score
+summarize a*
+=== recheck2-limited-mlogit-equation-names-stddp
+clear
+set seed 7312
+set obs 300
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double u = x + f + 2*runiform()
+generate byte t = 1 + (u > 2) + (u > 3.2)
+generate byte mode = cond(t == 1, 1, cond(t == 2, 5, 9))
+label define md 1 "By car" 5 "Bus-line" 9 "2 wheels"
+label values mode md
+replace x = . in 3
+quietly mlogit mode x f
+mlogit
+display e(eqnames)
+foreach o in "By car" "By_car" "Bus-line" "Bus_line" "2 wheels" "2_wheels" "_2_wheels" "By_car Bus_line" "By_car By_car" "#0" "#1.5" "#4" "1.0" "5.00000001" "3" {
+  capture noisily predict p, outcome(`o')
+  display "`o' " _rc
+  capture noisily margins, predict(outcome(`o'))
+  display "m `o' " _rc
+  capture drop p
+}
+predict double s1, stddp outcome(5,9)
+predict double s2, stddp outcome(1, 5)
+predict double s3, stddp outcome(#1,#1)
+predict double s4 if f, stddp outcome(2_wheels,By_car)
+predict double s5, stddp equation(9,1)
+predict double s6, index outcome(Bus_line)
+predict double s7, xb equation(Bus_line)
+summarize s*
+describe s*
+capture noisily predict q1, stddp
+capture noisily predict q2, stddp outcome(5)
+capture noisily predict q3 q4, stddp outcome(5,9)
+capture noisily predict q5 q6 q7, stddp
+capture noisily predict q8, stddp outcome(5,Bike)
+capture noisily predict q9, stddp xb outcome(5,9)
+capture noisily predict q10, xb stdp
+capture noisily predict q11, xb stdp pr
+capture noisily predict q12, stddp outcome(#4,1)
+capture noisily predict q13, outcome(5) equation(5)
+capture noisily predict q14 q15, xb outcome(5)
+capture noisily predict q16 q17, xb
+quietly mlogit mode x f, baseoutcome(5)
+predict double r1, stddp outcome(5,9)
+predict double r2, stdp outcome(9)
+summarize r*
+quietly ologit t x f
+capture noisily predict z1, stddp outcome(1,2)
+=== recheck2-limited-count-pr-bounds
+clear
+set seed 7313
+set obs 300
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+generate double n1 = mod(_n,4) - 1
+replace n1 = . in 1/3
+generate double n2 = n1 + .5
+generate n4 = mod(_n,3)
+generate str3 sv = "a"
+quietly poisson c x f
+predict a1, pr(n2)
+predict a2, pr(n1)
+predict a3, pr(n4, 1)
+predict a4, pr(n4, 2)
+capture noisily predict a5, pr(n1, 3)
+capture noisily predict a6, pr(sv)
+capture noisily predict a7, pr(sv, 2)
+capture noisily predict a8, pr(1, sv)
+capture noisily predict a9, pr(sv, -1)
+replace n4 = . in 1
+capture noisily predict a10, pr(n4, 2)
+replace n4 = 3 in 1
+capture noisily predict a11, pr(n4, 2)
+predict a12, pr(n4, 3)
+quietly nbreg c x f
+predict b1, pr(n2)
+capture noisily predict b2, pr(n1, 3)
+predict b3, pr(2, n2)
+summarize a* b*
+quietly tobit c x f, ll(0)
+capture noisily predict t1, e(sv,5)
+capture noisily predict t2, e(0,sv)
+capture noisily predict t3, ystar(sv,.)
+capture noisily predict t4, pr(sv,5)
+foreach k in -2 -1 -.5 -1e-9 0 .5 1.5 {
+  display "k=`k' " poissonp(2,`k') " " poisson(2,`k') " " poissontail(2,`k') " " nbinomialp(2,`k',.5) " " nbinomial(2,`k',.5) " " nbinomialtail(2,`k',.5)
+}
+=== recheck2-limited-ordered-outcomes-and-margins
+clear
+set seed 7314
+set obs 400
+generate double x = runiform()*4
+generate float xf = runiform()*4
+generate byte g = runiform() > .5
+generate double u = x + xf/2 + g + 2*runiform()
+generate byte t = 1 + (u > 2.5) + (u > 3.7) + (u > 5)
+quietly ologit t x
+foreach o in "#0" "#-1" "#1.5" "#1.0" "#+2" "#+1" "#+4" "#+5" "#2e0" "#9" "# 2" "#a" "2.0" "7" "abc" "#01" {
+  capture noisily predict p, outcome(`o')
+  display "`o' " _rc
+  capture noisily margins, predict(outcome(`o'))
+  display "m `o' " _rc
+  capture drop p
+}
+quietly oprobit t x
+capture noisily predict p, outcome(#0)
+capture noisily predict p, outcome(#1.5)
+quietly ologit t i.g xf
+margins g, at(g=1)
+margins g, at(g=0 xf=2.3)
+quietly oprobit t xf i.g
+margins g, atmeans
+matrix b = r(b)
+display %14.0g b[1,5]
+quietly margins, at(xf=2.3) predict(outcome(2))
+display %14.0g r(b)[1,1]
+quietly mlogit t i.g xf
+margins g, at(g=1) predict(outcome(2))
+quietly margins g, atmeans predict(outcome(2))
+display %14.0g r(b)[1,1]
+quietly margins, at(xf=2.3) predict(outcome(2))
+display %14.0g r(b)[1,1]
+quietly margins g
+display %14.0g sqrt(r(V)[2,2])
+quietly margins, dydx(xf) predict(outcome(2))
+display %14.0g r(b)[1,1] " " %14.0g sqrt(r(V)[1,1])
+quietly margins, dydx(*) predict(outcome(3))
+display %14.0g sqrt(r(V)[1,1]) " " %14.0g sqrt(r(V)[2,2]) " " %14.0g sqrt(r(V)[3,3])
+quietly ologit t c.xf##c.xf i.g
+quietly margins, dydx(xf) predict(outcome(2))
+display %14.0g r(b)[1,1] " " %14.0g sqrt(r(V)[1,1])
+quietly margins, dydx(*) atmeans predict(outcome(4))
+display %14.0g sqrt(r(V)[1,1]) " " %14.0g sqrt(r(V)[2,2]) " " %14.0g sqrt(r(V)[3,3])
+quietly oprobit t xf i.g
+quietly margins, dydx(*) predict(outcome(1))
+display %14.0g sqrt(r(V)[1,1]) " " %14.0g sqrt(r(V)[2,2]) " " %14.0g sqrt(r(V)[3,3])
+margins, dydx(xf)
+=== recheck2-limited-dispersion-tobit-glm-margins
+clear
+set seed 7315
+set obs 400
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate byte r = 1 + floor(runiform()*3)
+generate double a = 20 + 20*runiform()
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+generate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)
+generate double u = runiform()
+generate byte d = (x - 2 + f + ln(u/(1-u))) > 0
+replace h = 30 if h > 30
+replace h = 0 if h < 0
+capture noisily nbreg c x, dispersion(mean) nolog
+capture noisily nbreg c x, disp(m) nolog irr
+capture noisily nbreg c x, dispersion() nolog
+capture noisily nbreg c x, dispersion(mean constant) nolog
+capture noisily nbreg c x, dispersion(foo) nolog
+capture noisily nbreg c x, dispersion(Mean) nolog
+quietly tobit h x i.r c.a#c.f, ll(0) ul(30)
+margins, predict(ystar(0,30))
+margins, predict(pr(0,30))
+margins r, predict(e(0,30))
+margins, predict(xb)
+margins, predict(e(.,.))
+margins, at(x=2) predict(pr(10,.))
+margins, predict(e(.,20))
+margins, dydx(x) predict(e(0,.))
+margins r, predict(ystar(0,30)) at(x=(1 3))
+margins, dydx(a) atmeans
+capture noisily margins, predict(stdp)
+capture noisily margins, predict(e(0))
+capture noisily margins, predict(e(5,1))
+quietly glm h x f, family(gaussian) link(log)
+margins, dydx(x)
+quietly glm d x f, family(binomial)
+margins, dydx(*)
+quietly glm d x f, family(binomial) link(probit)
+margins, dydx(x)
+generate double iw = mod(_n,3) - .5
+glm d x f [iweight=iw], family(binomial) link(probit) nolog

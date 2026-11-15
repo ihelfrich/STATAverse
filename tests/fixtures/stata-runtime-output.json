@@ -187331,6 +187331,1444 @@
       ]
     },
     {
+      "id": "recheck2-limited-scores-zero-weights",
+      "source": "clear\nset seed 7311\nset obs 300\ngenerate double x = runiform()*4\ngenerate byte f = runiform() > .5\ngenerate double u = runiform()\ngenerate byte d = (x - 2 + f + ln(u/(1-u))) > 0\ngenerate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)\ngenerate double h = 30 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)\ngenerate w = mod(_n,3)\nreplace w = . in 1/4\ngenerate double iw = w - .5*(w==1)\ngenerate pw = w + .5\nreplace pw = . in 5\nquietly poisson c x f [fweight=w]\npredict a1, score\nquietly poisson c x f [iweight=iw]\npredict a2, score\nquietly poisson c x f [pweight=pw]\npredict a3, score\nquietly nbreg c x f [pweight=w]\npredict a4 a5, scores\nquietly glm c x f [fweight=w], family(poisson)\npredict a6, score\nquietly glm c x f [aweight=pw], family(poisson)\npredict a7, score\nquietly glm d x f [iweight=iw], family(binomial) link(probit)\npredict a8, score\nquietly glm h x f [aweight=pw]\npredict a9, score\nquietly logit d x f [fweight=w]\npredict a10, score\nquietly probit d x f [pweight=pw]\npredict a11, score\nquietly tobit h x f [pweight=w], ll(30)\npredict a12 a13, scores\nquietly poisson c x f [fweight=w] if x > 1\npredict a14, score\npredict a15 if x < 3, score\nsummarize a*\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7311", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        { "command": "generate double u = runiform()", "lines": [] },
+        {
+          "command": "generate byte d = (x - 2 + f + ln(u/(1-u))) > 0",
+          "lines": []
+        },
+        {
+          "command": "generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)",
+          "lines": []
+        },
+        {
+          "command": "generate double h = 30 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)",
+          "lines": []
+        },
+        { "command": "generate w = mod(_n,3)", "lines": [] },
+        {
+          "command": "replace w = . in 1/4",
+          "lines": ["(4 real changes made, 4 to missing)"]
+        },
+        {
+          "command": "generate double iw = w - .5*(w==1)",
+          "lines": ["(4 missing values generated)"]
+        },
+        {
+          "command": "generate pw = w + .5",
+          "lines": ["(4 missing values generated)"]
+        },
+        {
+          "command": "replace pw = . in 5",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "quietly poisson c x f [fweight=w]", "lines": [] },
+        {
+          "command": "predict a1, score",
+          "lines": ["(103 missing values generated)"]
+        },
+        { "command": "quietly poisson c x f [iweight=iw]", "lines": [] },
+        {
+          "command": "predict a2, score",
+          "lines": ["(103 missing values generated)"]
+        },
+        { "command": "quietly poisson c x f [pweight=pw]", "lines": [] },
+        {
+          "command": "predict a3, score",
+          "lines": ["(5 missing values generated)"]
+        },
+        { "command": "quietly nbreg c x f [pweight=w]", "lines": [] },
+        {
+          "command": "predict a4 a5, scores",
+          "lines": ["(103 missing values generated)"]
+        },
+        {
+          "command": "quietly glm c x f [fweight=w], family(poisson)",
+          "lines": []
+        },
+        {
+          "command": "predict a6, score",
+          "lines": ["(103 missing values generated)"]
+        },
+        {
+          "command": "quietly glm c x f [aweight=pw], family(poisson)",
+          "lines": []
+        },
+        {
+          "command": "predict a7, score",
+          "lines": ["(5 missing values generated)"]
+        },
+        {
+          "command": "quietly glm d x f [iweight=iw], family(binomial) link(probit)",
+          "lines": []
+        },
+        {
+          "command": "predict a8, score",
+          "lines": ["(103 missing values generated)"]
+        },
+        { "command": "quietly glm h x f [aweight=pw]", "lines": [] },
+        {
+          "command": "predict a9, score",
+          "lines": ["(5 missing values generated)"]
+        },
+        { "command": "quietly logit d x f [fweight=w]", "lines": [] },
+        { "command": "predict a10, score", "lines": [] },
+        { "command": "quietly probit d x f [pweight=pw]", "lines": [] },
+        { "command": "predict a11, score", "lines": [] },
+        { "command": "quietly tobit h x f [pweight=w], ll(30)", "lines": [] },
+        { "command": "predict a12 a13, scores", "lines": [] },
+        {
+          "command": "quietly poisson c x f [fweight=w] if x > 1",
+          "lines": []
+        },
+        {
+          "command": "predict a14, score",
+          "lines": ["(103 missing values generated)"]
+        },
+        {
+          "command": "predict a15 if x < 3, score",
+          "lines": ["(155 missing values generated)"]
+        },
+        {
+          "command": "summarize a*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          a1 |        197    .0654676     1.65461  -4.420335   4.161258",
+            "          a2 |        197    .1179851    1.655196  -4.362466   4.213675",
+            "          a3 |        295    .0351271    1.586087  -4.477094   4.100383",
+            "          a4 |        197    .0533001    1.284004  -3.062447    2.71915",
+            "          a5 |        197   -.0020538    .1304837  -.1708786   .6175352",
+            "-------------+---------------------------------------------------------",
+            "          a6 |        197    .0654677     1.65461  -4.420335   4.161258",
+            "          a7 |        295    .0351271    1.586087  -4.477094   4.100383",
+            "          a8 |        197    .0138395     .698731   -1.85954   1.512452",
+            "          a9 |        295    .0006315    .1601605  -.4174676   .3911971",
+            "         a10 |        300    .0119094    .4267827  -.9280334   .8598766",
+            "-------------+---------------------------------------------------------",
+            "         a11 |        300    .0058772     .722419  -2.076372     1.6419",
+            "         a12 |        300   -.0002059    .1563979  -.4186264   .3805302",
+            "         a13 |        300   -.0011083    .0146708  -.0134228   .0742012",
+            "         a14 |        197   -.0081933    1.653534  -4.155632   4.509091",
+            "         a15 |        145   -.0068585    1.390049  -3.192088    2.91664"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck2-limited-mlogit-equation-names-stddp",
+      "source": "clear\nset seed 7312\nset obs 300\ngenerate double x = runiform()*4\ngenerate byte f = runiform() > .5\ngenerate double u = x + f + 2*runiform()\ngenerate byte t = 1 + (u > 2) + (u > 3.2)\ngenerate byte mode = cond(t == 1, 1, cond(t == 2, 5, 9))\nlabel define md 1 \"By car\" 5 \"Bus-line\" 9 \"2 wheels\"\nlabel values mode md\nreplace x = . in 3\nquietly mlogit mode x f\nmlogit\ndisplay e(eqnames)\nforeach o in \"By car\" \"By_car\" \"Bus-line\" \"Bus_line\" \"2 wheels\" \"2_wheels\" \"_2_wheels\" \"By_car Bus_line\" \"By_car By_car\" \"#0\" \"#1.5\" \"#4\" \"1.0\" \"5.00000001\" \"3\" {\n  capture noisily predict p, outcome(`o')\n  display \"`o' \" _rc\n  capture noisily margins, predict(outcome(`o'))\n  display \"m `o' \" _rc\n  capture drop p\n}\npredict double s1, stddp outcome(5,9)\npredict double s2, stddp outcome(1, 5)\npredict double s3, stddp outcome(#1,#1)\npredict double s4 if f, stddp outcome(2_wheels,By_car)\npredict double s5, stddp equation(9,1)\npredict double s6, index outcome(Bus_line)\npredict double s7, xb equation(Bus_line)\nsummarize s*\ndescribe s*\ncapture noisily predict q1, stddp\ncapture noisily predict q2, stddp outcome(5)\ncapture noisily predict q3 q4, stddp outcome(5,9)\ncapture noisily predict q5 q6 q7, stddp\ncapture noisily predict q8, stddp outcome(5,Bike)\ncapture noisily predict q9, stddp xb outcome(5,9)\ncapture noisily predict q10, xb stdp\ncapture noisily predict q11, xb stdp pr\ncapture noisily predict q12, stddp outcome(#4,1)\ncapture noisily predict q13, outcome(5) equation(5)\ncapture noisily predict q14 q15, xb outcome(5)\ncapture noisily predict q16 q17, xb\nquietly mlogit mode x f, baseoutcome(5)\npredict double r1, stddp outcome(5,9)\npredict double r2, stdp outcome(9)\nsummarize r*\nquietly ologit t x f\ncapture noisily predict z1, stddp outcome(1,2)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7312", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        { "command": "generate double u = x + f + 2*runiform()", "lines": [] },
+        { "command": "generate byte t = 1 + (u > 2) + (u > 3.2)", "lines": [] },
+        {
+          "command": "generate byte mode = cond(t == 1, 1, cond(t == 2, 5, 9))",
+          "lines": []
+        },
+        {
+          "command": "label define md 1 \"By car\" 5 \"Bus-line\" 9 \"2 wheels\"",
+          "lines": []
+        },
+        { "command": "label values mode md", "lines": [] },
+        {
+          "command": "replace x = . in 3",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        { "command": "quietly mlogit mode x f", "lines": [] },
+        {
+          "command": "mlogit",
+          "lines": [
+            "Multinomial logistic regression                         Number of obs =    299",
+            "                                                        LR chi2(4)    = 332.41",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -130.07553                             Pseudo R2     = 0.5610",
+            "",
+            "------------------------------------------------------------------------------",
+            "        mode | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "By_car       |",
+            "           x |  -5.972497   .6608936    -9.04   0.000    -7.267825   -4.677169",
+            "           f |  -6.552701   .8726013    -7.51   0.000    -8.262968   -4.842433",
+            "       _cons |   10.58299    1.22499     8.64   0.000     8.182052    12.98392",
+            "-------------+----------------------------------------------------------------",
+            "Bus_line     |",
+            "           x |  -3.233514   .4189209    -7.72   0.000    -4.054584   -2.412444",
+            "           f |  -3.834244    .645609    -5.94   0.000    -5.099615   -2.568874",
+            "       _cons |   7.524879   1.041454     7.23   0.000     5.483667    9.566092",
+            "-------------+----------------------------------------------------------------",
+            "2_wheels     |  (base outcome)",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "display e(eqnames)",
+          "lines": ["By_car Bus_line 2_wheels"]
+        },
+        {
+          "command": "foreach o in \"By car\" \"By_car\" \"Bus-line\" \"Bus_line\" \"2 wheels\" \"2_wheels\" \"_2_wheels\" \"By_car Bus_line\" \"By_car By_car\" \"#0\" \"#1.5\" \"#4\" \"1.0\" \"5.00000001\" \"3\" {",
+          "lines": [
+            "  2.   capture noisily predict p, outcome(`o')",
+            "  3.   display \"`o' \" _rc",
+            "  4.   capture noisily margins, predict(outcome(`o'))",
+            "  5.   display \"m `o' \" _rc",
+            "  6.   capture drop p",
+            "  7. }",
+            "(option pr assumed; predicted probability)",
+            "outcome By car not found",
+            "By car 303",
+            "outcome By car not found",
+            "m By car 303",
+            "(option pr assumed; predicted probability)",
+            "(1 missing value generated)",
+            "By_car 0",
+            "",
+            "Predictive margins                                         Number of obs = 299",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(mode==By_car), predict(outcome(By_car))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .1772575   .0149425    11.86   0.000     .1479708    .2065442",
+            "------------------------------------------------------------------------------",
+            "m By_car 0",
+            "(option pr assumed; predicted probability)",
+            "outcome Bus-line not found",
+            "Bus-line 303",
+            "outcome Bus-line not found",
+            "m Bus-line 303",
+            "(option pr assumed; predicted probability)",
+            "(1 missing value generated)",
+            "Bus_line 0",
+            "",
+            "Predictive margins                                         Number of obs = 299",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(mode==Bus_line), predict(outcome(Bus_line))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .2742475   .0206104    13.31   0.000     .2338518    .3146432",
+            "------------------------------------------------------------------------------",
+            "m Bus_line 0",
+            "(option pr assumed; predicted probability)",
+            "outcome 2 wheels not found",
+            "2 wheels 303",
+            "outcome 2 wheels not found",
+            "m 2 wheels 303",
+            "(option pr assumed; predicted probability)",
+            "(1 missing value generated)",
+            "2_wheels 0",
+            "",
+            "Predictive margins                                         Number of obs = 299",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(mode==2_wheels), predict(outcome(2_wheels))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |    .548495   .0153937    35.63   0.000     .5183239    .5786661",
+            "------------------------------------------------------------------------------",
+            "m 2_wheels 0",
+            "(option pr assumed; predicted probability)",
+            "outcome _2_wheels not found",
+            "_2_wheels 303",
+            "outcome _2_wheels not found",
+            "m _2_wheels 303",
+            "(option pr assumed; predicted probability)",
+            "equation #0 not found",
+            "By_car Bus_line 303",
+            "equation #0 not found",
+            "m By_car Bus_line 303",
+            "(option pr assumed; predicted probability)",
+            "outcome By_car By_car not found",
+            "By_car By_car 303",
+            "outcome By_car By_car not found",
+            "m By_car By_car 303",
+            "(option pr assumed; predicted probability)",
+            "equation #0 not found",
+            "#0 303",
+            "equation #0 not found",
+            "m #0 303",
+            "(option pr assumed; predicted probability)",
+            "equation #1.5 not found",
+            "#1.5 303",
+            "equation #1.5 not found",
+            "m #1.5 303",
+            "(option pr assumed; predicted probability)",
+            "equation #4 not found",
+            "#4 303",
+            "equation #4 not found",
+            "m #4 303",
+            "(option pr assumed; predicted probability)",
+            "(1 missing value generated)",
+            "1.0 0",
+            "",
+            "Predictive margins                                         Number of obs = 299",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(mode==By_car), predict(outcome(1.0))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .1772575   .0149425    11.86   0.000     .1479708    .2065442",
+            "------------------------------------------------------------------------------",
+            "m 1.0 0",
+            "(option pr assumed; predicted probability)",
+            "(1 missing value generated)",
+            "5.00000001 0",
+            "",
+            "Predictive margins                                         Number of obs = 299",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(mode==Bus_line), predict(outcome(5.00000001))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .2742475   .0206104    13.31   0.000     .2338518    .3146432",
+            "------------------------------------------------------------------------------",
+            "m 5.00000001 0",
+            "(option pr assumed; predicted probability)",
+            "outcome 3 not found",
+            "3 303",
+            "outcome 3 not found",
+            "m 3 303"
+          ]
+        },
+        {
+          "command": "predict double s1, stddp outcome(5,9)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double s2, stddp outcome(1, 5)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double s3, stddp outcome(#1,#1)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double s4 if f, stddp outcome(2_wheels,By_car)",
+          "lines": ["(164 missing values generated)"]
+        },
+        {
+          "command": "predict double s5, stddp equation(9,1)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double s6, index outcome(Bus_line)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double s7, xb equation(Bus_line)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "summarize s*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          s1 |        299    .5623982    .2141941   .3066624   1.188767",
+            "          s2 |        299    .7925083    .4103268   .2786368   1.823287",
+            "          s3 |        299           0           0          0          0",
+            "          s4 |        136    1.049979    .4925969   .5218492   2.199351",
+            "          s5 |        299    .9877234    .4102287   .5218492   2.199351",
+            "-------------+---------------------------------------------------------",
+            "          s6 |        299   -.6328151    4.002387  -9.173385   7.466805",
+            "          s7 |        299   -.6328151    4.002387  -9.173385   7.466805"
+          ]
+        },
+        {
+          "command": "describe s*",
+          "lines": [
+            "Variable      Storage   Display    Value",
+            "    name         type    format    label      Variable label",
+            "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+            "s1              double  %10.0g                stddp(5,9)",
+            "s2              double  %10.0g                stddp(1, 5)",
+            "s3              double  %10.0g                stddp(#1,#1)",
+            "s4              double  %10.0g                stddp(2_wheels,By_car)",
+            "s5              double  %10.0g                stddp(9,1)",
+            "s6              double  %10.0g                Linear prediction, mode==Bus_line",
+            "s7              double  %10.0g                Linear prediction, mode==Bus_line"
+          ]
+        },
+        {
+          "command": "capture noisily predict q1, stddp",
+          "lines": ["option stddp requires the outcome() option"]
+        },
+        {
+          "command": "capture noisily predict q2, stddp outcome(5)",
+          "lines": ["second outcome not found"]
+        },
+        {
+          "command": "capture noisily predict q3 q4, stddp outcome(5,9)",
+          "lines": [
+            "option stddp requires that you specify 1 new variable",
+            "too many variables specified"
+          ]
+        },
+        {
+          "command": "capture noisily predict q5 q6 q7, stddp",
+          "lines": [
+            "option stddp requires that you specify 1 new variable",
+            "too many variables specified"
+          ]
+        },
+        {
+          "command": "capture noisily predict q8, stddp outcome(5,Bike)",
+          "lines": ["outcome Bike not found"]
+        },
+        {
+          "command": "capture noisily predict q9, stddp xb outcome(5,9)",
+          "lines": ["only one of options xb or stddp is allowed"]
+        },
+        {
+          "command": "capture noisily predict q10, xb stdp",
+          "lines": ["only one of options xb or stdp is allowed"]
+        },
+        {
+          "command": "capture noisily predict q11, xb stdp pr",
+          "lines": ["only one of options xb, stdp, or pr is allowed"]
+        },
+        {
+          "command": "capture noisily predict q12, stddp outcome(#4,1)",
+          "lines": ["equation #4 not found"]
+        },
+        {
+          "command": "capture noisily predict q13, outcome(5) equation(5)",
+          "lines": ["only one of options equation() or outcome() is allowed"]
+        },
+        {
+          "command": "capture noisily predict q14 q15, xb outcome(5)",
+          "lines": [
+            "option xb requires that you specify 1 new variable",
+            "too many variables specified"
+          ]
+        },
+        {
+          "command": "capture noisily predict q16 q17, xb",
+          "lines": [
+            "too few variables specified",
+            "mode has 3 outcomes and so you must specify 3 new variables, or you can use the outcome() option and specify variables one at a time"
+          ]
+        },
+        { "command": "quietly mlogit mode x f, baseoutcome(5)", "lines": [] },
+        {
+          "command": "predict double r1, stddp outcome(5,9)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "predict double r2, stdp outcome(9)",
+          "lines": ["(1 missing value generated)"]
+        },
+        {
+          "command": "summarize r*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          r1 |        299    .5623982    .2141941   .3066624   1.188767",
+            "          r2 |        299    .5623982    .2141941   .3066624   1.188767"
+          ]
+        },
+        { "command": "quietly ologit t x f", "lines": [] },
+        {
+          "command": "capture noisily predict z1, stddp outcome(1,2)",
+          "lines": ["option stddp not allowed"]
+        }
+      ]
+    },
+    {
+      "id": "recheck2-limited-count-pr-bounds",
+      "source": "clear\nset seed 7313\nset obs 300\ngenerate double x = runiform()*4\ngenerate byte f = runiform() > .5\ngenerate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)\ngenerate double n1 = mod(_n,4) - 1\nreplace n1 = . in 1/3\ngenerate double n2 = n1 + .5\ngenerate n4 = mod(_n,3)\ngenerate str3 sv = \"a\"\nquietly poisson c x f\npredict a1, pr(n2)\npredict a2, pr(n1)\npredict a3, pr(n4, 1)\npredict a4, pr(n4, 2)\ncapture noisily predict a5, pr(n1, 3)\ncapture noisily predict a6, pr(sv)\ncapture noisily predict a7, pr(sv, 2)\ncapture noisily predict a8, pr(1, sv)\ncapture noisily predict a9, pr(sv, -1)\nreplace n4 = . in 1\ncapture noisily predict a10, pr(n4, 2)\nreplace n4 = 3 in 1\ncapture noisily predict a11, pr(n4, 2)\npredict a12, pr(n4, 3)\nquietly nbreg c x f\npredict b1, pr(n2)\ncapture noisily predict b2, pr(n1, 3)\npredict b3, pr(2, n2)\nsummarize a* b*\nquietly tobit c x f, ll(0)\ncapture noisily predict t1, e(sv,5)\ncapture noisily predict t2, e(0,sv)\ncapture noisily predict t3, ystar(sv,.)\ncapture noisily predict t4, pr(sv,5)\nforeach k in -2 -1 -.5 -1e-9 0 .5 1.5 {\n  display \"k=`k' \" poissonp(2,`k') \" \" poisson(2,`k') \" \" poissontail(2,`k') \" \" nbinomialp(2,`k',.5) \" \" nbinomial(2,`k',.5) \" \" nbinomialtail(2,`k',.5)\n}\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7313", "lines": [] },
+        {
+          "command": "set obs 300",
+          "lines": ["Number of observations (_N) was 0, now 300."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        {
+          "command": "generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)",
+          "lines": []
+        },
+        { "command": "generate double n1 = mod(_n,4) - 1", "lines": [] },
+        {
+          "command": "replace n1 = . in 1/3",
+          "lines": ["(3 real changes made, 3 to missing)"]
+        },
+        {
+          "command": "generate double n2 = n1 + .5",
+          "lines": ["(3 missing values generated)"]
+        },
+        { "command": "generate n4 = mod(_n,3)", "lines": [] },
+        { "command": "generate str3 sv = \"a\"", "lines": [] },
+        { "command": "quietly poisson c x f", "lines": [] },
+        {
+          "command": "predict a1, pr(n2)",
+          "lines": [
+            "(300 missing values generated)",
+            "n2 contains 78 negative or missing counts",
+            "n2 contains 222 noninteger values"
+          ]
+        },
+        {
+          "command": "predict a2, pr(n1)",
+          "lines": [
+            "(78 missing values generated)",
+            "n1 contains 78 negative or missing counts"
+          ]
+        },
+        {
+          "command": "predict a3, pr(n4, 1)",
+          "lines": [
+            "(100 missing values generated)",
+            "1 contains 100 counts less than n4"
+          ]
+        },
+        { "command": "predict a4, pr(n4, 2)", "lines": [] },
+        {
+          "command": "capture noisily predict a5, pr(n1, 3)",
+          "lines": [
+            "upper bound of 3 must be greater than or equal to the lower bound of n1"
+          ]
+        },
+        {
+          "command": "capture noisily predict a6, pr(sv)",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "capture noisily predict a7, pr(sv, 2)",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "capture noisily predict a8, pr(1, sv)",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "capture noisily predict a9, pr(sv, -1)",
+          "lines": ["upper bound of -1 must be nonnegative"]
+        },
+        {
+          "command": "replace n4 = . in 1",
+          "lines": ["(1 real change made, 1 to missing)"]
+        },
+        {
+          "command": "capture noisily predict a10, pr(n4, 2)",
+          "lines": [
+            "upper bound of 2 must be greater than or equal to the lower bound of n4"
+          ]
+        },
+        { "command": "replace n4 = 3 in 1", "lines": ["(1 real change made)"] },
+        {
+          "command": "capture noisily predict a11, pr(n4, 2)",
+          "lines": [
+            "upper bound of 2 must be greater than or equal to the lower bound of n4"
+          ]
+        },
+        { "command": "predict a12, pr(n4, 3)", "lines": [] },
+        { "command": "quietly nbreg c x f", "lines": [] },
+        {
+          "command": "predict b1, pr(n2)",
+          "lines": [
+            "(300 missing values generated)",
+            "n2 contains 78 negative or missing counts",
+            "n2 contains 222 noninteger values"
+          ]
+        },
+        {
+          "command": "capture noisily predict b2, pr(n1, 3)",
+          "lines": [
+            "upper bound of 3 must be greater than or equal to the lower bound of n1"
+          ]
+        },
+        {
+          "command": "predict b3, pr(2, n2)",
+          "lines": [
+            "(300 missing values generated)",
+            "n2 contains 78 negative or missing counts",
+            "n2 contains 222 noninteger values",
+            "n2 contains 223 counts less than 2"
+          ]
+        },
+        {
+          "command": "summarize a* b*",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "          a1 |          0",
+            "          a2 |        222    .2278968    .0980071   .0116757    .471001",
+            "          a3 |        200    .3551823    .1894142   .0465911   .8256153",
+            "          a4 |        300    .4619486    .2355419   .1068495    .959109",
+            "         a12 |        300    .6081135    .2268752   .0499979   .9926113",
+            "-------------+---------------------------------------------------------",
+            "          b1 |          0",
+            "          b3 |          0"
+          ]
+        },
+        { "command": "quietly tobit c x f, ll(0)", "lines": [] },
+        {
+          "command": "capture noisily predict t1, e(sv,5)",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "capture noisily predict t2, e(0,sv)",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "capture noisily predict t3, ystar(sv,.)",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "capture noisily predict t4, pr(sv,5)",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "foreach k in -2 -1 -.5 -1e-9 0 .5 1.5 {",
+          "lines": [
+            "  2.   display \"k=`k' \" poissonp(2,`k') \" \" poisson(2,`k') \" \" poissontail(2,`k') \" \" nbinomialp(2,`k',.5) \" \" nbinomial(2,`k',.5) \" \" nbinomialtail(2,`k',.5)",
+            "  3. }",
+            "k=-2 . . . . . .",
+            "k=-1 . . . . . .",
+            "k=-.5 . . . . . .",
+            "k=-1e-9 . . . . . .",
+            "k=0 .13533528 .13533528 1 .25 .25 1",
+            "k=.5 .13533528 .13533528 1 .25 .25 1",
+            "k=1.5 .27067057 .40600585 .86466472 .25 .5 .75"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck2-limited-ordered-outcomes-and-margins",
+      "source": "clear\nset seed 7314\nset obs 400\ngenerate double x = runiform()*4\ngenerate float xf = runiform()*4\ngenerate byte g = runiform() > .5\ngenerate double u = x + xf/2 + g + 2*runiform()\ngenerate byte t = 1 + (u > 2.5) + (u > 3.7) + (u > 5)\nquietly ologit t x\nforeach o in \"#0\" \"#-1\" \"#1.5\" \"#1.0\" \"#+2\" \"#+1\" \"#+4\" \"#+5\" \"#2e0\" \"#9\" \"# 2\" \"#a\" \"2.0\" \"7\" \"abc\" \"#01\" {\n  capture noisily predict p, outcome(`o')\n  display \"`o' \" _rc\n  capture noisily margins, predict(outcome(`o'))\n  display \"m `o' \" _rc\n  capture drop p\n}\nquietly oprobit t x\ncapture noisily predict p, outcome(#0)\ncapture noisily predict p, outcome(#1.5)\nquietly ologit t i.g xf\nmargins g, at(g=1)\nmargins g, at(g=0 xf=2.3)\nquietly oprobit t xf i.g\nmargins g, atmeans\nmatrix b = r(b)\ndisplay %14.0g b[1,5]\nquietly margins, at(xf=2.3) predict(outcome(2))\ndisplay %14.0g r(b)[1,1]\nquietly mlogit t i.g xf\nmargins g, at(g=1) predict(outcome(2))\nquietly margins g, atmeans predict(outcome(2))\ndisplay %14.0g r(b)[1,1]\nquietly margins, at(xf=2.3) predict(outcome(2))\ndisplay %14.0g r(b)[1,1]\nquietly margins g\ndisplay %14.0g sqrt(r(V)[2,2])\nquietly margins, dydx(xf) predict(outcome(2))\ndisplay %14.0g r(b)[1,1] \" \" %14.0g sqrt(r(V)[1,1])\nquietly margins, dydx(*) predict(outcome(3))\ndisplay %14.0g sqrt(r(V)[1,1]) \" \" %14.0g sqrt(r(V)[2,2]) \" \" %14.0g sqrt(r(V)[3,3])\nquietly ologit t c.xf##c.xf i.g\nquietly margins, dydx(xf) predict(outcome(2))\ndisplay %14.0g r(b)[1,1] \" \" %14.0g sqrt(r(V)[1,1])\nquietly margins, dydx(*) atmeans predict(outcome(4))\ndisplay %14.0g sqrt(r(V)[1,1]) \" \" %14.0g sqrt(r(V)[2,2]) \" \" %14.0g sqrt(r(V)[3,3])\nquietly oprobit t xf i.g\nquietly margins, dydx(*) predict(outcome(1))\ndisplay %14.0g sqrt(r(V)[1,1]) \" \" %14.0g sqrt(r(V)[2,2]) \" \" %14.0g sqrt(r(V)[3,3])\nmargins, dydx(xf)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7314", "lines": [] },
+        {
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        { "command": "generate float xf = runiform()*4", "lines": [] },
+        { "command": "generate byte g = runiform() > .5", "lines": [] },
+        {
+          "command": "generate double u = x + xf/2 + g + 2*runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate byte t = 1 + (u > 2.5) + (u > 3.7) + (u > 5)",
+          "lines": []
+        },
+        { "command": "quietly ologit t x", "lines": [] },
+        {
+          "command": "foreach o in \"#0\" \"#-1\" \"#1.5\" \"#1.0\" \"#+2\" \"#+1\" \"#+4\" \"#+5\" \"#2e0\" \"#9\" \"# 2\" \"#a\" \"2.0\" \"7\" \"abc\" \"#01\" {",
+          "lines": [
+            "  2.   capture noisily predict p, outcome(`o')",
+            "  3.   display \"`o' \" _rc",
+            "  4.   capture noisily margins, predict(outcome(`o'))",
+            "  5.   display \"m `o' \" _rc",
+            "  6.   capture drop p",
+            "  7. }",
+            "(option pr assumed; predicted probability)",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "#0 111",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "m #0 111",
+            "(option pr assumed; predicted probability)",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "#-1 111",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "m #-1 111",
+            "(option pr assumed; predicted probability)",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "#1.5 111",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "m #1.5 111",
+            "(option pr assumed; predicted probability)",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "#1.0 111",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "m #1.0 111",
+            "(option pr assumed; predicted probability)",
+            "[/cut+2] not found",
+            "#+2 111",
+            "[/cut+2] not found",
+            "m #+2 111",
+            "(option pr assumed; predicted probability)",
+            "#+1 0",
+            "",
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(t==1), predict(outcome(#+1))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .1186639   .0143436     8.27   0.000     .0905511    .1467768",
+            "------------------------------------------------------------------------------",
+            "m #+1 0",
+            "(option pr assumed; predicted probability)",
+            "#+4 0",
+            "",
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(t==4), predict(outcome(#+4))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .3733327   .0181439    20.58   0.000     .3377714    .4088941",
+            "------------------------------------------------------------------------------",
+            "m #+4 0",
+            "(option pr assumed; predicted probability)",
+            "there is no outcome #+5",
+            "there are only 4 categories",
+            "#+5 111",
+            "there is no outcome #+5",
+            "there are only 4 categories",
+            "m #+5 111",
+            "(option pr assumed; predicted probability)",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "#2e0 111",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "m #2e0 111",
+            "(option pr assumed; predicted probability)",
+            "there is no outcome #9",
+            "there are only 4 categories",
+            "#9 111",
+            "there is no outcome #9",
+            "there are only 4 categories",
+            "m #9 111",
+            "(option pr assumed; predicted probability)",
+            "# 2 0",
+            "",
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(t==2), predict(outcome(# 2))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .2164124   .0184235    11.75   0.000      .180303    .2525217",
+            "------------------------------------------------------------------------------",
+            "m # 2 0",
+            "(option pr assumed; predicted probability)",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "#a 111",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "m #a 111",
+            "(option pr assumed; predicted probability)",
+            "2.0 0",
+            "",
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(t==2), predict(outcome(2.0))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .2164124   .0184235    11.75   0.000      .180303    .2525217",
+            "------------------------------------------------------------------------------",
+            "m 2.0 0",
+            "(option pr assumed; predicted probability)",
+            "outcome 7 not found",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "7 111",
+            "outcome 7 not found",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "m 7 111",
+            "(option pr assumed; predicted probability)",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "abc 111",
+            "outcome() must be either a value of t",
+            "or #1, #2, ...",
+            "m abc 111",
+            "(option pr assumed; predicted probability)",
+            "#01 0",
+            "",
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(t==1), predict(outcome(#01))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .1186639   .0143436     8.27   0.000     .0905511    .1467768",
+            "------------------------------------------------------------------------------",
+            "m #01 0"
+          ]
+        },
+        { "command": "quietly oprobit t x", "lines": [] },
+        {
+          "command": "capture noisily predict p, outcome(#0)",
+          "lines": [
+            "(option pr assumed; predicted probability)",
+            "outcome() must be either a value of t",
+            "or #1, #2, ..."
+          ]
+        },
+        {
+          "command": "capture noisily predict p, outcome(#1.5)",
+          "lines": [
+            "(option pr assumed; predicted probability)",
+            "outcome() must be either a value of t",
+            "or #1, #2, ..."
+          ]
+        },
+        { "command": "quietly ologit t i.g xf", "lines": [] },
+        {
+          "command": "margins g, at(g=1)",
+          "lines": [
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "1._predict: Pr(t==1), predict(pr outcome(1))",
+            "2._predict: Pr(t==2), predict(pr outcome(2))",
+            "3._predict: Pr(t==3), predict(pr outcome(3))",
+            "4._predict: Pr(t==4), predict(pr outcome(4))",
+            "",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "  _predict#g |",
+            "        1 0  |   .1720753   .0230016     7.48   0.000      .126993    .2171576",
+            "        1 1  |   .0524139   .0103964     5.04   0.000     .0320373    .0727905",
+            "        2 0  |   .2825654   .0263965    10.70   0.000     .2308291    .3343017",
+            "        2 1  |   .1415424   .0184486     7.67   0.000     .1053837     .177701",
+            "        3 0  |   .3061409   .0238173    12.85   0.000     .2594597     .352822",
+            "        3 1  |   .2889115   .0231837    12.46   0.000     .2434722    .3343508",
+            "        4 0  |   .2392184   .0255054     9.38   0.000     .1892288    .2892081",
+            "        4 1  |   .5171322   .0323235    16.00   0.000     .4537793    .5804852",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins g, at(g=0 xf=2.3)",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "1._predict: Pr(t==1), predict(pr outcome(1))",
+            "2._predict: Pr(t==2), predict(pr outcome(2))",
+            "3._predict: Pr(t==3), predict(pr outcome(3))",
+            "4._predict: Pr(t==4), predict(pr outcome(4))",
+            "",
+            "At: xf = 2.3",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "  _predict#g |",
+            "        1 0  |   .1197539   .0194088     6.17   0.000     .0817133    .1577945",
+            "        1 1  |   .0329013   .0073104     4.50   0.000     .0185732    .0472294",
+            "        2 0  |   .2694572   .0279631     9.64   0.000     .2146505    .3242638",
+            "        2 1  |    .104546   .0164297     6.36   0.000     .0723445    .1367476",
+            "        3 0  |    .354394   .0273736    12.95   0.000     .3007426    .4080453",
+            "        3 1  |   .2829275    .026289    10.76   0.000     .2314021     .334453",
+            "        4 0  |   .2563949   .0294396     8.71   0.000     .1986944    .3140955",
+            "        4 1  |   .5796251   .0368061    15.75   0.000     .5074865    .6517638",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly oprobit t xf i.g", "lines": [] },
+        {
+          "command": "margins g, atmeans",
+          "lines": [
+            "Adjusted predictions                                       Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "1._predict: Pr(t==1), predict(pr outcome(1))",
+            "2._predict: Pr(t==2), predict(pr outcome(2))",
+            "3._predict: Pr(t==3), predict(pr outcome(3))",
+            "4._predict: Pr(t==4), predict(pr outcome(4))",
+            "",
+            "At: xf  = 1.942674 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "  _predict#g |",
+            "        1 0  |   .1503888   .0228661     6.58   0.000      .105572    .1952056",
+            "        1 1  |   .0309509    .008366     3.70   0.000     .0145539    .0473479",
+            "        2 0  |   .2949712   .0278327    10.60   0.000     .2404202    .3495223",
+            "        2 1  |    .135166   .0195033     6.93   0.000     .0969401    .1733918",
+            "        3 0  |   .3355565   .0259826    12.91   0.000     .2846316    .3864814",
+            "        3 1  |     .31118   .0255348    12.19   0.000     .2611327    .3612273",
+            "        4 0  |   .2190835   .0266201     8.23   0.000      .166909     .271258",
+            "        4 1  |   .5227032   .0353575    14.78   0.000     .4534037    .5920026",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "matrix b = r(b)", "lines": [] },
+        { "command": "display %14.0g b[1,5]", "lines": ["  .33555648219"] },
+        {
+          "command": "quietly margins, at(xf=2.3) predict(outcome(2))",
+          "lines": []
+        },
+        { "command": "display %14.0g r(b)[1,1]", "lines": [" .193728032886"] },
+        { "command": "quietly mlogit t i.g xf", "lines": [] },
+        {
+          "command": "margins g, at(g=1) predict(outcome(2))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(t==2), predict(outcome(2))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           g |",
+            "          0  |   .3020883   .0312697     9.66   0.000     .2408009    .3633757",
+            "          1  |   .1174545   .0231494     5.07   0.000     .0720826    .1628265",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "quietly margins g, atmeans predict(outcome(2))",
+          "lines": []
+        },
+        { "command": "display %14.0g r(b)[1,1]", "lines": [" .325099076257"] },
+        {
+          "command": "quietly margins, at(xf=2.3) predict(outcome(2))",
+          "lines": []
+        },
+        { "command": "display %14.0g r(b)[1,1]", "lines": [" .200907275218"] },
+        { "command": "quietly margins g", "lines": [] },
+        {
+          "command": "display %14.0g sqrt(r(V)[2,2])",
+          "lines": [" .016690967562"]
+        },
+        {
+          "command": "quietly margins, dydx(xf) predict(outcome(2))",
+          "lines": []
+        },
+        {
+          "command": "display %14.0g r(b)[1,1] \" \" %14.0g sqrt(r(V)[1,1])",
+          "lines": ["-.046749265474  .016734682674"]
+        },
+        {
+          "command": "quietly margins, dydx(*) predict(outcome(3))",
+          "lines": []
+        },
+        {
+          "command": "display %14.0g sqrt(r(V)[1,1]) \" \" %14.0g sqrt(r(V)[2,2]) \" \" %14.0g sqrt(r(V)[3,3])",
+          "lines": ["             0  .045539914212  .018156970102"]
+        },
+        { "command": "quietly ologit t c.xf##c.xf i.g", "lines": [] },
+        {
+          "command": "quietly margins, dydx(xf) predict(outcome(2))",
+          "lines": []
+        },
+        {
+          "command": "display %14.0g r(b)[1,1] \" \" %14.0g sqrt(r(V)[1,1])",
+          "lines": ["-.060126943987  .008081818135"]
+        },
+        {
+          "command": "quietly margins, dydx(*) atmeans predict(outcome(4))",
+          "lines": []
+        },
+        {
+          "command": "display %14.0g sqrt(r(V)[1,1]) \" \" %14.0g sqrt(r(V)[2,2]) \" \" %14.0g sqrt(r(V)[3,3])",
+          "lines": [" .020821260922              0  .042610069947"]
+        },
+        { "command": "quietly oprobit t xf i.g", "lines": [] },
+        {
+          "command": "quietly margins, dydx(*) predict(outcome(1))",
+          "lines": []
+        },
+        {
+          "command": "display %14.0g sqrt(r(V)[1,1]) \" \" %14.0g sqrt(r(V)[2,2]) \" \" %14.0g sqrt(r(V)[3,3])",
+          "lines": [" .010084920508              0  .020419097099"]
+        },
+        {
+          "command": "margins, dydx(xf)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "dy/dx wrt: xf",
+            "",
+            "1._predict: Pr(t==1), predict(pr outcome(1))",
+            "2._predict: Pr(t==2), predict(pr outcome(2))",
+            "3._predict: Pr(t==3), predict(pr outcome(3))",
+            "4._predict: Pr(t==4), predict(pr outcome(4))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "xf           |",
+            "    _predict |",
+            "          1  |  -.0680983   .0100849    -6.75   0.000    -.0878644   -.0483322",
+            "          2  |  -.0568244   .0076066    -7.47   0.000    -.0717331   -.0419157",
+            "          3  |  -.0050298   .0046816    -1.07   0.283    -.0142056     .004146",
+            "          4  |   .1299525   .0137003     9.49   0.000     .1031003    .1568046",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recheck2-limited-dispersion-tobit-glm-margins",
+      "source": "clear\nset seed 7315\nset obs 400\ngenerate double x = runiform()*4\ngenerate byte f = runiform() > .5\ngenerate byte r = 1 + floor(runiform()*3)\ngenerate double a = 20 + 20*runiform()\ngenerate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)\ngenerate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)\ngenerate double u = runiform()\ngenerate byte d = (x - 2 + f + ln(u/(1-u))) > 0\nreplace h = 30 if h > 30\nreplace h = 0 if h < 0\ncapture noisily nbreg c x, dispersion(mean) nolog\ncapture noisily nbreg c x, disp(m) nolog irr\ncapture noisily nbreg c x, dispersion() nolog\ncapture noisily nbreg c x, dispersion(mean constant) nolog\ncapture noisily nbreg c x, dispersion(foo) nolog\ncapture noisily nbreg c x, dispersion(Mean) nolog\nquietly tobit h x i.r c.a#c.f, ll(0) ul(30)\nmargins, predict(ystar(0,30))\nmargins, predict(pr(0,30))\nmargins r, predict(e(0,30))\nmargins, predict(xb)\nmargins, predict(e(.,.))\nmargins, at(x=2) predict(pr(10,.))\nmargins, predict(e(.,20))\nmargins, dydx(x) predict(e(0,.))\nmargins r, predict(ystar(0,30)) at(x=(1 3))\nmargins, dydx(a) atmeans\ncapture noisily margins, predict(stdp)\ncapture noisily margins, predict(e(0))\ncapture noisily margins, predict(e(5,1))\nquietly glm h x f, family(gaussian) link(log)\nmargins, dydx(x)\nquietly glm d x f, family(binomial)\nmargins, dydx(*)\nquietly glm d x f, family(binomial) link(probit)\nmargins, dydx(x)\ngenerate double iw = mod(_n,3) - .5\nglm d x f [iweight=iw], family(binomial) link(probit) nolog\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 7315", "lines": [] },
+        {
+          "command": "set obs 400",
+          "lines": ["Number of observations (_N) was 0, now 400."]
+        },
+        { "command": "generate double x = runiform()*4", "lines": [] },
+        { "command": "generate byte f = runiform() > .5", "lines": [] },
+        { "command": "generate byte r = 1 + floor(runiform()*3)", "lines": [] },
+        { "command": "generate double a = 20 + 20*runiform()", "lines": [] },
+        {
+          "command": "generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)",
+          "lines": []
+        },
+        {
+          "command": "generate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)",
+          "lines": []
+        },
+        { "command": "generate double u = runiform()", "lines": [] },
+        {
+          "command": "generate byte d = (x - 2 + f + ln(u/(1-u))) > 0",
+          "lines": []
+        },
+        {
+          "command": "replace h = 30 if h > 30",
+          "lines": ["(4 real changes made)"]
+        },
+        {
+          "command": "replace h = 0 if h < 0",
+          "lines": ["(88 real changes made)"]
+        },
+        {
+          "command": "capture noisily nbreg c x, dispersion(mean) nolog",
+          "lines": [
+            "Negative binomial regression                            Number of obs =    400",
+            "                                                        LR chi2(1)    =  85.49",
+            "Dispersion: mean                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -695.57228                             Pseudo R2     = 0.0579",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .3791531   .0394746     9.60   0.000     .3017843    .4565219",
+            "       _cons |  -.1880724   .1028092    -1.83   0.067    -.3895747    .0134298",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -1.631594   .2776889                     -2.175854   -1.087333",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   .1956176   .0543208                      .1135112    .3371143",
+            "------------------------------------------------------------------------------",
+            "LR test of alpha=0: chibar2(01) = 22.31                Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "capture noisily nbreg c x, disp(m) nolog irr",
+          "lines": [
+            "Negative binomial regression                            Number of obs =    400",
+            "                                                        LR chi2(1)    =  85.49",
+            "Dispersion: mean                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -695.57228                             Pseudo R2     = 0.0579",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c |        IRR   Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   1.461047   .0576743     9.60   0.000      1.35227    1.578574",
+            "       _cons |   .8285547    .085183    -1.83   0.067     .6773449     1.01352",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -1.631594   .2776889                     -2.175854   -1.087333",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   .1956176   .0543208                      .1135112    .3371143",
+            "------------------------------------------------------------------------------",
+            "Note: Estimates are transformed only in the first equation to incidence-rate ratios.",
+            "Note: _cons estimates baseline incidence rate.",
+            "LR test of alpha=0: chibar2(01) = 22.31                Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "capture noisily nbreg c x, dispersion() nolog",
+          "lines": [
+            "Negative binomial regression                            Number of obs =    400",
+            "                                                        LR chi2(1)    =  85.49",
+            "Dispersion: mean                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -695.57228                             Pseudo R2     = 0.0579",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .3791531   .0394746     9.60   0.000     .3017843    .4565219",
+            "       _cons |  -.1880724   .1028092    -1.83   0.067    -.3895747    .0134298",
+            "-------------+----------------------------------------------------------------",
+            "    /lnalpha |  -1.631594   .2776889                     -2.175854   -1.087333",
+            "-------------+----------------------------------------------------------------",
+            "       alpha |   .1956176   .0543208                      .1135112    .3371143",
+            "------------------------------------------------------------------------------",
+            "LR test of alpha=0: chibar2(01) = 22.31                Prob >= chibar2 = 0.000"
+          ]
+        },
+        {
+          "command": "capture noisily nbreg c x, dispersion(mean constant) nolog",
+          "lines": [
+            "must choose either mean or constant for option dispersion()"
+          ]
+        },
+        {
+          "command": "capture noisily nbreg c x, dispersion(foo) nolog",
+          "lines": ["option foo not allowed"]
+        },
+        {
+          "command": "capture noisily nbreg c x, dispersion(Mean) nolog",
+          "lines": ["option Mean not allowed"]
+        },
+        {
+          "command": "quietly tobit h x i.r c.a#c.f, ll(0) ul(30)",
+          "lines": []
+        },
+        {
+          "command": "margins, predict(ystar(0,30))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: E(h*|0<h<30), predict(ystar(0,30))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   9.773423   .2384497    40.99   0.000      9.30607    10.24078",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, predict(pr(0,30))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(0<h<30), predict(pr(0,30))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .7639277   .0144425    52.89   0.000      .735621    .7922344",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins r, predict(e(0,30))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: E(h|0<h<30), predict(e(0,30))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           r |",
+            "          1  |   10.59965   .3567772    29.71   0.000      9.90038    11.29892",
+            "          2  |   10.51387   .3258981    32.26   0.000     9.875122    11.15262",
+            "          3  |   10.96041   .3835577    28.58   0.000     10.20865    11.71217",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, predict(xb)",
+          "lines": [
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Linear prediction, predict(xb)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |    8.59752   .3144433    27.34   0.000     7.979333    9.215706",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, predict(e(.,.))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: E(h), predict(e(.,.))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |    8.59752   .3144433    27.34   0.000     7.981222    9.213817",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, at(x=2) predict(pr(10,.))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(h>10), predict(pr(10,.))",
+            "At: x = 2",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   .4010124   .0189508    21.16   0.000     .3638694    .4381554",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, predict(e(.,20))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: E(h|h<20), predict(e(.,20))",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _cons |   7.143051   .2953739    24.18   0.000     6.564129    7.721973",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(x) predict(e(0,.))",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: E(h|h>0), predict(e(0,.))",
+            "dy/dx wrt:  x",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   5.219958   .1825614    28.59   0.000     4.862144    5.577771",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins r, predict(ystar(0,30)) at(x=(1 3))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: E(h*|0<h<30), predict(ystar(0,30))",
+            "1._at: x = 1",
+            "2._at: x = 3",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _at#r |",
+            "        1 1  |   2.930919   .3288542     8.91   0.000     2.286377    3.575462",
+            "        1 2  |   2.858396   .3331237     8.58   0.000     2.205485    3.511306",
+            "        1 3  |   3.245152   .4078975     7.96   0.000     2.445688    4.044617",
+            "        2 1  |   15.83763   .6013902    26.34   0.000     14.65893    17.01633",
+            "        2 2  |   15.70673   .5334669    29.44   0.000     14.66116    16.75231",
+            "        2 3  |   16.38273    .599707    27.32   0.000     15.20732    17.55813",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "margins, dydx(a) atmeans",
+          "lines": [
+            "Conditional marginal effects                               Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  a",
+            "At: x   =  2.02381 (mean)",
+            "    1.r =    .3525 (mean)",
+            "    2.r =     .375 (mean)",
+            "    3.r =    .2725 (mean)",
+            "    a   = 30.13645 (mean)",
+            "    f   =     .515 (mean)",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           a |   .0779548   .0101035     7.72   0.000     .0580916    .0978179",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily margins, predict(stdp)",
+          "lines": [
+            "prediction is a function of possibly stochastic quantities other than e(b)"
+          ]
+        },
+        {
+          "command": "capture noisily margins, predict(e(0))",
+          "lines": ["invalid syntax"]
+        },
+        { "command": "capture noisily margins, predict(e(5,1))", "lines": [] },
+        {
+          "command": "quietly glm h x f, family(gaussian) link(log)",
+          "lines": []
+        },
+        {
+          "command": "margins, dydx(x)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted mean h, predict()",
+            "dy/dx wrt:  x",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   6.007124   .2289793    26.23   0.000     5.558332    6.455915",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "quietly glm d x f, family(binomial)", "lines": [] },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted mean d, predict()",
+            "dy/dx wrt:  x f",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .1953493   .0124264    15.72   0.000      .170994    .2197046",
+            "           f |   .2046739   .0407243     5.03   0.000     .1248557    .2844921",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "quietly glm d x f, family(binomial) link(probit)",
+          "lines": []
+        },
+        {
+          "command": "margins, dydx(x)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 400",
+            "Model VCE: OIM",
+            "",
+            "Expression: Predicted mean d, predict()",
+            "dy/dx wrt:  x",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .1983208   .0127077    15.61   0.000     .1734141    .2232275",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "generate double iw = mod(_n,3) - .5", "lines": [] },
+        {
+          "command": "glm d x f [iweight=iw], family(binomial) link(probit) nolog",
+          "lines": [
+            "Generalized linear models                         Number of obs   =        400",
+            "Optimization     : ML                             Residual df     =        397",
+            "                                                  Scale parameter =          1",
+            "Deviance         =   209.861828                   (1/df) Deviance =   .5286192",
+            "Pearson          =  195.4333385                   (1/df) Pearson  =   .4922754",
+            "",
+            "Variance function: V(u) = u*(1-u)                 [Bernoulli]",
+            "Link function    : g(u) = invnorm(u)              [Probit]",
+            "",
+            "                                                  AIC             =   .5396546",
+            "Log likelihood   =  -104.930914                   BIC             =   -2168.75",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |                 OIM",
+            "           d | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "           x |   .6159202   .0939131     6.56   0.000     .4318539    .7999865",
+            "           f |   .8874398   .2111349     4.20   0.000      .473623    1.301257",
+            "       _cons |  -1.364205   .2502373    -5.45   0.000    -1.854661   -.8737487",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [
