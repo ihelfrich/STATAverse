@@ -4,7 +4,7 @@
 // after macro substitution; ctx carries the by-groups, the current macro
 // frame and out(line) for results.
 import { least, greatest } from "./extremes.js";
-import { Signal, StataError, errorLine } from "./errors.js";
+import { CONTINUE_MARK, Signal, StataError, errorLine } from "./errors.js";
 import { standardMessage } from "./error-messages.js";
 import { evaluateAll } from "./expression.js";
 import { macroWords, isLocalName, isMacroName } from "./macros.js";
@@ -58,7 +58,7 @@ import { CONTRAST_COMMANDS } from "./contrast.js";
 import { DELIMITED_COMMANDS } from "./delimited.js";
 import { FOREIGN_COMMANDS } from "./foreign.js";
 import { INFILE_COMMANDS } from "./infix.js";
-import { MATRIX_COMMANDS } from "./matrix.js";
+import { MATRIX_COMMANDS, matrixMacro } from "./matrix.js";
 import { SURVIVAL_COMMANDS, survivalPostestimation } from "./survival.js";
 import {
   DATA_COMMANDS,
@@ -215,6 +215,15 @@ function defineMacro(session, frame, map, text) {
     const value = Number(map.get(m[2]) ?? 0) + (m[1] === "++" ? 1 : -1);
     return void map.set(m[2], macroValue(session, value));
   }
+  // The name ends where a character no name has begins, and what follows
+  // is the value (local a-b = 1 sets a to "-b = 1"); but a period in it is
+  // an error of the whole word (local a.b = 1 is _a.b invalid name), and so
+  // is a line that starts with = or : or opens a compound quote, named to
+  // its first ".
+  const lead = /^(?:`"([^"]*)|([^\s=:]+)|([=:]))/u.exec(text.trim()),
+    named = lead && (lead[2] ?? lead[3] ?? `"${lead[1]}`);
+  if (named && (lead[2] === undefined || /^[\p{L}\p{N}_]*\./u.test(named)))
+    throw invalid(`${global ? "" : "_"}${named} invalid name`);
   // Only the prefix forms increment: local n++ stores the text "++".
   m = /^([\p{L}\p{N}_]+)\s*(?:(=|:)\s*([\s\S]*)|([\s\S]*))?$/u.exec(
     text.trim(),
@@ -294,6 +303,13 @@ export function extendedFunction(session, frame, source) {
     );
   if ((m = /^list\s+([\s\S]*)$/.exec(text)))
     return listFunction(frame, m[1].trim());
+  if (
+    (m =
+      /^((?:row|col)(?:full)?names|(?:row|col)eq|(?:row|col)sof|(?:row|col)(?:eq)?numb)(?:\s+([\s\S]*))?$/.exec(
+        text,
+      ))
+  )
+    return matrixMacro(session, m[1], m[2] ?? "");
   const word = text.split(/\s/)[0];
   // A word that names no extended macro function is not allowed; one that
   // Stata has and the browser does not is refused as such.
@@ -2134,11 +2150,10 @@ function args(session, text, ctx) {
     );
 }
 function syntaxCommand(session, text, ctx) {
-  const result = applySyntax(
-    text,
-    ctx.frame.locals.get("0") ?? "",
-    session.context(),
-  );
+  const result = applySyntax(text, ctx.frame.locals.get("0") ?? "", {
+    ...session.context(),
+    program: true,
+  });
   // syntax clears the locals it owns before setting them.
   for (const name of [
     "varlist",
@@ -3713,11 +3728,17 @@ export const COMMANDS = [
         error.hint,
       );
     }
-    shown
-      .split("\n")
-      .forEach((line, k) =>
-        ctx.out(errors[k] ? errorLine(session, line) : line),
-      );
+    // _continue leaves the line open for what is printed next.
+    const open = displayItems(text).some(
+        (item) => item?.directive === "continue",
+      ),
+      lines = shown.split("\n");
+    lines.forEach((line, k) =>
+      ctx.out(
+        (errors[k] ? errorLine(session, line) : line) +
+          (open && k === lines.length - 1 ? CONTINUE_MARK : ""),
+      ),
+    );
   }),
   command("scalar", 3, scalar),
   command("local", 3, (session, text, ctx) =>

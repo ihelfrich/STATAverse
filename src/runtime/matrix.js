@@ -21,6 +21,7 @@ import { evaluateAll } from "./expression.js";
 import { FUNCTIONS as SCALAR_FUNCTIONS } from "./functions.js";
 import { coefficientSpace, design, stripeName } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
+import { macroWords } from "./macros.js";
 
 const invalid = (message = "invalid syntax") => new StataError(message, 198);
 
@@ -839,7 +840,15 @@ function list(session, text, ctx) {
     title = options.title ?? "",
     showNames = options.names !== false;
   if (!isFormat(cellFormat))
-    throw new StataError(`invalid format ${cellFormat}`, 120);
+    throw new StataError(
+      `'${cellFormat}' found where numeric format expected`,
+      7,
+    );
+  // A left-aligned format keeps its cells' width: %-9.2f pads 2.00 to
+  // nine columns.
+  const left = /^%-/.test(cellFormat)
+    ? Number(/^%-0?(\d+)/.exec(cellFormat)?.[1] ?? 0)
+    : 0;
   const result = /^([er])\((\w+)\)$/.exec(name),
     matrix = result
       ? fromEstimates(session, result[1], result[2])
@@ -854,9 +863,9 @@ function list(session, text, ctx) {
       values.every((row, i) => row.every((v, j) => v === values[j][i])),
     cells = values.map((row) =>
       row.map((v) =>
-        options.dotz && v === missingValue("z")
+        options.nodotz && v === missingValue("z")
           ? ""
-          : applyFormat(v, cellFormat).trim(),
+          : applyFormat(v, cellFormat).trim().padEnd(left),
       ),
     ),
     parts = colNames.map(columnParts),
@@ -941,16 +950,25 @@ function matrixCommand(session, text, ctx) {
     if (!parts) throw invalid();
     const matrix = session.matrices?.get(parts[1]);
     if (!matrix) throw new StataError(`matrix ${parts[1]} not found`, 111);
-    const names = parts[2].trim().split(/\s+/).filter(Boolean),
+    const names = macroWords(parts[2]).map((word) => stripeEntry(word.text)),
       rows = m[1].startsWith("row"),
       count = rows ? matrix.values.length : matrix.colNames.length;
     // Too many names is an error; too few, and the last is used again;
-    // none changes nothing.
+    // none changes nothing. A name without an equation keeps the one its
+    // row or column has; eq: alone changes the equation only.
     if (names.length > count) throw new StataError("conformability error", 503);
     if (!names.length) return;
     while (names.length < count) names.push(names.at(-1));
-    if (rows) matrix.rowNames = names;
-    else matrix.colNames = names;
+    const old = rows ? matrix.rowNames : matrix.colNames,
+      made = names.map((entry, k) => {
+        const colon = old[k].indexOf(":"),
+          equation =
+            entry.equation ?? (colon >= 0 ? old[k].slice(0, colon) : ""),
+          name = entry.name ?? old[k].slice(colon + 1);
+        return equation ? `${equation}:${name}` : name;
+      });
+    if (rows) matrix.rowNames = made;
+    else matrix.colNames = made;
     return;
   }
   if (/^acc(um?)?$/.test(m[1])) return accum(session, m[2], ctx);
@@ -1178,6 +1196,109 @@ export function matrixAccess(session) {
         : value;
     },
   };
+}
+
+/**
+ * A row or column name given to matrix rownames or colnames, as
+ * { equation, name } (either null when not given): eq:name, eq: alone or
+ * a name, perhaps with operators. Those are checked and written as Stata
+ * writes them: c.x is x, co.x o.x, 1bn.g 1.g, L.2.g 2L.g, and x#y
+ * c.x#c.y; an operator Stata does not have (a.b, i.x) is refused.
+ */
+function stripeEntry(text) {
+  const colon = text.indexOf(":"),
+    equation = colon >= 0 ? text.slice(0, colon) : null,
+    name = colon >= 0 ? text.slice(colon + 1) : text;
+  return { equation, name: name === "" ? null : operatorStripe(name) };
+}
+function operatorStripe(name) {
+  if (!/[.#]/.test(name)) return name;
+  const parts = name.split("#").map((part) => {
+    const segments = part.split("."),
+      variable = segments.pop();
+    let fv = null,
+      ts = "";
+    for (const segment of segments) {
+      const m = /^(\d+(?:bn|b|o)?|co|c|o)?((?:[LFDSlfds]\d*)*)$/.exec(segment);
+      if (!m || !segment)
+        throw new StataError(`${segment}:  operator invalid`, 198);
+      if (m[1]) fv = m[1].replace(/^co$/, "o").replace(/bn$/, "");
+      ts += m[2];
+    }
+    return { fv, ts, variable };
+  });
+  if (parts.length === 1) {
+    const [{ fv, ts, variable }] = parts,
+      shown = fv === "c" ? "" : (fv ?? "");
+    return shown || ts ? `${shown}${ts}.${variable}` : variable;
+  }
+  return parts
+    .map(({ fv, ts, variable }) => `${fv ?? (ts ? "" : "c")}${ts}.${variable}`)
+    .join("#");
+}
+
+/** A matrix by name, a result matrix as e(b) or r(table) included. */
+export function namedMatrix(session, name) {
+  const result = /^([er])\((\w+)\)$/.exec(name),
+    matrix = result
+      ? fromEstimates(session, result[1], result[2])
+      : session.matrices?.get(name);
+  if (!matrix) throw new StataError(`matrix ${name} not found`, 111);
+  return matrix;
+}
+
+/**
+ * The extended macro functions on a matrix's rows and columns: rownames,
+ * colnames, rowfullnames, colfullnames, roweq and coleq (with quoted),
+ * rowsof, colsof, rownumb, colnumb, roweqnumb and coleqnumb. A row with
+ * no equation is in equation _.
+ */
+export function matrixMacro(session, kind, text) {
+  const [head, optionText] = splitAtComma(text),
+    words = macroWords(head),
+    quoted = (optionText ?? "").trim();
+  if (quoted && !/^q(u(o(t(ed?)?)?)?)?$/.test(quoted))
+    throw new StataError(`option ${quoted} not allowed`, 198);
+  if (!words.length) throw invalid();
+  const numb = /numb$/.test(kind);
+  if (words.length > (numb ? 2 : 1))
+    throw new StataError("varlist not allowed", 101);
+  const matrix = namedMatrix(session, words[0].text),
+    stripe = kind.startsWith("row") ? matrix.rowNames : matrix.colNames,
+    parts = stripe.map((full) => {
+      const colon = full.indexOf(":");
+      return colon >= 0
+        ? { equation: full.slice(0, colon), name: full.slice(colon + 1) }
+        : { equation: "_", name: full };
+    });
+  const fullName = ({ equation, name }) =>
+    equation === "_" ? name : `${equation}:${name}`;
+  if (/sof$/.test(kind)) return String(stripe.length);
+  if (numb) {
+    const wanted = words[1]?.text ?? "";
+    let at = -1;
+    if (/eqnumb$/.test(kind))
+      at = parts.findIndex((part) => part.equation === wanted);
+    else if (wanted.includes(":"))
+      at = parts.findIndex((part) => fullName(part) === wanted);
+    else at = parts.findIndex((part) => part.name === wanted);
+    return at < 0 ? "." : String(at + 1);
+  }
+  if (/eq$/.test(kind))
+    return parts
+      .map(({ equation }) => (quoted ? `"${equation}"` : equation))
+      .join(" ");
+  if (/fullnames$/.test(kind))
+    return parts
+      .map((part) =>
+        !quoted
+          ? fullName(part)
+          : part.equation === "_"
+            ? `\`"${part.name}"'`
+            : `\`""${part.equation}":${part.name}"'`,
+      )
+      .join(" ");
+  return parts.map(({ name }) => (quoted ? `\`"${name}"'` : name)).join(" ");
 }
 
 export const MATRIX_COMMANDS = [

@@ -185756,6 +185756,835 @@
       ]
     },
     {
+      "id": "recheck2-program-expansion",
+      "source": "display \"[`='|\"\ndisplay \"[`= '|\"\ndisplay \"`=`=nosuch'' ok\"\nlocal a `=\"x\"'\ndisplay \"[`a']\"\nlocal b \"`=\"y\"' z\"\ndisplay \"[`b']\"\nlocal c = \"`: display \"q\"'\"\ndisplay \"[`c']\"\ndisplay \"[`=3*\"ab\"']\"\nglobal G3 \"long `=3*\"ab\"' x\"\ndisplay \"$G3\"\nlocal x = 1\nif `x' == 1 {\n  display \"in if\"\n}\nelse if `=bad' == 1 {\n  display \"never\"\n}\ndisplay \"end\"\ndisplay `=\"a\"+\"b\"'\n",
+      "commands": [
+        { "command": "display \"[`='|\"", "lines": ["invalid syntax", "[|"] },
+        { "command": "display \"[`= '|\"", "lines": ["invalid syntax", "[|"] },
+        {
+          "command": "display \"`=`=nosuch'' ok\"",
+          "lines": ["nosuch not found", "invalid syntax", " ok"]
+        },
+        { "command": "local a `=\"x\"'", "lines": [] },
+        { "command": "display \"[`a']\"", "lines": ["[x]"] },
+        { "command": "local b \"`=\"y\"' z\"", "lines": [] },
+        { "command": "display \"[`b']\"", "lines": ["[y z]"] },
+        { "command": "local c = \"`: display \"q\"'\"", "lines": [] },
+        { "command": "display \"[`c']\"", "lines": ["[q]"] },
+        { "command": "display \"[`=3*\"ab\"']\"", "lines": ["[ababab]"] },
+        { "command": "global G3 \"long `=3*\"ab\"' x\"", "lines": [] },
+        { "command": "display \"$G3\"", "lines": ["long ababab x"] },
+        { "command": "local x = 1", "lines": [] },
+        { "command": "if `x' == 1 {", "lines": [] },
+        { "command": "display \"in if\"", "lines": ["in if"] },
+        { "command": "}", "lines": [] },
+        { "command": "else if `=bad' == 1 {", "lines": ["bad not found"] },
+        { "command": "display \"never\"", "lines": [] },
+        { "command": "}", "lines": [] },
+        { "command": "display \"end\"", "lines": ["end"] },
+        {
+          "command": "display `=\"a\"+\"b\"'",
+          "lines": ["ab not found", "r(111);"]
+        }
+      ]
+    },
+    {
+      "id": "recheck2-program-expansion-header",
+      "source": "if `=nosuch' == 1 {\n  display \"yes\"\n}\nelse {\n  display \"no\"\n}\n",
+      "commands": [
+        {
+          "command": "if `=nosuch' == 1 {",
+          "lines": ["nosuch not found", "==1 invalid name", "r(198);"]
+        }
+      ]
+    },
+    {
+      "id": "recheck2-program-expansion-empty-if",
+      "source": "if `=bad' {\n  display \"never\"\n}\n",
+      "commands": [
+        {
+          "command": "if `=bad' {",
+          "lines": ["bad not found", "invalid syntax", "r(198);"]
+        }
+      ]
+    },
+    {
+      "id": "recheck2-program-syntax-fv-bases",
+      "source": "clear\nset obs 6\ngenerate region = mod(_n, 3) + 1\ngenerate educ = _n\ngenerate wage = _n * 2\ngenerate y = _n^2\ngenerate t = _n\ntsset t\nprogram define r2pf\n    syntax varlist(fv)\n    display \"[`varlist'] [`s(fvops)']\"\nend\nprogram define r2pt\n    syntax varlist(ts)\n    display \"[`varlist'] [`s(tsops)']\"\nend\nprogram define r2pb\n    syntax varlist(fv ts)\n    display \"[`varlist'] [`s(fvops)'] [`s(tsops)']\"\nend\nr2pf b2.region\nr2pf b(2).region\nr2pf b(#2).region\nr2pf b(#1).region\nr2pf 2b.region\nr2pf i2b.region\nr2pf 2bn.region\nr2pf bn.region\nr2pf ib(first).region\nr2pf 2o.region\nr2pf o2.region\nr2pf co.educ\nr2pf ib2.region#c.educ\nr2pf b2.region#c.educ\nr2pf 2b.region#c.educ\nr2pf b2.region##c.educ\nr2pf b2.(region educ)\nr2pf educ wage educ\nr2pf c.educ c.educ\nr2pf educ educ\nr2pf educ c.educ##c.educ\nr2pf c.educ##c.educ\nr2pf i.region educ i.region\nr2pf ib2.region i.region\nr2pf i.region ib2.region\nr2pf c.educ#c.educ c.educ#c.educ\nr2pf c.educ\ncapture noisily r2pt cL.y\ncapture noisily r2pt Lc.y\ncapture noisily r2pt c.y\ncapture noisily r2pt co.y\ncapture noisily r2pt o.y\ncapture noisily r2pt i.region\nr2pb cL.y\nr2pb Lb2.region\nr2pb L.y L.y\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 6",
+          "lines": ["Number of observations (_N) was 0, now 6."]
+        },
+        { "command": "generate region = mod(_n, 3) + 1", "lines": [] },
+        { "command": "generate educ = _n", "lines": [] },
+        { "command": "generate wage = _n * 2", "lines": [] },
+        { "command": "generate y = _n^2", "lines": [] },
+        { "command": "generate t = _n", "lines": [] },
+        {
+          "command": "tsset t",
+          "lines": ["Time variable: t, 1 to 6", "        Delta: 1 unit"]
+        },
+        {
+          "command": "program define r2pf",
+          "lines": [
+            "  1.     syntax varlist(fv)",
+            "  2.     display \"[`varlist'] [`s(fvops)']\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "program define r2pt",
+          "lines": [
+            "  1.     syntax varlist(ts)",
+            "  2.     display \"[`varlist'] [`s(tsops)']\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "program define r2pb",
+          "lines": [
+            "  1.     syntax varlist(fv ts)",
+            "  2.     display \"[`varlist'] [`s(fvops)'] [`s(tsops)']\"",
+            "  3. end"
+          ]
+        },
+        { "command": "r2pf b2.region", "lines": ["[ib2.region] [true]"] },
+        { "command": "r2pf b(2).region", "lines": ["[ib2.region] [true]"] },
+        { "command": "r2pf b(#2).region", "lines": ["[ib(#2).region] [true]"] },
+        { "command": "r2pf b(#1).region", "lines": ["[i.region] [true]"] },
+        { "command": "r2pf 2b.region", "lines": ["[i2b2.region] [true]"] },
+        { "command": "r2pf i2b.region", "lines": ["[i2b2.region] [true]"] },
+        { "command": "r2pf 2bn.region", "lines": ["[i2bn.region] [true]"] },
+        { "command": "r2pf bn.region", "lines": ["[ibn.region] [true]"] },
+        {
+          "command": "r2pf ib(first).region",
+          "lines": ["[ib(first).region] [true]"]
+        },
+        { "command": "r2pf 2o.region", "lines": ["[i2o2.region] [true]"] },
+        { "command": "r2pf o2.region", "lines": ["[io2.region] [true]"] },
+        { "command": "r2pf co.educ", "lines": ["[o.educ] [true]"] },
+        {
+          "command": "r2pf ib2.region#c.educ",
+          "lines": ["[ib2.region#c.educ] [true]"]
+        },
+        {
+          "command": "r2pf b2.region#c.educ",
+          "lines": ["[ib2.region#c.educ] [true]"]
+        },
+        {
+          "command": "r2pf 2b.region#c.educ",
+          "lines": ["[2.region#c.educ] [true]"]
+        },
+        {
+          "command": "r2pf b2.region##c.educ",
+          "lines": ["[ib2.region educ ib2.region#c.educ] [true]"]
+        },
+        {
+          "command": "r2pf b2.(region educ)",
+          "lines": ["[ib2.region ib2.educ] [true]"]
+        },
+        { "command": "r2pf educ wage educ", "lines": ["[educ wage educ] []"] },
+        { "command": "r2pf c.educ c.educ", "lines": ["[educ educ] []"] },
+        { "command": "r2pf educ educ", "lines": ["[educ educ] []"] },
+        {
+          "command": "r2pf educ c.educ##c.educ",
+          "lines": ["[educ educ c.educ#c.educ] [true]"]
+        },
+        {
+          "command": "r2pf c.educ##c.educ",
+          "lines": ["[educ c.educ#c.educ] [true]"]
+        },
+        {
+          "command": "r2pf i.region educ i.region",
+          "lines": ["[i.region educ] [true]"]
+        },
+        {
+          "command": "r2pf ib2.region i.region",
+          "lines": ["[ib2.region] [true]"]
+        },
+        {
+          "command": "r2pf i.region ib2.region",
+          "lines": ["[ib2.region] [true]"]
+        },
+        {
+          "command": "r2pf c.educ#c.educ c.educ#c.educ",
+          "lines": ["[c.educ#c.educ] [true]"]
+        },
+        { "command": "r2pf c.educ", "lines": ["[educ] []"] },
+        {
+          "command": "capture noisily r2pt cL.y",
+          "lines": ["cL:  operator invalid"]
+        },
+        {
+          "command": "capture noisily r2pt Lc.y",
+          "lines": ["Lc:  operator invalid"]
+        },
+        {
+          "command": "capture noisily r2pt c.y",
+          "lines": ["c:  operator invalid"]
+        },
+        {
+          "command": "capture noisily r2pt co.y",
+          "lines": ["co:  operator invalid"]
+        },
+        {
+          "command": "capture noisily r2pt o.y",
+          "lines": ["o. operator not allowed"]
+        },
+        {
+          "command": "capture noisily r2pt i.region",
+          "lines": ["factor-variable operators not allowed"]
+        },
+        { "command": "r2pb cL.y", "lines": ["[L.y] [] [true]"] },
+        {
+          "command": "r2pb Lb2.region",
+          "lines": ["[ib2L.region] [true] [true]"]
+        },
+        { "command": "r2pb L.y L.y", "lines": ["[L.y L.y] [] [true]"] }
+      ]
+    },
+    {
+      "id": "recheck2-program-syntax-option-specs",
+      "source": "clear\nset obs 3\ngenerate x = 1\ngenerate y = 2\ngenerate z = 3\ngenerate s = \"a\"\nprogram r2po\n    syntax [, BYvar(varlist max=2 min=2 numeric) NList(numlist max=2 min=2 integer >0 ascending) ///\n        GENerate(namelist max=2 min=2) GVar(varname numeric) Reps(integer 5) CUToff(real 1) Level(cilevel) NM(name)]\n    display \"by=`byvar' nl=`nlist' gen=`generate' gv=`gvar' reps=`reps' cut=`cutoff' level=`level' nm=`nm'\"\nend\ncapture noisily r2po, by(x y z)\ncapture noisily r2po, by(x)\ncapture noisily r2po, by(x s)\ncapture noisily r2po, byv(x y z)\ncapture noisily r2po, nl(1 2 3)\ncapture noisily r2po, nli(1)\ncapture noisily r2po, nl(1.5 2)\ncapture noisily r2po, nl(-1 2)\ncapture noisily r2po, nl(2 1)\ncapture noisily r2po, nl(1 .)\ncapture noisily r2po, gen(a b c)\ncapture noisily r2po, gen(a)\ncapture noisily r2po, gv(s)\ncapture noisily r2po, gv(x y)\ncapture noisily r2po, r(1e2)\ncapture noisily r2po, r(2.0)\ncapture noisily r2po, r(+3)\ncapture noisily r2po, r( 4 )\ncapture noisily r2po, r(0x10)\ncapture noisily r2po, r(.)\ncapture noisily r2po, r(-0)\ncapture noisily r2po, r(1e10)\ncapture noisily r2po, cut(.)\ncapture noisily r2po, cut(.a)\ncapture noisily r2po, cut(1e2)\ncapture noisily r2po, cut(abc)\ncapture noisily r2po, l(abc)\ncapture noisily r2po, l(.)\ncapture noisily r2po, l(5 6)\ncapture noisily r2po, l(1e1)\ncapture noisily r2po, l(95.5)\ncapture noisily r2po, nm(a b)\nprogram r2pstar\n    syntax [, Reps(integer 50) Level(cilevel) *]\n    display \"reps=`reps' level=`level' rest=[`options']\"\nend\nr2pstar, reps(1e2)\nr2pstar, reps(2.0)\nr2pstar, reps(.)\ncapture noisily r2pstar, level(abc)\ncapture noisily r2pstar, level(5 6)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 3",
+          "lines": ["Number of observations (_N) was 0, now 3."]
+        },
+        { "command": "generate x = 1", "lines": [] },
+        { "command": "generate y = 2", "lines": [] },
+        { "command": "generate z = 3", "lines": [] },
+        { "command": "generate s = \"a\"", "lines": [] },
+        {
+          "command": "program r2po",
+          "lines": [
+            "  1.     syntax [, BYvar(varlist max=2 min=2 numeric) NList(numlist max=2 min=2 integer >0 ascending) ///",
+            ">         GENerate(namelist max=2 min=2) GVar(varname numeric) Reps(integer 5) CUToff(real 1) Level(cilevel) NM(name)]",
+            "  2.     display \"by=`byvar' nl=`nlist' gen=`generate' gv=`gvar' reps=`reps' cut=`cutoff' level=`level' nm=`nm'\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "capture noisily r2po, by(x y z)",
+          "lines": ["byvar():  too many variables specified"]
+        },
+        {
+          "command": "capture noisily r2po, by(x)",
+          "lines": ["byvar():  too few variables specified"]
+        },
+        {
+          "command": "capture noisily r2po, by(x s)",
+          "lines": [
+            "string variables not allowed in option byvar();",
+            "s is a string variable"
+          ]
+        },
+        {
+          "command": "capture noisily r2po, byv(x y z)",
+          "lines": ["byvar():  too many variables specified"]
+        },
+        {
+          "command": "capture noisily r2po, nl(1 2 3)",
+          "lines": ["nlist() invalid -- invalid numlist has too many elements"]
+        },
+        {
+          "command": "capture noisily r2po, nli(1)",
+          "lines": ["nlist() invalid -- invalid numlist has too few elements"]
+        },
+        {
+          "command": "capture noisily r2po, nl(1.5 2)",
+          "lines": [
+            "nlist() invalid -- invalid numlist has noninteger elements"
+          ]
+        },
+        {
+          "command": "capture noisily r2po, nl(-1 2)",
+          "lines": [
+            "nlist() invalid -- invalid numlist has elements outside of allowed range"
+          ]
+        },
+        {
+          "command": "capture noisily r2po, nl(2 1)",
+          "lines": [
+            "nlist() invalid -- invalid numlist has elements out of order"
+          ]
+        },
+        {
+          "command": "capture noisily r2po, nl(1 .)",
+          "lines": ["nlist() invalid -- invalid numlist has missing values"]
+        },
+        {
+          "command": "capture noisily r2po, gen(a b c)",
+          "lines": ["option generate():  too many names specified"]
+        },
+        {
+          "command": "capture noisily r2po, gen(a)",
+          "lines": ["option generate():  too few names specified"]
+        },
+        {
+          "command": "capture noisily r2po, gv(s)",
+          "lines": [
+            "string variables not allowed in option gvar();",
+            "s is a string variable"
+          ]
+        },
+        {
+          "command": "capture noisily r2po, gv(x y)",
+          "lines": ["gvar():  too many variables specified"]
+        },
+        {
+          "command": "capture noisily r2po, r(1e2)",
+          "lines": ["by= nl= gen= gv= reps=100 cut=1 level=95 nm="]
+        },
+        {
+          "command": "capture noisily r2po, r(2.0)",
+          "lines": ["by= nl= gen= gv= reps=2 cut=1 level=95 nm="]
+        },
+        {
+          "command": "capture noisily r2po, r(+3)",
+          "lines": ["by= nl= gen= gv= reps=3 cut=1 level=95 nm="]
+        },
+        {
+          "command": "capture noisily r2po, r( 4 )",
+          "lines": ["by= nl= gen= gv= reps=4 cut=1 level=95 nm="]
+        },
+        {
+          "command": "capture noisily r2po, r(0x10)",
+          "lines": ["option r() incorrectly specified"]
+        },
+        {
+          "command": "capture noisily r2po, r(.)",
+          "lines": ["option r() incorrectly specified"]
+        },
+        {
+          "command": "capture noisily r2po, r(-0)",
+          "lines": ["by= nl= gen= gv= reps=0 cut=1 level=95 nm="]
+        },
+        {
+          "command": "capture noisily r2po, r(1e10)",
+          "lines": ["option r() incorrectly specified"]
+        },
+        {
+          "command": "capture noisily r2po, cut(.)",
+          "lines": ["by= nl= gen= gv= reps=5 cut=. level=95 nm="]
+        },
+        {
+          "command": "capture noisily r2po, cut(.a)",
+          "lines": ["by= nl= gen= gv= reps=5 cut=.a level=95 nm="]
+        },
+        {
+          "command": "capture noisily r2po, cut(1e2)",
+          "lines": ["by= nl= gen= gv= reps=5 cut=100 level=95 nm="]
+        },
+        {
+          "command": "capture noisily r2po, cut(abc)",
+          "lines": ["option cut() incorrectly specified"]
+        },
+        {
+          "command": "capture noisily r2po, l(abc)",
+          "lines": ["abc found where number expected"]
+        },
+        {
+          "command": "capture noisily r2po, l(.)",
+          "lines": ["level() must be between 10 and 99.99 inclusive"]
+        },
+        {
+          "command": "capture noisily r2po, l(5 6)",
+          "lines": ["5 6 found where number expected"]
+        },
+        {
+          "command": "capture noisily r2po, l(1e1)",
+          "lines": ["1e1 found where number expected"]
+        },
+        {
+          "command": "capture noisily r2po, l(95.5)",
+          "lines": ["by= nl= gen= gv= reps=5 cut=1 level=95.5 nm="]
+        },
+        {
+          "command": "capture noisily r2po, nm(a b)",
+          "lines": ["option nm():  too many names specified"]
+        },
+        {
+          "command": "program r2pstar",
+          "lines": [
+            "  1.     syntax [, Reps(integer 50) Level(cilevel) *]",
+            "  2.     display \"reps=`reps' level=`level' rest=[`options']\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "r2pstar, reps(1e2)",
+          "lines": ["reps=100 level=95 rest=[]"]
+        },
+        {
+          "command": "r2pstar, reps(2.0)",
+          "lines": ["reps=2 level=95 rest=[]"]
+        },
+        {
+          "command": "r2pstar, reps(.)",
+          "lines": ["reps=50 level=95 rest=[reps(.)]"]
+        },
+        {
+          "command": "capture noisily r2pstar, level(abc)",
+          "lines": ["abc found where number expected"]
+        },
+        {
+          "command": "capture noisily r2pstar, level(5 6)",
+          "lines": ["5 6 found where number expected"]
+        }
+      ]
+    },
+    {
+      "id": "recheck2-program-newvarlist",
+      "source": "clear\nset obs 2\ngenerate y = 1\nprogram r2pn\n    syntax newvarlist\n    display \"[`varlist'] [`typlist']\"\nend\nprogram r2pnl\n    foreach v of newlist `0' {\n        display \"loop `v'\"\n    }\n    display \"done\"\nend\ncapture noisily r2pn y y\ncapture noisily r2pn z z\ncapture noisily r2pn _n\ncapture noisily r2pn _cons\ncapture noisily r2pn _se\ncapture noisily r2pn _skip\ncapture noisily r2pn byte\ncapture noisily r2pn int z\ncapture noisily r2pn in\ncapture noisily r2pn with\ncapture noisily generate _n = 1\ncapture noisily generate _b = 1\ncapture noisily r2pnl _N\ncapture noisily r2pnl int\ncapture noisily r2pnl in\ncapture noisily r2pnl a b a\nr2pnl c1-c3\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate y = 1", "lines": [] },
+        {
+          "command": "program r2pn",
+          "lines": [
+            "  1.     syntax newvarlist",
+            "  2.     display \"[`varlist'] [`typlist']\"",
+            "  3. end"
+          ]
+        },
+        {
+          "command": "program r2pnl",
+          "lines": [
+            "  1.     foreach v of newlist `0' {",
+            "  2.         display \"loop `v'\"",
+            "  3.     }",
+            "  4.     display \"done\"",
+            "  5. end"
+          ]
+        },
+        {
+          "command": "capture noisily r2pn y y",
+          "lines": ["variable y already defined"]
+        },
+        {
+          "command": "capture noisily r2pn z z",
+          "lines": ["variable z already defined"]
+        },
+        {
+          "command": "capture noisily r2pn _n",
+          "lines": ["_n invalid varname"]
+        },
+        {
+          "command": "capture noisily r2pn _cons",
+          "lines": ["_cons invalid varname"]
+        },
+        {
+          "command": "capture noisily r2pn _se",
+          "lines": ["_se invalid varname"]
+        },
+        {
+          "command": "capture noisily r2pn _skip",
+          "lines": ["_skip not allowed"]
+        },
+        { "command": "capture noisily r2pn byte", "lines": ["[] []"] },
+        { "command": "capture noisily r2pn int z", "lines": ["[z] [int]"] },
+        { "command": "capture noisily r2pn in", "lines": ["varlist required"] },
+        {
+          "command": "capture noisily r2pn with",
+          "lines": ["varlist required"]
+        },
+        {
+          "command": "capture noisily generate _n = 1",
+          "lines": ["_n invalid varname"]
+        },
+        {
+          "command": "capture noisily generate _b = 1",
+          "lines": ["_b invalid varname"]
+        },
+        {
+          "command": "capture noisily r2pnl _N",
+          "lines": ["_N invalid varname"]
+        },
+        { "command": "capture noisily r2pnl int", "lines": ["done"] },
+        {
+          "command": "capture noisily r2pnl in",
+          "lines": ["varlist required"]
+        },
+        {
+          "command": "capture noisily r2pnl a b a",
+          "lines": ["variable a already defined"]
+        },
+        {
+          "command": "r2pnl c1-c3",
+          "lines": ["loop c1", "loop c2", "loop c3", "done"]
+        }
+      ]
+    },
+    {
+      "id": "recheck2-program-varlist-ranges",
+      "source": "clear\nset obs 2\ngenerate a = 1\ngenerate b = 2\ngenerate c = 3\nsummarize a - c\nlist a -c\nlist a- b\ncapture noisily summarize c - a\ncapture noisily summarize c*-a\ncapture noisily foreach v of varlist c-a {\ndisplay \"x\"\n}\ndisplay _rc\ndrop a - b\ndescribe, simple\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 2",
+          "lines": ["Number of observations (_N) was 0, now 2."]
+        },
+        { "command": "generate a = 1", "lines": [] },
+        { "command": "generate b = 2", "lines": [] },
+        { "command": "generate c = 3", "lines": [] },
+        {
+          "command": "summarize a - c",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           a |          2           1           0          1          1",
+            "           b |          2           2           0          2          2",
+            "           c |          2           3           0          3          3"
+          ]
+        },
+        {
+          "command": "list a -c",
+          "lines": [
+            "     +-----------+",
+            "     | a   b   c |",
+            "     |-----------|",
+            "  1. | 1   2   3 |",
+            "  2. | 1   2   3 |",
+            "     +-----------+"
+          ]
+        },
+        {
+          "command": "list a- b",
+          "lines": [
+            "     +-------+",
+            "     | a   b |",
+            "     |-------|",
+            "  1. | 1   2 |",
+            "  2. | 1   2 |",
+            "     +-------+"
+          ]
+        },
+        {
+          "command": "capture noisily summarize c - a",
+          "lines": ["variables out of order"]
+        },
+        {
+          "command": "capture noisily summarize c*-a",
+          "lines": ["- invalid name"]
+        },
+        {
+          "command": "capture noisily foreach v of varlist c-a {",
+          "lines": [
+            "  2. display \"x\"",
+            "  3. }",
+            "variables out of order",
+            "x",
+            "} is not a valid command name"
+          ]
+        },
+        { "command": "display _rc", "lines": ["199"] },
+        { "command": "drop a - b", "lines": [] },
+        { "command": "describe, simple", "lines": ["c"] }
+      ]
+    },
+    {
+      "id": "recheck2-program-matrix-stripes",
+      "source": "matrix T = (1, 2 \\ 3, 4 \\ 5, 6)\nmatrix rownames T = e1:a e2:b e2:c\nmatrix colnames T = q:u q:v\nmatrix rownames T = x y z\nmatrix list T\nmatrix colnames T = m\nmatrix list T\nmatrix rownames T = a g:b c\nlocal r : rowfullnames T\ndisplay \"`r'\"\nmatrix rownames T = k:\nlocal r : rowfullnames T\ndisplay \"`r'\"\nmatrix colnames T = \"my name\" other\nmatrix list T\nlocal c : colnames T\ndisplay \"[`c']\"\nlocal c : colnames T, quoted\ndisplay `\"[`c']\"'\nlocal c : coleq T\ndisplay \"[`c']\"\nlocal c : rownumb T \"e2:c\"\ndisplay \"[`c']\"\nlocal c : colsof T\ndisplay \"[`c']\"\nforeach n in L.y 2.g c.x 1b.g o.x co.x 1bn.g x#y LD.y L.2.g 2.g#c.x a.b i.x ib2.g {\n    capture noisily matrix rownames T = `n'\n    local r : rownames T\n    display \"`n' -> \" _rc \" [`r']\"\n}\ncapture noisily local r : colnames nosuch\nmatrix Z = (1, .z \\ ., .a)\nmatrix list Z, nodotz\nmatrix A = (1e10, 2 \\ 3, -4.5e-8)\nmatrix list A, format(%-9.2f)\ncapture noisily matrix list A, format(abc)\nclear\nset seed 3\nset obs 40\ngenerate x = rnormal()\ngenerate g = mod(_n, 3)\ngenerate y = 1 + 2*x + g + rnormal()\nquietly regress y x i.g\nlocal names : colnames e(b)\ndisplay \"`names'\"\nlocal names : colfullnames e(V)\ndisplay \"`names'\"\n",
+      "commands": [
+        { "command": "matrix T = (1, 2 \\ 3, 4 \\ 5, 6)", "lines": [] },
+        { "command": "matrix rownames T = e1:a e2:b e2:c", "lines": [] },
+        { "command": "matrix colnames T = q:u q:v", "lines": [] },
+        { "command": "matrix rownames T = x y z", "lines": [] },
+        {
+          "command": "matrix list T",
+          "lines": [
+            "T[3,2]",
+            "       q:  q:",
+            "       u   v",
+            "e1:x   1   2",
+            "e2:y   3   4",
+            "e2:z   5   6"
+          ]
+        },
+        { "command": "matrix colnames T = m", "lines": [] },
+        {
+          "command": "matrix list T",
+          "lines": [
+            "T[3,2]",
+            "       q:  q:",
+            "       m   m",
+            "e1:x   1   2",
+            "e2:y   3   4",
+            "e2:z   5   6"
+          ]
+        },
+        { "command": "matrix rownames T = a g:b c", "lines": [] },
+        { "command": "local r : rowfullnames T", "lines": [] },
+        { "command": "display \"`r'\"", "lines": ["e1:a g:b e2:c"] },
+        { "command": "matrix rownames T = k:", "lines": [] },
+        { "command": "local r : rowfullnames T", "lines": [] },
+        { "command": "display \"`r'\"", "lines": ["k:a k:b k:c"] },
+        { "command": "matrix colnames T = \"my name\" other", "lines": [] },
+        {
+          "command": "matrix list T",
+          "lines": [
+            "T[3,2]",
+            "           q:       q:",
+            "     my name    other",
+            "k:a        1        2",
+            "k:b        3        4",
+            "k:c        5        6"
+          ]
+        },
+        { "command": "local c : colnames T", "lines": [] },
+        { "command": "display \"[`c']\"", "lines": ["[my name other]"] },
+        { "command": "local c : colnames T, quoted", "lines": [] },
+        {
+          "command": "display `\"[`c']\"'",
+          "lines": ["[`\"my name\"' `\"other\"']"]
+        },
+        { "command": "local c : coleq T", "lines": [] },
+        { "command": "display \"[`c']\"", "lines": ["[q q]"] },
+        { "command": "local c : rownumb T \"e2:c\"", "lines": [] },
+        { "command": "display \"[`c']\"", "lines": ["[.]"] },
+        { "command": "local c : colsof T", "lines": [] },
+        { "command": "display \"[`c']\"", "lines": ["[2]"] },
+        {
+          "command": "foreach n in L.y 2.g c.x 1b.g o.x co.x 1bn.g x#y LD.y L.2.g 2.g#c.x a.b i.x ib2.g {",
+          "lines": [
+            "  2.     capture noisily matrix rownames T = `n'",
+            "  3.     local r : rownames T",
+            "  4.     display \"`n' -> \" _rc \" [`r']\"",
+            "  5. }",
+            "L.y -> 0 [L.y L.y L.y]",
+            "2.g -> 0 [2.g 2.g 2.g]",
+            "c.x -> 0 [x x x]",
+            "1b.g -> 0 [1b.g 1b.g 1b.g]",
+            "o.x -> 0 [o.x o.x o.x]",
+            "co.x -> 0 [o.x o.x o.x]",
+            "1bn.g -> 0 [1.g 1.g 1.g]",
+            "x#y -> 0 [c.x#c.y c.x#c.y c.x#c.y]",
+            "LD.y -> 0 [LD.y LD.y LD.y]",
+            "L.2.g -> 0 [2L.g 2L.g 2L.g]",
+            "2.g#c.x -> 0 [2.g#c.x 2.g#c.x 2.g#c.x]",
+            "a:  operator invalid",
+            "a.b -> 198 [2.g#c.x 2.g#c.x 2.g#c.x]",
+            "i:  operator invalid",
+            "i.x -> 198 [2.g#c.x 2.g#c.x 2.g#c.x]",
+            "ib2:  operator invalid",
+            "ib2.g -> 198 [2.g#c.x 2.g#c.x 2.g#c.x]"
+          ]
+        },
+        {
+          "command": "capture noisily local r : colnames nosuch",
+          "lines": ["matrix nosuch not found"]
+        },
+        { "command": "matrix Z = (1, .z \\ ., .a)", "lines": [] },
+        {
+          "command": "matrix list Z, nodotz",
+          "lines": ["Z[2,2]", "    c1  c2", "r1   1", "r2   .  .a"]
+        },
+        { "command": "matrix A = (1e10, 2 \\ 3, -4.5e-8)", "lines": [] },
+        {
+          "command": "matrix list A, format(%-9.2f)",
+          "lines": [
+            "A[2,2]",
+            "           c1         c2",
+            "r1  1.00e+10   2.00",
+            "r2  3.00       -0.00"
+          ]
+        },
+        {
+          "command": "capture noisily matrix list A, format(abc)",
+          "lines": ["'abc' found where numeric format expected"]
+        },
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 3", "lines": [] },
+        {
+          "command": "set obs 40",
+          "lines": ["Number of observations (_N) was 0, now 40."]
+        },
+        { "command": "generate x = rnormal()", "lines": [] },
+        { "command": "generate g = mod(_n, 3)", "lines": [] },
+        { "command": "generate y = 1 + 2*x + g + rnormal()", "lines": [] },
+        { "command": "quietly regress y x i.g", "lines": [] },
+        { "command": "local names : colnames e(b)", "lines": [] },
+        { "command": "display \"`names'\"", "lines": ["x 0b.g 1.g 2.g _cons"] },
+        { "command": "local names : colfullnames e(V)", "lines": [] },
+        { "command": "display \"`names'\"", "lines": ["x 0b.g 1.g 2.g _cons"] }
+      ]
+    },
+    {
+      "id": "recheck2-program-delimit-lines",
+      "source": "#delimit ;\ndisplay \"a\" ; #delimit cr\ndisplay \"b\"\n#delimit ;\ndisplay \"w\" ; * star comment ;\ndisplay \"v\" ;\nforeach v in a b { ; display \"`v'\" ; } ;\n#delimit cr\ndisplay \"end\"\n",
+      "commands": [
+        { "command": "#delimit ;", "lines": ["delimiter now ;"] },
+        { "command": "display \"a\" ;", "lines": ["a"] },
+        { "command": "#delimit cr", "lines": ["delimiter now cr"] },
+        { "command": "display \"b\"", "lines": ["b"] },
+        { "command": "#delimit ;", "lines": ["delimiter now ;"] },
+        { "command": "display \"w\" ;", "lines": ["w"] },
+        { "command": "* star comment ;", "lines": [] },
+        { "command": "display \"v\" ;", "lines": ["v"] },
+        {
+          "command": "foreach v in a b { ;",
+          "lines": ["  2.  display \"`v'\" ;", "  3.  } ;", "a", "b"]
+        },
+        { "command": "#delimit cr", "lines": ["delimiter now cr"] },
+        { "command": "display \"end\"", "lines": ["end"] }
+      ]
+    },
+    {
+      "id": "recheck2-program-macro-names",
+      "source": "global abcdefghijabcdefghijabcdefghijab = 1\ndisplay \"$abcdefghijabcdefghijabcdefghijab\"\ncapture noisily global abcdefghijabcdefghijabcdefghijabc = 1\ncapture noisily local a.b = 1\ncapture noisily local = 1\ncapture noisily local `\"x\"' = 1\nlocal c-d hello\ndisplay \"[`c']\"\n",
+      "commands": [
+        {
+          "command": "global abcdefghijabcdefghijabcdefghijab = 1",
+          "lines": []
+        },
+        {
+          "command": "display \"$abcdefghijabcdefghijabcdefghijab\"",
+          "lines": ["1"]
+        },
+        {
+          "command": "capture noisily global abcdefghijabcdefghijabcdefghijabc = 1",
+          "lines": ["abcdefghijabcdefghijabcdefghijabc invalid name"]
+        },
+        {
+          "command": "capture noisily local a.b = 1",
+          "lines": ["_a.b invalid name"]
+        },
+        {
+          "command": "capture noisily local = 1",
+          "lines": ["_= invalid name"]
+        },
+        {
+          "command": "capture noisily local `\"x\"' = 1",
+          "lines": ["_\"x invalid name"]
+        },
+        { "command": "local c-d hello", "lines": [] },
+        { "command": "display \"[`c']\"", "lines": ["[-d hello]"] }
+      ]
+    },
+    {
+      "id": "recheck2-program-macro-list-wrap",
+      "source": "set linesize 79\nglobal G6 \"long `=50*\"ab\"' with spaces\"\nmacro list G6\nlocal L6 \"abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij\"\nmacro list _L6\nset linesize 200\n",
+      "commands": [
+        { "command": "set linesize 79", "lines": [] },
+        {
+          "command": "global G6 \"long `=50*\"ab\"' with spaces\"",
+          "lines": []
+        },
+        {
+          "command": "macro list G6",
+          "lines": [
+            "G6:             long",
+            "                abababababababababababababababababababababababababababababababa",
+            "                > babababababababababababababababababab with spaces"
+          ]
+        },
+        {
+          "command": "local L6 \"abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij\"",
+          "lines": []
+        },
+        {
+          "command": "macro list _L6",
+          "lines": [
+            "_L6:            abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij",
+            "                abcdefghij abcdefghij abcdefghij"
+          ]
+        },
+        { "command": "set linesize 200", "lines": [] }
+      ]
+    },
+    {
+      "id": "recheck2-program-noisily-in-quietly",
+      "source": "quietly {\n  noisily if 1 {\n    display \"shown\"\n  }\n  if 1 {\n    display \"hidden\"\n  }\n  noisily if 0 {\n    display \"skipped\"\n  }\n  noisily foreach v in a b {\n    display \"`v'\"\n  }\n  noisily {\n    display \"bare\"\n  }\n  noisily if 1 display \"inline\"\n}\ndisplay \"end\"\n",
+      "commands": [
+        { "command": "quietly {", "lines": [] },
+        { "command": "display \"shown\"", "lines": ["shown"] },
+        { "command": "}", "lines": [] },
+        { "command": "display \"skipped\"", "lines": [] },
+        {
+          "command": "}",
+          "lines": ["  2.     display \"`v'\"", "  3.   }", "a", "b"]
+        },
+        { "command": "display \"bare\"", "lines": ["bare"] },
+        { "command": "}", "lines": ["inline"] },
+        { "command": "display \"end\"", "lines": ["end"] }
+      ]
+    },
+    {
+      "id": "recheck2-program-display-continue",
+      "source": "forvalues i = 1/3 {\n  display `i' _c\n}\ndisplay\ndisplay \"a\" _c\ndisplay \"b\"\nprogram r2pc\n  display \"x\" _c\n  display \"y\"\n  forvalues i = 1/2 {\n    display \"`i'\" _c\n  }\n  display \"!\"\nend\nr2pc\nprogram r2opt\n  syntax anything [, Times(integer 1) Sep(string)]\n  forvalues i = 1/`times' {\n    display \"`anything'`sep'\" _c\n  }\n  display\nend\nr2opt hi, t(3) sep(-)\n",
+      "commands": [
+        {
+          "command": "forvalues i = 1/3 {",
+          "lines": ["  2.   display `i' _c", "  3. }", "123"]
+        },
+        { "command": "display", "lines": [] },
+        { "command": "display \"a\" _c", "lines": ["a"] },
+        { "command": "display \"b\"", "lines": ["b"] },
+        {
+          "command": "program r2pc",
+          "lines": [
+            "  1.   display \"x\" _c",
+            "  2.   display \"y\"",
+            "  3.   forvalues i = 1/2 {",
+            "  4.     display \"`i'\" _c",
+            "  5.   }",
+            "  6.   display \"!\"",
+            "  7. end"
+          ]
+        },
+        { "command": "r2pc", "lines": ["xy", "12!"] },
+        {
+          "command": "program r2opt",
+          "lines": [
+            "  1.   syntax anything [, Times(integer 1) Sep(string)]",
+            "  2.   forvalues i = 1/`times' {",
+            "  3.     display \"`anything'`sep'\" _c",
+            "  4.   }",
+            "  5.   display",
+            "  6. end"
+          ]
+        },
+        { "command": "r2opt hi, t(3) sep(-)", "lines": ["hi-hi-hi-"] }
+      ]
+    },
+    {
+      "id": "recheck2-program-capture-if-quiet",
+      "source": "display \"before\"\ncapture if 1 + \"a\" {\n  display \"x\"\n  display \"y\"\n}\ndisplay \"after \" _rc\n",
+      "commands": [
+        { "command": "display \"before\"", "lines": ["before"] },
+        { "command": "capture if 1 + \"a\" {", "lines": [] },
+        { "command": "display \"x\"", "lines": ["x"] },
+        { "command": "display \"y\"", "lines": ["y"] },
+        {
+          "command": "}",
+          "lines": ["} is not a valid command name", "r(199);"]
+        }
+      ]
+    },
+    {
+      "id": "recheck2-program-capture-if-noisy",
+      "source": "capture noisily if nosuch {\n  display \"x\"\n}\ndisplay \"after \" _rc\n",
+      "commands": [
+        {
+          "command": "capture noisily if nosuch {",
+          "lines": ["nosuch not found"]
+        },
+        { "command": "display \"x\"", "lines": ["x"] },
+        {
+          "command": "}",
+          "lines": ["} is not a valid command name", "r(199);"]
+        }
+      ]
+    },
+    {
       "id": "random-report-1",
       "source": "clear\nset seed 1001\nset obs 12\ngenerate double a = (runiform() - .5) * 10^-2\ngenerate float b = runiform() * 1000\ngenerate int c = floor(runiform() * 4)\ngenerate long d = floor(runiform() * 1e6)\nreplace a = . in 2\nsummarize\nsummarize a d, detail\ntabulate c\ntabulate c if b > 300\nlist a b c d in 1/5\ntabstat a b d, statistics(mean sd min max n)\ncorrelate a b d\nregress a b d\ncodebook c d\nbysort c: summarize b\n",
       "commands": [

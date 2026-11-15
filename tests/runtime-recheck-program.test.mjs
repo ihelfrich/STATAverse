@@ -422,3 +422,100 @@ test("foreach's lists, varlist ranges and local names are checked as Stata check
     "_abcdefghijabcdefghijabcdefghij12 invalid name",
   );
 });
+
+// The second recheck of the programming fixes. Expected lines copied from
+// Stata 19 MP's batch log (version 17, set processors 1, linesize 79).
+test("display _continue joins what a loop or a program prints next", () => {
+  const { lines } = runFile(
+    [
+      "forvalues i = 1/3 {",
+      "  di `i' _c",
+      "}",
+      "di",
+      "program pc",
+      '  di "x" _c',
+      '  di "y"',
+      "  forvalues i = 1/2 {",
+      '    di "`i\'" _c',
+      "  }",
+      '  di "!"',
+      "end",
+      "pc",
+      "",
+    ].join("\n"),
+  );
+  assert.deepEqual(lines.slice(0, 5), [
+    ". forvalues i = 1/3 {",
+    "  2.   di `i' _c",
+    "  3. }",
+    "123",
+    ". di",
+  ]);
+  assert.deepEqual(lines.slice(-3), [". pc", "xy", "12!"]);
+  // The mark that holds a line open never reaches what is shown.
+  assert.ok(lines.every((line) => !line.includes("\u0000")));
+});
+
+test("a noisily block inside quietly { } echoes its body as Stata reads it", () => {
+  assert.deepEqual(
+    runFile(
+      'quietly {\n  noisily foreach v in a {\n    di "`v\'"\n  }\n}\ndi "end"\n',
+    ).lines,
+    [". quietly {", '  2.     di "`v\'"', "  3.   }", "a", '. di "end"', "end"],
+  );
+  assert.deepEqual(
+    runFile(
+      'quietly {\n  noisily if 0 {\n    di "shown"\n  }\n  noisily if 1 di "inline"\n}\ndi "end"\n',
+    ).lines,
+    [". quietly {", '.     di "shown"', ".   }", "inline", '. di "end"', "end"],
+  );
+});
+
+test("a reference that fails in a block's line is reported under that line", () => {
+  assert.deepEqual(
+    runFile(
+      'local x = 1\nif `x\' == 1 {\n  di "in if"\n}\nelse if `=bad\' == 1 {\n  di "never"\n}\ndi "end"\n',
+    ).lines,
+    [
+      ". local x = 1",
+      ". if `x' == 1 {",
+      '.   di "in if"',
+      "in if",
+      ". }",
+      ". else if `=bad' == 1 {",
+      "bad not found",
+      '.   di "never"',
+      ". }",
+      '. di "end"',
+      "end",
+    ],
+  );
+  const empty = runFile('if `=bad\' {\n  di "never"\n}\n');
+  assert.equal(empty.result.rc, 198);
+  assert.deepEqual(empty.lines, [
+    ". if `=bad' {",
+    "bad not found",
+    "invalid syntax",
+  ]);
+  assert.deepEqual(runFile('if `=nosuch\' == 1 {\n  di "yes"\n}\n').lines, [
+    ". if `=nosuch' == 1 {",
+    "nosuch not found",
+    "==1 invalid name",
+  ]);
+});
+
+test("#delimit cr after a ; on its line says so before the next command", () => {
+  assert.deepEqual(
+    runFile('#delimit ;\ndi "a" ; #delimit cr\ndi "b"\n').lines,
+    [
+      ". #delimit ;",
+      "delimiter now ;",
+      '. di "a" ;',
+      "a",
+      ".  #delimit cr",
+      "delimiter now cr",
+      '. di "b"',
+      "b",
+    ],
+  );
+});

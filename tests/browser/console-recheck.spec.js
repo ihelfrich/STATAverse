@@ -52,9 +52,12 @@ test("Stop drops the commands waiting behind the run", async ({ page }) => {
     { timeout: 20000 },
   );
   await stop.click();
-  await expect(page.locator("#console-status")).toContainText("Stopped on line", {
-    timeout: 30000,
-  });
+  await expect(page.locator("#console-status")).toContainText(
+    "Stopped on line",
+    {
+      timeout: 30000,
+    },
+  );
   await page.locator("#console-source").fill("display 6 * 7");
   await page.locator("#console-run").click();
   await expect(page.locator("#console-output")).toContainText("42");

@@ -54,6 +54,8 @@ export function splitCommands(source) {
         text: command,
         line: startLine,
         end: Math.max(end, startLine),
+        // Read under #delimit ;, which a loop's echo needs to know.
+        ...(delimiter === ";" ? { semicolon: true } : {}),
       });
     current = "";
   };
@@ -158,7 +160,7 @@ export function parseBlocks(commands) {
   const block = (closing) => {
     const nodes = [];
     while (at < commands.length) {
-      const { text, line, end: last } = commands[at];
+      const { text, line, end: last, semicolon } = commands[at];
       // A } that closes nothing is a command of its own, as Stata reads it,
       // and fails when it is reached; so does an end outside a program.
       if (text.startsWith("}") && closing === "}") {
@@ -233,6 +235,7 @@ export function parseBlocks(commands) {
           end: unclosed ? lastLine : closed,
           ...(unclosed ? { unclosed } : {}),
           ...(more ? { trailing: true } : {}),
+          ...(semicolon ? { semicolon } : {}),
         });
       } else nodes.push({ kind: "command", text, line, end: last ?? line });
     }

@@ -2,7 +2,7 @@
 // programs, and the control flow of a do-file. Commands themselves are in
 // commands.js; this file decides which command runs, under which prefixes,
 // and what happens when one fails.
-import { Signal, StataError, errorLine } from "./errors.js";
+import { Signal, StataError, errorLine, joinContinued } from "./errors.js";
 import { Dataset } from "./store.js";
 import { splitCommands, parseBlocks } from "./dofile.js";
 import { expandMacros, isMacroName, macroWords } from "./macros.js";
@@ -1030,6 +1030,10 @@ export class Session {
     } finally {
       if (doFile) this.leaveScope();
     }
+    // What display left open with _continue goes on with the next line
+    // the loop or program printed.
+    for (const record of output)
+      if (record.lines?.length) record.lines = joinContinued(record.lines);
     return { output, rc, locals: frame.locals };
   }
   /** A do-file or program begins: what it preserves is its own. */
@@ -1069,6 +1073,8 @@ export class Session {
       // command runs on what is left.
       evaluate: (text) =>
         this.softly(() => {
+          // `=' with nothing after it is Stata's invalid syntax.
+          if (!text.trim()) throw new StataError("invalid syntax", 198);
           const value = this.scalar(text);
           return typeof value === "string"
             ? value
@@ -1324,10 +1330,37 @@ export class Session {
       if (trailing) node.trailing = true;
       this.quietDepth = quietDepth;
       if (!(error instanceof StataError)) throw error;
+      if (
+        !error.recorded &&
+        prefixes.capture &&
+        IF_HEADER.test(prefixes.rest) &&
+        !node.ran &&
+        !trailing
+      ) {
+        // capture noisily if 1 + "a" {: capture keeps the error of the
+        // if's own line, the lines of its body are then commands of the
+        // file, run as any are, and its } is not a command, which stops the
+        // file with r(199).
+        error.recorded = true;
+        this.rc = error.code;
+        if (prefixes.noisy && error.message) header.lines.push(error.message);
+        try {
+          this.runNodes(node.body, frame, output);
+        } catch (failure) {
+          relabel();
+          throw failure;
+        }
+        relabel(true);
+        if (!this.doDepth && !this.inProgram) this.line = node.end;
+        this.runLine(source(node.end), frame, output);
+        return;
+      }
       if (!error.recorded) {
-        // The block's own line failed, as if 1 + "a" { does.
+        // The block's own line failed, as if 1 + "a" { does, under the
+        // messages of the references in it that failed.
         error.recorded = true;
         header.lines = [
+          ...header.lines,
           ...(error.message ? [error.message] : []),
           `r(${error.code});`,
         ];
@@ -1370,9 +1403,23 @@ export class Session {
     this.quietDepth = quietDepth;
     if (prefixes.capture) this.rc = 0;
     if (!node.ran) {
-      header.echo = [];
+      const passed = [];
       for (let n = node.line + 1; n < node.end + (trailing ? 0 : 1); n++)
-        header.echo.push(`. ${source(n)}`.trimEnd());
+        passed.push(`. ${source(n)}`.trimEnd());
+      // The messages of a reference that failed in the block's own line
+      // (else if `=bad' == 1 {) stand under that line, before the lines
+      // passed over.
+      if (header.lines.length)
+        passed.forEach((shown, k) =>
+          output.push({
+            command: shown.slice(2),
+            echo: [],
+            lines: [],
+            rc: 0,
+            line: node.line + 1 + k,
+          }),
+        );
+      else header.echo = passed;
     } else relabel(true);
     if (trailing) {
       const message =
@@ -1436,6 +1483,7 @@ export class Session {
     const inner = [],
       at = this.line;
     let failure = null;
+    node.unblocked = false;
     this.folding++;
     try {
       this.runBlock(node, frame, inner);
@@ -1454,6 +1502,8 @@ export class Session {
         source,
         node.line,
         node.unclosed ? source.length : node.end || node.line,
+        2,
+        node.semicolon,
       ),
       lines = inner.flatMap((record) => record.lines);
     let rc = 0;
@@ -1478,7 +1528,88 @@ export class Session {
       if (graphs.length > 1) record.graphs = graphs;
     }
     output.push(record);
+    // A captured if whose own line failed ran its body as commands of the
+    // file, each echoed as Stata reads it.
+    if (node.unblocked)
+      this.noisyEcho(node, inner, output, source, [{ ...node, loop: false }]);
+    else if (prefixes.silent && !LOOP_HEADER.test(prefixes.rest + " "))
+      this.noisyEcho(node, inner, output, source);
     if (failure) throw failure;
+  }
+
+  /**
+   * In a quiet block (quietly {) a noisily block is echoed as Stata echoes
+   * it: not its first line, which was read quietly, but each line of its
+   * body as it is read, after the prompt, then its }; a noisily loop shows
+   * its numbered lines before what it printed. The block's record (the
+   * last in output) is split into records for those lines.
+   */
+  noisyEcho(node, inner, output, source, given = null) {
+    const regions = given ?? [];
+    const collect = (nodes) => {
+      for (const each of nodes)
+        if (each.kind !== "block") continue;
+        else if (prefixesOf(each.header).noisy && each.end > each.line)
+          regions.push({
+            ...each,
+            loop: LOOP_HEADER.test(prefixesOf(each.header).rest + " "),
+          });
+        else collect(each.body);
+    };
+    if (!given) collect(node.body);
+    if (!regions.length) return;
+    const first = output.at(-1),
+      { rc } = first,
+      shown = (n) => (source[n - 1] ?? "").replace(/\t/g, "    ").trimEnd(),
+      records = [{ ...first, lines: [], rc: 0 }],
+      echoLine = (n) =>
+        records.push({ command: shown(n), echo: [], lines: [], rc: 0 }),
+      done = new Set();
+    let current = null,
+      cursor = 0;
+    const open = (region) => {
+      current = region;
+      done.add(region);
+      cursor = region.line + 1;
+      if (!region.loop) return;
+      const { echo } = echoOf(source, region.line, region.end),
+        last = records.at(-1);
+      if (last.lines.length)
+        records.push({ command: "", echo, lines: [], rc: 0 });
+      else last.echo = [...(last.echo ?? []), ...echo];
+    };
+    const close = () => {
+      if (current && !current.loop)
+        while (cursor <= current.end) echoLine(cursor++);
+      current = null;
+    };
+    const inside = (region, at) => at > region.line && at <= region.end;
+    // Before what was printed at line `at`: the regions passed over that
+    // printed nothing are echoed, and the one the line is in is opened.
+    const reach = (at) => {
+      if (current && !inside(current, at)) close();
+      for (const region of regions)
+        if (!done.has(region) && region.end < at) {
+          open(region);
+          close();
+        }
+      const hit = regions.find((region) => inside(region, at));
+      if (hit && hit !== current && !done.has(hit)) open(hit);
+    };
+    for (const each of inner) {
+      if (each.line) reach(each.line);
+      if (current && !current.loop && each.line)
+        while (cursor <= each.line) echoLine(cursor++);
+      records.at(-1).lines.push(...each.lines);
+    }
+    reach(Infinity);
+    // What the block's failure added is reported last.
+    const failed = first.lines.slice(
+      inner.flatMap((each) => each.lines).length,
+    );
+    records.at(-1).lines.push(...failed);
+    records.at(-1).rc = rc;
+    output.splice(output.length - 1, 1, ...records);
   }
 
   record(output, command, lines, rc, graph, line = this.line) {
@@ -2317,6 +2448,11 @@ export class Session {
           once();
         }
       });
+    } else if (/^(?:else\s+)?if$/.test(header)) {
+      // if `=bad' {: nothing is left of the condition. A passed-over else
+      // if is not read.
+      if (header === "if" || !frame.lastIf)
+        throw new StataError("invalid syntax", 198);
     } else if ((m = /^if\s+(.*)$/.exec(header))) {
       // The outcome is recorded after the body runs, so that an if inside
       // the body cannot decide whether this block's else runs.
@@ -2398,19 +2534,59 @@ export class Session {
           : failed.lines.filter((line) => !/^r\(\d+\);$/.test(line));
       } else if (LOOP_HEADER.test(prefixes.rest + " ") && !loop.ran) {
         // The loop's own line failed, as foreach over a variable that does
-        // not exist: Stata then reads the block's } as a command, which
-        // fails too, and that is the error capture keeps.
+        // not exist: Stata then runs the lines of its body as commands of
+        // the captured block (`v' empty), and reads the block's } as a
+        // command, which fails too, and that is the error capture keeps.
+        // A body line that fails ends the block with its own error.
+        const at = this.line,
+          ran = [];
         this.rc = 199;
+        if (prefixes.silent) this.quietDepth = quietDepth + 1;
+        try {
+          this.runNodes(node.body, frame, ran);
+        } catch (failure) {
+          if (!(failure instanceof StataError)) throw failure;
+          this.rc = failure.code;
+        } finally {
+          this.quietDepth = quietDepth;
+          if (!this.doDepth && !this.inProgram) this.line = at;
+        }
         if (!prefixes.silent)
           inner.push({
             command: `${node.header} {`,
             lines: [
-              ...(error.message ? [error.message, ""] : []),
-              "} is not a valid command name",
+              ...(error.message ? [error.message] : []),
+              ...ran
+                .flatMap((record) => record.lines)
+                .filter((line) => !/^r\(\d+\);$/.test(line)),
+              ...(this.rc === 199 ? ["} is not a valid command name"] : []),
             ],
+            rc: 0,
+            line: at,
+          });
+      } else if (
+        IF_HEADER.test(prefixes.rest) &&
+        !loop.ran &&
+        !error.recorded &&
+        !node.unclosed
+      ) {
+        // The if's own line failed (capture if 1 + "a" {): capture keeps
+        // that error, and the lines of its body are then commands of the
+        // file, run as any are; its } is not a command, which stops the
+        // file with r(199).
+        if (!prefixes.silent && error.message)
+          inner.push({
+            command: `${node.header} {`,
+            lines: [error.message],
             rc: 0,
             line: this.line,
           });
+        for (const record of inner) if (keep(record)) output.push(record);
+        node.unblocked = true;
+        this.runNodes(node.body, frame, output);
+        if (!this.doDepth && !this.inProgram) this.line = node.end;
+        this.runLine("}", frame, output);
+        return;
       } else if (!prefixes.silent && error.message)
         inner.push({
           command: `${node.header} {`,
@@ -2470,12 +2646,11 @@ export class Session {
     };
     if (/^var(l(i(st?)?)?)?$/.test(kind))
       return required(this.varlist(rest), "varlist required", 100);
+    // A newlist of a type alone, as int, is a list of none.
     if (/^new(l(i(st?)?)?)?$/.test(kind))
-      return required(
-        newVariableNames(rest, this.data.names),
-        "varlist required",
-        100,
-      );
+      return rest.trim()
+        ? newVariableNames(rest, this.data.names)
+        : required([], "varlist required", 100);
     if (/^num(l(i(st?)?)?)?$/.test(kind))
       return required(
         parseNumlist(rest).map(numlistText),

@@ -97,7 +97,7 @@ function scan(line, state) {
  * The lines Stata echoes for a loop, from its source lines; a program's
  * lines are numbered from 1 (`first`), a loop's from 2.
  */
-export function echoOf(lines, start, end, first = 2) {
+export function echoOf(lines, start, end, first = 2, semicolon = false) {
   const state = { comment: 0, started: false },
     echo = [];
   let command = "",
@@ -105,11 +105,31 @@ export function echoOf(lines, start, end, first = 2) {
     logical = "",
     afterEmpty = false,
     continued = false;
+  // Under #delimit ;, a line that holds more than one command (a loop
+  // written foreach v in a b { ; di "`v'" ; } ;) is echoed a command at a
+  // time, each one from the blank after the ; before it.
+  const pieces = [];
   for (let at = start; at <= end; at++) {
-    const raw = lines[at - 1] ?? "",
+    const raw = lines[at - 1] ?? "";
+    if (!semicolon) {
+      pieces.push(raw);
+      continue;
+    }
+    let quote = false,
+      from = 0;
+    for (let i = 0; i < raw.length; i++)
+      if (raw[i] === '"') quote = !quote;
+      else if (raw[i] === ";" && !quote && raw.slice(i + 1).trim()) {
+        pieces.push(raw.slice(from, i + 1));
+        from = i + 1;
+      }
+    pieces.push(raw.slice(from));
+  }
+  for (let k = 0; k < pieces.length; k++) {
+    const raw = pieces[k],
       text = expandTabs(raw).replace(/\s+$/, "");
     state.started = continued;
-    if (at === start) command = text.trimStart();
+    if (k === 0) command = text.trimStart();
     else if (continued) echo.push(`> ${text}`);
     else if (afterEmpty) echo.push(`. ${text}`);
     else echo.push(`${String(number++).padStart(3)}. ${text}`);
@@ -226,8 +246,28 @@ export function fileEcho(lines) {
         // the end of the file.
         const state = { comment: 0, started: false, star: false },
           rest = shown(cursor).slice(column),
-          code = scan(rest, state).code.trim();
-        let found = code ? cursor : cursor + 1;
+          code = scan(rest, state).code.trim(),
+          // A #delimit after the ; (di "a" ; #delimit cr), or a * comment
+          // that its own ; ends, is a line's last command of its own.
+          own =
+            DELIMIT.exec(rest) ?? (/^\s*\*[^;]*;\s*$/.test(rest) ? [] : null);
+        if (own) {
+          const record = {
+            command: rest.trimEnd(),
+            echo: [],
+            lines: [],
+            rc: 0,
+            comment: true,
+          };
+          if (own[1]) {
+            delimiter = own[1] === ";" ? ";" : "\n";
+            record.lines = [`delimiter now ${own[1].toLowerCase()}`];
+          }
+          records.push(record);
+          cursor += 1;
+          column = 0;
+        }
+        let found = own ? last + 1 : code ? cursor : cursor + 1;
         for (; found <= last; found++) {
           state.started = true;
           if (scan(lines[found - 1] ?? "", state).code.trim()) break;
@@ -236,7 +276,7 @@ export function fileEcho(lines) {
           !code && found <= last && found < line
             ? DELIMIT.exec(lines[found - 1] ?? "")
             : null;
-        if (!code && (delimit || found > last)) {
+        if (!own && !code && (delimit || found > last)) {
           const record = {
             command: rest.trimEnd(),
             echo: [],

@@ -26913,3 +26913,324 @@ capture noisily tempvar abcdefghijabcdefghijabcdefghij12
 capture noisily local ++abcdefghijabcdefghijabcdefghij12
 capture noisily args abcdefghijabcdefghijabcdefghij12
 capture noisily global 1bad x
+=== recheck2-program-expansion
+display "[`='|"
+display "[`= '|"
+display "`=`=nosuch'' ok"
+local a `="x"'
+display "[`a']"
+local b "`="y"' z"
+display "[`b']"
+local c = "`: display "q"'"
+display "[`c']"
+display "[`=3*"ab"']"
+global G3 "long `=3*"ab"' x"
+display "$G3"
+local x = 1
+if `x' == 1 {
+  display "in if"
+}
+else if `=bad' == 1 {
+  display "never"
+}
+display "end"
+display `="a"+"b"'
+=== recheck2-program-expansion-header
+if `=nosuch' == 1 {
+  display "yes"
+}
+else {
+  display "no"
+}
+=== recheck2-program-expansion-empty-if
+if `=bad' {
+  display "never"
+}
+=== recheck2-program-syntax-fv-bases
+clear
+set obs 6
+generate region = mod(_n, 3) + 1
+generate educ = _n
+generate wage = _n * 2
+generate y = _n^2
+generate t = _n
+tsset t
+program define r2pf
+    syntax varlist(fv)
+    display "[`varlist'] [`s(fvops)']"
+end
+program define r2pt
+    syntax varlist(ts)
+    display "[`varlist'] [`s(tsops)']"
+end
+program define r2pb
+    syntax varlist(fv ts)
+    display "[`varlist'] [`s(fvops)'] [`s(tsops)']"
+end
+r2pf b2.region
+r2pf b(2).region
+r2pf b(#2).region
+r2pf b(#1).region
+r2pf 2b.region
+r2pf i2b.region
+r2pf 2bn.region
+r2pf bn.region
+r2pf ib(first).region
+r2pf 2o.region
+r2pf o2.region
+r2pf co.educ
+r2pf ib2.region#c.educ
+r2pf b2.region#c.educ
+r2pf 2b.region#c.educ
+r2pf b2.region##c.educ
+r2pf b2.(region educ)
+r2pf educ wage educ
+r2pf c.educ c.educ
+r2pf educ educ
+r2pf educ c.educ##c.educ
+r2pf c.educ##c.educ
+r2pf i.region educ i.region
+r2pf ib2.region i.region
+r2pf i.region ib2.region
+r2pf c.educ#c.educ c.educ#c.educ
+r2pf c.educ
+capture noisily r2pt cL.y
+capture noisily r2pt Lc.y
+capture noisily r2pt c.y
+capture noisily r2pt co.y
+capture noisily r2pt o.y
+capture noisily r2pt i.region
+r2pb cL.y
+r2pb Lb2.region
+r2pb L.y L.y
+=== recheck2-program-syntax-option-specs
+clear
+set obs 3
+generate x = 1
+generate y = 2
+generate z = 3
+generate s = "a"
+program r2po
+    syntax [, BYvar(varlist max=2 min=2 numeric) NList(numlist max=2 min=2 integer >0 ascending) ///
+        GENerate(namelist max=2 min=2) GVar(varname numeric) Reps(integer 5) CUToff(real 1) Level(cilevel) NM(name)]
+    display "by=`byvar' nl=`nlist' gen=`generate' gv=`gvar' reps=`reps' cut=`cutoff' level=`level' nm=`nm'"
+end
+capture noisily r2po, by(x y z)
+capture noisily r2po, by(x)
+capture noisily r2po, by(x s)
+capture noisily r2po, byv(x y z)
+capture noisily r2po, nl(1 2 3)
+capture noisily r2po, nli(1)
+capture noisily r2po, nl(1.5 2)
+capture noisily r2po, nl(-1 2)
+capture noisily r2po, nl(2 1)
+capture noisily r2po, nl(1 .)
+capture noisily r2po, gen(a b c)
+capture noisily r2po, gen(a)
+capture noisily r2po, gv(s)
+capture noisily r2po, gv(x y)
+capture noisily r2po, r(1e2)
+capture noisily r2po, r(2.0)
+capture noisily r2po, r(+3)
+capture noisily r2po, r( 4 )
+capture noisily r2po, r(0x10)
+capture noisily r2po, r(.)
+capture noisily r2po, r(-0)
+capture noisily r2po, r(1e10)
+capture noisily r2po, cut(.)
+capture noisily r2po, cut(.a)
+capture noisily r2po, cut(1e2)
+capture noisily r2po, cut(abc)
+capture noisily r2po, l(abc)
+capture noisily r2po, l(.)
+capture noisily r2po, l(5 6)
+capture noisily r2po, l(1e1)
+capture noisily r2po, l(95.5)
+capture noisily r2po, nm(a b)
+program r2pstar
+    syntax [, Reps(integer 50) Level(cilevel) *]
+    display "reps=`reps' level=`level' rest=[`options']"
+end
+r2pstar, reps(1e2)
+r2pstar, reps(2.0)
+r2pstar, reps(.)
+capture noisily r2pstar, level(abc)
+capture noisily r2pstar, level(5 6)
+=== recheck2-program-newvarlist
+clear
+set obs 2
+generate y = 1
+program r2pn
+    syntax newvarlist
+    display "[`varlist'] [`typlist']"
+end
+program r2pnl
+    foreach v of newlist `0' {
+        display "loop `v'"
+    }
+    display "done"
+end
+capture noisily r2pn y y
+capture noisily r2pn z z
+capture noisily r2pn _n
+capture noisily r2pn _cons
+capture noisily r2pn _se
+capture noisily r2pn _skip
+capture noisily r2pn byte
+capture noisily r2pn int z
+capture noisily r2pn in
+capture noisily r2pn with
+capture noisily generate _n = 1
+capture noisily generate _b = 1
+capture noisily r2pnl _N
+capture noisily r2pnl int
+capture noisily r2pnl in
+capture noisily r2pnl a b a
+r2pnl c1-c3
+=== recheck2-program-varlist-ranges
+clear
+set obs 2
+generate a = 1
+generate b = 2
+generate c = 3
+summarize a - c
+list a -c
+list a- b
+capture noisily summarize c - a
+capture noisily summarize c*-a
+capture noisily foreach v of varlist c-a {
+display "x"
+}
+display _rc
+drop a - b
+describe, simple
+=== recheck2-program-matrix-stripes
+matrix T = (1, 2 \ 3, 4 \ 5, 6)
+matrix rownames T = e1:a e2:b e2:c
+matrix colnames T = q:u q:v
+matrix rownames T = x y z
+matrix list T
+matrix colnames T = m
+matrix list T
+matrix rownames T = a g:b c
+local r : rowfullnames T
+display "`r'"
+matrix rownames T = k:
+local r : rowfullnames T
+display "`r'"
+matrix colnames T = "my name" other
+matrix list T
+local c : colnames T
+display "[`c']"
+local c : colnames T, quoted
+display `"[`c']"'
+local c : coleq T
+display "[`c']"
+local c : rownumb T "e2:c"
+display "[`c']"
+local c : colsof T
+display "[`c']"
+foreach n in L.y 2.g c.x 1b.g o.x co.x 1bn.g x#y LD.y L.2.g 2.g#c.x a.b i.x ib2.g {
+    capture noisily matrix rownames T = `n'
+    local r : rownames T
+    display "`n' -> " _rc " [`r']"
+}
+capture noisily local r : colnames nosuch
+matrix Z = (1, .z \ ., .a)
+matrix list Z, nodotz
+matrix A = (1e10, 2 \ 3, -4.5e-8)
+matrix list A, format(%-9.2f)
+capture noisily matrix list A, format(abc)
+clear
+set seed 3
+set obs 40
+generate x = rnormal()
+generate g = mod(_n, 3)
+generate y = 1 + 2*x + g + rnormal()
+quietly regress y x i.g
+local names : colnames e(b)
+display "`names'"
+local names : colfullnames e(V)
+display "`names'"
+=== recheck2-program-delimit-lines
+#delimit ;
+display "a" ; #delimit cr
+display "b"
+#delimit ;
+display "w" ; * star comment ;
+display "v" ;
+foreach v in a b { ; display "`v'" ; } ;
+#delimit cr
+display "end"
+=== recheck2-program-macro-names
+global abcdefghijabcdefghijabcdefghijab = 1
+display "$abcdefghijabcdefghijabcdefghijab"
+capture noisily global abcdefghijabcdefghijabcdefghijabc = 1
+capture noisily local a.b = 1
+capture noisily local = 1
+capture noisily local `"x"' = 1
+local c-d hello
+display "[`c']"
+=== recheck2-program-macro-list-wrap
+set linesize 79
+global G6 "long `=50*"ab"' with spaces"
+macro list G6
+local L6 "abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij"
+macro list _L6
+set linesize 200
+=== recheck2-program-noisily-in-quietly
+quietly {
+  noisily if 1 {
+    display "shown"
+  }
+  if 1 {
+    display "hidden"
+  }
+  noisily if 0 {
+    display "skipped"
+  }
+  noisily foreach v in a b {
+    display "`v'"
+  }
+  noisily {
+    display "bare"
+  }
+  noisily if 1 display "inline"
+}
+display "end"
+=== recheck2-program-display-continue
+forvalues i = 1/3 {
+  display `i' _c
+}
+display
+display "a" _c
+display "b"
+program r2pc
+  display "x" _c
+  display "y"
+  forvalues i = 1/2 {
+    display "`i'" _c
+  }
+  display "!"
+end
+r2pc
+program r2opt
+  syntax anything [, Times(integer 1) Sep(string)]
+  forvalues i = 1/`times' {
+    display "`anything'`sep'" _c
+  }
+  display
+end
+r2opt hi, t(3) sep(-)
+=== recheck2-program-capture-if-quiet
+display "before"
+capture if 1 + "a" {
+  display "x"
+  display "y"
+}
+display "after " _rc
+=== recheck2-program-capture-if-noisy
+capture noisily if nosuch {
+  display "x"
+}
+display "after " _rc

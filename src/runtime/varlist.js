@@ -24,17 +24,33 @@ export function resolveVariable(word, names) {
   throw new StataError(`${word} ambiguous abbreviation`, 111);
 }
 
-export function expandVarlist(text, names) {
+/**
+ * The words of a varlist, a range written with blanks around its hyphen
+ * (a - c, a -c, a- c) joined into one word, as Stata reads it.
+ */
+export function joinRanges(words) {
   const out = [];
+  for (const word of words) {
+    const last = out.at(-1);
+    if (last !== undefined && (last.endsWith("-") || word.startsWith("-")))
+      out[out.length - 1] = last + word;
+    else out.push(word);
+  }
+  return out;
+}
+
+export function expandVarlist(text, names) {
+  const out = [],
+    words = joinRanges(text.trim().split(/\s+/).filter(Boolean));
   // With no variables in memory a name or a range is Stata's "no variables
   // defined", a wildcard "variable x* not found", and _all stands for none.
   if (!names.length)
-    for (const word of text.trim().split(/\s+/).filter(Boolean)) {
+    for (const word of words) {
       if (word === "_all") continue;
       if (/[*?~]/.test(word) && !/[#().]/.test(word)) throw notFound(word);
       throw new StataError("no variables defined", 111);
     }
-  for (const word of text.trim().split(/\s+/).filter(Boolean)) {
+  for (const word of words) {
     if (word === "_all") out.push(...names);
     // A brace ends Stata's reading of names: sum x { finds no name there.
     else if (word.startsWith("{"))
@@ -56,6 +72,8 @@ export function expandVarlist(text, names) {
       const ends = word.split("-");
       if (ends.length !== 2 || !ends[0] || !ends[1])
         throw new StataError(`${word} invalid name`, 198);
+      // A wildcard does not begin or end a range: c*-a is read up to its -.
+      if (/[*?~]/.test(word)) throw new StataError("- invalid name", 198);
       const first = names.indexOf(resolveVariable(ends[0], names)),
         last = names.indexOf(resolveVariable(ends[1], names));
       if (last < first) throw new StataError("variables out of order", 111);

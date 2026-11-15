@@ -145,6 +145,39 @@ export function numlistCommand(session, text) {
       );
     options[known[0]] = inside ?? true;
   }
+  const values = checkedNumlist(list, options);
+  const shown = (options.sort ? [...values].sort(order) : values).map((v) =>
+    typeof v === "number" ? numlistText(v) : v,
+  );
+  session.results.r = { numlist: shown.join(" ") };
+}
+/**
+ * A number as numlist writes it into r(numlist) and foreach hands it to
+ * the loop: its size in %15.0g, the sign before it, so 1e15 is
+ * 1.00000000e+15 and pi 3.14159265359.
+ */
+export function numlistText(value) {
+  return (value < 0 ? "-" : "") + formatNumber(Math.abs(value), WIDE).trim();
+}
+const WIDE = parseFormat("%15.0g");
+/** Numbers in order, missing values after them. */
+const order = (a, b) =>
+  typeof a === "number" && typeof b === "number"
+    ? a - b
+    : typeof a === "number"
+      ? -1
+      : typeof b === "number"
+        ? 1
+        : a < b
+          ? -1
+          : 1;
+
+/**
+ * A number list read under the limits numlist and syntax's numlist take:
+ * min, max, integer, range (as ">=0 <10"), ascending, descending and
+ * missingokay. Missing values stand as the strings ".", ".a" and so on.
+ */
+export function checkedNumlist(list, options = {}) {
   // Missing values stand as themselves, and only under missingokay.
   const values = [];
   let run = [];
@@ -196,28 +229,5 @@ export function numlistCommand(session, text) {
     if (options.descending && numbers[k] > numbers[k - 1])
       fail("elements out of order", 124);
   }
-  const shown = (options.sort ? [...values].sort(order) : values).map((v) =>
-    typeof v === "number" ? numlistText(v) : v,
-  );
-  session.results.r = { numlist: shown.join(" ") };
+  return values;
 }
-/**
- * A number as numlist writes it into r(numlist) and foreach hands it to
- * the loop: its size in %15.0g, the sign before it, so 1e15 is
- * 1.00000000e+15 and pi 3.14159265359.
- */
-export function numlistText(value) {
-  return (value < 0 ? "-" : "") + formatNumber(Math.abs(value), WIDE).trim();
-}
-const WIDE = parseFormat("%15.0g");
-/** Numbers in order, missing values after them. */
-const order = (a, b) =>
-  typeof a === "number" && typeof b === "number"
-    ? a - b
-    : typeof a === "number"
-      ? -1
-      : typeof b === "number"
-        ? 1
-        : a < b
-          ? -1
-          : 1;

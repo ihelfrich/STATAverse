@@ -382,9 +382,23 @@ function macroLines(name, value, linesize) {
     head = "";
     current = "";
   };
-  for (const [k, word] of words.entries()) {
-    if (current && current.length + 1 + word.length > width) flush();
-    current = current || k === 1 ? `${current} ${word}` : word;
+  // A blank before the value stays as one blank. A word longer than the
+  // room left is cut at the line's end and goes on after "> ".
+  for (let [k, word] of words.entries()) {
+    const lead = current || (k === 1 && words[0] === "") ? " " : "";
+    if (current && current.length + lead.length + word.length > width) {
+      flush();
+    } else if (lead) {
+      current += lead;
+    }
+    while (current.length + word.length > width) {
+      const room = width - current.length;
+      current += word.slice(0, room);
+      word = word.slice(room);
+      flush();
+      current = "> ";
+    }
+    current += word;
   }
   flush();
   return lines;
