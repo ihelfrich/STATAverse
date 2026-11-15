@@ -266,21 +266,26 @@ export function compileExpression(source, scope = {}) {
     return variable(name);
   };
 
+  /** A matrix's element, name[row, column], from the bracket on. */
+  function element(name) {
+    at++;
+    const row = numeric(or());
+    if (!take(",")) throw invalid("a matrix element needs a row and a column");
+    const column = numeric(or());
+    if (!take("]")) throw new StataError("too few ')' or ']'", 132);
+    // Found when the expression is compiled, so a wrong name stops it.
+    scope.matrix.rows(name);
+    // The column is evaluated before the row, as Stata does.
+    return node(N, (i, env) => {
+      const c = column(i, env);
+      return scope.matrix.element(name, row(i, env), c);
+    });
+  }
+
   function variable(name) {
     const names = dataset?.names ?? [];
-    if (!names.includes(name) && scope.matrix?.has(name) && isOp("[")) {
-      at++;
-      const row = numeric(or());
-      if (!take(","))
-        throw invalid("a matrix element needs a row and a column");
-      const column = numeric(or());
-      if (!take("]")) throw new StataError("too few ')' or ']'", 132);
-      // The column is evaluated before the row, as Stata does.
-      return node(N, (i, env) => {
-        const c = column(i, env);
-        return scope.matrix.element(name, row(i, env), c);
-      });
-    }
+    if (!names.includes(name) && scope.matrix?.has(name) && isOp("["))
+      return element(name);
     let resolved = null;
     try {
       resolved = resolveVariable(name, names);
@@ -341,6 +346,17 @@ export function compileExpression(source, scope = {}) {
         const value = scope.scalars.get(inner.value);
         return node(typeof value === "string" ? S : N, () => value);
       }
+      // e(sample) is a function of the observation: 1 in the active
+      // estimates' sample, 0 elsewhere and when there are none.
+      if (name === "e" && inner.value === "sample")
+        return node(N, (i) => scope.esample?.(i) ?? 0);
+      // A result matrix subscripted, as e(b)[1,2] or r(table)[4,1].
+      if (isOp("[") && scope.matrix) {
+        const matrix = `${name}(${inner.value})`;
+        // A result that is not a matrix cannot be subscripted.
+        if (!scope.matrix.has(matrix)) throw invalid();
+        return element(matrix);
+      }
       const value = scope.results?.[name]?.[inner.value];
       return node(
         typeof value === "string" ? S : N,
@@ -348,8 +364,15 @@ export function compileExpression(source, scope = {}) {
       );
     }
     if (/^(rowsof|colsof|el|det|trace)$/.test(name) && scope.matrix) {
-      const target = tokens[at++];
+      const target = { ...tokens[at++] };
       if (target?.type !== "name") throw invalid();
+      // A result matrix, e(V) or r(table), is named as it is written.
+      if (/^[er]$/.test(target.value) && isOp("(")) {
+        at++;
+        const inner = tokens[at++];
+        if (inner?.type !== "name" || !take(")")) throw invalid();
+        target.value = `${target.value}(${inner.value})`;
+      }
       if (name !== "el") {
         if (!take(")")) throw invalid();
         const size = {

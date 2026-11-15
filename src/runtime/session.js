@@ -7,7 +7,12 @@ import { Dataset } from "./store.js";
 import { splitCommands, parseBlocks } from "./dofile.js";
 import { expandMacros, isMacroName, macroWords } from "./macros.js";
 import { compileExpression } from "./expression.js";
-import { applySyntax, loneEquals, splitAtComma } from "./syntax.js";
+import {
+  applySyntax,
+  clauses,
+  loneEquals,
+  splitAtComma,
+} from "./syntax.js";
 import { parseNumlist } from "./numlist.js";
 import { expandVarlist } from "./varlist.js";
 import { applyFormat, parseFormat, stringOf } from "./format.js";
@@ -424,6 +429,21 @@ function fitTable(lines) {
   return lines.slice(k);
 }
 
+/**
+ * Marks the estimation sample of a fit just made in the data, as Stata's
+ * e(sample) marks it: 1 in each observation the fit used, 0 elsewhere. The
+ * data remember whose sample they carry, so that a fit made active again
+ * (estimates restore) keeps the marker, which a sort may since have moved
+ * away from the row numbers the fit keeps.
+ */
+function markSample(session, owner, rows) {
+  const data = session.data,
+    marks = new Uint8Array(data.n);
+  if (rows) for (const i of rows) if (i >= 0 && i < data.n) marks[i] = 1;
+  data.esample = marks;
+  data.esampleOf = owner;
+}
+
 // The e() results whose scalars have been posted again by a command that
 // holds the estimates (see dispatch).
 const heldScalars = new WeakSet();
@@ -458,6 +478,8 @@ export class Session {
       results: this.results,
       state: this.state,
       rc: () => this.rc,
+      // e(sample): 1 in the observations the active estimates used.
+      esample: (i) => this.data.esample?.[i] ?? 0,
       matrix: matrixAccess(this),
       coefficient: (kind, name) => {
         const model = this.estimates;
@@ -946,9 +968,14 @@ export class Session {
         for (const fit of this.fitsOnData) fit.fitData = copy;
         this.fitsOnData.clear();
       }
+      this.postedSample = null;
       try {
         if (replayed) value = this.replay(command, body, ctx, lines);
-        else if (recall)
+        else if (recall) {
+          // An estimation command run by group takes no in range, and
+          // Stata says so before the first group.
+          if (clauses(splitAtComma(body)[0]).some((c) => c.kind === "in"))
+            throw new StataError("'in' may not be combined with 'by'", 190);
           value = perGroup((session, text, inner) => {
             const rows = new Set(),
               outer = this.panelRows;
@@ -966,7 +993,7 @@ export class Session {
               this.panelRows = outer;
             }
           })(this, body, ctx);
-        else value = command.run(this, body, ctx);
+        } else value = command.run(this, body, ctx);
       } catch (error) {
         if (error instanceof StataError) {
           const left = FAILED_R.get(command.name)?.(error.code, {
@@ -984,6 +1011,20 @@ export class Session {
       }
       if (drawsGraph(command.name, body)) this.results.r = {};
       const model = this.estimates;
+      // A new fit marks its estimation sample in the data; with no
+      // estimates left, nothing is marked. A command that posts e()
+      // without keeping a model (mean, proportion, anova) names its sample.
+      const posted = this.postedSample;
+      this.postedSample = null;
+      if (posted) markSample(this, this.results.e, posted);
+      else if (model !== before) {
+        if (!model) {
+          if (this.data.esampleOf !== this.results.e)
+            this.data.esample = this.data.esampleOf = null;
+        }
+        else if (this.data.esampleOf !== model)
+          markSample(this, model, model.sample);
+      }
       // Stata's estat ic, ovtest, imtest, hettest and vif, and lincom, hold
       // the estimates while they work and post them again, and e()'s
       // scalars then list in the reverse of the order the fit stored them.

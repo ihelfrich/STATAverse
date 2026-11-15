@@ -19,6 +19,7 @@ import {
   termRows,
 } from "./estimation.js";
 import { count } from "./reports.js";
+import { assumedWeights, genericWeight } from "./syntax.js";
 import { STOCK_YOGO } from "./stock-yogo.js";
 import { MISSING, isMissing } from "./values.js";
 import { clusterMeat, noCluster, readVce } from "./vce.js";
@@ -936,6 +937,8 @@ function areg(session, text, ctx) {
     ...(asked.cluster ? { clustvar: asked.cluster.name } : {}),
     ...(wtype ? { wtype, wexp: `= ${parsed.weight.exp}` } : {}),
   };
+  // [weight=exp] is an analytic weight, and Stata says so first.
+  if (wtype && genericWeight(text)) ctx.out(assumedWeights(wtype));
   for (const k of active.keys())
     if (!kept.includes(k))
       ctx.out(`note: ${active[k].name} omitted because of collinearity.`);

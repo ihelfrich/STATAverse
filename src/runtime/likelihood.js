@@ -464,7 +464,7 @@ function tobit(session, text, ctx) {
   // ll and ul may stand alone, as ll() does, for the outcome's own limit.
   const [head, tail] = splitAtComma(text),
     parsed = session.parse(
-      "anything [if] [in] [fweight pweight iweight aweight] [, LL(string) UL(string) Level(cilevel) noLOg noCONStant VCE(string) BASElevels ALLBASElevels | OFFset(varname)]",
+      "anything [if] [in] [aweight fweight pweight iweight] [, LL(string) UL(string) Level(cilevel) noLOg noCONStant VCE(string) BASElevels ALLBASElevels | OFFset(varname)]",
       tail === null
         ? text
         : `${head},${tail.replace(/\b(ll|ul)\b(?!\s*\()/g, "$1()")}`,

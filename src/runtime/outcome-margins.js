@@ -579,6 +579,16 @@ export function outcomePredict(session, model, text, ctx) {
       `predict after ${model.command} is not available with these regressors yet`,
       198,
     );
+  // stub* names one new variable for each outcome: stub1, stub2, ...
+  const stub =
+    /^(\s*(?:(?:byte|int|long|float|double)\s+)?)([A-Za-z_]\w*)\*(?=\s|,|$)/.exec(
+      text,
+    );
+  if (stub)
+    text =
+      stub[1] +
+      s.outcomes.map((_, k) => `${stub[2]}${k + 1}`).join(" ") +
+      text.slice(stub[0].length);
   const parsed = session.parse(
       "newvarlist [if] [in] [, Pr XB STDP Outcome(string) | SCores]",
       text,
@@ -590,15 +600,14 @@ export function outcomePredict(session, model, text, ctx) {
     linearOnly = options.xb || options.stdp;
   if (Number(!!options.pr) + Number(!!options.xb) + Number(!!options.stdp) > 1)
     throw new StataError("only one statistic may be specified", 198);
-  if (
-    linearOnly
-      ? names.length > 1
-      : ![1, s.outcomes.length].includes(names.length)
-  )
+  if (linearOnly && names.length > 1)
     throw new StataError(
-      linearOnly
-        ? "too many variables specified"
-        : `you must specify 1 or ${s.outcomes.length} new variables`,
+      `option ${options.xb ? "xb" : "stdp"} requires that you specify 1 new variable\ntoo many variables specified`,
+      103,
+    );
+  if (!linearOnly && ![1, s.outcomes.length].includes(names.length))
+    throw new StataError(
+      `you must specify 1 or ${s.outcomes.length} new variables`,
       names.length > 1 ? 103 : 102,
     );
   let chosen = 0;
@@ -609,15 +618,15 @@ export function outcomePredict(session, model, text, ctx) {
       : s.outcomes.findIndex((value) => String(value) === word);
     if (!(chosen >= 0 && chosen < s.outcomes.length))
       throw new StataError(`outcome ${word} not found`, 303);
-    if (names.length > 1)
-      throw new StataError(
-        "option outcome() is not allowed when several variables are named",
-        198,
-      );
   }
   if (!linearOnly && !options.pr)
     ctx.out(
       `(option pr assumed; predicted ${options.outcome !== undefined ? "probability" : "probabilities"})`,
+    );
+  if (options.outcome !== undefined && names.length > 1)
+    throw new StataError(
+      `option ${linearOnly ? (options.xb ? "xb" : "stdp") : "pr"} with outcome() requires that you specify 1 new variable\ntoo many variables specified`,
+      103,
     );
   const columns = names.map(() => new Array(data.n).fill(MISSING)),
     theta = s.theta;

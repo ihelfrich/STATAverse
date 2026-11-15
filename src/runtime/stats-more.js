@@ -12,7 +12,7 @@ import { applyFormat, parseFormat } from "./format.js";
 import { chi2tail, invttail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
 import { count, perGroup, weightedRows } from "./reports.js";
-import { splitAtComma } from "./syntax.js";
+import { assumedWeights, genericWeight, splitAtComma } from "./syntax.js";
 import { abbreviateColumns } from "./utilities.js";
 import {
   MISSING,
@@ -1085,6 +1085,7 @@ function contract(session, text, ctx) {
     data: isStringType(v.type) ? columns[k] : Float64Array.from(columns[k]),
   }));
   data.n = n;
+  data.esample = null;
   data.sortedBy = [...varlist];
   data.generate(freq, freqs, { type: "long" });
   const total = macro(freqs.reduce((t, f) => t + f, 0)),
@@ -1191,12 +1192,15 @@ function ratio(session, text, ctx) {
   const at = /(?:^|\s)(?:if|in)\s|\[/.exec(head),
     list = at ? head.slice(0, at.index) : head,
     parsed = session.parse(
-      `[if] [in] [pweight fweight iweight] [, ${RATIO_OPTIONS}]`,
+      `[if] [in] [fweight pweight iweight] [, ${RATIO_OPTIONS}]`,
       text.slice(list.length),
     ),
     options = parsed.options,
     data = session.data,
     ratios = readRatios(session, list);
+  // [weight=exp] is a frequency weight, and Stata says so first.
+  if (parsed.weight && genericWeight(text))
+    ctx.out(assumedWeights(parsed.weight.type));
   for (const r of ratios)
     for (const v of [r.y, r.x])
       if (isStringType(v.type))

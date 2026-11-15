@@ -10,6 +10,7 @@ import { zip } from "../console-zip.js";
 import { STANDARD_MESSAGES } from "./error-messages.js";
 import { StataError } from "./errors.js";
 import { applyFormat, parseFormat } from "./format.js";
+import { matrixNamed } from "./matrix.js";
 import { count } from "./reports.js";
 import { Dataset } from "./store.js";
 import {
@@ -1907,8 +1908,8 @@ function putValue(session, value, options) {
 }
 
 function matrixCells(session, name, options) {
-  const matrix = session.matrices?.get(name);
-  if (!matrix) throw new StataError(`matrix ${name} not found`, 111);
+  // A named matrix, or a result matrix such as e(b) or r(table).
+  const matrix = matrixNamed(session, name.replace(/\s+/g, ""));
   const rows = options.names || options.rownames,
     cols = options.names || options.colnames,
     dr = cols ? 1 : 0,

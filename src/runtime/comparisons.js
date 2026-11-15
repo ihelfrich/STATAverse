@@ -250,7 +250,7 @@ function nameTerm(session, name, terms, labelled, seriesBases = null) {
 export function estimatesTable(session, text, ctx) {
   const [head, optionText] = splitAtComma(text),
     parsed = session.parse(
-      "[, B(string) SE SE2(string) STAR STAR2(string) STats(string) | T P KEEP(string) DROP(string) EForm Label Varwidth(integer 12) Modelwidth(integer 12) Title(string) Equations(string) NEWpanel STYle(string) VSquish ALLbaselevels BASElevels noOMITted noEMPTYcells COEFLegend SELegend FVLabel FVWRAP(integer 1)]",
+      "[, B B2(string) SE SE2(string) STAR STAR2(string) STats(string) | T P KEEP(string) DROP(string) EForm Label Varwidth(integer 12) Modelwidth(integer 12) Title(string) Equations(string) NEWpanel STYle(string) VSquish ALLbaselevels BASElevels noOMITted noEMPTYcells COEFLegend SELegend FVLabel FVWRAP(integer 1)]",
       optionText === null ? "" : "," + normalise(optionText),
     ),
     options = parsed.options,
@@ -278,7 +278,7 @@ export function estimatesTable(session, text, ctx) {
         ),
     ),
     entries = names.map((name) => entry(session, name)),
-    format = options.b || "%10.0g",
+    format = options.b2 || "%10.0g",
     seFormat = options.se2 || format,
     withSe = !!options.se || !!options.se2,
     stars = options.star || options.star2,
@@ -586,8 +586,12 @@ export function estimatesTable(session, text, ctx) {
   };
 }
 // star(.1 .05 .01) and se(%9.3f) share their names with the bare options.
+// b, se and star take an argument or none: b(%9.3f) and b alike.
 const normalise = (text) =>
-  text.replace(/\bstar\s*\(/, "star2(").replace(/\bse\s*\(/, "se2(");
+  text
+    .replace(/\bstar\s*\(/, "star2(")
+    .replace(/\bse\s*\(/, "se2(")
+    .replace(/\bb\s*\(/, "b2(");
 
 export function estimatesStats(session, text, ctx) {
   const [head] = splitAtComma(text),

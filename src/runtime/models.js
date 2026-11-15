@@ -351,11 +351,31 @@ export function recheckCollinearity(columns, sample, constant) {
 function maximumLikelihood(kind) {
   const family = FAMILIES[kind];
   return (session, text, ctx) => {
-    const parsed = session.parse(
-        `anything [if] [in] [fweight pweight iweight] [, noCONStant Robust VCE(string) CLuster(string) Level(cilevel) noLOg OR IRr BASElevels ALLBASElevels${family.binary ? " | ASIS" : ""}]`,
+    // Stata's exposure() and offset() are named, so that they are refused
+    // as not yet here rather than as options poisson does not have.
+    const later = [
+      ...(family.binary ? ["ASIS"] : []),
+      ...(kind === "poisson" ? ["EXPosure(string)"] : []),
+      "OFFset(string)",
+    ];
+    let parsed;
+    try {
+      parsed = session.parse(
+        `anything [if] [in] [fweight pweight iweight] [, noCONStant Robust VCE(string) CLuster(string) Level(cilevel) noLOg OR IRr BASElevels ALLBASElevels | ${later.join(" ")}]`,
         text,
-      ),
-      options = parsed.options;
+      );
+    } catch (error) {
+      if (
+        error instanceof StataError &&
+        /^option (exposure|offset) is not available/.test(error.message)
+      )
+        error.hint =
+          kind === "poisson"
+            ? "xtpoisson takes exposure() and offset(); here, leave the option out or fit the panel model."
+            : "Leave out offset(), or enter the offset variable as a regressor to see its coefficient.";
+      throw error;
+    }
+    const options = parsed.options;
     if (kind === "poisson") numericVarlist(session, parsed.anything);
     // Stata resamples observations, which a weight would stand in for.
     if (
@@ -417,6 +437,8 @@ function maximumLikelihood(kind) {
         throw new StataError("negative weights encountered", 402);
     }
     if (!n) throw new StataError("no observations", 2000);
+    // One observation fits nothing, whatever its outcome or weight.
+    if (n < 2) throw new StataError("insufficient observations", 2001);
     let y = sample.map((i) => dependent.data[i]);
     if (family.binary) {
       const outcome = y.map((v) => Number(v !== 0));
@@ -2278,7 +2300,9 @@ function estimatesCommand(session, text, ctx) {
     const model = estimates(session),
       data = session.data,
       marker = `_est_${name}`,
-      inSample = new Set(model.sample),
+      // The sample as the data carry it now, after any sort since the fit.
+      marks = data.esample,
+      inSample = marks ? null : new Set(model.sample),
       order = [...data.sortedBy];
     stored.set(name, { model, e: { ...session.results.e } });
     // The active results are known by the name they were last stored or
@@ -2288,7 +2312,9 @@ function estimatesCommand(session, text, ctx) {
     if (data.has(marker)) data.drop([marker]);
     data.generate(
       marker,
-      Array.from({ length: data.n }, (_, i) => Number(inSample.has(i))),
+      Array.from({ length: data.n }, (_, i) =>
+        marks ? (marks[i] ?? 0) : Number(inSample.has(i)),
+      ),
       { type: "byte" },
     );
     data.get(marker).label = "esample() from estimates store";
@@ -2299,6 +2325,13 @@ function estimatesCommand(session, text, ctx) {
       throw new StataError(`estimation result ${name} not found`, 111);
     session.estimates = entry.model;
     entry.model.storedName = name;
+    // e(sample) is the sample the store marked, wherever the data have
+    // moved it since.
+    const kept = `_est_${name}`;
+    session.data.esample = session.data.has(kept)
+      ? Uint8Array.from(session.data.get(kept).data, (v) => (v === 1 ? 1 : 0))
+      : null;
+    session.data.esampleOf = entry.model;
     session.results.e = { ...entry.e };
     // estimates restore is r-class: r() holds only the name restored.
     session.results.r = { names: name };

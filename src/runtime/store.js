@@ -137,6 +137,12 @@ export class Dataset {
     // Characteristics, notes among them: owner (_dta or a variable) to a
     // Map from characteristic to text, newest first.
     this.chars = new Map();
+    // The estimation sample, which Stata keeps with the data as a hidden
+    // marker: one 0/1 per observation, moved with them when they are sorted
+    // or dropped, with the fit whose sample it is. null when no estimates
+    // mark the data.
+    this.esample = null;
+    this.esampleOf = null;
   }
 
   get names() {
@@ -176,6 +182,11 @@ export class Dataset {
         data.set(v.data);
         v.data = data;
       }
+    }
+    if (this.esample) {
+      const marks = new Uint8Array(n);
+      marks.set(this.esample.subarray(0, Math.min(n, this.esample.length)));
+      this.esample = marks;
     }
     this.n = n;
   }
@@ -341,7 +352,19 @@ export class Dataset {
         ? index.map((i) => v.data[i])
         : Float64Array.from(index, (i) => v.data[i]);
     }
+    this.permuteMarks(index);
     this.n = index.length;
+  }
+  /**
+   * Moves the estimation-sample marker with the observations: index lists
+   * the old observation each new one comes from, or null for a new one.
+   */
+  permuteMarks(index) {
+    const marks = this.esample;
+    if (!marks) return;
+    this.esample = Uint8Array.from(index, (i) =>
+      i === null || i === undefined ? 0 : (marks[i] ?? 0),
+    );
   }
   /** drop in first/last, with one-based inclusive bounds as Stata counts. */
   dropRange(first, last) {
@@ -363,6 +386,7 @@ export class Dataset {
     // variable clears the dataset's characteristics and notes too.
     if (!this.variables.length) {
       this.n = 0;
+      this.esample = null;
       this.chars?.clear();
     }
   }
@@ -399,8 +423,12 @@ export class Dataset {
     if (at >= 0) this.sortedBy = this.sortedBy.slice(0, at);
   }
 
-  /** A copy that later changes to this dataset cannot reach. */
-  snapshot() {
+  /**
+   * A copy that later changes to this dataset cannot reach. With marks, it
+   * keeps the estimation-sample marker too, as preserve does; a file saved
+   * from the data does not.
+   */
+  snapshot({ marks = false } = {}) {
     return {
       n: this.n,
       sortedBy: [...this.sortedBy],
@@ -414,6 +442,9 @@ export class Dataset {
       ),
       ...copyChars(this),
       variables: this.variables.map((v) => ({ ...v, data: v.data.slice() })),
+      ...(marks && this.esample
+        ? { esample: this.esample.slice(), esampleOf: this.esampleOf }
+        : {}),
       // The settings reshape keeps with the data.
       ...(this.reshapeChars
         ? { reshapeChars: structuredClone(this.reshapeChars) }
@@ -437,6 +468,8 @@ export class Dataset {
         ...v,
         data: v.data.slice(),
       })),
+      esample: snapshot.esample ? snapshot.esample.slice() : null,
+      esampleOf: snapshot.esampleOf ?? null,
     });
   }
 

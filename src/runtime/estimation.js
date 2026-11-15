@@ -20,7 +20,12 @@ import {
   perGroup,
   weightedRows,
 } from "./reports.js";
-import { optionItems, splitAtComma } from "./syntax.js";
+import {
+  assumedWeights,
+  genericWeight,
+  optionItems,
+  splitAtComma,
+} from "./syntax.js";
 import { resolveVariable } from "./varlist.js";
 import { parseNumlist } from "./numlist.js";
 import {
@@ -640,6 +645,10 @@ export function fit(session, parsed, by) {
   }
   const n = obs.length;
   if (!n) throw new StataError("no observations", 2000);
+  // One observation (however heavily weighted) fits nothing: Stata says so
+  // before it looks for collinearity.
+  if (new Set(obs).size < 2)
+    throw new StataError("insufficient observations", 2001);
   const y = obs.map((i) => dependent.data[i]),
     active = columns.filter((c) => !c.base),
     x = active.map((c) => obs.map(c.value)),
@@ -654,18 +663,29 @@ export function fit(session, parsed, by) {
   // Choose columns by pivoting: at each step take the column with the most
   // variation left after those already chosen, as Stata does, so which of
   // two collinear variables is omitted does not depend on their order.
+  // With factor variables in the list, Stata's _rmcoll has already omitted
+  // each variable collinear with those before it, the later of two.
   const cross = (a, b) =>
       w
         ? a.reduce((t, v, i) => t + w[i] * v * b[i], 0)
         : a.reduce((t, v, i) => t + v * b[i], 0),
     original = xc.map((column) => cross(column, column)),
     remaining = xc.map((column) => column.slice()),
-    chosen = new Set();
+    chosen = new Set(),
+    factorList = columns.some(
+      (c) =>
+        c.levels ||
+        !c.term?.variable ||
+        /#|(^|#)\d+[bno]*\./.test(c.name),
+    ),
+    set = new Set(
+      factorList ? active.flatMap((c, k) => (c.collinear ? [k] : [])) : [],
+    );
   for (;;) {
     let best = -1,
       size = 0;
     remaining.forEach((column, k) => {
-      if (chosen.has(k)) return;
+      if (chosen.has(k) || set.has(k)) return;
       const norm = cross(column, column);
       if (norm > 1e-11 * original[k] && norm > size * (1 + 1e-12)) {
         best = k;
@@ -676,7 +696,7 @@ export function fit(session, parsed, by) {
     chosen.add(best);
     const pivot = remaining[best].slice();
     remaining.forEach((column, k) => {
-      if (chosen.has(k)) return;
+      if (chosen.has(k) || set.has(k)) return;
       const weight = cross(column, pivot) / size;
       remaining[k] = column.map((v, i) => v - weight * pivot[i]);
     });
@@ -1176,7 +1196,7 @@ export function termRows(
       return out.push(
         model.estimable[k]
           ? `${label.padStart(w)} |${cells(k)}`
-          : `${label.padStart(w)} |${String(omittedValue).padStart(11)}  (omitted)`,
+          : `${label.padStart(w)} |${String(omittedValue).padStart(11)}  (omitted)${baseTail.slice(3)}`,
       );
     }
     // A factor whose only level is a hidden base (which tobit keeps) shows
@@ -1219,7 +1239,10 @@ export function termRows(
               !model.columns[k].empty &&
               !model.columns[k].omittedCell
             ? `${label}|${String(omittedValue).padStart(11)}  (base)${baseTail}`
-            : `${label}|${String(omittedValue).padStart(11)}  (${model.columns[k]?.empty ? "empty" : "omitted"})`,
+            : model.columns[k]?.empty
+              ? `${label}|${String(omittedValue).padStart(11)}  (empty)`
+              : // regress, beta shows an omitted variable's beta, zero.
+                `${label}|${String(omittedValue).padStart(11)}  (omitted)${baseTail.slice(3)}`,
       );
     if (block.term === "_cons" || block.term.variable)
       return row(
@@ -1402,6 +1425,12 @@ function regress(session, text, ctx) {
   model.baseLevels = baseLevelsAsked(parsed.options);
   session.estimates = model;
   session.results.e = regressResults(session, model, text, parsed);
+  // [weight=exp] is an analytic weight, and Stata says so first; the sum
+  // of the weights comes before the notes on the columns.
+  if (parsed.weight && genericWeight(text) && !ctx.replaying)
+    ctx.out(assumedWeights(parsed.weight.type));
+  if (model.wtype && model.wtype !== "fweight")
+    ctx.out(`(sum of wgt is ${g(model.sumW, "%18.0gc")})`);
   // Stata's notes, in the order of the columns; a cell of an interaction
   // is named without its omitted markers.
   for (const column of model.columns)
@@ -1415,8 +1444,6 @@ function regress(session, text, ctx) {
       ctx.out(
         `note: ${unmarked(column.name)} omitted because of collinearity.`,
       );
-  if (model.wtype && model.wtype !== "fweight")
-    ctx.out(`(sum of wgt is ${g(model.sumW, "%18.0gc")})`);
   ctx.out("");
   if (wide) {
     side.forEach((line, k) =>

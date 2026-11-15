@@ -1040,11 +1040,26 @@ function mkmat(session, text) {
 }
 
 /** A[i,j], rowsof(A), colsof(A) and el(A,i,j) for the expression compiler. */
+/**
+ * A matrix by the name an expression or a command gives it: a named matrix,
+ * or a result matrix written as e(b) or r(table).
+ */
+export function matrixNamed(session, name) {
+  const result = /^([er])\((\w+)\)$/.exec(name);
+  if (result) return fromEstimates(session, result[1], result[2]);
+  const matrix = session.matrices?.get(name);
+  if (!matrix) throw new StataError(`matrix ${name} not found`, 111);
+  return matrix;
+}
+
 export function matrixAccess(session) {
+  // A result matrix is built once per expression: e(b) is made from the
+  // fit, which does not change while an expression is evaluated.
+  const results = new Map();
   const find = (name) => {
-    const matrix = session.matrices?.get(name);
-    if (!matrix) throw new StataError(`matrix ${name} not found`, 111);
-    return matrix;
+    if (!/^[er]\(/.test(name)) return matrixNamed(session, name);
+    if (!results.has(name)) results.set(name, matrixNamed(session, name));
+    return results.get(name);
   };
   const squareOf = (name) => {
     const { values } = find(name);
@@ -1053,7 +1068,14 @@ export function matrixAccess(session) {
     return values;
   };
   return {
-    has: (name) => !!session.matrices?.has(name),
+    has: (name) => {
+      try {
+        return Boolean(find(name));
+      } catch (error) {
+        if (error instanceof StataError) return false;
+        throw error;
+      }
+    },
     rows: (name) => find(name).values.length,
     columns: (name) => find(name).colNames.length,
     det: (name) => determinant(squareOf(name)),
