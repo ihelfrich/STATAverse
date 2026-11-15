@@ -97,9 +97,11 @@ function tokenize(source) {
       push("coefficient", { kind: m[1], name: m[2] }, i);
       i += m[0].length;
     } else if (
-      (m = /^((?:[LFDS]\d*)+)\.([\p{L}_][\w\u0080-\u{10FFFF}]*)/iu.exec(rest))
+      (m = /^((?:(?:[LFDS]\d*)+\.)+)([\p{L}_][\w\u0080-\u{10FFFF}]*)/iu.exec(
+        rest,
+      ))
     ) {
-      // L.x, F2.x, D.x, S12.x and chains such as LD.x or l2d.x: lags,
+      // L.x, F2.x, D.x, S12.x and chains such as LD.x, l2d.x or L.F.x: lags,
       // leads, differences and seasonal differences under xtset or tsset,
       // in either case, as Stata reads them.
       if (source[i + m[0].length] === "[")

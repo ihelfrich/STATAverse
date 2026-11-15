@@ -472,9 +472,7 @@ function checkedExpression(session, expression) {
       );
     if (error.code === 198) {
       // A second word is reported by itself; any other fault is syntax.
-      const extra = /^invalid '(\S+)' $/.exec(
-        error.message,
-      );
+      const extra = /^invalid '(\S+)' $/.exec(error.message);
       throw new StataError(
         extra && expression.split(/\s+/).includes(extra[1])
           ? `invalid '${extra[1]}' `

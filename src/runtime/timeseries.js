@@ -9,7 +9,13 @@ import { row, statistic } from "./likelihood.js";
 import { count } from "./reports.js";
 import { project } from "./diagnostics.js";
 import { draw, titleOf, unquote } from "./graphics.js";
-import { MISSING, isMissing, isStringType, missingValue } from "./values.js";
+import {
+  MISSING,
+  isMissing,
+  isName,
+  isStringType,
+  missingValue,
+} from "./values.js";
 import { parseNumlist } from "./numlist.js";
 import { abbreviate, invertSymmetric } from "./estimation.js";
 import { splitAtComma } from "./syntax.js";
@@ -17,12 +23,15 @@ import { timeSeriesOperator } from "./panel.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 
-/** The series in time order, with the rows it came from. */
-function series(session, parsed, name) {
+/**
+ * The series in time order, with the rows it came from. On panel data the
+ * sample must come from one panel, when onePanel allows panel data at all.
+ */
+function series(session, parsed, name, onePanel = false) {
   const panel = session.panel;
   if (!panel?.time)
     throw new StataError("time variable not set, use tsset varname ...", 111);
-  if (panel.id)
+  if (panel.id && !onePanel)
     throw new StataError("this command does not take panel data here", 198);
   const variable = session.data.get(name);
   if (isStringType(variable.type)) throw new StataError("type mismatch", 109);
@@ -31,6 +40,11 @@ function series(session, parsed, name) {
       .rows(parsed, null)
       .filter((i) => !isMissing(time[i]))
       .sort((a, b) => time[a] - time[b]);
+  if (panel.id) {
+    const id = session.data.get(panel.id).data;
+    if (new Set(rows.map((i) => id[i])).size > 1)
+      throw new StataError("sample may not include multiple panels", 459);
+  }
   return { variable, rows, time, values: rows.map((i) => variable.data[i]) };
 }
 
@@ -70,7 +84,7 @@ function corrgram(session, text, ctx) {
       "varname [if] [in] [, LAGs(integer 0) | noPLot YW]",
       text,
     ),
-    { values } = series(session, parsed, parsed.varlist[0]);
+    { values } = series(session, parsed, parsed.varlist[0], true);
   if (values.some((v) => isMissing(v)))
     throw new StataError("sample may not contain gaps", 498);
   const n = values.length,
@@ -109,7 +123,7 @@ function correlationPlot(kind) {
         "varname [if] [in] [, LAGs(integer 0) Level(cilevel) TItle(string) XTItle(string) YTItle(string) *]",
         text,
       ),
-      { variable, values } = series(session, parsed, parsed.varlist[0]);
+      { variable, values } = series(session, parsed, parsed.varlist[0], true);
     if (values.some((v) => isMissing(v)))
       throw new StataError("sample may not contain gaps", 498);
     const n = values.length,
@@ -247,25 +261,29 @@ function tssmooth(session, text, ctx) {
  * The time variable of a single series: its values, its delta, a map from
  * each time to its row, and its display format.
  */
-export function timeFrame(session, command, parsed = null) {
+export function timeFrame(
+  session,
+  command,
+  sample = null,
+  multiple = ["sample may not include multiple panels", 459],
+) {
   const panel = session.panel;
   if (!panel?.time)
     throw new StataError("time variable not set, use tsset varname ...", 111);
-  // A command that takes one panel (parsed given) runs on panel data when
-  // if, in or by leave observations of one panel only, as Stata's
-  // _ts, onepanel allows; its lags stay within that panel.
+  // A command that takes one panel (its sample given, as the parsed if and
+  // in or as rows) runs on panel data when they leave observations of one
+  // panel only, as Stata's _ts, onepanel allows; its lags stay within that
+  // panel. multiple is Stata's message, and its code, for more.
   let only = null;
-  if (panel.id && parsed) {
+  if (panel.id && sample) {
     const id = session.data.get(panel.id).data,
       time = session.data.get(panel.time).data,
       ids = new Set(
-        session
-          .rows(parsed, null)
+        (Array.isArray(sample) ? sample : session.rows(sample, null))
           .filter((i) => !isMissing(time[i]))
           .map((i) => id[i]),
       );
-    if (ids.size > 1)
-      throw new StataError("sample may not include multiple panels", 459);
+    if (ids.size > 1) throw new StataError(...multiple);
     const [one] = ids;
     only = (i) => id[i] === one;
   } else if (panel.id)
@@ -375,10 +393,15 @@ export function tsTerm(variable, ops) {
  * D.x, LD.x, L(1/3).x and L.(x z). Factor variables are refused, as
  * Stata's time-series commands refuse them.
  */
+// A word under time-series operators: L.x, L2D.x, L(1/3).x, L.D.x and
+// L.(x z), in either case; the operators, each chain ending in a period,
+// and what they apply to.
+const OPERATED = /^((?:(?:[LFDS](?:\d+|\([^)]*\))?)+\.)+)(.+)$/i;
+
 export function tsTerms(session, text, { strings = false } = {}) {
   const terms = [];
   for (const token of words(text)) {
-    const m = /^((?:[LFDS](?:\d+|\([^)]*\))?)+)\.(.+)$/i.exec(token);
+    const m = OPERATED.exec(token);
     if (!m) {
       if (/[.#]/.test(token))
         throw new StataError("factor variables not allowed", 101);
@@ -386,26 +409,44 @@ export function tsTerms(session, text, { strings = false } = {}) {
       continue;
     }
     const specs = [...m[1].matchAll(/([LFDS])(\d+|\(([^)]*)\))?/gi)].map(
-        ([, letter, order, list]) => ({
-          letter: letter.toUpperCase(),
-          orders:
-            list !== undefined
-              ? parseNumlist(list)
-              : [order === undefined ? 1 : Number(order)],
-        }),
-      ),
-      inner = m[2],
-      names = session.varlist(
-        inner.startsWith("(") && inner.endsWith(")")
-          ? inner.slice(1, -1)
-          : inner,
+      ([, letter, order, list]) => ({
+        letter: letter.toUpperCase(),
+        orders:
+          list !== undefined
+            ? parseNumlist(list)
+            : [order === undefined ? 1 : Number(order)],
+      }),
+    );
+    // An operator takes at most 100 numbers; Stata shows the operators
+    // above its message.
+    if (specs.some((s) => s.orders.length > 100))
+      throw new StataError(
+        `${m[1].replace(/\.$/, "")}\nnumlist in operator invalid`,
+        198,
       );
-    if (specs.some((s) => s.orders.some((k) => !(k >= 0) || k % 1)))
+    for (const spec of specs)
+      for (const k of spec.orders)
+        if (k < 0 && spec.letter !== "L" && spec.letter !== "F")
+          throw new StataError(`${spec.letter}${k}:  operator invalid`, 198);
+    if (specs.some((s) => s.orders.some((k) => k % 1)))
       throw new StataError("invalid numlist", 121);
+    const inner = m[2];
+    // L.x.y: what follows the operators is one name or a list in
+    // parentheses.
+    if (!inner.startsWith("(") && inner.includes("."))
+      throw new StataError(`${inner} invalid name`, 198);
+    const names = session.varlist(
+      inner.startsWith("(") && inner.endsWith(")") ? inner.slice(1, -1) : inner,
+    );
+    // A negative lag is a lead, and a negative lead a lag: L(-1).x is F.x.
+    const flipped = { L: "F", F: "L" };
     let combos = [[]];
     for (const spec of specs)
       combos = combos.flatMap((c) =>
-        spec.orders.map((k) => [...c, [spec.letter, k]]),
+        spec.orders.map((k) => [
+          ...c,
+          k < 0 ? [flipped[spec.letter], -k] : [spec.letter, k],
+        ]),
       );
     for (const name of names)
       for (const ops of combos) terms.push(tsTerm(name, ops));
@@ -420,8 +461,6 @@ export function tsTerms(session, text, { strings = false } = {}) {
       );
   return terms;
 }
-
-const OPERATED = /^((?:[LFDS](?:\d+|\([^)]*\))?)+)\.(.+)$/i;
 
 /** Where a command's varlist ends: at if, in, a weight or the options. */
 function varlistEnd(text) {
@@ -476,6 +515,9 @@ export function operatorVariables(run) {
         }
       }
     }
+    // Stata makes at most 100 operated variables for a command.
+    if (new Set(wanted.map(({ term }) => term.name)).size > 100)
+      throw new StataError("too many time-series operators", 1000);
     const data = session.data,
       made = [];
     try {
@@ -1036,7 +1078,7 @@ function pperron(session, text, ctx) {
   if (options.constant === false && options.trend)
     throw new StataError("cannot choose trend if constant is excluded", 198);
   const kind = options.constant === false ? 1 : options.trend ? 4 : 2,
-    frame = timeFrame(session, "pperron"),
+    frame = timeFrame(session, "pperron", parsed),
     term = oneSeries(session, parsed.anything),
     name = term.name,
     values = operate(frame, term.ops, session.data.get(term.variable).data),
@@ -1220,12 +1262,25 @@ function dfuller(session, text, ctx) {
   // case 1 has no constant, 2 the constant, 3 the constant with drift and
   // 4 the constant and a trend.
   const kind =
-      options.constant === false ? 1 : options.trend ? 4 : options.drift ? 3 : 2,
+      options.constant === false
+        ? 1
+        : options.trend
+          ? 4
+          : options.drift
+            ? 3
+            : 2,
     lags = Math.max(options.lags, 0),
     data = session.data,
     time = data.get(panel.time).data,
-    id = panel.id ? data.get(panel.id).data : null,
-    column = (ops) => {
+    id = panel.id ? data.get(panel.id).data : null;
+  // dfuller.ado writes the lagged differences as DL(1/#).y, and Stata
+  // makes at most 100 operated variables for a command: these and L.y and
+  // D.y.
+  if (lags > 100)
+    throw new StataError(`DL(1/${lags})\nnumlist in operator invalid`, 198);
+  if (lags + 2 > 100)
+    throw new StataError("too many time-series operators", 1000);
+  const column = (ops) => {
       const value = timeSeriesOperator(session, ops, term.variable);
       return Array.from({ length: data.n }, (_, i) => value(i));
     },
@@ -1293,7 +1348,9 @@ function dfuller(session, text, ctx) {
     ctx.out(`${variable.padEnd(col - 1)}${observations}`);
     ctx.out(`${" ".repeat(col - 1)}${lagLine}`);
   } else {
-    ctx.out(`${"Dickey–Fuller test for unit root".padEnd(col - 1)}${observations}`);
+    ctx.out(
+      `${"Dickey–Fuller test for unit root".padEnd(col - 1)}${observations}`,
+    );
     ctx.out(`${variable.padEnd(col - 1)}${lagLine}`);
   }
   ctx.out("");
@@ -1312,8 +1369,7 @@ function dfuller(session, text, ctx) {
   const f = (v) => applyFormat(v, "%11.3f");
   ctx.out(` Z(t)${" ".repeat(7)}${f(Zt)}  ${critical.map(f).join("  ")}`);
   ctx.out("-".repeat(62));
-  if (kind === 3)
-    ctx.out(`p-value for Z(t) = ${applyFormat(p, "%6.4f")}`);
+  if (kind === 3) ctx.out(`p-value for Z(t) = ${applyFormat(p, "%6.4f")}`);
   else if (kind !== 1)
     ctx.out(
       `MacKinnon approximate p-value for Z(t) = ${applyFormat(p, "%6.4f")}.`,
@@ -1339,9 +1395,7 @@ function dfuller(session, text, ctx) {
       w = stubWidth(session, equations, [depvar.name]);
     ctx.out("");
     ctx.out("Regression table");
-    tableHeading(depvar.name, level, { t: true, w }).forEach((l) =>
-      ctx.out(l),
-    );
+    tableHeading(depvar.name, level, { t: true, w }).forEach((l) => ctx.out(l));
     equationLines(
       equations,
       (j) =>
@@ -1708,7 +1762,10 @@ function varCommand(session, text, ctx) {
     );
   }
   const asked = varSpecification(session, text),
-    frame = timeFrame(session, "var"),
+    frame = timeFrame(session, "var", asked.parsed, [
+      "repeated time values in sample",
+      451,
+    ]),
     selected = session.rows(asked.parsed, null),
     spec = settleCollinear(session, frame, asked, selected, (line) =>
       ctx.out(line),
@@ -2060,7 +2117,12 @@ function varsoc(session, text, ctx) {
     ),
     options = parsed.options,
     given = options.maxlag !== UNSET,
-    frame = timeFrame(session, "varsoc"),
+    frame = timeFrame(
+      session,
+      "varsoc",
+      parsed.anything.trim() ? parsed : null,
+      ["repeated time values in sample", 451],
+    ),
     previous =
       session.estimates?.command === "var" ? session.estimates.varModel : null;
   let endog, exog, constant, maxlag, selected;
@@ -2352,21 +2414,52 @@ function vargranger(session, text, ctx) {
   };
 }
 
-/**
- * tsappend: periods added after the last, for forecasts, as tsappend.ado
- * adds them: add(#) more, or as many as reach last(), a date read with
- * the function tsfmt() names (tq for 2013q1). The new observations are
- * missing but for the time. As in Stata, add() counts from the last time
- * as though the delta were one, and a last() already in the data adds
- * none.
- */
 // ----- varstable, varwle, varnorm and varlmar -----
 
-/** The last var fit, or Stata's message for the command that needs one. */
-function lastVar(session, message) {
-  const model = session.estimates;
-  if (model?.command !== "var") throw new StataError(message, 198);
+/**
+ * The var fit a postestimation command works on: the last one, or the
+ * one estimates() names, as the ado-files restore it for the command
+ * alone. lost gives Stata's messages, and their codes, when there is none
+ * to restore; message is the one for estimates of another command.
+ */
+function lastVar(session, name, message, lost) {
+  let model = session.estimates;
+  if (name && name !== ".") {
+    model = session.storedEstimates?.get(name)?.model;
+    if (!model)
+      throw new StataError(`${lost.restore}(${name})`, lost.namedCode);
+  } else if (!model) throw new StataError(lost.current, lost.currentCode);
+  if (model.command !== "var") throw new StataError(message, 198);
   return model;
+}
+
+/**
+ * A whole number of at least least, as numlist max=1 integer >=# reads
+ * an option.
+ */
+function positiveOption(name, text, fallback, least = 1) {
+  if (text === undefined) return fallback;
+  let values;
+  try {
+    values = parseNumlist(text);
+  } catch (error) {
+    if (!(error instanceof StataError)) throw error;
+    throw new StataError(`${name}() invalid -- invalid number`, 121);
+  }
+  if (values.length !== 1)
+    throw new StataError(`${name}() invalid -- single number required`, 123);
+  const [value] = values;
+  if (value < least)
+    throw new StataError(
+      `${name}() invalid -- invalid number, outside of allowed range`,
+      125,
+    );
+  if (!Number.isInteger(value))
+    throw new StataError(
+      `${name}() invalid -- invalid number, noninteger value`,
+      126,
+    );
+  return value;
 }
 
 /**
@@ -2457,7 +2550,8 @@ export function eigenvalues(matrix) {
           }
           nn -= 2;
         } else {
-          if (its === 60) throw new StataError("eigenvalues did not converge", 430);
+          if (its === 60)
+            throw new StataError("eigenvalues did not converge", 430);
           let xs = x,
             ys = y,
             ws = w;
@@ -2550,14 +2644,33 @@ export function eigenvalues(matrix) {
 function varstable(session, text, ctx) {
   session.results.r = {};
   const parsed = session.parse(
-      "[, | ESTimates(string) Amat(string) GRAPH DLabel MODLabel]",
+      "[, ESTimates(string) Amat(string) DLabel MODLabel GRAPH]",
       text,
     ),
-    model = lastVar(
-      session,
-      "varstable can only be run after var, svar, ivsvar, or xtvar",
+    { dlabel, modlabel, graph } = parsed.options;
+  for (const [option, on] of [
+    ["dlabel", dlabel],
+    ["modlabel", modlabel],
+  ])
+    if (on && !graph)
+      throw new StataError(`${option} cannot be specified without graph`, 198);
+  if (graph)
+    throw new StataError(
+      "option graph is not available in the browser yet",
+      198,
+      "The table of eigenvalues prints without graph.",
     );
-  void parsed;
+  const model = lastVar(
+    session,
+    parsed.options.estimates,
+    "varstable can only be run after var, svar, ivsvar, or xtvar",
+    {
+      current: "could not restore estimates(.)",
+      currentCode: 301,
+      restore: "could not restore estimates",
+      namedCode: 111,
+    },
+  );
   const { spec, k, K } = model.varModel,
     p = Math.max(...spec.lags),
     dim = K * p,
@@ -2571,6 +2684,17 @@ function varstable(session, text, ctx) {
           model.b[e * k + v * spec.lags.length + l];
     });
   for (let r = K; r < dim; r++) companion[r][r - K] = 1;
+  // amat() keeps the companion matrix, its rows and columns numbered.
+  const amat = parsed.options.amat?.trim();
+  if (amat !== undefined) {
+    if (!isName(amat)) throw new StataError(`${amat} invalid name`, 198);
+    (session.matrices ??= new Map()).delete(amat);
+    session.matrices.set(amat, {
+      rowNames: companion.map((_, j) => `r${j + 1}`),
+      colNames: companion.map((_, j) => `c${j + 1}`),
+      values: companion.map((r) => [...r]),
+    });
+  }
   const roots = eigenvalues(companion).map(([re, im]) => ({
     re,
     im,
@@ -2605,14 +2729,20 @@ function varstable(session, text, ctx) {
       : "   VAR does not satisfy stability condition.",
   );
   ctx.out("");
-  const row = (values) => ({
-    rowNames: ["r1"],
+  const row = (values, name = "r1") => ({
+    rowNames: [name],
     colNames: roots.map((_, j) => `c${j + 1}`),
     values: [values],
   });
   session.results.r = {
-    "matrix:Re": row(roots.map((r) => r.re)),
-    "matrix:Im": row(roots.map((r) => r.im)),
+    "matrix:Re": row(
+      roots.map((r) => r.re),
+      "real",
+    ),
+    "matrix:Im": row(
+      roots.map((r) => r.im),
+      "complex",
+    ),
     "matrix:Modulus": row(roots.map((r) => r.modulus)),
   };
 }
@@ -2621,7 +2751,7 @@ function varstable(session, text, ctx) {
 function varwle(session, text, ctx) {
   session.results.r = {};
   const parsed = session.parse(
-      "[, SEParator(integer 0) | ESTimates(string)]",
+      "[, SEParator(integer 0) ESTimates(string)]",
       text,
     ),
     separator = parsed.options.separator;
@@ -2629,7 +2759,14 @@ function varwle(session, text, ctx) {
     throw new StataError(`separator(${separator}) invalid`, 198);
   const model = lastVar(
       session,
+      parsed.options.estimates,
       "varwle only works after var, svar, ivsvar, and xtvar",
+      {
+        current: "cannot restore estimates(.)",
+        currentCode: 301,
+        restore: "cannot restore estimates",
+        namedCode: 111,
+      },
     ),
     { spec, eqNames, k, K, T } = model.varModel,
     lags = spec.lags,
@@ -2706,7 +2843,7 @@ function varwle(session, text, ctx) {
 /** The last var refitted: its residuals, equation by equation, and Sigma. */
 function varRefit(session, model) {
   const info = model.varModel,
-    frame = timeFrame(session, "var");
+    frame = timeFrame(session, "var", info.rows);
   return { frame, fit: fitVar(session, frame, info.spec, info.rows) };
 }
 
@@ -2730,17 +2867,30 @@ function cholesky(m) {
 function varnorm(session, text, ctx) {
   session.results.r = {};
   const parsed = session.parse(
-      "[, Jbera Skewness Kurtosis SEParator(integer 0) | CHOLesky ESTimates(string)]",
+      "[, Jbera Skewness Kurtosis SEParator(string) CHOLesky ESTimates(string)]",
       text,
     ),
     options = parsed.options,
-    separator = options.separator;
-  if (separator < 0) throw new StataError("separator() invalid", 125);
-  const model = lastVar(
+    separator = positiveOption("separator", options.separator, 0, 0),
+    model = lastVar(
       session,
+      options.estimates,
       "varnorm only works with results from var, svar and ivsvar",
-    ),
-    { spec, eqNames, K, T } = model.varModel,
+      {
+        current: "cannot restore estimates(.)",
+        currentCode: 198,
+        restore: "cannot restore estimates",
+        namedCode: 198,
+      },
+    );
+  // After var the residuals are orthogonalized by the Cholesky factor of
+  // their covariance in any case; the option is for svar's estimates.
+  if (options.cholesky)
+    throw new StataError(
+      "cholesky cannot be specified after var or ivsvar",
+      198,
+    );
+  const { spec, eqNames, K, T } = model.varModel,
     all = !options.jbera && !options.skewness && !options.kurtosis,
     { fit } = varRefit(session, model),
     L = cholesky(fit.sigma),
@@ -2844,15 +2994,21 @@ function varnorm(session, text, ctx) {
 function varlmar(session, text, ctx) {
   session.results.r = {};
   const parsed = session.parse(
-      "[, MLag(integer 2) SEParator(integer 0) | ESTimates(string)]",
+      "[, MLag(string) SEParator(integer 0) ESTimates(string)]",
       text,
     ),
-    { mlag, separator } = parsed.options;
-  if (mlag <= 0)
-    throw new StataError("mlag() must be a strictly positive integer", 198);
+    { separator } = parsed.options,
+    mlag = positiveOption("mlag", parsed.options.mlag, 2);
   const model = lastVar(
       session,
+      parsed.options.estimates,
       "varlmar only works with estimates from var, svar or ivsvar",
+      {
+        current: "cannot restore current estimates",
+        currentCode: 498,
+        restore: "cannot restore estimates",
+        namedCode: 198,
+      },
     ),
     { K, T, rows } = model.varModel;
   if (mlag >= T - 1)
@@ -2870,9 +3026,7 @@ function varlmar(session, text, ctx) {
     }),
     results = [];
   for (let j = 1; j <= mlag; j++) {
-    const lagged = residualColumns.map((c) =>
-        operate(frame, [["L", j]], c),
-      ),
+    const lagged = residualColumns.map((c) => operate(frame, [["L", j]], c)),
       extra = lagged.map((c) =>
         fit.rows.map((i) => (isMissing(c[i]) ? 0 : c[i])),
       ),
@@ -2887,9 +3041,7 @@ function varlmar(session, text, ctx) {
         return refit.residuals;
       }),
       sigma = residuals.map((a) =>
-        residuals.map(
-          (b) => a.reduce((t, v, m) => t + v * b[m], 0) / fit.T,
-        ),
+        residuals.map((b) => a.reduce((t, v, m) => t + v * b[m], 0) / fit.T),
       ),
       lm = (T - columns.length - 0.5) * Math.log(detMl / determinant(sigma)),
       df = K * K;
@@ -2920,6 +3072,14 @@ function varlmar(session, text, ctx) {
   };
 }
 
+/**
+ * tsappend: periods added after the last, for forecasts, as tsappend.ado
+ * adds them: add(#) more, or as many as reach last(), a date read with
+ * the function tsfmt() names (tq for 2013q1). The new observations are
+ * missing but for the time. As in Stata, add() counts from the last time
+ * as though the delta were one, and a last() already in the data adds
+ * none.
+ */
 function tsappend(session, text, ctx) {
   session.results.r = {};
   const parsed = session.parse(
@@ -2993,4 +3153,8 @@ export const TIMESERIES_COMMANDS = [
   { name: "var", minimum: 3, run: varCommand },
   { name: "varsoc", minimum: 6, run: varsoc },
   { name: "vargranger", minimum: 10, run: vargranger },
+  { name: "varstable", minimum: 9, run: varstable },
+  { name: "varwle", minimum: 6, run: varwle },
+  { name: "varnorm", minimum: 7, run: varnorm },
+  { name: "varlmar", minimum: 7, run: varlmar },
 ];

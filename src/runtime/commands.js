@@ -3100,9 +3100,7 @@ export const COMMANDS = [
       value = session.scalar(text);
     } catch (error) {
       if (!(error instanceof StataError)) throw error;
-      const extra = /^invalid '(.*)' $/.exec(
-        error.message,
-      );
+      const extra = /^invalid '(.*)' $/.exec(error.message);
       throw malformed(
         extra
           ? `invalid '${extra[1]}'`

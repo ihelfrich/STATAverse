@@ -23,7 +23,7 @@ import {
 import { optionItems, splitAtComma } from "./syntax.js";
 import { operatorGroups, resolveVariable } from "./varlist.js";
 import { parseNumlist } from "./numlist.js";
-import { operatorVariables } from "./timeseries.js";
+import { operatorVariables, tsTerm } from "./timeseries.js";
 import {
   MISSING,
   byteLength,
@@ -104,8 +104,10 @@ export const quadratic = (v, m) =>
 const FACTOR_OPERATOR =
   /^(c|i|ibn|i?b(?:\d+|\(\s*#?\d+\s*\)|\(\s*(?:first|last|freq)\s*\)))\.([A-Za-z_]\w*)$/;
 // A time-series operated variable: L., F., D. and S., each with an order
-// or a numlist in parentheses, combined as in LD.y or L(0/2).x.
-const SERIES_OPERATOR = /^((?:[LFDS](?:\d+|\([^()]*\))?)+)\.([A-Za-z_]\w*)$/i;
+// or a numlist in parentheses, combined as in LD.y, L.D.y or L(0/2).x, in
+// either case.
+const SERIES_OPERATOR =
+  /^((?:(?:[LFDS](?:\d+|\([^()]*\))?)+\.)+)([A-Za-z_]\w*)$/i;
 // The indicator of one level of a factor: 2.g.
 const LEVEL_INDICATOR = /^(\d+)\.([A-Za-z_]\w*)$/;
 
@@ -134,10 +136,22 @@ function seriesVariables(session, word) {
           : [piece[2] ? Number(piece[2]) : 1],
     }),
   );
+  // An operator takes at most 100 numbers; Stata shows the operators
+  // above its message.
+  if (operators.some(({ orders }) => orders.length > 100))
+    throw new StataError(
+      `${m[1].replace(/\.$/, "")}\nnumlist in operator invalid`,
+      198,
+    );
+  // A negative lag is a lead, and a negative lead a lag: L(-1).x is F.x.
+  const flipped = { L: "F", F: "L" };
   let combinations = [[]];
   for (const { op, orders } of operators)
     combinations = combinations.flatMap((done) =>
-      orders.map((k) => [...done, { op, k }]),
+      orders.map((k) => [
+        ...done,
+        k < 0 && flipped[op] ? { op: flipped[op], k: -k } : { op, k },
+      ]),
     );
   const data = session.data,
     id = panel.id ? data.get(panel.id).data : null,
@@ -155,7 +169,12 @@ function seriesVariables(session, word) {
   const minus = (a, b) =>
     a.map((v, i) => (isMissing(v) || isMissing(b[i]) ? MISSING : v - b[i]));
   return combinations.map((ops) => {
-    const used = ops.filter(({ k }) => k !== 0);
+    // Lags and leads net out and the operators are written L, F, D, S, as
+    // Stata names them: L.F.x is x, and DL.x is LD.x.
+    const used = tsTerm(
+      base.name,
+      ops.map(({ op, k }) => [op, k]),
+    ).ops.map(([op, k]) => ({ op, k }));
     if (!used.length) return base;
     let values = Float64Array.from(base.data);
     for (const { op, k } of [...used].reverse()) {
@@ -3647,12 +3666,13 @@ function correlate(session, text, ctx) {
   const groups = operatorGroups(variables),
     heads = new Map(
       groups.flatMap((group) =>
-        group.members.map((k, j) => [k, group.headed && !j ? group.base : null]),
+        group.members.map((k, j) => [
+          k,
+          group.headed && !j ? group.base : null,
+        ]),
       ),
     ),
-    headed = new Set(
-      groups.filter((g) => g.headed).flatMap((g) => g.members),
-    );
+    headed = new Set(groups.filter((g) => g.headed).flatMap((g) => g.members));
   for (let start = 0; start < variables.length; start += across) {
     const block = variables.slice(start, start + across);
     ctx.out("");
