@@ -2035,6 +2035,9 @@ function stcox(session, text, ctx) {
     sample: f.sample,
     level: o.level,
     eform: o.hr !== false ? "Haz. ratio" : null,
+    // The covariates' values over the sample, by which estat phtest
+    // knows the data have changed since (checkestimationsample).
+    fitValues: f.columns.map((c) => f.sample.map((i) => c.value(i))),
     resampled: SURVIVAL_RESAMPLED,
     survival: {
       method: ties,
@@ -3111,6 +3114,21 @@ function phtest(session, text, ctx) {
   const model = estimates(session);
   if (model.kind !== "stcox")
     throw new StataError("last estimates not found", 301);
+  // stphtest checks the estimation sample: observations of it dropped, or
+  // a covariate changed in it, and the test is refused; a sort is not a
+  // change.
+  const changed =
+    model.reducedSample ||
+    !model.sample?.length ||
+    (model.fitValues &&
+      model.columns.some((c, k) =>
+        model.sample.some((i, r) => {
+          const now = c.value(i),
+            then = model.fitValues[k][r];
+          return now !== then && !(Number.isNaN(now) && Number.isNaN(then));
+        }),
+      ));
+  if (changed) throw new StataError("data have changed since estimation", 459);
   const parsed = session.parse(
       "[, Detail KM LOG RANK | TIME(string) PLOT(string) USEOLDBASE]",
       text,

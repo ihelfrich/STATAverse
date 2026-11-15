@@ -6,6 +6,7 @@ import { Ftail, chi2tail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
 import {
   RULE,
+  abbreviate,
   coefficientHeader,
   coefficientRows,
   estimates,
@@ -16,7 +17,7 @@ import {
 } from "./estimation.js";
 import { count } from "./reports.js";
 import { splitAtComma } from "./syntax.js";
-import { isMissing } from "./values.js";
+import { MISSING, isMissing } from "./values.js";
 import { requireTimeOrder } from "./panel.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
@@ -83,6 +84,10 @@ function newey(session, text, ctx) {
         198,
       );
   }
+  // newey.ado accumulates each lag's cross products with mat vecaccum,
+  // which finds no observations when no observation of the sample has
+  // one l periods earlier.
+  const paired = new Array(lag + 1).fill(0);
   for (let r = 0; r < n; r++) {
     for (let a = 0; a < size; a++)
       for (let c = 0; c < size; c++)
@@ -91,12 +96,15 @@ function newey(session, text, ctx) {
       // The observation l periods earlier, if there is one.
       const s = at.get(key(rows[r], time[rows[r]] - l * delta));
       if (s === undefined) continue;
+      paired[l]++;
       const weight = (1 - l / (lag + 1)) * e[r] * e[s];
       for (let a = 0; a < size; a++)
         for (let c = 0; c < size; c++)
           meat[a][c] += weight * (x[r][a] * x[s][c] + x[s][a] * x[r][c]);
     }
   }
+  if (paired.some((count, l) => l > 0 && !count))
+    throw new StataError("no observations", 2000);
   const bread = used.map((r) => used.map((c) => model.xtxInverse[r][c])),
     product = (A, B) =>
       A.map((row) =>
@@ -135,6 +143,42 @@ function newey(session, text, ctx) {
     F,
     df_r: dfResidual,
   });
+  // Under bootstrap and jackknife newey keeps its own header, with the
+  // prefix's F test (missing after bootstrap) and table, and no footnote
+  // of incomplete replications. Names with operators or levels take the
+  // prefix's own layout.
+  if (model.names.every((name) => /^[A-Za-z_]\w*$/.test(name)))
+    model.resampled = {
+      noFootnote: true,
+      tested: (fit) =>
+        fit.names
+          .map((name, k) => (name !== "_cons" && fit.estimable[k] ? k : -1))
+          .filter((k) => k >= 0),
+      show(session, ctx, fit, r) {
+        const jackknife = r.df > 0,
+          F = jackknife ? r.test.F : MISSING,
+          shown = (value, format) =>
+            isMissing(value) ? "." : applyFormat(value, format).trim();
+        if (r.header !== false) {
+          ctx.out(
+            `${"Regression with Newey–West standard errors".padEnd(48)}${side("Number of obs", count(n))}`,
+          );
+          ctx.out(
+            `${`Maximum lag = ${lag}`.padEnd(48)}${side(`F(${String(r.test.df).padStart(3)},${(jackknife ? String(r.df) : ".").padStart(10)})`, shown(F, "%9.2f"))}`,
+          );
+          ctx.out(
+            `${"".padEnd(48)}${side("Prob > F", shown(jackknife ? r.test.p : MISSING, "%6.4f"))}`,
+          );
+          ctx.out("");
+        }
+        if (r.table === false) return;
+        r.heads(ctx, 12, fit.depvar, "Coefficient");
+        fit.names.forEach((name, k) =>
+          ctx.out(r.row(`${abbreviate(name, 12).padStart(12)} `, k)),
+        );
+        ctx.out(RULE);
+      },
+    };
   session.estimates = model;
   session.results.e = {
     N: n,
@@ -304,78 +348,327 @@ function testnl(session, text, ctx) {
   session.results.r = { p, chi2, df };
 }
 
-function hausman(session, text, ctx) {
-  const [head] = splitAtComma(text),
-    names = head.trim().split(/\s+/).filter(Boolean),
-    stored = session.storedEstimates ?? new Map();
-  if (names.length !== 2)
-    throw new StataError("hausman takes two stored models", 198);
-  const [consistent, efficient] = names.map((name) => {
-      const found = stored.get(name);
-      if (!found)
-        throw new StataError(`estimation result ${name} not found`, 111);
-      return found.model;
-    }),
-    usable = (model, name) => {
-      const k = model.names.indexOf(name);
-      return k >= 0 && model.estimable[k] && !model.columns[k]?.base;
-    },
-    common = consistent.names.filter(
-      (name) =>
-        name !== "_cons" && usable(consistent, name) && usable(efficient, name),
-    );
-  if (!common.length) throw new StataError("no coefficients in common", 498);
-  const at = (model) => common.map((name) => model.names.indexOf(name)),
-    a = at(consistent),
-    b = at(efficient),
-    difference = common.map((_, k) => consistent.b[a[k]] - efficient.b[b[k]]),
-    V = common.map((_, r) =>
-      common.map((_, c) => consistent.V[a[r]][a[c]] - efficient.V[b[r]][b[c]]),
+/**
+ * The eigenvalues and eigenvectors of a symmetric matrix, by Jacobi
+ * rotations; vectors[i][k] is the ith element of the kth vector.
+ */
+function symmetricEigen(matrix) {
+  const n = matrix.length,
+    A = matrix.map((row) => [...row]),
+    vectors = A.map((_, i) => A.map((__, j) => Number(i === j)));
+  for (let sweep = 0; sweep < 100; sweep++) {
+    let off = 0;
+    for (let p = 0; p < n; p++)
+      for (let q = p + 1; q < n; q++) off += A[p][q] ** 2;
+    if (off < 1e-30) break;
+    for (let p = 0; p < n; p++)
+      for (let q = p + 1; q < n; q++) {
+        if (!A[p][q]) continue;
+        const theta = (A[q][q] - A[p][p]) / (2 * A[p][q]),
+          t =
+            Math.sign(theta || 1) /
+            (Math.abs(theta) + Math.sqrt(theta * theta + 1)),
+          c = 1 / Math.sqrt(t * t + 1),
+          s = t * c;
+        for (let k = 0; k < n; k++) {
+          const kp = A[k][p],
+            kq = A[k][q];
+          A[k][p] = c * kp - s * kq;
+          A[k][q] = s * kp + c * kq;
+        }
+        for (let k = 0; k < n; k++) {
+          const pk = A[p][k],
+            qk = A[q][k];
+          A[p][k] = c * pk - s * qk;
+          A[q][k] = s * pk + c * qk;
+        }
+        for (let k = 0; k < n; k++) {
+          const kp = vectors[k][p],
+            kq = vectors[k][q];
+          vectors[k][p] = c * kp - s * kq;
+          vectors[k][q] = s * kp + c * kq;
+        }
+      }
+  }
+  return { values: A.map((row, i) => row[i]), vectors };
+}
+
+/**
+ * The Moore-Penrose inverse of a symmetric matrix and its rank, as
+ * hausman.ado's MatGinv finds them: the singular values (here the absolute
+ * eigenvalues) above max * n * 1e-9 are inverted, the rest set to zero.
+ */
+function generalizedInverse(A) {
+  const n = A.length,
+    { values, vectors } = symmetricEigen(A),
+    largest = Math.max(0, ...values.map(Math.abs)),
+    tolerance = largest * n * 1e-9,
+    kept = values.map((v) => Math.abs(v) > tolerance);
+  return {
+    rank: kept.filter(Boolean).length,
+    // A matrix is positive definite when its smallest eigenvalue is.
+    positive: Math.min(...values) > 0,
+    inverse: A.map((_, r) =>
+      A.map((__, c) =>
+        values.reduce(
+          (t, v, k) => (kept[k] ? t + (vectors[r][k] * vectors[c][k]) / v : t),
+          0,
+        ),
+      ),
     ),
-    inverse = invertSymmetric(V);
+  };
+}
+
+/**
+ * A paragraph of text wrapped as SMCL's {p} wraps it, the first line
+ * indented first and the rest indented rest, keeping the double blank a
+ * sentence ends with.
+ */
+function paragraph(text, width, first = 0, rest = 0) {
+  const lines = [];
+  let line = " ".repeat(first),
+    empty = true;
+  for (const word of text.split(" ")) {
+    if (empty) {
+      if (!word) continue;
+      line += word;
+      empty = false;
+    } else if (line.length + 1 + word.length <= width) line += ` ${word}`;
+    else if (!word) continue;
+    else {
+      lines.push(line);
+      line = " ".repeat(rest) + word;
+    }
+  }
+  if (!empty) lines.push(line);
+  return lines;
+}
+
+/** Text centred in a field, the odd blank on the right, as %~12s puts it. */
+const centred = (text, width) => {
+  const room = Math.max(0, width - text.length),
+    left = Math.floor(room / 2);
+  return " ".repeat(left) + text + " ".repeat(room - left);
+};
+
+function hausman(session, text, ctx) {
+  const [head, typed] = splitAtComma(text),
+    names = head.trim().split(/\s+/).filter(Boolean),
+    stored = session.storedEstimates ?? new Map(),
+    options = {};
+  for (const option of (typed ?? "").match(
+    /[A-Za-z_]\w*\s*(\((?:[^()]|\([^()]*\))*\))?/g,
+  ) ?? []) {
+    const word = /^\w+/.exec(option)[0],
+      inside = /^\w+\s*\(([\s\S]*)\)$/.exec(option)?.[1];
+    if (inside === undefined && /^a(l(l(e(qs?)?)?)?)?$/.test(word))
+      options.alleqs = true;
+    else if (inside === undefined && /^c(o(n(s(t(a(nt?)?)?)?)?)?)?$/.test(word))
+      options.constant = true;
+    else if (inside === undefined && /^sig(m(a(m(o(re?)?)?)?)?)?$/.test(word))
+      options.sigmamore = true;
+    else if (inside === undefined && /^sigmal(e(ss?)?)?$/.test(word))
+      options.sigmaless = true;
+    else if (inside === undefined && word === "force") options.force = true;
+    else if (inside !== undefined && /^sk(i(p(e(qs?)?)?)?)?$/.test(word))
+      options.skipeqs = inside;
+    else if (
+      inside !== undefined &&
+      /^tcon(s(i(s(t(e(nt?)?)?)?)?)?)?$/.test(word)
+    )
+      options.tconsistent = inside.trim();
+    else if (inside !== undefined && /^teff(i(c(i(e(nt?)?)?)?)?)?$/.test(word))
+      options.tefficient = inside.trim();
+    else if (inside !== undefined && word === "df") {
+      const value = Number(inside.trim());
+      if (!inside.trim() || !Number.isFinite(value))
+        throw new StataError("df() invalid -- invalid numlist", 121);
+      if (!Number.isInteger(value))
+        throw new StataError(
+          "df() invalid -- invalid numlist has noninteger elements",
+          126,
+        );
+      if (!(value > 0 && value < 11000))
+        throw new StataError(
+          "df() invalid -- invalid numlist has elements outside of allowed range",
+          125,
+        );
+      options.df = value;
+    } else if (
+      (inside !== undefined && /^eq(u(a(t(i(o(ns?)?)?)?)?)?)?$/.test(word)) ||
+      (inside === undefined && /^(syminv|reveq)$/.test(word))
+    )
+      throw new StataError(
+        `option ${word}${inside === undefined ? "" : "()"} is not available in the browser yet`,
+        198,
+        "hausman here compares the coefficients of the first equation.",
+      );
+    else
+      throw new StataError(
+        `option ${word}${inside === undefined ? "" : "()"} not allowed`,
+        198,
+      );
+  }
+  if (!names.length || names.length > 2)
+    throw new StataError("hausman takes one or two stored models", 198);
+  if (names.length === 1) names.push(".");
+  if (names[0] === names[1])
+    throw new StataError("the two models need to be different", 198);
+  // Each model, the stored ones by name and . the active results.
+  const entries = names.map((name) => {
+    if (name === ".") {
+      if (!session.estimates)
+        throw new StataError("last estimates not found", 301);
+      return { model: session.estimates, e: session.results.e };
+    }
+    const found = stored.get(name);
+    if (!found)
+      throw new StataError(`estimation result ${name} not found`, 111);
+    return found;
+  });
+  for (const { model, e } of entries)
+    if (
+      (model.vce === "cluster" ||
+        model.vce === "robust" ||
+        e?.clustvar ||
+        e?.vce === "robust" ||
+        model.wtype === "pweight") &&
+      !options.force
+    )
+      throw new StataError(
+        "hausman cannot be used with vce(robust), vce(cluster cvar), or p-weighted data",
+        198,
+      );
+  // The coefficients of the first equation with a variance, without the
+  // constant unless asked for (Strik0, Get1steq and Rmcons).
+  const kept = ({ model }) =>
+      model.names
+        .map((name, k) => ({ name, k }))
+        .filter(
+          ({ name, k }) =>
+            !name.startsWith("/") &&
+            !name.includes(":") &&
+            model.V[k][k] !== 0 &&
+            !isMissing(model.V[k][k]) &&
+            (options.constant || name !== "_cons"),
+        ),
+    [first, second] = entries.map(kept),
+    common = first.filter(({ name }) =>
+      second.some((other) => other.name === name),
+    );
+  if (!common.length)
+    throw new StataError(
+      "no coefficients in common; specify equations(matchlist)\nfor problems with different equation names.",
+      498,
+    );
+  const [consistent, efficient] = entries.map((entry) => entry.model),
+    a = common.map(({ k }) => k),
+    b = common.map(({ name }) => second.find((other) => other.name === name).k);
+  // sigmamore puts both variances on the efficient model's sigma, and
+  // sigmaless on the consistent model's.
+  let scale1 = 1,
+    scale2 = 1;
+  if (options.sigmamore || options.sigmaless) {
+    const sigma = ({ e }) =>
+        e?.cmd === "xtreg"
+          ? e.model === "fe" || e.model === "ml"
+            ? e.sigma_e
+            : e.rmse
+          : (e?.sigma ?? e?.rmse),
+      [s1, s2] = entries.map(sigma);
+    if (typeof s1 !== "number" || typeof s2 !== "number")
+      throw new StataError(
+        "Estimators do not save e(sigma) or e(rmse),\nsigma option not allowed",
+        198,
+      );
+    if (options.sigmamore) scale1 = (s2 / s1) ** 2;
+    else scale2 = (s1 / s2) ** 2;
+  }
+  const difference = common.map(
+      (_, k) => consistent.b[a[k]] - efficient.b[b[k]],
+    ),
+    raw = common.map((_, r) =>
+      common.map(
+        (_, c) =>
+          scale1 * consistent.V[a[r]][a[c]] - scale2 * efficient.V[b[r]][b[c]],
+      ),
+    ),
+    V = raw.map((row, r) => row.map((v, c) => (v + raw[c][r]) / 2)),
+    { rank, positive, inverse } = generalizedInverse(V),
+    chi2 = quadratic(difference, inverse),
+    df = options.df ?? rank,
+    p = chi2tail(df, chi2);
+  if (rank !== common.length) {
+    ctx.out("");
+    paragraph(
+      `Note: the rank of the differenced variance matrix (${rank}) does not equal the number of coefficients being tested (${common.length}); be sure this is what you expect, or there may be problems computing the test.  Examine the output of your estimators for anything unexpected and possibly consider scaling your variables so that the coefficients are on a similar scale.`,
+      session.settings.linesize ?? 79,
+      0,
+      8,
+    ).forEach((line) => ctx.out(line));
+  }
+  // The models are named as typed, or by tconsistent() and tefficient();
+  // . the active results, by the name they were stored under.
+  const title = (k) => {
+    const given = k ? options.tefficient : options.tconsistent;
+    if (given !== undefined) return given;
+    const name =
+      names[k] === "." ? (entries[k].model.storedName ?? ".") : names[k];
+    return name === "." ? "." : abbreviate(name, 12);
+  };
   ctx.out("");
   ctx.out("                 ---- Coefficients ----");
   ctx.out(
     "             |      (b)          (B)            (b-B)     sqrt(diag(V_b-V_B))",
   );
   ctx.out(
-    `             |${names[0].padStart(9)}${names[1].padStart(13)}         Difference       Std. err.`,
+    `             |  ${centred(title(0), 12)} ${centred(title(1), 12)}    Difference       Std. err.`,
   );
   ctx.out(SPLIT);
-  common.forEach((name, k) =>
+  common.forEach(({ name }, k) =>
     ctx.out(
-      `${name.padStart(12)} |${g(consistent.b[a[k]]).padStart(12)}${g(efficient.b[b[k]]).padStart(13)}${g(difference[k]).padStart(16)}${(V[k][k] > 0 ? g(Math.sqrt(V[k][k])) : ".").padStart(16)}`,
+      `${abbreviate(name, 12).padStart(12)} |${g(consistent.b[a[k]]).padStart(12)}${g(efficient.b[b[k]]).padStart(13)}${g(difference[k]).padStart(16)}${(V[k][k] >= 0 ? g(Math.sqrt(V[k][k])) : ".").padStart(16)}`,
     ),
   );
   ctx.out(RULE);
+  const command = (k) =>
+    entries[k].e?.cmd2 || entries[k].e?.cmd || entries[k].model.command;
   ctx.out(
-    `b = Consistent under H0 and Ha; obtained from ${consistent.command}.`.padStart(
-      78,
-    ),
+    `b = Consistent under H0 and Ha; obtained from ${command(0)}.`.padStart(78),
   );
   ctx.out(
-    `B = Inconsistent under Ha, efficient under H0; obtained from ${efficient.command}.`.padStart(
+    `B = Inconsistent under Ha, efficient under H0; obtained from ${command(1)}.`.padStart(
       78,
     ),
   );
   ctx.out("");
   ctx.out("Test of H0: Difference in coefficients not systematic");
   ctx.out("");
-  if (!inverse) {
+  const label = `chi2(${g(df)})`;
+  if (chi2 >= 0) {
+    const width = Math.max(11, label.length),
+      shownChi2 = applyFormat(chi2, "%10.2f").trim(),
+      shownP = applyFormat(p, "%10.4f").trim(),
+      numbers = Math.max(shownChi2.length, shownP.length);
+    ctx.out(`${label.padStart(width)} = (b-B)'[(V_b-V_B)^(-1)](b-B)`);
+    ctx.out(`${"".padStart(width)} = ${shownChi2.padStart(numbers)}`);
+    ctx.out(`${"Prob > chi2".padStart(width)} = ${shownP.padStart(numbers)}`);
+    if (!positive) ctx.out("(V_b-V_B is not positive definite)");
+  } else {
+    ctx.out(`${label} = (b-B)'[(V_b-V_B)^(-1)](b-B)`);
     ctx.out(
-      "    V_b-V_B is not positive definite; the test cannot be computed here",
+      `${" ".repeat(label.length)} = ${applyFormat(chi2, "%10.2f").trim()}`,
     );
     ctx.out("");
-    throw new StataError("", 498);
+    paragraph(
+      "Warning: chi2 < 0 ==> model fitted on these data fails to meet the asymptotic assumptions of the Hausman test; see suest for a generalized test.",
+      50,
+      0,
+      9,
+    ).forEach((line) => ctx.out(line));
   }
-  const chi2 = quadratic(difference, inverse),
-    df = common.length,
-    p = chi2tail(df, chi2);
-  ctx.out(`    chi2(${df}) = (b-B)'[(V_b-V_B)^(-1)](b-B)`);
-  ctx.out(`            =${applyFormat(chi2, "%7.2f")}`);
-  ctx.out(`Prob > chi2 = ${applyFormat(p, "%6.4f")}`);
   ctx.out("");
-  session.results.r = { rank: df, chi2, df, p };
+  session.results.r = { rank, chi2, df, p };
 }
 
 /** Least squares of y on the columns given, with no constant added. */

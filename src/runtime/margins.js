@@ -475,6 +475,12 @@ function margins(session, text, ctx) {
     // An offset or exposure enters each observation's linear prediction at
     // its own value, whatever at() and atmeans fix, as in Stata.
     shift = chosen?.offset ?? null;
+  // A prefix's results from a command that is not an estimator (bootstrap
+  // r(mean): summarize): margins looks for a variable named after the
+  // first statistic, as Stata's does.
+  const posted = session.results.e ?? {};
+  if (!model.columns && posted.prefix && posted.cmdname && model.names?.length)
+    throw new StataError(`variable ${model.names[0]} not found`, 111);
   if (!link || !model.sample)
     throw new StataError(
       `margins is not available after ${model.command} yet`,
@@ -483,6 +489,13 @@ function margins(session, text, ctx) {
   if (model.columns.some((c) => !c.evaluate))
     throw new StataError(
       `margins is not available after ${model.command} yet`,
+      322,
+    );
+  // None of the fit's observations is in the data (they were read in again,
+  // reshaped or dropped).
+  if (!model.sample.length)
+    throw new StataError(
+      "e(sample) does not identify the estimation sample",
       322,
     );
   const [mean, slope, curve] = link,

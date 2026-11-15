@@ -920,9 +920,16 @@ const TIME_SERIES = new Set([
  * Whether the data, tsset, repeat a time (within a panel) that a
  * time-series command `name` would refuse, as a bootstrap sample does.
  */
-function repeatedTimes(session, name) {
+function repeatedTimes(session, name, command = "") {
+  if (!TIME_SERIES.has(name)) return false;
+  // newey with lag(0) uses no lags, and its tsset data may repeat times.
+  if (name === "newey" && /\blag\s*\(\s*0+\s*\)/.test(command)) return false;
+  return repeatedPanelTimes(session);
+}
+/** Whether the data repeat a time within a panel of their tsset. */
+function repeatedPanelTimes(session) {
   const panel = session.panel;
-  if (!panel?.time || !TIME_SERIES.has(name)) return false;
+  if (!panel?.time) return false;
   const data = session.data,
     time = data.get(panel.time).data,
     id = panel.id ? data.get(panel.id).data : null,
@@ -1977,11 +1984,19 @@ function bootstrap(session, text, ctx) {
       }
       takeRows(data, drawn.rows);
       if (idcluster) setClusterIds(data, idcluster, drawn.ids);
+      // _loop_bs.ado sets panel data again after each sample of clusters;
+      // a cluster drawn twice under its own panel variable repeats that
+      // panel's times, and bootstrap stops.
+      if (panels && repeatedPanelTimes(session)) {
+        const text =
+          "repeated time values within panel\nthe most likely cause for this error is misspecifying the cluster(),\nidcluster(), or group() option";
+        throw new StataError(quiet ? text : `${title}${text}`, 451);
+      }
       // A time-series command refuses the repeated times of a sample, and
       // an operator its data out of order. Without the dots each failure
       // shows its message.
       const loud = quiet && !noisy,
-        values = repeatedTimes(session, name)
+        values = repeatedTimes(session, name, command)
           ? failure(ctx, loud, "repeated time values in sample")
           : unsorted
             ? failure(ctx, loud, "not sorted")
@@ -2166,7 +2181,8 @@ function bootstrap(session, text, ctx) {
           heads: prefixHeads("bootstrap", mse, shownLevel),
           row,
         });
-        if (shown.table) incomplete(ctx, failed, "bootstrap");
+        if (shown.table && !own.noFootnote)
+          incomplete(ctx, failed, "bootstrap");
         return true;
       }
       // A replay with nohr shows the coefficients as bootstrap's own
@@ -2743,7 +2759,8 @@ function jackknife(session, text, ctx) {
           heads: prefixHeads("jackknife", mse, shownLevel),
           row,
         });
-        if (shown.table) incomplete(ctx, failed, "jackknife");
+        if (shown.table && !own.noFootnote)
+          incomplete(ctx, failed, "jackknife");
         return true;
       }
       const display = plain ? plainFit(fit, "Jackknife results", eform) : fit;
@@ -3058,6 +3075,9 @@ export function resamplingEstat(session, text, ctx) {
   // teffects' own estat has no bootstrap.
   if (session.estimates?.command === "teffects")
     throw new StataError("estat bootstrap is not allowed", 321);
+  // Nor has xtreg's (xtreg_estat.ado knows no bootstrap).
+  if (session.estimates?.command === "xtreg")
+    throw new StataError("estat bootstrap not valid", 321);
   const tail = text.trim().slice(what.length);
   // The intervals are those the prefix saved, at its level.
   if (/(^|[\s,])l(e(v(el?)?)?)?\s*\(/i.test(tail))

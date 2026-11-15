@@ -3127,6 +3127,15 @@ function collapse(session, text, ctx) {
     });
   }
   result.sortedBy = [...by];
+  // collapse.ado keeps the last observation of each group, which carries
+  // its estimation-sample marker with it.
+  if (data.esample) {
+    result.esample = Uint8Array.from(
+      order,
+      (members) => data.esample[members.at(-1)] ?? 0,
+    );
+    result.esampleOf = data.esampleOf;
+  }
   rebuilt(session, result);
 }
 
