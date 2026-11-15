@@ -3057,6 +3057,34 @@ function didregress(xt) {
     const weights = weightsOf(session, parsed);
     if (options.group === undefined)
       throw new StataError("option group() required", 198);
+    // group() and time() name variables as didregress's own parser checks
+    // them, with its messages.
+    const exists = (word) => {
+        try {
+          session.varlist(word);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      groupWords = options.group.trim().split(/\s+/).filter(Boolean),
+      timeWords = (options.time ?? "").trim().split(/\s+/).filter(Boolean);
+    if (groupWords.length === 1 && !exists(groupWords[0]))
+      throw new StataError(`${groupWords[0]} is not in your data`, 198);
+    if (groupWords.some((word) => !exists(word)))
+      throw new StataError(
+        `an element in group(${groupWords.join(" ")}) is not in your data`,
+        198,
+      );
+    if (timeWords.length > 1)
+      throw new StataError("there may be at most one argument in time()", 198);
+    if (timeWords.length && /[*?~-]/.test(timeWords[0]))
+      throw new StataError("invalid time() specification", 198);
+    if (timeWords.length && !exists(timeWords[0]))
+      throw new StataError(
+        `${timeWords[0]} is not a variable in your data`,
+        198,
+      );
     const groupNames = session.varlist(options.group);
     if (groupNames.length > 1)
       throw new StataError(

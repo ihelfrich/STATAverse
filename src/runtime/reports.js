@@ -2094,8 +2094,15 @@ export const perGroup = (run) => (session, text, ctx) => {
     try {
       run(session, text, { ...ctx, group });
     } catch (error) {
-      if (!(error instanceof StataError && [2000, 2001].includes(error.code)))
-        throw error;
+      if (!(error instanceof StataError)) throw error;
+      // by, rc0 goes on past any error, saying what it was.
+      if (ctx.by.rc0 && ![2000, 2001].includes(error.code)) {
+        if (error.message) ctx.out(error.message);
+        ctx.out(`(return code was ${error.code})`);
+        ctx.out("");
+        continue;
+      }
+      if (![2000, 2001].includes(error.code)) throw error;
       ctx.out(error.message);
       ctx.out("");
     }

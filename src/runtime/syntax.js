@@ -659,7 +659,10 @@ export function applySyntax(declaration, text, context) {
     let names;
     if (leading) {
       names = existingVariables(leading, position.specs, context);
-      checkCount(names.length, position.specs, position.kind);
+      // _all with no variables in memory is a list of none, which Stata's
+      // drop, keep, describe, order, sort and the others accept.
+      if (names.length || !/^\s*_all\s*$/.test(leading))
+        checkCount(names.length, position.specs, position.kind);
     } else if (!position.optional)
       throw new StataError("varlist required", 100);
     else

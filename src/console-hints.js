@@ -312,6 +312,20 @@ function advise(record, { commands = [], variables = [] }) {
     help = command || "",
     name = command || word || "That command",
     names = [...new Set(commands.map((c) => c.name))];
+  // A real Stata command or function the browser lacks: no typo to hunt.
+  const lacking =
+    /^(\S+) is a Stata command that the browser does not run yet/m.exec(
+      message,
+    ) ??
+    /^(\S+)\(\) is a Stata function that is not available in the browser yet/m.exec(
+      message,
+    );
+  if (lacking)
+    return {
+      text: `${lacking[1]} is part of Stata but not of this browser version yet. The Commands list shows what runs here.`,
+      help: "",
+      suggest: [],
+    };
   // A command that does not run here: what does, nearest first.
   const unknown = /command (\S+) is unrecognized/.exec(message);
   if (rc === 199 && unknown) {

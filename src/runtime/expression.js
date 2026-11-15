@@ -8,6 +8,7 @@
 // that running sums and regexm keep between observations.
 import { StataError } from "./errors.js";
 import { FUNCTIONS, dateLiteral } from "./functions.js";
+import { UNAVAILABLE_FUNCTIONS } from "./functions-more.js";
 import { resolveVariable } from "./varlist.js";
 import {
   DOUBLE_MAX,
@@ -28,12 +29,13 @@ const number = (v) => (v <= DOUBLE_MAX && v >= -DOUBLE_MAX ? v : MISSING);
 function tokenize(source) {
   const tokens = [];
   let i = 0;
-  const push = (type, value, start) =>
+  const push = (type, value, start, raw) =>
     tokens.push({
       type,
       value,
       spaced: start > 0 && /\s/.test(source[start - 1]),
       start,
+      ...(raw === undefined ? {} : { raw }),
     });
   while (i < source.length) {
     const c = source[i],
@@ -81,7 +83,7 @@ function tokenize(source) {
       if (/^[\p{L}_]/u.test(source.slice(i + m[0].length, i + m[0].length + 2)))
         throw invalid(`${m[0]}${source[i + m[0].length]} invalid number`);
       const value = Number(m[0].replace(/[dD]/, "e"));
-      push("number", value > DOUBLE_MAX ? MISSING : value, i);
+      push("number", value > DOUBLE_MAX ? MISSING : value, i, m[0]);
       i += m[0].length;
     } else if ((m = /^\.([a-z])?(?![\p{L}\p{Nd}_.])/u.exec(rest))) {
       push("number", missingValue(m[1] ?? ""), i);
@@ -125,7 +127,7 @@ function tokenize(source) {
       // does not know: q.x.
       if (/^\.[\p{L}_]/u.test(source.slice(i + m[0].length)))
         throw invalid(`${m[0]}:  operator invalid`);
-      push("name", m[0], i);
+      push("name", m[0], i, m[0]);
       i += m[0].length;
     } else if (
       (m = /^(==|!=|~=|>=|<=|[!~]\s+=(?!=)|[-+*/^<>&|!~()[\],])/.exec(rest))
@@ -141,6 +143,8 @@ function tokenize(source) {
       );
       i += m[0].length;
     } else if (c === "=") throw invalid("= is not a comparison; use ==");
+    // A brace, as the { that ends display 1 {, is plain invalid syntax.
+    else if (c === "{" || c === "}") throw invalid();
     else {
       // Stata names the whole word the character is in: 'abc' invalid name.
       const operator = /[\s\-+*/^<>&|!~()[\],=]/;
@@ -151,7 +155,43 @@ function tokenize(source) {
       throw invalid(`${source.slice(from, to)} invalid name`);
     }
   }
-  return tokens;
+  // Inside parentheses Stata reads on past the blanks between two names or
+  // numbers: (1 2) is 12, and inrange(x 1 2) names a variable x12.
+  const joined = [];
+  let depth = 0;
+  for (const token of tokens) {
+    if (token.type === "op" && token.value === "(") depth++;
+    else if (token.type === "op" && token.value === ")") depth--;
+    const last = joined.at(-1);
+    // After a string, Stata passes over what follows: ("a" "b") is "a".
+    if (
+      depth > 0 &&
+      token.spaced &&
+      last?.type === "string" &&
+      ["string", "number", "name"].includes(token.type)
+    )
+      continue;
+    if (
+      depth > 0 &&
+      token.spaced &&
+      token.raw !== undefined &&
+      last?.raw !== undefined
+    ) {
+      const raw = last.raw + token.raw;
+      if (/^[\p{L}_]/u.test(raw))
+        Object.assign(last, { type: "name", value: raw, raw });
+      else if (/^(?:\d+\.?\d*|\.\d+)(?:[eEdD][+-]?\d+)?$/.test(raw))
+        Object.assign(last, {
+          type: "number",
+          value: Number(raw.replace(/[dD]/, "e")),
+          raw,
+        });
+      else throw invalid(`${raw} invalid number`);
+      continue;
+    }
+    joined.push(token);
+  }
+  return joined;
 }
 
 /**
@@ -422,6 +462,11 @@ export function compileExpression(source, scope = {}) {
       return scope.format(args, { node, numeric, mismatch, invalid });
     }
     const definition = FUNCTIONS[name];
+    if (!definition && UNAVAILABLE_FUNCTIONS.has(name))
+      throw new StataError(
+        `${name}() is a Stata function that is not available in the browser yet`,
+        198,
+      );
     if (!definition) throw new StataError(`unknown function ${name}()`, 133);
     const variadic = !Array.isArray(definition.args),
       maximum = definition.max ?? (variadic ? 255 : definition.args.length),
@@ -546,7 +591,7 @@ export function compileExpression(source, scope = {}) {
     const extra = tokens[at];
     if (extra.type === "op" && extra.value === ",")
       throw new StataError("options not allowed", 101);
-    if (extra.type === "op" && extra.value === "(")
+    if (extra.type === "op" && extra.value === "(" && !extra.spaced)
       throw new StataError("unknown function ()", 133);
     if (extra.type === "op" && extra.value === ")")
       throw new StataError("too many ')' or ']'", 132);

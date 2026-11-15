@@ -39,6 +39,7 @@ import { density, invnormal, normal } from "./functions-normal.js";
 import { Generator } from "./random.js";
 import { civilFromDays, daysFromCivil, mdy, readLiteral } from "./datetime.js";
 import { DATETIME_FUNCTIONS } from "./functions-datetime.js";
+import { MORE_FUNCTIONS } from "./functions-more.js";
 
 export { invnormal, normal };
 
@@ -322,7 +323,13 @@ export const FUNCTIONS = {
   },
 
   lngamma: one(lngamma),
-  ibeta: { args: [N, N, N], returns: N, fn: ibeta },
+  // Below 0 the integral is 0 and above 1 it is 1, as in Stata.
+  ibeta: {
+    args: [N, N, N],
+    returns: N,
+    fn: (a, b, x) =>
+      !(a > 0 && b > 0) ? MISSING : x < 0 ? 0 : x > 1 ? 1 : ibeta(a, b, x),
+  },
   gammap: { args: [N, N], returns: N, fn: gammap },
   ttail: { args: [N, N], returns: N, fn: ttail },
   t: {
@@ -372,10 +379,16 @@ export const FUNCTIONS = {
     min: 0,
     returns: N,
     state: true,
-    // runiform(a, b) needs a < b, both nonmissing; otherwise it is missing
-    // and, as in Stata, takes no draw from the stream.
+    // runiform(a,b) needs b at least 2^-51 above a; otherwise, as with a
+    // missing bound, Stata returns missing and uses up no draw.
     fn: (state, a, b) => {
-      if (a !== undefined && !(b !== undefined && a < b && !isMissing(b)))
+      if (
+        a !== undefined &&
+        (b === undefined ||
+          isMissing(a) ||
+          isMissing(b) ||
+          !(b - a >= 2 ** -51))
+      )
         return MISSING;
       const u = (state.rng ??= new Generator(state.seed)).uniform();
       return a === undefined ? u : a + (b - a) * u;
@@ -425,16 +438,20 @@ export const FUNCTIONS = {
     returns: N,
     state: true,
     fn: (state, a, b) => {
-      const low = Math.ceil(a),
-        high = Math.floor(b);
-      if (high < low) return MISSING;
-      return (
-        low +
-        Math.floor(
-          (high - low + 1) *
-            (state.rng ??= new Generator(state.seed)).uniform(),
-        )
-      );
+      if (isMissing(a) || isMissing(b) || b < a) return MISSING;
+      // Stata takes the top k bits of the generator's 64-bit output, the
+      // fewest with 2^k at least b - a + 1, and draws again while they
+      // exceed b - a; a is added as given. a = b uses up no draw.
+      const range = b - a;
+      let bits = 0;
+      while (2 ** bits < range + 1) bits++;
+      if (!bits) return a;
+      const rng = (state.rng ??= new Generator(state.seed)),
+        shift = BigInt(64 - bits);
+      for (;;) {
+        const r = Number(rng.next() >> shift);
+        if (r <= range) return a + r;
+      }
     },
   },
   rbinomial: {
@@ -484,7 +501,7 @@ export const FUNCTIONS = {
     returns: N,
     state: true,
     fn: (state, scale) =>
-      scale > 0
+      scale > 0 && !isMissing(scale)
         ? -scale * Math.log((state.rng ??= new Generator(state.seed)).uniform())
         : MISSING,
   },
@@ -583,12 +600,21 @@ export const FUNCTIONS = {
       return at < 0 ? 0 : byteLength(s.slice(0, at)) + 1;
     },
   },
+  // From the nth character, n below 1 read as 1; nothing is found past
+  // the end, and an empty string is never found.
   ustrpos: {
-    args: [S, S],
+    args: [S, S, N],
+    min: 2,
     returns: N,
-    fn: (s, find) => {
-      const at = s.indexOf(find);
-      return at < 0 ? 0 : [...s.slice(0, at)].length + 1;
+    lenient: true,
+    fn: (s, find, n = 1) => {
+      if (find === "") return 0;
+      const list = [...s],
+        start = isMissing(n) ? 1 : Math.max(1, whole(n));
+      if (start > list.length) return 0;
+      const tail = list.slice(start - 1).join(""),
+        at = tail.indexOf(find);
+      return at < 0 ? 0 : start + [...tail.slice(0, at)].length;
     },
   },
   strrpos: {
@@ -699,4 +725,5 @@ for (const [alias, name] of Object.entries({
   reverse: "strreverse",
 }))
   FUNCTIONS[alias] = FUNCTIONS[name];
-Object.assign(FUNCTIONS, DATETIME_FUNCTIONS);
+Object.assign(FUNCTIONS, DATETIME_FUNCTIONS, MORE_FUNCTIONS);
+FUNCTIONS.bsubstr = FUNCTIONS.substr;

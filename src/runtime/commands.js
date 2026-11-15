@@ -21,6 +21,8 @@ import { applySyntax, clauses, loneEquals, splitAtComma } from "./syntax.js";
 import { renderSmcl, stringEnd } from "./smcl.js";
 import { ESTIMATION_COMMANDS, coefficientSpace } from "./estimation.js";
 import { MODEL_COMMANDS } from "./models.js";
+import { IVREG_COMMANDS } from "./ivreg.js";
+import { numlistCommand } from "./numlist.js";
 import { MIXED_COMMANDS } from "./mixed.js";
 import { PANEL_COMMANDS } from "./panel.js";
 import { XT_MODEL_COMMANDS } from "./xt-models.js";
@@ -98,6 +100,7 @@ import {
   missingName,
   promote,
   stringWidth,
+  truncateBytes,
 } from "./values.js";
 
 const exitSignal = (kind, code = 0) => new Signal(kind, code);
@@ -383,13 +386,18 @@ function topLevelWords(text) {
  * it reads as a name.
  */
 function checkBrackets(word) {
-  let depth = 0,
-    quote = false;
+  let depth = 0;
   const opened = [];
   for (let i = 0; i < word.length; i++) {
     const c = word[i];
-    if (c === '"') quote = !quote;
-    if (quote) continue;
+    // A string, plain or compound, is passed over whole: a compound one
+    // may hold quotes and brackets of its own.
+    if (c === '"' || (c === "`" && word[i + 1] === '"')) {
+      const end = stringEnd(word, i);
+      if (end < 0) break;
+      i = end - 1;
+      continue;
+    }
     if (c === "(" || c === "[") {
       depth++;
       opened.push({
@@ -749,7 +757,7 @@ function generate(session, text, ctx) {
 
 function replace(session, text, ctx) {
   assignmentSlips(text, false);
-  const parsed = session.parse("varname =exp [if] [in] [, noPROMOTE]", text),
+  const parsed = session.parse("varname =exp [if] [in] [, noPromote]", text),
     name = parsed.varlist[0],
     variable = session.data.get(name),
     string = isStringType(variable.type),
@@ -796,6 +804,54 @@ function replace(session, text, ctx) {
       if (width > stringWidth(beforeType))
         was = width > MAX_STRING_WIDTH ? "strL" : `str${width}`;
     }
+  }
+  // nopromote keeps the storage type: a value it cannot hold is cut to fit
+  // (toward zero, or to the string's width) or, out of its range, made
+  // missing. Changes are counted from the values assigned.
+  if (parsed.options.promote === false) {
+    const held = raw.map((value, i) =>
+        string
+          ? truncateBytes(value, stringWidth(beforeType))
+          : coerce(beforeType, value),
+      ),
+      integer = /^(byte|int|long)$/.test(beforeType),
+      // A float is a float of the value: 1e39 is simply missing, a change
+      // only where the value was not missing already.
+      single = beforeType === "float";
+    let changed = 0,
+      truncated = 0,
+      lost = 0;
+    for (const i of rows) {
+      if ((single ? held[i] : raw[i]) !== before[i]) changed++;
+      if (single) continue;
+      if (
+        string
+          ? held[i] !== raw[i]
+          : integer && !isMissing(held[i]) && held[i] !== raw[i]
+      )
+        truncated++;
+      else if (!string && isMissing(held[i]) && !isMissing(raw[i])) lost++;
+    }
+    // (Counted first: replace writes into the array before holds.)
+    const missing = string
+      ? 0
+      : rows.filter(
+          (i) =>
+            before[i] !== (single ? held[i] : raw[i]) && isMissing(held[i]),
+        ).length;
+    session.data.replace(name, held, rows);
+    ctx.out(
+      `(${count(changed)} real change${changed === 1 ? "" : "s"} made${missing ? `, ${count(missing)} to missing` : ""})`,
+    );
+    if (truncated)
+      ctx.out(
+        `(${count(truncated)} value${truncated === 1 ? "" : "s"} truncated because of storage type)`,
+      );
+    if (lost)
+      ctx.out(
+        `(${count(lost)} value${lost === 1 ? "" : "s"} changed to missing because of storage type)`,
+      );
+    return;
   }
   const result = session.data.replace(name, raw, rows);
   if (result.to !== was)
@@ -845,6 +901,10 @@ function dropKeep(keep) {
       data.reorder([]);
       return;
     }
+    // drop and keep take a varlist or if/in, never both: keep x y if g==1
+    // is invalid syntax.
+    if (clauses(text, false).some((c) => c.kind === "if" || c.kind === "in"))
+      throw invalid();
     const names = session.parse("varlist", text).varlist;
     if (keep) data.keep(names);
     else data.drop(names);
@@ -1038,10 +1098,10 @@ function setCommand(session, text, ctx) {
     const n = session.scalar(rest.join(" ")),
       before = session.data.n;
     session.data.setObservations(n);
-    if (n !== before)
-      ctx.out(
-        `Number of observations (_N) was ${count(before)}, now ${count(n)}.`,
-      );
+    // Stata reports the count even when it does not change.
+    ctx.out(
+      `Number of observations (_N) was ${count(before)}, now ${count(n)}.`,
+    );
   } else if (/^li(n(e(s(i(ze?)?)?)?)?)?$/.test(what)) {
     const size = Number(rest[0]);
     if (!(size >= 40 && size <= 255)) throw invalid();
@@ -1072,9 +1132,22 @@ function setCommand(session, text, ctx) {
     session.settings.showbaselevels =
       value === "on" ? "base" : value === "all" ? "all" : undefined;
   } else if (what === "seed") {
-    const seed = session.scalar(rest.join(" "));
-    if (!(seed >= 0 && seed <= 2147483647))
-      throw new StataError("seed must be between 0 and 2,147,483,647", 198);
+    // A number as typed, not an expression; its sign and any fraction are
+    // dropped, as Stata drops them.
+    const typed = rest.join(" ").trim(),
+      seed = Math.trunc(
+        Math.abs(
+          /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(typed)
+            ? Number(typed)
+            : NaN,
+        ),
+      );
+    // Stata quotes a quoted seed without its closing quote: '"123'.
+    if (!(seed <= 2147483647))
+      throw new StataError(
+        `${typed ? `'${typed.replace(/^(".*)"$/, "$1")}'` : "nothing"} found where integer < 2^31 expected`,
+        198,
+      );
     session.settings.seed = seed;
     session.state.seed = seed;
     session.state.rng = null;
@@ -1118,10 +1191,20 @@ function label(session, text, ctx) {
     ctx.out("note: label truncated to 80 characters");
     return [...label].slice(0, 80).join("");
   };
+  // The label is one string, quoted or a single word: label variable x the
+  // x var is invalid syntax in Stata, as is a comma.
+  const one = (typed) => {
+    const t = typed.trim();
+    if (!t || /^[^\s",`]+$/.test(t)) return t;
+    if ((t[0] === '"' || t.startsWith('`"')) && stringEnd(t, 0) === t.length)
+      return unquoteMacro(t);
+    throw invalid();
+  };
   if ((m = /^var(?:i(?:a(?:b(?:le?)?)?)?)?\s+(\S+)\s*([\s\S]*)$/.exec(text))) {
-    data.get(session.varlist(m[1])[0]).label = short(unquoteMacro(m[2]));
+    const variable = data.get(session.varlist(m[1])[0]);
+    variable.label = short(one(m[2]));
   } else if ((m = /^da(?:ta?)?\s*([\s\S]*)$/.exec(text)))
-    data.label = short(unquoteMacro(m[1]));
+    data.label = short(one(m[1]));
   else if ((m = /^de(?:f(?:i(?:ne?)?)?)?\s+(\S+)\s+([\s\S]*)$/.exec(text))) {
     const [body, optionText = null] = m[2].split(/,(?=[^"]*$)/),
       words = macroWords(body);
@@ -2388,6 +2471,12 @@ function collapse(session, text, ctx) {
     data = session.data,
     targets = [];
   let stat = "mean";
+  // A statistic's parenthesis left open, as in (sum x.
+  if ((spec.match(/\(/g)?.length ?? 0) !== (spec.match(/\)/g)?.length ?? 0))
+    throw new StataError(
+      "invalid clist: unmatched open parenthesis or bracket",
+      198,
+    );
   for (const token of spec.match(/\([^)]*\)|[^\s()]+(?:\s*=\s*[^\s()]+)?/g) ??
     []) {
     if (token.startsWith("(")) {
@@ -2398,7 +2487,7 @@ function collapse(session, text, ctx) {
         !COLLAPSE_ONLY[stat] &&
         stat !== "percent"
       )
-        throw new StataError(`${stat} is not a collapse statistic`, 198);
+        throw new StataError(`(${stat}) invalid statistic`, 198);
       continue;
     }
     const [left, right] = token.split("=").map((part) => part.trim());
@@ -2962,6 +3051,8 @@ export const COMMANDS = [
   // Before MODEL_COMMANDS: predict and estat after mixed are its own, and
   // hand any other model on.
   ...MIXED_COMMANDS,
+  // ivreg before ivregress, of which it would read as an abbreviation.
+  ...IVREG_COMMANDS,
   // Listed first so that test, lincom and predict choose by distribution.
   ...MODEL_COMMANDS,
   ...SVY_COMMANDS,
@@ -3018,6 +3109,7 @@ export const COMMANDS = [
   command("describe", 1, describe),
   command("label", 2, label),
   command("format", 4, format),
+  command("numlist", 7, numlistCommand),
   command("display", 2, (session, text, ctx) => {
     let shown;
     try {
@@ -3155,6 +3247,12 @@ export const COMMANDS = [
   command("if", 2, (session, text, ctx) => {
     // if exp command: the expression ends where a command name begins.
     const words = topLevelWords(text);
+    // if exp { di 1 }: Stata looks for the block's } on a line of its own.
+    if (words.includes("{"))
+      throw new StataError(
+        "program error:  matching close brace not found",
+        198,
+      );
     for (let k = 1; k < words.length; k++) {
       if (!findCommandName(session, words[k])) continue;
       let truth;
@@ -3163,8 +3261,7 @@ export const COMMANDS = [
       } catch {
         continue;
       }
-      if (truth)
-        session.runLine(words.slice(k).join(" "), ctx.frame, ctx.output);
+      if (truth) runWithin(session, words.slice(k).join(" "), ctx);
       // Recorded after the command, as for a braced block.
       ctx.frame.lastIf = truth;
       return;
@@ -3172,11 +3269,9 @@ export const COMMANDS = [
     throw invalid();
   }),
   command("else", 4, (session, text, ctx) => {
-    if (ctx.frame.lastIf === null) throw invalid("else without if");
-    if (!ctx.frame.lastIf) {
-      session.runLine(text, ctx.frame, ctx.output);
-      ctx.frame.lastIf = true;
-    }
+    // An else runs when the last if was false, or when there was none;
+    // it leaves that if's outcome alone, so the next else runs too.
+    if (!ctx.frame.lastIf) runWithin(session, text, ctx);
   }),
   command("program", 2, (session, text) => {
     const m = /^(drop|dir|list)\s*([\s\S]*)$/.exec(text.trim());
@@ -3233,6 +3328,33 @@ COMMANDS.forEach((c, k) => {
         : run(session, text, ctx),
   };
 });
+/**
+ * The command after if exp or else, run as part of that line: Stata shows
+ * what it prints under the if or else that ran it, not as a line of its
+ * own. An error is reported once, by the line.
+ */
+function runWithin(session, text, ctx) {
+  const inner = [],
+    take = (records) => {
+      for (const record of records) {
+        record.lines.forEach((line) => ctx.out(line));
+        if (record.graph) ctx.flags.graph = record.graph;
+      }
+    };
+  try {
+    session.runLine(text, ctx.frame, inner);
+  } catch (error) {
+    if (error instanceof StataError && error.recorded) {
+      const failed = inner.at(-1);
+      if (failed?.rc)
+        failed.lines = failed.lines.slice(0, error.message ? -2 : -1);
+      error.recorded = false;
+    }
+    take(inner);
+    throw error;
+  }
+  take(inner);
+}
 function findCommandName(session, word) {
   const name = /^[A-Za-z_]\w*(?=,?$)/.exec(word)?.[0];
   if (!name) return false;

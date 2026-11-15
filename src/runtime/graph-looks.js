@@ -8,6 +8,10 @@
 // options named in NOT_DRAWN, stops the command; parseGraph says why.
 import { StataError } from "./errors.js";
 import { parseNumlist } from "./numlist.js";
+
+// A graph's label and line lists are not numlist's 2,500 numbers: Stata
+// reads xlabel(0(.0001)20) whole. Past a million the browser stops.
+const GRAPH_LIMIT = 1e6;
 import { optionItems, splitAtComma } from "./syntax.js";
 
 /** The drawn options, as they appear in a syntax declaration. */
@@ -805,6 +809,7 @@ function labelRule(text) {
       try {
         values = parseNumlist(
           stepped && b > 0 && c < a ? `${a}(${-b})${c}` : first,
+          GRAPH_LIMIT,
         );
       } catch {
         throw new StataError(`invalid label specifier, :  ${text}:`, 198);
@@ -833,7 +838,7 @@ function labelRule(text) {
     }
     let read;
     try {
-      read = parseNumlist(token.raw);
+      read = parseNumlist(token.raw, GRAPH_LIMIT);
     } catch {
       throw invalid();
     }
@@ -884,7 +889,7 @@ function lines(text, option) {
       198,
     );
   try {
-    return parseNumlist(head.trim());
+    return parseNumlist(head.trim(), GRAPH_LIMIT);
   } catch {
     throw new StataError(`invalid line argument, ${head.trim()}`, 198);
   }

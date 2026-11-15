@@ -22871,3 +22871,512 @@ list t z1 z2 z3 in 1/3
 rename t time
 tsset
 summarize L.x
+=== syntax8-ivreg-legacy
+clear
+set seed 12345
+set obs 200
+generate z = runiform()
+generate w = runiform()
+generate u = runiform() - .5
+generate x = .8*z + .5*u + runiform()
+generate x2 = .3*z + w*runiform()
+generate z2 = runiform()
+generate y = 1 + 2*x + .5*w + u
+generate g = 1 + mod(_n, 9)
+generate wt = 1 + floor(runiform()*3)
+ivreg y (x = z)
+ivreg y w (x = z), robust
+ivreg y w (x = z), first
+ivreg, level(90)
+ivreg y (x x2 = z z2 w), first cluster(g)
+ivreg y w (x = z) [aw=wt]
+ivreg y w (x = z), beta
+ivreg y w (x = z), eform(ratio)
+ivreg y w (x = z), noheader
+predict p
+predict r, residuals
+predict s, stdp
+summarize p r s
+capture noisily ivreg y w (x = z), vce(robust)
+capture noisily ivreg y w (x = z), small
+ivreg y w (x = z), depname(outcome) level(90)
+=== syntax8-math-functions
+display tanh(.5) _skip(2) atanh(.5) _skip(2) sinh(1) _skip(2) cosh(1) _skip(2) asinh(1) _skip(2) acosh(2)
+display sin(1) _skip(2) cos(1) _skip(2) tan(1) _skip(2) asin(.5) _skip(2) acos(.5) _skip(2) atan(2) _skip(2) atan2(1, -1)
+display digamma(.5) _skip(2) trigamma(.5) _skip(2) lnnormal(-40)
+display expm1(1e-10) _skip(2) ln1p(1e-10) _skip(2) ln1m(.5) _skip(2) cloglog(.5) _skip(2) invcloglog(1)
+display binomialp(10, 3, .4) _skip(2) binomial(10, 3.5, .4) _skip(2) binomialtail(10, 3.5, .4)
+display poissonp(3, 2) _skip(2) poisson(3, 2.5) _skip(2) poissontail(3, 2.5)
+display hypergeometricp(10, 3, 4, 1) _skip(2) hypergeometric(10, 3, 4, 1)
+display nbinomialp(2, 3, .4) _skip(2) nbinomial(2, 3, .4) _skip(2) nbinomialtail(2, 3.5, .4)
+display invbinomial(10, 3, .4) _skip(2) invpoisson(2, .4) _skip(2) invnbinomial(3.5, 4, .2)
+display binormal(.5, 1, .3) _skip(2) binormal(.5, 1, .95) _skip(2) binormal(-1, -2, -.5)
+display nchi2(3, 2, 4) _skip(2) invnchi2(3, 2, .5) _skip(2) npnchi2(3, 4, .5)
+display nF(2, 3, 1, 1) _skip(2) nFtail(2, 3, 1, 1) _skip(2) invnFtail(2, 3, 1, .5)
+display nibeta(2.5, 3, 10, .6) _skip(2) nbetaden(1, 2, 1, .5) _skip(2) invnibeta(1, 2, 1, .5)
+display nt(10, 2, -1) _skip(2) ntden(10, 2, -1) _skip(2) invnttail(10, 2, .05) _skip(2) npnt(10, 2, .9)
+display tden(3, 1) _skip(2) Fden(2, 3, 1) _skip(2) betaden(2, 3, .4) _skip(2) gammaden(2, 3, 1, 4)
+display invgammap(2, .5) _skip(2) invibeta(2, 3, .5) _skip(2) igaussian(1, 2, 1.5) _skip(2) invigaussian(2, 3, .9)
+display weibull(2, 3, .5, 1) _skip(2) invweibullph(2, 3, .5) _skip(2) logistic(1, 2, 3) _skip(2) invlaplace(0, 1, .75)
+display recode(3, 1, 2, 4) _skip(2) irecode(3, 1, 2, 4) _skip(2) autocode(3, 4, 0, 10) _skip(2) chop(1.0000000001, 1e-6)
+display epsdouble() _skip(2) epsfloat() _skip(2) maxbyte() _skip(2) minint() _skip(2) maxlong() _skip(2) maxfloat()
+display fmtwidth("%9.2f") _skip(2) fmtwidth("%-12s") _skip(2) fmtwidth("%td") _skip(2) fmtwidth("bad") _skip(2) byteorder()
+clear
+set obs 4
+set seed 1
+generate double a = rlogistic(1, 2)
+generate double b = rcauchy(1, 2)
+generate double c = rlaplace(1, 2)
+generate double d = rweibull(2, 3, 1)
+generate double e = rweibullph(2, 3)
+generate double u = runiform()
+list
+capture noisily display nosuchfunction(1)
+=== syntax8-unicode-functions
+display ustrregexm("abc", "b") _skip(2) ustrregexm("abc", "B", 1) _skip(2) ustrregexm("abc", "(")
+display ustrregexra("banana", "(an)", "<$1>") _skip(2) ustrregexrf("banana", "a", "o") _skip(2) ustrregexra("a1b22", "\d+", "#")
+display ustrregexm("2024-01-05", "(\d+)-(\d+)-(\d+)") _skip(2) ustrregexs(2) _skip(2) ustrregexs(0)
+display "[" ustrtrim("  ab  ") "]" _skip(2) "[" ustrltrim("  ab  ") "]" _skip(2) "[" ustrrtrim("  ab  ") "]"
+display ustrtitle("hello WORLD o'neil") _skip(2) ustrtitle("élan vital")
+display ustrleft("abcdef", 2) _skip(2) ustrright("abcdef", 2) _skip(2) ustrword("ab, cd. ef", 2) _skip(2) ustrword("ab cd ef", -1) _skip(2) ustrwordcount("ab, cd. ef")
+display ustrcompare("a", "B") _skip(2) ustrcompare("Z", "a") _skip(2) ustrlen(ustrnormalize("é", "nfd"))
+display ustrtohex("aé") _skip(2) ustrunescape("é") _skip(2) uchar(233) _skip(2) uisdigit("1a") _skip(2) uisletter("é")
+display ustrpos("abcabc", "b", 3) _skip(2) ustrrpos("abcabc", "b", 4) _skip(2) ustrpos("éabc", "b") _skip(2) usubstr("éabc", -2, 2)
+display soundex("Ashcraft") _skip(2) soundex_nara("Ashcraft") _skip(2) soundex("Tymczak") _skip(2) tobytes("é") _skip(2) tobytes("a", 1)
+display plural(2, "box", "+es") _skip(2) plural(2, "bus", "-s") _skip(2) indexnot("abc", "ab")
+clear
+set obs 3
+generate s = "a" + string(_n) + "-x" + string(_n*11)
+generate m = ustrregexm(s, "[0-9]+$")
+generate t = ustrregexs(0) if m
+generate r = ustrregexra(s, "[a-z]", "_")
+list
+=== syntax8-numlists
+numlist "1,2 4"
+return list
+numlist "1/3 2", sort
+return list
+numlist "3 2 1", descending
+return list
+numlist "1 . 3", missingokay
+return list
+numlist "1 3 to 7"
+return list
+capture noisily numlist "1 2 3", min(4)
+capture noisily numlist "1 2 3", max(2)
+capture noisily numlist "1 2 3", range(>=2)
+capture noisily numlist "3 1 2", ascending
+capture noisily numlist "1.5 2", integer
+capture noisily numlist "1 . 3"
+capture noisily numlist "1,,2"
+capture noisily numlist 1 2
+=== syntax8-margins-at-forms
+clear
+set seed 3
+set obs 50
+generate x = runiform()
+generate z = runiform()
+generate y = x + z + runiform()
+quietly regress y x z
+margins, at(x=1 z)
+margins, at((mean) x)
+margins, at(x=1 z=.5)
+capture noisily margins, at(x = 1 2)
+capture noisily margins, at(x=(1 2) 3)
+capture noisily margins, at(x=1(1)2)
+capture noisily margins, at(q=1)
+=== syntax8-tabstat-histogram-forms
+clear
+set seed 1
+set obs 300
+generate g = mod(_n, 3)
+generate x = runiform()*4
+generate y = runiform()
+tabstat x y, by(g) stat(mean, sd)
+tabstat x, stat(mean,,sd)
+capture noisily tabstat x, stat(n,mean)
+histogram x, bins(5)
+=== syntax8-old-merge
+clear
+set obs 6
+generate id = _n
+generate y = 2*id
+sort id
+save t_m, replace
+drop y
+generate x = id + 100
+replace id = id + 2
+sort id
+merge id using t_m
+tabulate _merge
+list
+clear
+set obs 3
+generate id = ceil(_n/2)
+generate y = _n
+generate str3 s = "u"
+sort id
+save t_d, replace
+clear
+set obs 3
+generate id = _n
+generate x = _n
+generate y = cond(_n==2, ., 9)
+sort id
+merge id using t_d, update replace _merge(q)
+list
+clear
+set obs 2
+generate x = _n
+merge using t_d
+list
+capture noisily merge id using t_d
+capture noisily merge id using t_d, unique
+=== syntax8-cross-empty
+clear
+set obs 4
+generate educ = _n
+label variable educ "Ed"
+save t_e, replace
+clear
+cross using t_e
+describe
+list
+clear
+set obs 0
+generate x = .
+cross using t_e
+describe
+list
+=== syntax8-factor-level-lists
+clear
+set seed 7
+set obs 200
+generate g = 1 + mod(_n, 4)
+generate y = .5*g + runiform()
+regress y i(2).g
+regress y i(2 3).g
+regress y i(1/3).g
+regress y ib9.g
+regress y i(2/3)b3.g
+regress y ib(2).g
+=== syntax8-nopromote
+clear
+set obs 5
+generate byte z = 1
+generate str2 q = "ab"
+generate int k = _n
+replace z = 1.5, nopromote
+summarize z
+replace k = k*20000, nopromote
+list k
+replace q = "abc" in 1, nopromote
+replace q = "a" in 2, nopromote
+list q
+replace z = 101 in 1, nopromote
+replace z = 100.6 in 2, nopromote
+replace z = -127.5 in 3, nopromote
+list z
+replace z = ., nopromote
+replace z = 1, nopromote
+=== syntax8-seeds-and-messages
+set seed 1.5
+display %21.17g runiform()
+set seed -3
+display %21.17g runiform()
+set seed 1e3
+display %21.17g runiform()
+capture noisily set seed abc
+capture noisily set seed 1+1
+capture noisily set seed 2147483648
+clear
+set obs 40
+set seed 1
+generate x = runiform()
+generate y = runiform()
+generate g = 1 + (_n > 20)
+generate t = 1 + mod(_n, 4)
+generate d = g == 2 & t > 2
+generate s = cond(mod(_n, 2), "apple", "pear")
+generate tt = _n
+capture noisily keep x y if g==1
+capture noisily tabulate s if s="apple"
+capture noisily replace s="pear" if s="apple"
+capture noisily summarize x if g==1 | x=2
+capture noisily scatter y x, title(Hi
+capture noisily graph bar x, over(g
+capture noisily collapse (means) x
+capture noisily collapse (sum x
+capture noisily summarize ar(1)
+capture noisily generate z = inrange(x 1 2)
+capture noisily generate z = x y
+capture noisily generate z = (1) (2)
+display (1 2) _skip(2) (1 .5) _skip(2) ("a" "b")
+capture noisily didregress (y x)(d), group(g) time(nosuch)
+capture noisily didregress (y x)(d), group(nosuch) time(t)
+capture noisily didregress (y x)(d), group(g) time(t tt)
+capture noisily label variable x the x var
+capture noisily label variable x "the x" var
+label variable x thex
+describe x
+capture noisily by g sum x
+=== syntax8-empty-memory-wildcards
+clear
+capture noisily drop *
+capture noisily keep *
+capture noisily describe *
+capture noisily ds *
+capture noisily drop x*
+capture noisily summarize *
+capture noisily list *
+capture noisily summarize x*
+capture noisily summarize _all
+describe _all
+capture noisily keep x
+=== syntax8-by-options
+clear
+set obs 6
+generate g = ceil(_n/2)
+generate x = cond(g==2, 5, mod(_n,2))
+sort g
+by g, rc0: prtest x == .5
+display _rc
+by g, sort rc0: summarize x
+by g, rc0 sort: count
+capture noisily by g, nosuch: summarize x
+=== syntax9-margins-at-all
+clear
+set obs 200
+set seed 12345
+generate x = runiform()*4
+generate z = runiform()
+generate g = 1 + floor(runiform()*3)
+generate y = 1 + 2*x - z + .5*g + runiform()
+generate yb = y > 6
+quietly logit yb x z, nolog
+margins, at((mean) _all)
+margins, at((mean) *)
+margins, at((mean) _all z=.2)
+capture noisily margins, at((mean) x*)
+quietly probit yb z x, nolog
+margins, at((mean) _all)
+quietly regress y x z i.g
+margins, at((mean) _all)
+margins, at((mean) _factor)
+margins, at((mean) _continuous)
+quietly logit yb x z i.g, nolog
+margins, at((mean) _all)
+margins, at((mean) _continuous)
+=== syntax9-absent-base-levels
+clear
+set obs 200
+set seed 777
+generate g = 1 + floor(runiform()*4)
+generate h = 1 + floor(runiform()*2)
+generate x = runiform()
+generate y = .5*g + x + runiform()
+regress y ib9.g
+matrix list e(b)
+regress y ib(9).g
+regress y ib0.g
+regress y i(5).g
+matrix list e(b)
+regress y i(2 5).g
+regress y i(5 6).g
+regress y i(0 2 3).g x
+matrix list e(b)
+regress y ib9.h i.g
+matrix list e(b)
+regress y ib9.g#ib9.h
+regress y i.h#ib9.g
+matrix list e(b)
+clear
+set obs 100
+set seed 5
+generate g = 1 + floor(runiform()*4)
+generate y = g + runiform()
+regress y ib9.g
+=== syntax9-ivreg-varlists
+clear
+set obs 300
+set seed 2024
+generate z1 = runiform()
+generate z2 = runiform()
+generate w = runiform()
+generate u = runiform() - .5
+generate g = 1 + floor(runiform()*4)
+generate x = z1 + .5*z2 + u + runiform()
+generate x2 = z2 - z1 + runiform()
+generate y = 1 + 2*x - x2 + .5*w + u + runiform()
+capture noisily ivreg y i.g (x = z1 z2)
+capture noisily ivreg y c.w##c.w (x = z1 z2)
+capture noisily ivreg y c.w#c.w (x = z1 z2)
+capture noisily ivreg y g#w (x = z1 z2)
+capture noisily ivreg y ib2.g (x = z1 z2)
+capture noisily ivreg y w (x = i.g)
+capture noisily ivreg y w (i.g = z1 z2)
+capture noisily ivreg y (x = )
+capture noisily ivreg y (x)
+capture noisily ivreg y w (x = z1) (x2 = z2)
+capture noisily ivreg y w (x = z1 z2) i.g
+capture noisily ivreg y w (= z1)
+capture noisily ivreg y w (x = z1 z2
+capture noisily ivreg y w x = z1 z2)
+capture noisily ivreg y w (x == z1)
+capture noisily ivreg y 2.g (x = z1)
+capture noisily ivreg y w (x = z1 z2), hc2
+capture noisily ivreg y w (x = z1 z2), hc3
+capture noisily ivreg y w (x = z1 z2), hc1
+quietly ivreg y w (x = z1 z2)
+capture noisily estat endogenous
+display _rc
+capture noisily estat firststage
+capture noisily estat overid
+estat vce
+=== syntax9-old-estat-names
+clear
+set obs 50
+set seed 3
+generate x = runiform()
+generate z = runiform()
+generate y = x + z*x + runiform()
+quietly regress y x z
+hettest
+vif
+ovtest
+imtest
+=== syntax9-function-edges
+display %21.15g ibeta(2,3,1.5)
+display %21.15g ibeta(2,3,-.5)
+display %21.15g ibetatail(2,3,-.5)
+display %21.15g ibetatail(2,3,2)
+display %21.15g invweibulltail(2,1,1)
+display %21.15g invweibull(2,1,0)
+display %21.15g invweibull(2,1,1)
+display %21.15g invweibullphtail(2,1,1)
+display %21.15g invexponentialtail(2,1)
+display %21.15g invexponential(2,0)
+display %21.15g irecode(2,5,3)
+display %21.15g irecode(4,1,5,3)
+display %21.15g irecode(2,1,1,3)
+display %21.15g irecode(2,.,3)
+display %21.15g recode(2,5,3)
+display %21.15g recode(4,1,5,3)
+display %21.15g recode(2,1,1,3)
+display %21.15g invcloglog(709)
+display %21.15g invcloglog(710)
+display %21.15g tden(1e5,0)
+display %21.15g tden(1e7,0)
+display %21.15g tden(1e8,1)
+display %21.15g tden(1e6,2)
+display %21.15g tden(1e9,.5)
+display %21.15g tden(5e5,1)
+display %21.15g tden(250,1.5)
+display %21.15g tden(1000,1)
+display fmtwidth("%9,0g")
+display fmtwidth("%9,2f")
+display fmtwidth("%10,3gc")
+display fmtwidth("%-8,2f")
+display fmtwidth("%9,0e")
+display fmtwidth("%09,2f")
+display "[" fmtwidth("%,9.2f") "]"
+=== syntax9-random-domains
+set seed 5
+display "[" runiformint(3,3) "]"
+display "[" runiform() "]"
+set seed 5
+display "[" runiformint(1.5,6) "]"
+display "[" runiform() "]"
+set seed 5
+display "[" runiformint(6,1) "]"
+display "[" runiform() "]"
+set seed 5
+display %21.0g runiformint(0,2^53)
+display %21.0g runiformint(-2^53,2^53)
+display "[" runiform() "]"
+set seed 1
+display "[" runiformint(1,6) "]"
+display "[" runiformint(1,6) "]"
+set seed 1
+display "[" runiformint(1,100) "]"
+set seed 5
+display "[" rlogistic(0,-1) "]"
+display "[" rlaplace(0,0) "]"
+display "[" rcauchy(.,1) "]"
+display "[" rweibull(.001,1) "]"
+display "[" rweibull(1.1e6,1) "]"
+display "[" rcauchy(0,1e-200) "]"
+display "[" rlaplace(0,1e301) "]"
+display "[" runiform(0,1e-300) "]"
+display "[" runiform(0,4.4e-16) "]"
+display "[" runiform(3,3) "]"
+display "[" rnormal(.,1) "]"
+display "[" rexponential(.) "]"
+display "[" runiform() "]"
+set seed 5
+display "[" rweibull(.01,1) "]"
+display "[" runiform(0,4.45e-16) "]"
+display "[" rcauchy(0,1e-100) "]"
+display "[" rlogistic(0,1e301) "]"
+display "[" runiform() "]"
+clear
+set obs 8
+set seed 98765
+generate j = runiformint(1,6)
+generate j2 = runiformint(-3,3)
+generate j3 = runiformint(0,1)
+generate double j4 = runiformint(0,2^31)
+generate double j5 = runiformint(0,2^40)
+list, noobs
+=== syntax9-numlist-forms
+numlist "1 / 3"
+display "`r(numlist)'"
+numlist "1 (2) 7"
+display "`r(numlist)'"
+numlist "1( 2 )7"
+display "`r(numlist)'"
+numlist "1 (2)7"
+display "`r(numlist)'"
+numlist "1(2) 7"
+display "`r(numlist)'"
+numlist "1 /3"
+display "`r(numlist)'"
+numlist "1,"
+display "`r(numlist)'"
+capture noisily numlist "1,,2"
+display "`r(numlist)'"
+numlist "1/2500"
+display wordcount("`r(numlist)'")
+capture noisily numlist "1/2501"
+display "[`r(numlist)']"
+capture noisily numlist "1/2499 5 6"
+numlist "123456789 1234567890123 .000001 1e-10 1.5e20 3.14159265358979 -2.5e-7 1e15 99999999999 .0001234"
+display "`r(numlist)'"
+numlist "-1e300 1e300"
+display "`r(numlist)'"
+=== syntax9-nopromote-float
+clear
+set obs 6
+generate byte b = _n
+generate float f = 1
+capture noisily replace b = 200, nopro
+capture noisily replace b = 1, nop
+replace f = 1e39, nopromote
+replace f = -1e39 in 1/2, nopromote
+replace f = 2 in 1/3, nopromote
+=== syntax9-by-and-messages
+clear
+set obs 6
+generate g = ceil(_n/3)
+generate x = _n
+capture noisily by g, sort sort: summarize x
+capture noisily by g, rc0 rc0: summarize x
+capture noisily by g, sort(x): summarize x
+capture noisily summarize x {
+capture noisily set seed "123"
+display ustrregexm("abc","(b)")
+display ustrregexra("xyz","y","Q")
+display "[" ustrregexs(0) "]"
+display ustrregexm("abc","(b)")
+display ustrregexrf("xyz","y","Q")
+display "[" ustrregexs(0) "]"

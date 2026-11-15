@@ -26,12 +26,23 @@ export function resolveVariable(word, names) {
 
 export function expandVarlist(text, names) {
   const out = [];
-  // With no variables in memory, any name is Stata's "no variables
-  // defined".
-  if (!names.length && text.trim() && text.trim() !== "_all")
-    throw new StataError("no variables defined", 111);
+  // With no variables in memory a name or a range is Stata's "no variables
+  // defined", a wildcard "variable x* not found", and _all stands for none.
+  if (!names.length)
+    for (const word of text.trim().split(/\s+/).filter(Boolean)) {
+      if (word === "_all") continue;
+      if (/[*?~]/.test(word) && !/[#().]/.test(word)) throw notFound(word);
+      throw new StataError("no variables defined", 111);
+    }
   for (const word of text.trim().split(/\s+/).filter(Boolean)) {
     if (word === "_all") out.push(...names);
+    // A brace ends Stata's reading of names: sum x { finds no name there.
+    else if (word.startsWith("{"))
+      throw new StataError("nothing found where name expected", 198);
+    // A parenthesis with no operator's period, as in ar(1), is read as
+    // Stata's recoding syntax.
+    else if (/[()]/.test(word) && !word.includes(".") && !word.includes("#"))
+      throw new StataError("coding operators not allowed", 198);
     else if (/^[\p{L}\p{Nd}_]*\.[\p{L}_#(]/u.test(word) || /[#()]/.test(word))
       throw new StataError(
         "factor-variable and time-series operators not allowed",

@@ -123,11 +123,17 @@ function cross(session, text) {
     data = session.data,
     n = data.n,
     m = other.n;
-  if (!n || !m) throw new StataError("no observations", 2000);
+  // A using dataset with no observations stops Stata's cross.ado at a
+  // temporary variable it never made.
+  if (!m) throw new StataError("variable __000001 not found", 111);
   // Each observation first meets the first using observation; its
-  // pairings with the rest follow, observation by observation.
-  const master = Array.from({ length: n }, (_, i) => i),
-    using = master.map(() => 0);
+  // pairings with the rest follow, observation by observation. With no
+  // observations in memory, Stata copies the using data in, the variables
+  // in memory left missing.
+  const master = n
+      ? Array.from({ length: n }, (_, i) => i)
+      : Array.from({ length: m }, () => null),
+    using = n ? master.map(() => 0) : master.map((_, j) => j);
   for (let i = 0; i < n; i++)
     for (let j = 1; j < m; j++) {
       master.push(i);
