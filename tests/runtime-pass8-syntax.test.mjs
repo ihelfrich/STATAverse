@@ -567,7 +567,8 @@ test("an unclosed /* comments out the rest of the file without an error", () => 
   assert.ok(!text.includes("2") && !text.includes("3"));
   const midline = lines("di 1\ndi 2 /* tail\ndi 3\n");
   assert.equal(midline.rc, 0);
-  assert.deepEqual(midline.text, [". di 1", "1"]);
+  // Stata 19 echoes the commented-out lines under the command, after "> ".
+  assert.deepEqual(midline.text, [". di 1", "1", ". di 2 /* tail", "> di 3"]);
 });
 
 test("other blocks the file never closes run, then stop with r(198)", () => {
@@ -1069,7 +1070,7 @@ test("line-ending and prefix near-misses give Stata's messages", () => {
   // A /// on the last line continues into nothing.
   const dangling = transcript("di 1\ndi 2 ///\n");
   assert.equal(dangling.rc, 0);
-  assert.deepEqual(dangling.text, [". di 1", "1"]);
+  assert.deepEqual(dangling.text, [". di 1", "1", ". di 2 ///"]);
   const quiet = transcript(
     'quietly: foreach v in a b {\n  noisily di "`v\'"\n}\ndi "end"\n',
   );

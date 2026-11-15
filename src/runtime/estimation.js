@@ -660,6 +660,17 @@ export function design(session, text, rows, constant = true, levelRows) {
       });
     columns.push(...made);
   }
+  // set emptycells drop leaves empty cells out of e(b), which the fits here
+  // do not yet do: such a fit is refused rather than shown with them.
+  if (
+    session.settings?.emptycells === "drop" &&
+    columns.some((column) => column.emptyCell)
+  )
+    throw new StataError(
+      "set emptycells drop is not available in the browser yet for a model with empty cells",
+      198,
+      "Type set emptycells keep to fit the model with its empty cells shown as (empty).",
+    );
   return { dependent, columns, sample };
 }
 

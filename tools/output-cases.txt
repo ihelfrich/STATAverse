@@ -25345,3 +25345,435 @@ end
 capture noisily cut20
 count
 program drop cut10 cut20
+=== seams-dofile-continue-out-of-context
+capture program drop _all
+capture noisily continue
+display _rc
+capture noisily continue, break
+display _rc
+program define sdf_pc
+    display "in pc"
+    continue
+end
+program define sdf_loop
+    forvalues i = 1/2 {
+        display "loop `i'"
+        sdf_pc
+    }
+end
+capture noisily sdf_loop
+display _rc
+program define sdf_own
+    forvalues i = 1/3 {
+        if `i' == 2 continue
+        display "own `i'"
+    }
+end
+sdf_own
+=== seams-dofile-clear-and-set-preamble
+clear all
+set obs 3
+generate x = _n
+clear matrix
+clear mata
+clear programs
+clear results
+clear ado
+clear rngstream
+display _N
+clear frames
+display _N
+capture noisily clear bogus
+display _rc
+capture noisily clear all bogus
+display _rc
+set mem 500m
+set memory 100m
+set matsize 800
+capture noisily set matsize abc
+display _rc
+capture noisily set mem abc
+display _rc
+set emptycells keep
+set sortseed 1
+capture noisily set sortseed abc
+display _rc
+discard
+capture noisily set more maybe
+display _rc
+capture noisily set varabbrev maybe
+display _rc
+capture noisily set trace maybe
+display _rc
+capture noisily set rmsg
+display _rc
+capture noisily set emptycells maybe
+display _rc
+capture noisily set type maybe
+display _rc
+capture noisily set linesize 100, permanently
+display _rc
+capture noisily set cformat bogus
+display _rc
+set cformat
+set pformat
+set sformat
+set dp period
+set trace off
+set rmsg off
+set autotabgraphs on
+=== seams-dofile-clear-results
+clear
+set obs 10
+generate price = _n^2
+generate mpg = 10 - _n + mod(_n, 3)
+quietly regress price mpg
+matrix A = (1,2)
+scalar sc = 3
+discard
+display "after discard e(N)=" e(N) " A=" A[1,1] " sc=" sc
+quietly summarize price
+clear results
+display "after clear results e(N)=[" e(N) "] r(N)=[" r(N) "] sc=" sc
+quietly regress price mpg
+clear matrix
+capture noisily matrix list A
+display "e(N) after clear matrix " e(N) " sc=" sc
+scalar drop _all
+=== seams-dofile-ereturn-post
+capture program drop _all
+clear
+set obs 20
+set seed 1
+generate x = runiform()
+generate y = 1 + 2*x + rnormal()
+generate g = _n > 10
+program define sdf_ec1, eclass
+    matrix b = (1, 2)
+    ereturn post b
+end
+sdf_ec1
+ereturn list
+capture noisily matrix list b
+display _rc
+program define sdf_ec2, eclass
+    tempname b V
+    quietly regress y x
+    matrix `b' = e(b)
+    matrix `V' = e(V)
+    local N = e(N)
+    ereturn post `b' `V', depname(y) obs(`N') esample(g)
+    ereturn local cmd "sdf_ec2"
+    ereturn scalar ll = -3.5
+    ereturn display
+    ereturn display, level(90)
+end
+sdf_ec2
+ereturn list
+display _b[x] " " _se[x]
+count if e(sample)
+matrix list e(V)
+program define sdf_ec3, eclass
+    tempname b V
+    quietly regress y x
+    matrix `b' = e(b)
+    matrix `V' = e(V)
+    ereturn post `b' `V', dof(18)
+    ereturn display
+end
+sdf_ec3
+ereturn list
+program define sdf_ec4, eclass
+    matrix b = (1, 2)
+    matrix V = (1, 0 \ 0, 1)
+    ereturn post b V
+end
+capture noisily sdf_ec4
+display _rc
+program define sdf_ec5, eclass
+    matrix b = (1, 2)
+    matrix colnames b = a b
+    matrix V = (1)
+    ereturn post b V
+end
+capture noisily sdf_ec5
+display _rc
+program define sdf_ec6, eclass
+    matrix b = (1, 2)
+    matrix colnames b = a b
+    ereturn post b, depname(yy) obs(5) properties(b V)
+    ereturn local depvar "zz"
+    ereturn display
+end
+sdf_ec6
+ereturn list
+quietly regress y x
+ereturn display
+matrix drop _all
+=== seams-dofile-ereturn-matrix-order
+capture program drop _all
+program define sdf_e1, eclass
+    ereturn local a "1"
+    ereturn local b "2"
+    ereturn scalar x = 1
+    ereturn scalar y = 2
+    ereturn local c "3"
+    ereturn local a "4"
+end
+ereturn clear
+sdf_e1
+ereturn list
+program define sdf_e2, eclass
+    matrix b = (1,2)
+    ereturn post b, depname(d)
+    ereturn local a "1"
+    ereturn local b "2"
+    ereturn scalar x = 1
+    ereturn scalar y = 2
+    matrix c = (3)
+    ereturn matrix cc = c
+    matrix c = (4)
+    ereturn matrix aa = c, copy
+    capture noisily matrix list c
+    ereturn matrix bb c
+end
+sdf_e2
+ereturn list
+ereturn post
+ereturn list
+program define sdf_e3, eclass
+    capture noisily ereturn matrix zz = nosuch
+    display _rc
+    capture noisily ereturn repost
+    display _rc
+    capture noisily ereturn post nosuch
+    display _rc
+    matrix b = (1,2\3,4)
+    capture noisily ereturn post b
+    display _rc
+end
+sdf_e3
+matrix drop _all
+=== seams-dofile-return-matrix
+capture program drop _all
+program define sdf_rmat, rclass
+    tempname m
+    matrix `m' = (1,2\3,4)
+    return matrix mm = `m'
+    return scalar s = 1
+end
+sdf_rmat
+return list
+matrix list r(mm)
+program define sdf_rm2, rclass
+    matrix m = (1,2\3,4)
+    return matrix mm = m, copy
+    return matrix m2 = m
+    capture noisily matrix list m
+end
+sdf_rm2
+return list
+=== seams-dofile-mark-markout-marksample
+capture program drop _all
+clear
+input x y w str3 s g
+1 2 1 "a" 1
+. 3 1 "b" 1
+3 . 0 "" 2
+4 5 2 "d" 2
+5 .a . "e" 2
+end
+mark m1
+mark m2 if x > 2
+mark m3 in 2/4
+mark m4 [fweight=w]
+mark m5 [fweight=w], zeroweight
+list m1-m5, noobs
+markout m1 x y
+generate byte m6 = 1
+markout m6 s
+generate byte m7 = 1
+markout m7 s, strok
+generate byte m8 = 2
+markout m8 x
+generate byte m9 = 1
+markout m9 y, sysmissok
+list m1 m6-m9, noobs
+capture noisily mark m1
+display _rc
+capture noisily markout nosuch x
+display _rc
+generate m10 = 1
+capture noisily markout m10 x
+display _rc
+program define sdf_ms
+    syntax [varlist] [if] [in] [fweight]
+    marksample touse
+    display "touse=`touse'"
+    quietly count if `touse'
+    display "n=" r(N)
+end
+sdf_ms x y
+sdf_ms x y if g == 2
+sdf_ms x y in 1/3
+sdf_ms x [fweight=w]
+sdf_ms s
+program define sdf_ms2
+    syntax [varlist] [if]
+    marksample touse, strok
+    quietly count if `touse'
+    display "n2=" r(N)
+    marksample t2, novarlist
+    quietly count if `t2'
+    display "n3=" r(N)
+end
+sdf_ms2 s
+sdf_ms2 x y
+describe, short
+program define sdf_ms3, byable(recall)
+    syntax [varlist] [if]
+    marksample touse
+    quietly count if `touse'
+    display "by n=" r(N) " _N=" _N
+end
+sort g
+by g: sdf_ms3 x
+program define sdf_plain
+    display "plain N=" _N
+end
+capture noisily by g: sdf_plain
+display _rc
+=== seams-dofile-program-dir-list
+capture program drop _all
+program sdf_zeta
+    display "z"   // trailing
+	display "tabbed"
+    local a = 1 /* inline */ + 2
+    display "a" ///
+        "b"
+end
+program sdf_alpha
+display "a"
+end
+program sdf_mid, rclass
+display "m"
+end
+program dir
+program list
+program list sdf_alpha sdf_zeta
+capture noisily program list nosuch
+display _rc
+capture noisily program drop nosuch
+display _rc
+capture noisily program dir nosuch
+display _rc
+capture noisily program define 1abc
+display _rc
+program drop _all
+program dir
+=== seams-dofile-macro-list-drop
+global sdf_g1 "G"
+global sdf_a_rather_long_global_name "value"
+local loc1 "L"
+local verylonglocalname "x"
+macro list sdf_g1 _loc1 sdf_a_rather_long_global_name _verylonglocalname
+capture noisily macro list nosuch
+display _rc
+capture noisily macro list _nosuch
+display _rc
+capture noisily macro bogus
+display _rc
+capture noisily macro drop
+display _rc
+global sdf_x1 "a"
+global sdf_x2 "b"
+macro drop sdf_x*
+display "[$sdf_x1][$sdf_x2]"
+macro drop _all
+display "[`loc1'][$sdf_g1][$S_level]"
+=== seams-dofile-tokenize-gettoken-parse
+tokenize "a b,c", parse(",")
+display "[`1'][`2'][`3'][`4']"
+tokenize "  a b , c  ", parse(",")
+display "[`1'][`2'][`3'][`4']"
+tokenize "a b,c", parse(", ")
+display "[`1'][`2'][`3'][`4']"
+tokenize `"a "b c",d"', parse(",")
+display `"[`1'][`2'][`3'][`4']"'
+tokenize `" "b c" x,d"', parse(",")
+display `"[`1'][`2'][`3'][`4']"'
+local s "x y = z"
+gettoken lhs rhs : s, parse("=")
+display "[`lhs'][`rhs']"
+local s "  = z"
+gettoken lhs rhs : s, parse("=")
+display "[`lhs'][`rhs']"
+local s "a b, opt(1)"
+gettoken lhs rhs : s, parse(",")
+display "[`lhs'][`rhs']"
+local s "a b, opt(1)"
+gettoken lhs rhs : s, parse(", ")
+display "[`lhs'][`rhs']"
+local s `""a b" c, d"'
+gettoken lhs rhs : s, parse(",")
+display `"[`lhs'][`rhs']"'
+local s "   "
+gettoken lhs rhs : s, parse(",")
+display "[`lhs'][`rhs']"
+local s "a b c"
+gettoken lhs rhs : s, parse("")
+display "[`lhs'][`rhs']"
+=== seams-dofile-capture-program-define
+capture program drop _all
+capture program define sdf_newp
+    display "body of newp"
+end
+display _rc
+sdf_newp
+capture program define sdf_newp
+display _rc
+capture noisily program define sdf_newp
+display _rc
+quietly program define sdf_qp
+    display "qp body"
+end
+sdf_qp
+=== seams-dofile-restore-scope
+capture program drop _all
+clear
+set obs 5
+generate x = _n
+preserve
+program define sdf_p1
+    capture noisily restore
+    display "inside rc=" _rc
+    preserve
+    drop in 1/2
+    display "inside N=" _N
+end
+sdf_p1
+drop in 1
+display _N
+capture noisily restore, bogus
+display _rc " N=" _N
+restore, preserve
+display _N
+drop in 1/3
+restore
+display _N
+capture noisily restore
+display _rc
+=== seams-dofile-prefix-order
+clear
+set obs 4
+generate x = _n
+generate g = mod(_n, 2)
+sort g
+capture noisily by g: by g: summarize x
+display _rc
+noisily capture summarize nosuch
+display _rc
+capture noisily quietly summarize nosuch
+display _rc
+quietly capture noisily summarize nosuch
+display _rc

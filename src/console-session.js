@@ -10,7 +10,7 @@ import { readDta, writeDta } from "./console-dta.js";
 import { binaryKind, checkForeign } from "./runtime/foreign.js";
 import { applyFormat } from "./runtime/format.js";
 import { isMissing, parseNumber } from "./runtime/values.js";
-import { echoOf } from "./runtime/echo.js";
+import { echoOf, fileEcho } from "./runtime/echo.js";
 import { parseBlocks, splitCommands } from "./runtime/dofile.js";
 import { createLogs, isLogMark } from "./console-log.js";
 
@@ -346,25 +346,41 @@ export function createConsoleSession() {
       };
       logs.start();
       session.log = (text, ctx) => logs.command(text, ctx);
-      const lines = source.replace(/\r\n?/g, "\n").split("\n");
+      const lines = source.replace(/\r\n?/g, "\n").split("\n"),
+        // A do-file is echoed line by line, as Stata's log shows it:
+        // comments and blank lines too, and each command as typed.
+        file = doFile ? fileEcho(lines) : null,
+        // Records carry the linesize they were made at, for Results and the
+        // log to cut a long command where Stata cuts it.
+        sized = (records) => {
+          const width = session.settings.linesize ?? 79;
+          if (width !== 79)
+            for (const record of records) record.width ??= width;
+          return records;
+        };
       session.runNodes = function (nodes, frame, output) {
         if (top)
           return Session.prototype.runNodes.call(this, nodes, frame, output);
         top = output;
         for (let k = 0; k < nodes.length; k++) {
           const node = nodes[k];
+          if (file) top.push(...sized(file.before(node.line)));
           logs.take(top, logged, top.length);
           logs.settle();
           logged = top.length;
-          const shown =
-            node.kind === "block" || node.kind === "program"
-              ? echoOf(
-                  lines,
-                  node.line,
-                  node.end || node.line,
-                  node.kind === "program" ? 1 : 2,
-                )
-              : { command: node.text ?? "", echo: [] };
+          const typed =
+              file && node.kind === "command" ? file.command(node.line) : null,
+            shown =
+              node.kind === "block" || node.kind === "program"
+                ? echoOf(
+                    lines,
+                    node.line,
+                    node.end || node.line,
+                    node.kind === "program" ? 1 : 2,
+                  )
+                : (typed ?? { command: node.text ?? "", echo: [] });
+          if (file && node.kind !== "command")
+            file.skip(node.unclosed ? lines.length : (node.end ?? node.line));
           current = { ...shown, line: node.line, from: top.length, lines: [] };
           if (stream) {
             stream({
@@ -379,8 +395,27 @@ export function createConsoleSession() {
             pending = [];
           }
           stop();
-          Session.prototype.runNodes.call(this, [node], frame, output);
+          try {
+            Session.prototype.runNodes.call(this, [node], frame, output);
+          } finally {
+            // The command's record shows the line as typed.
+            const record = typed && top[current.from];
+            if (record && record.command === node.text && !record.echo) {
+              record.command = typed.command;
+              record.echo = typed.echo;
+            }
+          }
         }
+        // Comments and blank lines after the last command; the file's last
+        // line break ends it.
+        if (file)
+          top.push(
+            ...sized(
+              file.before(
+                lines.at(-1) === "" ? lines.length : lines.length + 1,
+              ),
+            ),
+          );
       };
       // The error a command stopped at, for what the Console says of it.
       session.dispatch = function (...args) {
@@ -400,6 +435,7 @@ export function createConsoleSession() {
         const entry = args[0].at(-1),
           failure = this.failure;
         this.failure = null;
+        sized([entry]);
         // A log command's lines end here, even when capture or quietly kept
         // them out of Results.
         entry.lines.push(...logs.ends());
@@ -432,6 +468,14 @@ export function createConsoleSession() {
         }
       };
       let ran;
+      // A command typed in the Command window goes to the open cmdlog, as
+      // in Stata; a do-file's commands do not.
+      const typedLog = !doFile && session.cmdlog?.on ? session.cmdlog : null;
+      if (typedLog && source.trim()) {
+        const file = session.files?.get(typedLog.name);
+        if (file && typeof file.text === "string")
+          file.text += `${source.replace(/\r\n?/g, "\n").trim()}\n`;
+      }
       try {
         ran = session.run(source, doFile ? undefined : interactive, {
           doFile,

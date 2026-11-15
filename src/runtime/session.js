@@ -35,9 +35,10 @@ import { abbreviateName } from "./data-utilities.js";
 import { timeSeriesOperator } from "./panel.js";
 import { matrixAccess } from "./matrix.js";
 import { coefficientValue, tableResults } from "./estimation.js";
-import { echoOf } from "./echo.js";
+import { echoOf, fileEcho } from "./echo.js";
 import { STATA_COMMANDS } from "./stata-commands.js";
 import { perGroup } from "./reports.js";
+import { dropTemporaries } from "./programming.js";
 
 const MAX_STEPS = 200000;
 // Commands that Stata 19 still runs as the estat test they became.
@@ -96,6 +97,20 @@ const PREFIX_WORD =
     /^(?:$|(?:foreach|forv(?:a(?:l(?:u(?:es?)?)?)?)?|while|if|else)(?:\s|$))/;
 
 /** The prefixes of a block's header and what is left after them. */
+/**
+ * A command as program list shows it: a run of blanks outside quotes, as
+ * a comment or /// leaves, is one blank.
+ */
+function collapseBlanks(text) {
+  let out = "",
+    quote = false;
+  for (const c of text) {
+    if (c === '"') quote = !quote;
+    if (!quote && c === " " && out.endsWith(" ")) continue;
+    out += c;
+  }
+  return out;
+}
 function prefixesOf(header) {
   const found = {
     rest: header.trim(),
@@ -903,7 +918,19 @@ export class Session {
   macroEnv(frame) {
     return {
       locals: frame.locals,
-      globals: this.globals,
+      // Stata's system globals $S_DATE, $S_TIME and $S_level are there
+      // unless a global of the same name has been set.
+      globals: {
+        get: (name) =>
+          this.globals.get(name) ??
+          (name === "S_DATE"
+            ? currentDate()
+            : name === "S_TIME"
+              ? new Date().toTimeString().slice(0, 8)
+              : name === "S_level"
+                ? String(this.settings.level)
+                : undefined),
+      },
       evaluate: (text) => {
         const value = this.scalar(text);
         return typeof value === "string"
@@ -935,6 +962,30 @@ export class Session {
           "this do-file ran more commands than the browser allows",
           901,
         );
+      const definedUnder =
+        node.kind === "program" && prefixesOf(`${node.prefixes ?? ""} x`);
+      if (definedUnder?.capture && this.programs.has(node.name)) {
+        // A definition that fails under capture leaves _rc 110, and Stata
+        // reads the lines of the body as commands, end with them.
+        this.rc = 110;
+        this.record(
+          output,
+          node.text,
+          definedUnder.noisy ? [`program ${node.name} already defined`] : [],
+          0,
+          undefined,
+          node.line,
+        );
+        this.runNodes(
+          parseBlocks([
+            ...node.body,
+            ...(node.end ? [{ text: "end", line: node.end }] : []),
+          ]),
+          frame,
+          output,
+        );
+        continue;
+      }
       // A program the file never ends is not defined: Stata echoes its
       // lines, numbered from 1, then the prompt for the line it never got.
       if (node.unclosed && node.kind === "program") {
@@ -965,7 +1016,8 @@ export class Session {
       }
       if (node.kind === "program") {
         // In the Console, as in Stata's log, a definition is shown with its
-        // lines numbered from 1, its end the last of them.
+        // lines numbered from 1, its end the last of them. Under capture or
+        // quietly, only its first line is shown.
         const shown =
           this.foldLoops && !this.inProgram && !this.folding
             ? echoOf(
@@ -975,6 +1027,7 @@ export class Session {
                 1,
               )
             : null;
+        if (shown && definedUnder.silent) shown.echo = [];
         if (this.programs.has(node.name)) {
           const error = new StataError(
             `program ${node.name} already defined`,
@@ -989,11 +1042,26 @@ export class Session {
         this.programs.set(node.name, {
           body: parseBlocks(node.body),
           options: node.options,
+          // The definition's own lines, for program dir and program list:
+          // as typed, indentation and all, without comments.
+          source: node.body.map((command) => {
+            const raw = this.sourceLines?.[command.line - 1] ?? "",
+              indent = /^[ \t]*/
+                .exec(raw)[0]
+                .replace(/[^\t]*\t/g, (piece) =>
+                  " ".repeat(piece.length - 1 + 8 - ((piece.length - 1) % 8)),
+                );
+            return { indent, text: collapseBlanks(command.text) };
+          }),
         });
+        if (definedUnder.capture) this.rc = 0;
         if (shown) {
           this.record(output, shown.command, [], 0);
           output.at(-1).echo = shown.echo;
-        }
+        } else if (node.prefixes && !this.inProgram)
+          // capture program define is a command of the file, which Stata's
+          // log shows (its body is not).
+          this.record(output, node.text, [], 0);
       } else if (node.kind === "input") this.input(node, frame, output);
       else if (node.kind === "block") this.block(node, frame, output);
       else this.runLine(node.text, frame, output);
@@ -1020,33 +1088,77 @@ export class Session {
     const source = (n) =>
         (this.sourceLines[n - 1] ?? "").replace(/\t/g, "    ").trimEnd(),
       header = {
-        command: source(node.line).trim(),
+        command: source(node.line),
         lines: [],
         rc: 0,
         line: node.line,
       },
       from = output.length,
       quietDepth = this.quietDepth ?? 0;
+    // The block's lines, for a block around it to pass over.
+    header.ends = node.end;
     output.push(header);
-    // The commands that ran are shown as they stand in the file.
-    const relabel = () => {
-      for (const record of output.slice(from + 1))
-        if (
-          record.line > node.line &&
-          record.line < node.end &&
-          !record.echo &&
-          source(record.line).trim() === record.command
-        )
-          record.command = source(record.line);
+    // The block's lines are shown as Stata reads them: each command as it
+    // stands in the file (continuation lines after "> "), and the comments
+    // and blank lines between them; a block inside shows its own. With
+    // `all`, the lines after the last command, up to the }, are shown too.
+    const relabel = (all) => {
+      const lines = fileEcho(this.sourceLines),
+        records = output.splice(from + 1),
+        inside = (at) => at > node.line && at < node.end;
+      lines.skip(node.line);
+      let passing = 0;
+      for (const record of records) {
+        const at = record.line;
+        if (passing && (!at || at <= passing)) {
+          output.push(record);
+          if (at === passing) passing = 0;
+          continue;
+        }
+        passing = 0;
+        if (!at || !inside(at) || record.comment) {
+          output.push(record);
+          continue;
+        }
+        output.push(...lines.before(at));
+        if (record.ends) {
+          // A block inside, which has shown its own lines.
+          lines.skip(record.ends);
+          passing = record.ends;
+        } else if (record.echo?.length) {
+          // A loop or a program definition, echoed with its lines: its
+          // first line keeps its indentation.
+          const typed = lines.command(at);
+          if (typed) record.command = typed.command;
+          lines.skip(at + record.echo.length);
+        } else {
+          const typed = lines.command(at);
+          if (typed) {
+            record.command = typed.command;
+            record.echo = typed.echo;
+          }
+        }
+        output.push(record);
+      }
+      if (all) output.push(...lines.before(node.end));
     };
     node.ran = false;
     if (prefixes.noisy) this.quietDepth = 0;
+    // A block closed by a line with more after its }, as } else {, runs (or
+    // is passed over) as any block is, and that line then stops the file.
+    const trailing = node.trailing;
     try {
       if (prefixes.any) {
         node.ran = true;
         this.runNodes(node.body, frame, output);
-      } else this.runBlock(node, frame, output);
+      } else
+        this.runBlock(
+          trailing ? Object.assign(node, { trailing: false }) : node,
+          frame,
+          output,
+        );
     } catch (error) {
+      if (trailing) node.trailing = true;
       this.quietDepth = quietDepth;
       if (!(error instanceof StataError)) throw error;
       if (!error.recorded) {
@@ -1091,16 +1203,31 @@ export class Session {
         });
       throw error;
     }
+    if (trailing) node.trailing = true;
     this.quietDepth = quietDepth;
     if (prefixes.capture) this.rc = 0;
     if (!node.ran) {
       header.echo = [];
-      for (let n = node.line + 1; n <= node.end; n++)
+      for (let n = node.line + 1; n < node.end + (trailing ? 0 : 1); n++)
         header.echo.push(`. ${source(n)}`.trimEnd());
-      return;
+    } else relabel(true);
+    if (trailing) {
+      const message =
+          "program error:  code follows on the same line as close brace",
+        error = new StataError(message, 198);
+      error.recorded = true;
+      this.record(
+        output,
+        source(node.end),
+        [message, "r(198);"],
+        198,
+        undefined,
+        node.end,
+      );
+      throw error;
     }
-    relabel();
-    this.record(output, source(node.end), [], 0, undefined, node.end);
+    if (node.ran)
+      this.record(output, source(node.end), [], 0, undefined, node.end);
   }
 
   block(node, frame, output) {
@@ -1119,7 +1246,6 @@ export class Session {
       !this.doDepth &&
       this.sourceLines &&
       !node.unclosed &&
-      !node.trailing &&
       node.end > node.line &&
       (prefixes.any
         ? !prefixes.rest && !prefixes.silent
@@ -1283,6 +1409,8 @@ export class Session {
       if (/^cap(t(u(re?)?)?)?$/.test(word)) {
         notAfterBy("capture");
         flags.capture = true;
+        // Only a noisily after capture shows the error it catches.
+        flags.noisy = false;
         rest = after.trim();
       } else if (/^qui(e(t(ly?)?)?)?$/.test(word)) {
         notAfterBy("quietly");
@@ -1298,6 +1426,7 @@ export class Session {
         throw new StataError(": required", 100);
       else if (/^(by|bys(o(rt?)?)?)$/.test(word)) {
         const colon = after.indexOf(":");
+        notAfterBy("by");
         flags.by = this.byPrefix(after.slice(0, colon), word !== "by");
         byHere = true;
         rest = after.slice(colon + 1).trim();
@@ -1550,7 +1679,40 @@ export class Session {
         this.results.r = tableResults(this, model, body, command.name);
       return value;
     }
-    if (this.programs.has(word)) return this.call(word, body, ctx);
+    if (this.programs.has(word)) {
+      if (!flags.by) return this.call(word, body, ctx);
+      // Under by, a program runs only if it is byable: byable(recall) runs
+      // it once for each group, under the group's heading.
+      const byable = /\bbyable\(\s*(\w+)\s*(,\s*(\w+))?\s*\)/.exec(
+        this.programs.get(word).options,
+      );
+      if (!byable)
+        throw new StataError(`${word} may not be combined with by`, 190);
+      if (!/^recall$/.test(byable[1]))
+        throw new StataError(
+          `byable(${byable[1]}) programs do not run under by in the browser yet`,
+          198,
+          "Declare the program byable(recall) and mark its sample with marksample.",
+        );
+      if (byable[3])
+        for (const group of flags.by.groups)
+          this.call(word, body, { ...ctx, group });
+      else
+        perGroup((session, text, inner) => {
+          // A blank line follows each group's output, before the next
+          // group's rule.
+          let last = null;
+          this.call(word, text, {
+            ...inner,
+            out: (line) => {
+              last = line;
+              inner.out(line);
+            },
+          });
+          if (last !== null && last !== "") inner.out("");
+        })(this, body, ctx);
+      return;
+    }
     // A loop typed without its opening brace, or with its body on the
     // brace's line.
     // One whose { ends the line reached here only through a prefix with a
@@ -1947,9 +2109,9 @@ export class Session {
       record.lines.length ||
       record.graph ||
       record.echo?.length;
+    const loop = { ...node, header: prefixes.rest, ran: false };
     try {
-      if (prefixes.rest)
-        this.runBlock({ ...node, header: prefixes.rest }, frame, inner);
+      if (prefixes.rest) this.runBlock(loop, frame, inner);
       else this.runNodes(node.body, frame, inner);
       if (prefixes.capture) this.rc = 0;
     } catch (error) {
@@ -1966,6 +2128,21 @@ export class Session {
         failed.lines = prefixes.silent
           ? []
           : failed.lines.filter((line) => !/^r\(\d+\);$/.test(line));
+      } else if (LOOP_HEADER.test(prefixes.rest + " ") && !loop.ran) {
+        // The loop's own line failed, as foreach over a variable that does
+        // not exist: Stata then reads the block's } as a command, which
+        // fails too, and that is the error capture keeps.
+        this.rc = 199;
+        if (!prefixes.silent)
+          inner.push({
+            command: `${node.header} {`,
+            lines: [
+              ...(error.message ? [error.message, ""] : []),
+              "} is not a valid command name",
+            ],
+            rc: 0,
+            line: this.line,
+          });
       } else if (!prefixes.silent && error.message)
         inner.push({
           command: `${node.header} {`,
@@ -2017,18 +2194,37 @@ export class Session {
     macroWords(argumentsText).forEach((word, k) =>
       frame.locals.set(String(k + 1), word.text),
     );
-    frame.program = { name, options: program.options, by: ctx.by };
+    frame.program = {
+      name,
+      options: program.options,
+      by: ctx.by,
+      // The group a byable(recall) program is run for.
+      ...(ctx.group ? { group: ctx.group } : {}),
+    };
     // What return scalar, local and add have set, posted as r() at the end.
     frame.returns = { r: {} };
     const inner = [],
       rclass = /\brclass\b/.test(program.options);
     this.inProgram = (this.inProgram ?? 0) + 1;
     this.enterScope();
+    // The caller's loops are not the program's: continue in it is out of
+    // context unless the program has a loop of its own.
+    const loopDepth = this.loopDepth,
+      // Temporary names are numbered again from where the caller's ended.
+      temporary = this.temporary;
+    this.loopDepth = 0;
+    const end = () => {
+      this.inProgram -= 1;
+      this.loopDepth = loopDepth;
+      this.leaveScope();
+      // The program's temporary variables, scalars and matrices go.
+      dropTemporaries(this, frame);
+      this.temporary = temporary;
+    };
     try {
       this.runNodes(program.body, frame, inner);
     } catch (error) {
-      this.inProgram -= 1;
-      this.leaveScope();
+      end();
       // The line that failed reported the error; the program's caller
       // reports it again, so it is shown once, as Stata shows it.
       const failed =
@@ -2052,8 +2248,7 @@ export class Session {
       if (!exit) throw error;
       return;
     }
-    this.inProgram -= 1;
-    this.leaveScope();
+    end();
     for (const record of inner) record.lines.forEach(ctx.out);
     if (rclass) this.results.r = posted(frame.returns.r);
   }

@@ -2723,6 +2723,61 @@ function recode(session, text, ctx) {
 }
 
 const quiet = () => {};
+
+/**
+ * cmdlog: a file of the commands typed in the Command window, in the
+ * session's folder. As in Stata, the commands of a do-file are not written
+ * to it (see console-session.js, which writes the typed ones).
+ */
+function cmdlog(session, text, ctx) {
+  const [head, optionText] = splitAtComma(text),
+    words = head.trim().split(/\s+/).filter(Boolean),
+    open = session.cmdlog,
+    none = () => new StataError("no cmdlog file open", 607);
+  if (!words.length || /^q(u(e(ry?)?)?)?$/.test(words[0])) {
+    if (words.length > 1 || optionText !== null)
+      throw new StataError("invalid syntax", 198);
+    ctx.out(
+      open
+        ? `    cmdlog:  ${open.path}, ${open.on ? "on" : "off"}`
+        : "(closed)",
+    );
+    return;
+  }
+  if (/^(close|off|on)$/.test(words[0])) {
+    if (words.length > 1 || optionText !== null)
+      throw new StataError("invalid syntax", 198);
+    if (!open) throw none();
+    if (words[0] === "close") {
+      session.cmdlog = null;
+      ctx.out(`(cmdlog ${open.path} closed)`);
+    } else {
+      open.on = words[0] === "on";
+      ctx.out(`(cmdlog ${open.path} ${open.on ? "resumed" : "paused"})`);
+    }
+    return;
+  }
+  if (words[0] !== "using" || words.length !== 2)
+    throw new StataError("invalid syntax", 198);
+  let append = false,
+    replace = false;
+  for (const option of (optionText ?? "").trim().split(/\s+/).filter(Boolean))
+    if (/^a(p(p(e(nd?)?)?)?)?$/.test(option)) append = true;
+    else if (option === "replace") replace = true;
+    else throw new StataError(`option ${option} not allowed`, 198);
+  if (open) throw new StataError("log file already open", 604);
+  const typed = words[1].replace(/^"|"$/g, ""),
+    name = /\.\w+$/.test(typed) ? typed : `${typed}.txt`,
+    path = `/stataverse/${name}`,
+    files = (session.files ??= new Map()),
+    exists = files.has(name);
+  if (exists && !append && !replace)
+    throw new StataError(`file ${path} already exists`, 602);
+  if (!exists && replace) ctx.out(`(file ${path} not found)`);
+  if (!exists || replace) files.set(name, { text: "" });
+  session.cmdlog = { name, path, on: true };
+  ctx.out(`(cmdlog ${path} opened)`);
+}
 export const DATA_COMMANDS = [
   { name: "save", minimum: 3, run: save },
   { name: "use", minimum: 1, run: use },
@@ -2746,7 +2801,7 @@ export const DATA_COMMANDS = [
     minimum: 3,
     run: (session, text, ctx) => session.log?.(text, ctx),
   },
-  { name: "cmdlog", minimum: 6, run: quiet },
+  { name: "cmdlog", minimum: 6, run: cmdlog },
   {
     name: "pwd",
     minimum: 3,

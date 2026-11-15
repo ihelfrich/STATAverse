@@ -43,8 +43,8 @@ export const STATA_COMMANDS = new Set(
   checksum odbc jdbc saveold outfile tabdisp serrbar qqplot quantile vce
   svmat stci stphplot fvset fvexpand mata python java shell winexec xshell
   erase rm rmdir copy type filefilter unzipfile zipfile translate ml
-  marksample tsunab fvunab creturn putmata getmata ado update sysdir
-  adopath discard beep
+  tsunab fvunab creturn putmata getmata ado update sysdir
+  adopath beep
   `
     .split(/\s+/)
     .filter(Boolean),

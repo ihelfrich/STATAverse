@@ -78,9 +78,16 @@ export function splitCommands(source) {
       } else if (delimiter === "\n") flush();
       else current += " ";
     } else if (c === "*" && atCommandStart() && delimiter === "\n") {
-      // A line that begins with * is a comment.
-      while (i < text.length && text[i] !== "\n") i++;
-      line++;
+      // A line that begins with * is a comment, and so is the line after
+      // it when it ends in a blank and ///.
+      for (;;) {
+        const start = i;
+        while (i < text.length && text[i] !== "\n") i++;
+        line++;
+        if (!/\s\/\/\/\s*$/.test(text.slice(start, i)) || i >= text.length)
+          break;
+        i++;
+      }
       current = "";
     } else if (c === "\n") {
       if (delimiter === "\n") flush();
@@ -130,10 +137,15 @@ export function parseBlocks(commands) {
         return nodes;
       }
       at++;
-      const program =
-        /^pr(?:o(?:g(?:r(?:am?)?)?)?)?\s+(?:de(?:f(?:i(?:ne?)?)?)?\s+)?([A-Za-z_][A-Za-z_0-9]*)\s*(?:,\s*(.*))?$/.exec(
-          text,
-        );
+      // capture, quietly and noisily may stand before a definition.
+      const prefixed =
+          /^((?:(?:cap(?:t(?:u(?:re?)?)?)?|qui(?:e(?:t(?:ly?)?)?)?|n(?:o(?:i(?:s(?:i(?:ly?)?)?)?)?)?)\s+)*)([\s\S]*)$/.exec(
+            text,
+          ),
+        program =
+          /^pr(?:o(?:g(?:r(?:am?)?)?)?)?\s+(?:de(?:f(?:i(?:ne?)?)?)?\s+)?([A-Za-z_][A-Za-z_0-9]*)\s*(?:,\s*(.*))?$/.exec(
+            prefixed[2],
+          );
       if (program && !["drop", "dir", "list", "define"].includes(program[1])) {
         const body = [];
         // A program body is kept as text; macros in it expand when it runs.
@@ -152,6 +164,7 @@ export function parseBlocks(commands) {
           line,
           end,
           text,
+          ...(prefixed[1] ? { prefixes: prefixed[1].trim() } : {}),
           ...(unclosed ? { unclosed } : {}),
         });
       } else if (/^inp(?:ut?)?(\s|$)/.test(text)) {
@@ -163,7 +176,8 @@ export function parseBlocks(commands) {
           rowLines.push(commands[at].line);
           rows.push(commands[at++].text);
         }
-        const unclosed = at >= commands.length;
+        const unclosed = at >= commands.length,
+          end = commands[at]?.line;
         at++;
         nodes.push({
           kind: "input",
@@ -171,6 +185,8 @@ export function parseBlocks(commands) {
           rows,
           rowLines,
           line,
+          // The line of its end, which a do-file's echo passes over.
+          ...(end ? { end } : {}),
           ...(unclosed ? { unclosed } : {}),
         });
       } else if (OPENS.test(text)) {
