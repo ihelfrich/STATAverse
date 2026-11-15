@@ -862,6 +862,9 @@ function dropKeep(keep) {
 }
 
 function sortCommand(session, text) {
+  // With observations and no variables, sort _all has nothing to do, and
+  // Stata does it without a word.
+  if (!session.data.names.length && /^\s*_all\s*(?:,|$)/.test(text)) return;
   const parsed = session.parse("varlist [, STable]", text);
   session.data.sort(parsed.varlist);
 }
@@ -869,11 +872,14 @@ function gsort(session, text) {
   const keys = text
     .split(/\s+/)
     .filter(Boolean)
-    .map((word) => {
+    .flatMap((word) => {
       // A sign with no name after it.
       if (/^[+-]$/.test(word)) throw invalid();
       const m = /^([+-]?)(.+)$/.exec(word);
-      return { name: session.varlist(m[2])[0], descending: m[1] === "-" };
+      // Each variable a name stands for is a key, in the same direction.
+      return session
+        .varlist(m[2])
+        .map((name) => ({ name, descending: m[1] === "-" }));
     });
   if (!keys.length) throw new StataError("varlist required", 100);
   session.data.sort(keys);

@@ -18,6 +18,7 @@ import {
   labelled,
   percentile,
   perGroup,
+  weightedPercentile,
   weightedRows,
 } from "./reports.js";
 import {
@@ -3730,10 +3731,11 @@ function tabstatStatistics(text) {
 /**
  * The statistics of one variable over some observations, as summarize
  * computes them: with aweights the mean, sum and moments are weighted, N
- * counts observations and percentiles follow the cumulated weights;
- * fweights arrive as repeated observations.
+ * counts observations and percentiles follow the cumulated weights as
+ * summarize, detail's do; with fweights N is their sum and the variance
+ * divides by it less one.
  */
-function tabstatSummary(values, weights) {
+function tabstatSummary(values, weights, frequency = false) {
   const n = values.length,
     w = weights ?? values.map(() => 1),
     W = accurateSum(w);
@@ -3754,12 +3756,17 @@ function tabstatSummary(values, weights) {
     mean = sum / W,
     central = (k) => values.reduce((t, v, i) => t + w[i] * (v - mean) ** k, 0),
     m2 = central(2) / W,
+    N = frequency ? W : n,
     variance =
-      n > 1 ? (weights ? m2 * (n / (n - 1)) : central(2) / (n - 1)) : MISSING,
+      N > 1
+        ? weights && !frequency
+          ? m2 * (n / (n - 1))
+          : central(2) / (N - 1)
+        : MISSING,
     order = values.map((v, i) => [v, w[i]]).sort((a, b) => a[0] - b[0]),
     sorted = order.map(([v]) => v);
   return {
-    N: n,
+    N,
     Sum: sum,
     Mean: mean,
     Variance: variance,
@@ -3768,21 +3775,10 @@ function tabstatSummary(values, weights) {
     Max: sorted[n - 1],
     Skewness: m2 > 0 ? central(3) / W / m2 ** 1.5 : MISSING,
     Kurtosis: m2 > 0 ? central(4) / W / m2 ** 2 : MISSING,
-    // Without weights the p-th percentile is Stata's; with aweights the
-    // first value whose cumulated weight reaches p percent of the total,
-    // averaged with the next when it reaches it exactly.
-    p: (p) => {
-      if (!weights) return percentile(sorted, p);
-      const target = (W * p) / 100;
-      let cumulated = 0;
-      for (let k = 0; k < n; k++) {
-        cumulated += order[k][1];
-        if (Math.abs(cumulated - target) <= 1e-12 * W)
-          return k + 1 < n ? (sorted[k] + sorted[k + 1]) / 2 : sorted[k];
-        if (cumulated > target) return sorted[k];
-      }
-      return sorted[n - 1];
-    },
+    // Without weights the p-th percentile is Stata's; with weights,
+    // frequency weights included, it is summarize, detail's.
+    p: (p) =>
+      weights ? weightedPercentile(order, W, p) : percentile(sorted, p),
   };
 }
 const tabstatValue = (s, name) =>
@@ -3925,13 +3921,16 @@ function tabstat(session, text, ctx) {
   if (o.same || o.casewise)
     rows = rows.filter((i) => variables.every((v) => !isMissing(v.data[i])));
   if (!rows.length) throw new StataError("no observations", 2000);
-  const weighted = weightedRows(session, parsed, rows),
+  // Frequency weights come back as weights, so that a population count of
+  // billions needs no rows of its own.
+  const weighted = weightedRows(session, parsed, rows, { expand: false }),
     stat = (subset) =>
       variables.map((v) => {
         const use = subset.filter((i) => !isMissing(v.data[i]));
         return tabstatSummary(
           use.map((i) => v.data[i]),
           weighted.weights ? use.map((i) => weighted.weights[i]) : null,
+          parsed.weight?.type === "fweight",
         );
       });
   // The groups, in sort order, and Total.

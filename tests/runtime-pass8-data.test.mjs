@@ -11,6 +11,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Session } from "../src/runtime/session.js";
 import { Generator } from "../src/runtime/random.js";
+import { StataError } from "../src/runtime/errors.js";
+import { list, weightedRows } from "../src/runtime/reports.js";
 
 const run = (source) => {
   const session = new Session(),
@@ -329,4 +331,218 @@ test("oneway leaves out cells without variance from Bartlett's test", () => {
   r = run(`${CELLS}\noneway y g if g == 2 | g == 4`).session.results.r;
   close(r.chi2bart, 0.4531664156777877);
   assert.equal(r.df_bart, 1);
+});
+
+// Second round of the eighth pass, data group. Values from Stata 19 MP
+// (version 17, set processors 1) in batch mode; tools/output-cases.txt
+// holds the printed text (the pass8-data2-* cases).
+
+test("a weighted percentile averages the first value within 1e-7 of the total weight of its point and the first past it", () => {
+  const p50 = (input, weight) =>
+    run(`input x w\n${input}\nend\nquietly summarize x [${weight}=w], detail`)
+      .session.results.r.p50;
+  // Stata 19: r(p50) = 2 in each, where a tolerance alone gave 1 or 1.5.
+  assert.equal(p50("1 9999999\n2 2\n3 9999999", "fw"), 2);
+  assert.equal(p50("1 9999999\n2 2\n3 9999999", "aw"), 2);
+  assert.equal(p50("1 499999990\n2 20\n3 499999990", "aw"), 2);
+  assert.equal(p50("1 1\n2 1e-8\n3 1", "aw"), 2);
+  // A cumulated weight within the tolerance below the point still ties.
+  const { session } = run(`set obs 3
+generate x = _n
+generate double w = cond(_n == 1, 1, cond(_n == 2, 1e-6, 1 - 1e-6 + 2e-8))
+quietly summarize x [aw=w], detail`);
+  assert.equal(session.results.r.p50, 1.5);
+  // Unit weights on 1,000,001 observations: the 10th percentile ties,
+  // the 25th does not (Stata 19: 100000.5 and 250001).
+  const big = run(`set obs 1000001
+generate x = _n
+generate w = 1
+quietly summarize x [fw=w], detail`).session.results.r;
+  assert.equal(big.p10, 100000.5);
+  assert.equal(big.p25, 250001);
+});
+
+test("frequency weights adding up to billions are summarized without expanding them", () => {
+  const { session, result } = run(`input x w
+1 99999990
+2 20
+3 99999990
+end
+summarize x [fw=w], detail`);
+  assert.equal(result.rc, 0);
+  // Stata 19: w is a float, so 99999990 is stored as 99999992.
+  const r = session.results.r;
+  assert.equal(r.N, 200000004);
+  assert.equal(r.sum_w, 200000004);
+  assert.equal(r.p50, 2);
+  close(r.Var, 0.9999999050000015);
+  close(r.kurtosis, 1.000000100000008);
+  // A command that still repeats the observations stops with a StataError
+  // instead of running out of memory.
+  assert.equal(session.run("tabstat x [fw=w], stats(p50 n)").rc, 0);
+  const histogram = session.run("histogram x [fw=w]");
+  assert.equal(histogram.rc, 909);
+  assert.match(histogram.output.at(-1).lines[0], /more than this command/);
+  assert.throws(
+    () =>
+      weightedRows(
+        session,
+        session.parse("varname [fweight]", "x [fw=w]"),
+        [0, 1, 2],
+      ),
+    (error) =>
+      error instanceof StataError &&
+      error.code === 909 &&
+      /summarize and tabstat/.test(error.hint),
+  );
+});
+
+test("tab1 and tab2 refuse non-integer frequency weights before any table", () => {
+  const setup =
+    "set obs 6\ngenerate x = _n\ngenerate v = _n/2\ngenerate g = mod(_n,2)";
+  for (const command of [
+    "tab1 x [w=v]",
+    "tab1 x [fw=v]",
+    "tab2 x g [w=v]",
+    "tab2 x g [fw=v]",
+  ]) {
+    const { session, output } = run(`${setup}\ncapture noisily ${command}`);
+    assert.equal(session.rc, 401, command);
+    assert.ok(
+      !textOf(output).some((line) => line.startsWith("-> tabulation")),
+      command,
+    );
+  }
+});
+
+test("kwallis needs two populations, and spearman takes a matrix of variables", () => {
+  const rc = (command) =>
+    run(`set seed 97531
+set obs 400
+generate k = 1 + floor(12*runiform())
+generate y = round(rnormal(50, 15) + k, 1)
+capture noisily ${command}`).session.rc;
+  assert.equal(rc("kwallis y if k == 1, by(k)"), 498);
+  assert.equal(rc("kwallis y if k == 99, by(k)"), 2000);
+  const { session } = run(`set seed 2468
+set obs 250
+generate g = 1 + floor(3*runiform())
+generate female = runiform() < .45
+generate y = round(10*rnormal() + 3*g, .5)
+generate z = rnormal()
+replace y = . in 7
+replace z = . in 9/10
+spearman y z g`);
+  // Stata 19: return list.
+  const r = session.results.r;
+  assert.equal(r.N, 247);
+  close(r.rho, 0.1987730651647424);
+  close(r.p, 0.0016923394136519, 1e-10);
+  assert.deepEqual(r["matrix:Nobs"].values, [
+    [247, 247, 247],
+    [247, 247, 247],
+    [247, 247, 247],
+  ]);
+  assert.ok(r["matrix:P"].values[0][0] > 8e307);
+  assert.equal(r["matrix:Rho"].values[2][2], 1);
+  const strings = run(`set obs 5
+generate y = _n
+generate str3 s = "a"
+capture noisily spearman y s`);
+  assert.equal(strings.session.rc, 102);
+  assert.ok(
+    textOf(strings.output).includes("(s ignored because string variable)"),
+  );
+});
+
+test("oneway takes frequency, analytic and importance weights", () => {
+  const setup = `set seed 2468
+set obs 250
+generate g = 1 + floor(3*runiform())
+generate female = runiform() < .45
+generate y = round(10*rnormal() + 3*g, .5)
+generate z = rnormal()
+replace y = . in 7
+generate w = 1 + floor(4*runiform())`;
+  // Stata 19: return list.
+  let r = run(`${setup}\noneway y g [fw=w]`).session.results.r;
+  assert.equal(r.N, 629);
+  assert.equal(r.df_r, 626);
+  close(r.mss, 5670.071052086831);
+  close(r.rss, 68362.88125315959);
+  close(r.chi2bart, 6.61644504875383);
+  r = run(`${setup}\noneway y g [iw=w]`).session.results.r;
+  assert.equal(r.N, 629);
+  r = run(`${setup}\noneway y g [aw=w]`).session.results.r;
+  assert.equal(r.N, 249);
+  close(r.mss, 2244.590925229921);
+  close(r.rss, 27062.57143408067);
+  close(r.chi2bart, 2.686976138476277, 1e-12);
+  const generic = run(`${setup}\noneway y g [w=w]`);
+  assert.ok(textOf(generic.output).includes("(analytic weights assumed)"));
+  assert.equal(
+    run(`${setup}\ngenerate v = w/2\ncapture oneway y g [fw=v]`).session.rc,
+    401,
+  );
+});
+
+test("list, sort and gsort with observations and no variables", () => {
+  const rc = (command) =>
+    run(`set obs 3\ncapture noisily ${command}`).session.rc;
+  // Stata 19.
+  assert.equal(rc("list, sepby(x)"), 198);
+  assert.equal(rc("list, sepby(_all)"), 0);
+  assert.equal(rc("sort _all"), 0);
+  assert.equal(rc("sort x"), 111);
+  assert.equal(rc("gsort _all"), 100);
+  assert.equal(rc("list, N"), 0);
+  assert.equal(rc("list, n"), 198);
+  assert.equal(
+    run("set obs 3\ngenerate a = _n\ncapture noisily list, sepby(x)").session
+      .rc,
+    198,
+  );
+  // list's footer rows are refused with a hint, not with Stata's own
+  // wording for an option it lacks.
+  const { session } = run("set obs 3\ngenerate a = _n");
+  assert.throws(
+    () => list(session, "a, N", { out: () => {} }),
+    (error) =>
+      error instanceof StataError &&
+      error.code === 198 &&
+      error.message === "option N is not available in the browser yet" &&
+      /summarize/.test(error.hint),
+  );
+});
+
+test("the trigonometric and hyperbolic functions, and rt() draw for draw", () => {
+  const { session } = run(`set obs 4
+generate double z = tanh(_n/4)
+generate double a = asin(_n - 2)
+generate double d = acosh(_n - 1)
+generate double e = atanh(_n/2 - 1)
+set seed 777
+generate double t = rt(5)`);
+  // Stata 19: .2449187 .4621172 .6351489 .7615942.
+  const z = column(session, "z");
+  [
+    0.2449186624037092, 0.4621171572600098, 0.6351489523872873,
+    0.7615941559557649,
+  ].forEach((value, k) => close(z[k], value, 1e-15));
+  assert.ok(column(session, "a")[3] > 8e307);
+  assert.ok(column(session, "d")[0] > 8e307);
+  assert.ok(column(session, "e")[3] > 8e307);
+  // Stata 19, set seed 777, rt(5) read in %21x.
+  assert.deepEqual(
+    Array.from(column(session, "t")).slice(0, 3),
+    [2.8830197783686815, 1.131073052850975, 1.157743972343512],
+  );
+  // A df below 1 or missing gives missing and takes no draw.
+  const only = run(`set obs 1
+set seed 777
+generate double a = rt(0)
+generate double b = rt(.)
+generate double u = runiform()`);
+  assert.ok(column(only.session, "a")[0] > 8e307);
+  assert.equal(column(only.session, "u")[0], new Generator(777).uniform());
 });

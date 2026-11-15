@@ -176,6 +176,8 @@ export function countCommand(session, text, ctx) {
   session.results.r = { N: n };
 }
 
+// The most observations a frequency weight is expanded into.
+export const FREQUENCY_EXPANSION_LIMIT = 20_000_000;
 /**
  * The observations a weighted command uses. A frequency weight repeats the
  * observation (or, with `expand` false, comes back as weights, so that
@@ -192,6 +194,16 @@ export function weightedRows(session, parsed, rows, { expand = true } = {}) {
     if (used.some((i) => !Number.isInteger(all[i])))
       throw new StataError("may not use noninteger frequency weights", 401);
     if (!expand) return { rows: used, weights: all };
+    // Repeating the observations takes a row for each; past this many the
+    // browser would run out of memory, so the command stops cleanly.
+    let total = 0;
+    for (const i of used) total += all[i];
+    if (total > FREQUENCY_EXPANSION_LIMIT)
+      throw new StataError(
+        `frequency weights add up to ${count(total)} observations, more than this command can hold in the browser`,
+        909,
+        "summarize and tabstat take frequency weights of any size",
+      );
     return {
       rows: used.flatMap((i) => new Array(all[i]).fill(i)),
       weights: null,
@@ -200,23 +212,30 @@ export function weightedRows(session, parsed, rows, { expand = true } = {}) {
   return { rows: used, weights: all };
 }
 // The variance divides by n - 1 with analytic weights, which sum to n, and
-// by the sum of the weights less one with importance weights.
-export function weightedMoments(variable, rows, weights, importance = false) {
+// by the sum of the weights less one with importance weights. Frequency
+// weights count observations: n is their sum, and the variance divides by
+// it less one, as if each observation were repeated.
+export function weightedMoments(
+  variable,
+  rows,
+  weights,
+  importance = false,
+  frequency = false,
+) {
   if (isStringType(variable.type)) return moments([]);
   const use = rows.filter((i) => !isMissing(variable.data[i])),
-    n = use.length,
-    sumW = accurateSum(use, (i) => weights[i]);
+    sumW = accurateSum(use, (i) => weights[i]),
+    n = frequency ? sumW : use.length;
   if (!n) return moments([]);
   const sum = accurateSum(use, (i) => weights[i] * variable.data[i]),
     mean = sum / sumW,
+    squares = () =>
+      use.reduce((t, i) => t + weights[i] * (variable.data[i] - mean) ** 2, 0),
     variance =
       n > 1
-        ? (use.reduce(
-            (t, i) => t + weights[i] * (variable.data[i] - mean) ** 2,
-            0,
-          ) /
-            sumW) *
-          (importance ? sumW / (sumW - 1) : n / (n - 1))
+        ? frequency
+          ? squares() / (n - 1)
+          : (squares() / sumW) * (importance ? sumW / (sumW - 1) : n / (n - 1))
         : MISSING,
     values = use.map((i) => variable.data[i]);
   return {
@@ -306,9 +325,14 @@ export function summarize(session, text, ctx) {
   if (parsed.weight?.type === "iweight" && parsed.options.detail)
     throw new StataError("iweights not allowed", 101);
   noteWeights(text, parsed, ctx);
-  const weighted = weightedRows(session, parsed, scope(session, parsed, ctx)),
+  // Frequency weights come back as weights, so that a population count of
+  // billions needs no rows of its own.
+  const weighted = weightedRows(session, parsed, scope(session, parsed, ctx), {
+      expand: false,
+    }),
     rows = weighted.rows,
-    analytic = weighted.weights && !parsed.options.detail;
+    frequency = parsed.weight?.type === "fweight",
+    analytic = weighted.weights && !frequency && !parsed.options.detail;
   // With no variables in memory Stata prints nothing at all.
   if (!parsed.varlist.length) return;
   let last = null;
@@ -332,12 +356,11 @@ export function summarize(session, text, ctx) {
             rows,
             weighted.weights,
             parsed.weight.type === "iweight",
+            frequency,
           )
         : moments(values);
     if (parsed.options.detail) {
-      // An analytic weight weights the percentiles and the moments; a
-      // frequency weight arrives as repeated observations, whose
-      // percentiles Stata finds by the same rule.
+      // A weight of either kind weights the percentiles and the moments.
       const shape = distribution(
         isStringType(variable.type)
           ? []
@@ -355,9 +378,8 @@ export function summarize(session, text, ctx) {
         shape,
         summaryFormats(variable, parsed.options.format),
         // The smallest and largest are observations, not weighted copies.
-        isStringType(variable.type)
-          ? []
-          : present(variable.data, [...new Set(rows)]),
+        isStringType(variable.type) ? [] : present(variable.data, rows),
+        frequency,
       );
     }
     last = { m };
@@ -418,17 +440,39 @@ export function summarize(session, text, ctx) {
   }
 }
 /**
+ * The p-th percentile of [value, weight] pairs sorted by value, whose
+ * weights sum to W, as summarize, detail and tabstat find it with weights
+ * of any kind, frequency weights included. It is the mean of two values: the
+ * first whose cumulated weight comes within 1e-7 of the total weight of p
+ * percent of it, and the first whose cumulated weight passes that point by
+ * more than 1e-7 of the total. Away from a tie both are the same value;
+ * at a tie they are a value and the next. Found by experiment in Stata 19:
+ * with weights of 1 on 100,001 observations the 1st percentile (at
+ * 1000.01) is the mean of the 1000th and 1001st values, where without
+ * weights it is the 1001st; bisection puts the tolerance at 1e-7 of the
+ * total weight whatever the weights; and with weights 1, 1e-8 and 1 on the
+ * values 1, 2 and 3 the median is 2, the mean of 1 and 3, because the
+ * cumulated weights of both 1 and 2 are within the tolerance of the point.
+ */
+export function weightedPercentile(pairs, W, p) {
+  const n = pairs.length,
+    target = (W * p) / 100,
+    tolerance = 1e-7 * W;
+  let lower = -1,
+    cumulated = 0;
+  for (let k = 0; k < n; k++) {
+    cumulated += pairs[k][1];
+    if (lower < 0 && cumulated >= target - tolerance) lower = k;
+    if (cumulated > target + tolerance)
+      return (pairs[lower < 0 ? k : lower][0] + pairs[k][0]) / 2;
+  }
+  return lower < 0 ? pairs[n - 1][0] : (pairs[lower][0] + pairs[n - 1][0]) / 2;
+}
+/**
  * The percentiles, skewness and kurtosis summarize, detail shows, of the
- * values of the given rows, weighted when weights are given (analytic
- * weights, indexed by row; frequency weights arrive as repeated rows).
- *
- * A percentile is the first value whose cumulated weight passes p percent
- * of the total, or the mean of it and the next when the cumulated weight
- * meets that point. With weights of any kind, frequency weights included,
- * Stata takes "meets" to within 1e-7 of the total weight: found by
- * experiment, with weights of 1 on 100,001 observations the 1st percentile
- * (at 1000.01) is the mean of the 1000th and 1001st values, where without
- * weights it is the 1001st.
+ * values of the given rows, weighted when weights are given (indexed by
+ * row; frequency weights among them); without weights a percentile is
+ * Stata's usual one.
  */
 function distribution(rows, data, weights, mean, weightedAtAll) {
   const pairs = rows.map((i) => [data[i], weights ? weights[i] : 1]),
@@ -448,20 +492,11 @@ function distribution(rows, data, weights, mean, weightedAtAll) {
     percentile(p) {
       if (!n) return MISSING;
       if (!weightedAtAll) return percentile(sorted, p);
-      const target = (W * p) / 100,
-        tolerance = 1e-7 * W;
-      let cumulated = 0;
-      for (let k = 0; k < n; k++) {
-        cumulated += pairs[k][1];
-        if (Math.abs(cumulated - target) <= tolerance)
-          return k + 1 < n ? (sorted[k] + sorted[k + 1]) / 2 : sorted[k];
-        if (cumulated > target) return sorted[k];
-      }
-      return sorted[n - 1];
+      return weightedPercentile(pairs, W, p);
     },
   };
 }
-function detail(ctx, variable, m, shape, formats, observed) {
+function detail(ctx, variable, m, shape, formats, observed, frequency) {
   const ends = [...observed].sort((a, b) => a - b),
     title = variable.label || variable.name,
     p = (q) => statistic(shape.percentile(q), formats.level, 13),
@@ -487,7 +522,7 @@ function detail(ctx, variable, m, shape, formats, observed) {
   ctx.out(` 5%${p(5)}${end(1)}`);
   ctx.out(`10%${p(10)}${end(2)}${side("Obs", count(m.n))}`);
   ctx.out(
-    `25%${p(25)}${end(3)}${side("Sum of wgt.", applyFormat(m.sumW ?? m.n, "%11.0gc").trim())}`,
+    `25%${p(25)}${end(3)}${side("Sum of wgt.", frequency ? count(m.n) : applyFormat(m.sumW ?? m.n, "%11.0gc").trim())}`,
   );
   ctx.out("");
   ctx.out(`50%${p(50)}${" ".repeat(15)}${side("Mean", level(m.mean))}`);
@@ -1649,10 +1684,57 @@ export function list(session, text, ctx) {
       198,
       "header(#), which repeats the headings every # observations, is not available; list shows them once.",
     );
+  const [head, optionText0] = splitAtComma(text),
+    items = optionItems(optionText0 ?? "");
+  // N is written in capitals; Stata has no option n.
+  const lower = items.find((item) => item.name === "n");
+  if (lower) throw new StataError("option n not allowed", 198);
+  // The footer rows: N, mean and sum, labelled in labvar()'s column. With
+  // no variables there are no rows to add them to, and list prints nothing.
+  const footer = items.find(
+    (item) =>
+      item.name === "N" ||
+      (item.name.length >= 2 && "mean".startsWith(item.name)) ||
+      (item.name.length >= 2 && "sum".startsWith(item.name)) ||
+      (item.name.length >= 4 && "labvar".startsWith(item.name)),
+  );
+  if (footer && session.data.names.length)
+    throw new StataError(
+      `option ${footer.name === "N" ? "N" : ["mean", "sum", "labvar"].find((o) => o.startsWith(footer.name))} is not available in the browser yet`,
+      198,
+      "list's footer rows (N, mean, sum) are not available; summarize gives the count, mean and sum of each variable.",
+    );
+  // list checks sepby()'s variables itself: a name it cannot find is
+  // reported, and then the option.
+  const sepby = items.find(
+    (item) =>
+      item.argument !== undefined &&
+      item.name.length >= 5 &&
+      "sepby".startsWith(item.name),
+  );
+  if (sepby && !/^\s*_all\s*$/.test(sepby.argument))
+    try {
+      if (!session.data.names.length)
+        throw new StataError("no variables defined", 111);
+      session.varlist(sepby.argument);
+    } catch (error) {
+      if (!(error instanceof StataError)) throw error;
+      ctx.out(error.message);
+      throw new StataError("option sepby() incorrectly specified", 198);
+    }
+  // With no variables, sepby(_all) and the footer rows have nothing to act
+  // on, and Stata takes them without a word.
+  const kept = items.filter((item) => item !== sepby && item !== footer),
+    parseText =
+      session.data.names.length || kept.length === items.length
+        ? text
+        : kept.length
+          ? `${head}, ${kept.map((item) => item.word).join(" ")}`
+          : head;
   const parsed = parseNamingVariables(
       session,
       "[varlist] [if] [in] [, CLEAN NOObs noLabel SEParator(integer 5) ABbreviate(integer 8) SEPBY(varlist) Divider noHeader STRing(integer 0) Table Display noCompress LINEsize(integer 0) | FAst FOOTer MEan SUm N LABVar(string) CONStant NOTrim ABSolute NODotz SUBVARname FVall DS OBS]",
-      text,
+      parseText,
     ),
     options = parsed.options,
     rows = scope(session, parsed, ctx),
@@ -1990,11 +2072,18 @@ const refusal = (error) =>
 /**
  * tab1 and tab2 read [w=exp] themselves, as a frequency weight, the first
  * kind their syntax allows: Stata says so once, before the first table, and
- * passes the weight on to each table as an fweight.
+ * passes the weight on to each table as an fweight. Their marksample then
+ * refuses a frequency weight that is not a whole number, r(401), before
+ * any table is begun.
  */
-function assumeFrequency(text, rest, ctx) {
-  if (!genericWeight(text)) return rest;
-  ctx.out(assumedWeights("fweight"));
+function assumeFrequency(session, parsed, text, rest, ctx) {
+  const generic = genericWeight(text);
+  if (generic) ctx.out(assumedWeights("fweight"));
+  if (parsed.weight?.type === "fweight")
+    weightedRows(session, parsed, session.rows(parsed, null), {
+      expand: false,
+    });
+  if (!generic) return rest;
   return rest.replace(/\[\s*w(?:e(?:i(?:g(?:ht?)?)?)?)?\s*=/, "[fweight=");
 }
 /** tab1: a one-way table for each variable. */
@@ -2003,8 +2092,11 @@ export function tab1(session, text, ctx) {
     names = session.varlist(q.varlist);
   if (!names.length) throw new StataError("varlist required", 100);
   // tab1.ado's own syntax: its errors stop tab1.
-  session.parse("varlist [if] [in] [fweight aweight iweight] [, *]", text);
-  const rest = assumeFrequency(text, q.rest, ctx);
+  const parsed = session.parse(
+      "varlist [if] [in] [fweight aweight iweight] [, *]",
+      text,
+    ),
+    rest = assumeFrequency(session, parsed, text, q.rest, ctx);
   // tab1.ado runs each table under capture noisily, then leaves its loop
   // inside a capture block: a table that fails prints its message and ends
   // the run, and tab1 itself still succeeds; the captures leave _rc behind.
@@ -2057,7 +2149,11 @@ export function tab2(session, text, ctx) {
     names = session.varlist(q.varlist);
   if (names.length < 2)
     throw new StataError("too few variables specified", 102);
-  const rest = assumeFrequency(text, q.rest, ctx);
+  const parsed = session.parse(
+      "varlist [if] [in] [fweight aweight iweight] [, *]",
+      text,
+    ),
+    rest = assumeFrequency(session, parsed, text, q.rest, ctx);
   ctx.out("");
   for (let a = 0; a < (firstonly ? 1 : names.length); a++)
     for (let b = a + 1; b < names.length; b++) {

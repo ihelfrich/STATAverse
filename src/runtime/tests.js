@@ -8,6 +8,7 @@ import { invnormal, normal } from "./functions-normal.js";
 import { FUNCTIONS } from "./functions.js";
 import { ranks } from "./everyday.js";
 import {
+  accurateSum,
   count,
   labelled,
   moments,
@@ -15,10 +16,16 @@ import {
   percentile,
   perGroup,
   tabulate,
+  weightedRows,
   wrapLine,
 } from "./reports.js";
 import { Dataset } from "./store.js";
-import { clauses, splitAtComma } from "./syntax.js";
+import {
+  assumedWeights,
+  clauses,
+  genericWeight,
+  splitAtComma,
+} from "./syntax.js";
 import { abbreviateColumns, qualifierAfterHypothesis } from "./utilities.js";
 import {
   MISSING,
@@ -1217,8 +1224,11 @@ function signrank(session, text, ctx) {
   ctx.out("");
 }
 
-/** The observations of a response grouped by the levels of a factor. */
-function grouped(session, parsed, within = null) {
+/**
+ * The observations of a response grouped by the levels of a factor; with
+ * keepMissing, a missing level of the factor is a group of its own.
+ */
+function grouped(session, parsed, within = null, keepMissing = false) {
   const variable = numericVariable(session, parsed.varlist[0]),
     by = session.data.get(parsed.options?.by?.[0] ?? parsed.varlist[1]),
     rows = session
@@ -1226,9 +1236,10 @@ function grouped(session, parsed, within = null) {
       .filter(
         (i) =>
           !isMissing(variable.data[i]) &&
-          (typeof by.data[i] === "string"
-            ? by.data[i] !== ""
-            : !isMissing(by.data[i])),
+          (keepMissing ||
+            (typeof by.data[i] === "string"
+              ? by.data[i] !== ""
+              : !isMissing(by.data[i]))),
       ),
     levels = [...new Set(rows.map((i) => by.data[i]))].sort((a, b) =>
       a < b ? -1 : a > b ? 1 : 0,
@@ -1933,31 +1944,59 @@ function robvar(session, text, ctx) {
 
 function oneway(session, text, ctx) {
   const parsed = session.parse(
-      "varlist(min=2 max=2) [if] [in] [, Tabulate | Bonferroni SCHeffe SIdak Means STandard Freq Obs noAnova noLabel Wrap Missing]",
+      "varlist(min=2 max=2) [if] [in] [aweight fweight iweight] [, Tabulate Missing | Bonferroni SCHeffe SIdak Means STandard Freq Obs noAnova noLabel Wrap]",
       text,
     ),
-    f = grouped(session, parsed);
+    f = grouped(session, parsed, null, parsed.options.missing);
+  if (parsed.weight && genericWeight(text))
+    ctx.out(assumedWeights(parsed.weight.type));
+  // A weight leaves out the observations it gives no weight, and frequency
+  // weights must be whole numbers.
+  const weighted = weightedRows(session, parsed, f.rows, { expand: false });
+  if (weighted.weights) {
+    const kept = new Set(weighted.rows);
+    f.rows = f.rows.filter((i) => kept.has(i));
+    f.groups = f.groups
+      .map((rows) => rows.filter((i) => kept.has(i)))
+      .filter((rows, g) => {
+        if (!rows.length) f.levels[g] = undefined;
+        return rows.length;
+      });
+    f.levels = f.levels.filter((level) => level !== undefined);
+  }
   // Stata says so and returns 0, leaving r() empty, even with tabulate.
   if (!f.rows.length) {
     ctx.out("no observations");
     session.results.r = {};
     return;
   }
-  const y = (i) => f.variable.data[i],
-    stats = f.groups.map((rows) => moments(values(f.variable, rows))),
-    all = moments(values(f.variable, f.rows)),
+  // Analytic weights are scaled to sum to the number of observations;
+  // frequency weights, and importance weights as Stata takes them here,
+  // count observations, as if each were repeated.
+  const frequency = ["fweight", "iweight"].includes(parsed.weight?.type),
+    scale =
+      weighted.weights && !frequency
+        ? f.rows.length / f.rows.reduce((t, i) => t + weighted.weights[i], 0)
+        : 1,
+    weightOf = weighted.weights ? (i) => weighted.weights[i] * scale : () => 1,
+    y = (i) => f.variable.data[i],
+    summary = (rows) => {
+      const W = accurateSum(rows, (i) => weightOf(i)),
+        mean = accurateSum(rows, (i) => weightOf(i) * y(i)) / W,
+        ss = rows.reduce((t, i) => t + weightOf(i) * (y(i) - mean) ** 2, 0),
+        n = frequency ? W : rows.length;
+      return { n, W, mean, ss, variance: n > 1 ? ss / (n - 1) : MISSING };
+    },
+    stats = f.groups.map(summary),
+    all = summary(f.rows),
     n = all.n,
     k = f.levels.length,
     dfBetween = k - 1,
     dfWithin = n - k,
     // Each sum of squares from its own deviations.
-    within = f.groups.reduce(
-      (t, rows, g) =>
-        t + rows.reduce((u, i) => u + (y(i) - stats[g].mean) ** 2, 0),
-      0,
-    ),
-    between = stats.reduce((t, m) => t + m.n * (m.mean - all.mean) ** 2, 0),
-    total = f.rows.reduce((t, i) => t + (y(i) - all.mean) ** 2, 0),
+    within = stats.reduce((t, m) => t + m.ss, 0),
+    total = all.ss,
+    between = stats.reduce((t, m) => t + m.W * (m.mean - all.mean) ** 2, 0),
     msBetween = dfBetween > 0 ? between / dfBetween : MISSING,
     pooled = dfWithin > 0 ? within / dfWithin : MISSING,
     F =
@@ -1993,6 +2032,7 @@ function oneway(session, text, ctx) {
   }
   if (parsed.options.tabulate) {
     const condition = [
+      parsed.weight ? `[${parsed.weight.type}=${parsed.weight.exp}]` : "",
       parsed.if ? `if ${parsed.if}` : "",
       parsed.in ? `in ${parsed.in[0]}/${parsed.in[1]}` : "",
     ]
@@ -2000,7 +2040,7 @@ function oneway(session, text, ctx) {
       .join(" ");
     tabulate(
       session,
-      `${f.by.name} ${condition}, summarize(${f.variable.name})`,
+      `${f.by.name} ${condition}, summarize(${f.variable.name})${parsed.options.missing ? " missing" : ""}`,
       ctx,
     );
   } else ctx.out("");
@@ -2059,8 +2099,11 @@ function oneway(session, text, ctx) {
 
 function kwallis(session, text, ctx) {
   const parsed = session.parse("varname [if] [in] , BY(varlist)", text),
-    f = grouped(session, parsed),
-    all = ranks(f.rows.map((i) => f.variable.data[i])),
+    f = grouped(session, parsed);
+  if (!f.rows.length) throw new StataError("no observations", 2000);
+  if (f.levels.length < 2)
+    throw new StataError("at least two populations are required", 498);
+  const all = ranks(f.rows.map((i) => f.variable.data[i])),
     position = new Map(f.rows.map((i, k) => [i, k])),
     n = f.rows.length,
     sums = f.groups.map((rows) =>
@@ -2097,11 +2140,16 @@ function kwallis(session, text, ctx) {
   ctx.out(
     `  |${"-".repeat(first + 2)}+${"-".repeat(second + 2)}+${"-".repeat(third + 2)}|`,
   );
-  labels.forEach((label, k) =>
+  // As tabdisp does, a rule separates each five rows.
+  labels.forEach((label, k) => {
+    if (k && k % 5 === 0)
+      ctx.out(
+        `  |${"-".repeat(first + 2)}+${"-".repeat(second + 2)}+${"-".repeat(third + 2)}|`,
+      );
     ctx.out(
       `  | ${label.padStart(first)} | ${obs[k].padStart(second)} | ${sumsText[k].padStart(third)} |`,
-    ),
-  );
+    );
+  });
   ctx.out(`  +${"-".repeat(inner)}+`);
   ctx.out("");
   // kwallis.ado right-aligns each probability, shown as at least .0001,
