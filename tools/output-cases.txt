@@ -26607,3 +26607,5263 @@ generate w = 1 + runiform()
 generate y = 2 + 3*x + g/10 + rnormal()
 regress y x i.g
 regress y x i.g [aw=w], vce(robust)
+=== recheck-hints-fixes
+clear
+input id t x1 x2 x3 str1 g w y female
+1 1 1 2 3 "a" 1 5 0
+1 2 2 3 4 "b" 1 8 1
+2 1 3 4 5 "a" 3 6 1
+2 2 4 5 6 "b" 4 9 0
+end
+label define fem 0 "Male" 1 "Female"
+label values female fem
+generate str6 city = cond(id == 1, "Boston", "Austin")
+capture noisily summarize y if female==Female
+summarize y if female==1
+capture noisily tabulate t if city=Boston
+tabulate t if city == "Boston"
+capture noisily count if g == "a" | "b"
+count if g == "a" | g == "b"
+count if inlist(g, "a", "b")
+capture noisily count if g == .
+count if missing(g)
+capture noisily replace g = 5 in 1
+replace g = "5" in 1
+capture noisily generate m = mean(x1)
+egen m = mean(x1)
+capture noisily summarize x1-x5
+summarize x1-x3
+capture noisily count if x1 > 1 and x2 < 5
+count if x1 > 1 & x2 < 5
+label define yn 0 "No" 1 "Yes"
+capture noisily label define yn 0 "No"
+label define yn 0 "No", replace
+label list yn
+capture noisily rename x1 x2
+capture noisily generate y2 = log(x1))
+capture noisily generate y2 = log((x1)
+quietly regress y x1 x2
+capture noisily test x3
+capture noisily test x11
+test x1
+capture noisily estat bogus
+capture noisily regress y x1, vce(robsut)
+regress y x1, vce(robust)
+capture noisily list x1 in 1/10
+capture noisily generate _n = 1
+capture noisily encode x1, generate(e1)
+drop g
+capture noisily reshape wide y x1 x2, i(id) j(t)
+reshape wide y x1 x2 x3 w female, i(id) j(t)
+list
+=== recheck-hints-messages
+clear
+input id t v income
+1 1 1 50
+1 1 2 .
+2 1 3 70
+2 2 -1 .
+end
+capture noisily xtset id t
+capture noisily regress income i.v
+capture noisily isid id
+count if income > 60
+count if income > 60 & !missing(income)
+generate z = income/2
+save hintsfile, replace
+capture noisily save hintsfile
+save hintsfile, replace
+capture noisily use data/hintsfile.dta, clear
+use hintsfile.dta, clear
+capture noisily merge 1:1 id using hintsfile
+capture noisily merge m:1 id t using hintsfile
+capture noisily xtreg income v
+capture noisily program drop nosuchprog
+capture noisily matrix list nosuchmat
+capture noisily display _b[v]
+clear
+input str3 id y
+"1" 5
+end
+save hintsusing, replace
+clear
+input id k
+1 2
+end
+capture noisily merge 1:1 k using hintsusing
+=== recheck-hints-r2
+clear
+input id grp wage educ exper female str6 city str5 region
+1 1 15.3 12 5 0 "Boston" "North"
+2 1 . 16 3 1 "Austin" "South"
+3 2 21.4 16 9 1 "Boston" "North"
+4 2 13.1 10 2 0 "Austin" "South"
+5 3 18.2 14 7 1 "Boston" "North"
+6 3 . 12 4 0 "Austin" "North"
+7 1 16.9 13 6 1 "Boston" "South"
+8 2 19.5 15 8 0 "Austin" "North"
+9 3 22.1 17 10 1 "Boston" "South"
+10 1 14.2 11 3 0 "Austin" "North"
+end
+label define fem 0 "Male" 1 "Female"
+label values female fem
+capture noisily summarize wage if fem==Female
+summarize wage if fem==1
+capture noisily count if femal == Male
+count if femal == 0
+count if female!=0
+capture noisily count if regio == North
+count if regio == "North"
+regress wage i.female educ
+capture noisily test female
+test 1.female
+capture noisily lincom female
+lincom 1.female
+regress wage i.grp
+capture noisily test grp
+test 2.grp 3.grp
+regress wage c.educ#c.exper
+capture noisily test exper
+test c.educ#c.exper
+count if wage > 15
+count if wage > 15 & !missing(wage)
+count if wage > 15 & wage < 20
+count if wage > 15 & wage < 20 & !missing(wage)
+count if inrange(wage, 15, .) & wage > 15
+count if inrange(wage, 15, .) & wage > 15 & !missing(wage)
+count if educ > 12 & wage > 15
+count if educ > 12 & wage > 15 & !missing(wage)
+count if 15 < wage
+count if 15 < wage & !missing(wage)
+count if wage > 15 | wage < 14
+count if (wage > 15 | wage < 14) & !missing(wage)
+summarize wage if wage > 15
+summarize wage if wage > 15 & !missing(wage)
+regress wage educ if wage > 15
+regress wage educ if wage > 15 & !missing(wage)
+tabulate region if wage > 15
+tabulate region if wage > 15 & !missing(wage)
+list id if wage >= 20 & wage <= 21
+display "keep if wage > 5"
+capture noisily generate dev = wage - mean(wage)
+capture noisily gen z = (wage - mean(wage))/sd(wage)
+egen mean_wage = mean(wage)
+generate dev = wage - mean_wage
+capture noisily bysort grp: gen gm = mean(wage)
+bysort grp: egen gm = mean(wage)
+sort id
+capture noisily count if city=5
+capture noisily count if city == 5
+capture noisily count if female=Female
+capture noisily count if female == Female
+count if female == 1
+capture noisily count if educ=twelve
+capture noisily count if educ == twelve
+capture noisily count if city=Boston & wage>5
+count if city == "Boston" & wage>5
+save people, replace
+capture noisily merge m:1 grp using people
+capture noisily merge 1:m grp using people
+capture noisily merge 1:1 grp using people
+sort id
+preserve
+joinby grp using people
+restore
+capture noisily counti if wage > 5
+count if wage > 5
+capture noisily testi educ
+capture noisily listi in 1
+capture noisily replace city = educ in 1
+replace city = string(educ) in 1
+capture noisily replace region = 1e3 in 3
+replace region = "1000" in 3
+capture noisily display wge[1]
+display wage[1]
+capture noisily display wagee
+display wage
+global g Boston
+capture noisily count if city == $g
+count if city == "$g"
+forvalues i = 1/2 {
+  capture noisily summarize wage, bogus
+}
+clear
+input id inc2000 inc2001 year
+1 5 6 1
+2 7 8 2
+end
+capture noisily reshape long inc, i(id) j(year)
+reshape long inc, i(id) j(yr)
+capture noisily reshape long inc, i(id) j(yr)
+clear
+input grp t x w v
+1 1 5 1 3
+1 2 6 2 3
+2 1 7 1 4
+2 2 8 1 5
+end
+reshape wide x w v, i(grp) j(t)
+reshape long x, i(grp) j(t)
+capture noisily reshape wide x, i(t) j(w)
+capture noisily reshape wide x, i(t) j(t)
+=== recheck-files-merge-notes-chars
+clear
+input id x
+=== expr-value-label-dereference
+clear
+set obs 4
+gen g = _n
+label define gl 1 "low" 2 "mid" 3 "high" 4 "a b"
+label define e2 .a "dk" 1 "one"
+label values g gl
+count if g == "mid":gl
+display ("high":gl)
+display 1 + "high":gl
+display ("a b":gl) + ("mid" : gl)
+display ("nope":gl)
+display ("mid":nolab)
+display ("MID":gl)
+display 0+"dk":e2
+gen y = "mid":gl + 1
+gen w = "zz":gl
+count if inlist(g, "low":gl, "high":gl)
+replace g = "low":gl if g == "high":gl
+capture noisily display "high":gl
+capture noisily display 0+"mid":
+capture noisily display strlen("mid":gl)
+assert g != "none":gl
+keep if g >= "mid":gl
+list, nolabel
+=== expr-value-label-use-if
+clear
+input edu y
+1 10
+2 20
+3 30
+end
+char x[unit] kg
+char _dta[foo] master
+notes x: master note
+notes x: shared note
+notes: master dta note
+save rfnm, replace
+clear
+input id x y
+1 11 5
+2 21 6
+4 41 7
+end
+char x[unit] lb
+char x[other] u
+char y[unit] cm
+char _dta[foo] using
+char _dta[bar] using
+notes x: using note
+notes x: shared note
+notes y: y note
+notes: using dta note
+notes id: id using note
+save rfnu, replace
+use rfnm, clear
+char list
+merge 1:1 id using rfnu, nogenerate
+notes
+char list
+describe id x y
+use rfnm, clear
+merge 1:1 id using rfnu, nogenerate nonotes
+notes
+char list
+use rfnm, clear
+merge 1:1 id using rfnu, nogenerate keepusing(x)
+char list
+=== recheck-files-append-cross-joinby-notes
+clear
+input id x z
+1 10 0
+2 20 0
+end
+char x[unit] kg
+char z[a] 1
+notes x: master note
+notes: master dta note
+save rfam, replace
+clear
+input id x y
+1 11 5
+3 31 7
+end
+char x[unit] lb
+char x[other] u
+char y[unit] cm
+notes x: using note
+notes x: master note
+notes y: y note
+notes: using dta note
+save rfau, replace
+use rfam, clear
+append using rfau
+notes
+char list
+use rfam, clear
+append using rfau rfau, generate(src)
+notes
+use rfam, clear
+append using rfau, nonotes
+notes
+char list
+use rfam, clear
+drop x
+cross using rfau
+notes
+char list
+use rfam, clear
+joinby id using rfau, unmatched(both)
+notes
+char list
+=== recheck-files-char-order-save-use
+clear
+set obs 1
+generate z = 1
+char z[a] 1
+char z[b] 2
+notes z: first
+notes z: second
+char _dta[q] 3
+char list
+save rfco, replace
+use rfco, clear
+char list
+save rfco, replace
+use rfco, clear
+char list
+=== recheck-files-merge-messages
+set linesize 79
+clear
+input id str3 s x
+1 "a" 5
+2 "b" 6
+end
+save rfmm, replace
+clear
+input str2 id xa xb
+"1" 3 4
+end
+save rfms, replace
+clear
+input id xa xb
+1 3 4
+end
+save rfmn, replace
+use rfmm, clear
+capture noisily merge 1:1 id using rfms
+display _rc
+capture noisily merge 1:1 id using rfmn, keepusing(nothere)
+display _rc
+capture noisily merge 1:1 id using rfmn, keepusing(x)
+display _rc
+capture noisily merge 1:1 id using rfmn, keepusing(xa q*)
+display _rc
+capture noisily merge 1:1 id using rfmn, keepusing(x*)
+display _rc
+capture noisily append using rfnosuch
+display _rc
+capture noisily append using "rf no such.dta"
+display _rc
+capture noisily append using rfmn rfnosuch2
+display _rc
+display _N
+use rfms, clear
+capture noisily merge 1:1 id using rfmm
+display _rc
+capture noisily joinby id using rfmm
+display _rc
+display _N
+set linesize 200
+
+=== recheck-files-not-stata-format
+clear
+set obs 2
+generate id = _n
+generate v = 10 * _n
+export delimited using rfnsf.csv, replace
+save rfnsf, replace
+capture noisily merge 1:1 id using rfnsf.csv
+display _rc " " _N
+capture noisily append using rfnsf.csv
+display _rc " " _N
+capture noisily describe using rfnsf.csv
+display _rc
+capture noisily use rfnsf.csv
+display _rc " " _N
+capture noisily use rfnsf.csv, clear
+display _rc " " _N
+capture noisily use rfnosuch, clear
+display _rc " " _N
+=== recheck-files-dot-slash
+clear
+set obs 3
+generate id = _n
+save "./rfdot", replace
+export delimited using ./rfdot.csv, replace
+use ./rfdot, clear
+describe using ./rfdot, simple
+import delimited using ./rfdot.csv, clear
+use "./rfdot.dta", clear
+merge 1:1 id using ./rfdot, nogenerate
+append using ./rfdot
+count
+=== recheck-files-save-other-extension
+set linesize 79
+clear
+set obs 2
+generate x = _n
+save rfother.dat
+use rfother.dat, clear
+capture noisily save rfother.dat
+save rfother.dat, replace
+save rfdtaname.dta
+set linesize 200
+
+=== recheck-files-nobind
+clear
+input id str20 note
+1 `"say "hi""'
+2 `"""'
+3 `"a,b"'
+end
+export delimited using rfnob.csv, replace quote
+import delimited using rfnob.csv, bindquotes(nobind) clear
+list
+import delimited using rfnob.csv, bindquotes(nobind) stripquotes(no) clear
+list
+=== recheck-files-ds-utf8
+clear
+set obs 1
+generate a = 1
+generate b = 1
+generate école = 1
+generate c = 1
+ds
+generate ééééé = 1
+ds
+ds, skip(1)
+=== recheck-files-numericcols-text
+clear
+input str6 p str6 q str6 r str6 s str6 t str6 u str6 v
+"1" "1" "1" "1" "1" "1.5" "300"
+"x" "ab" "abc" "abcdef" "NA" "x" "abcdef"
+"" "1.5" "100000" "" "300" "ab" "1.5"
+end
+export delimited using rfnum.csv, novarnames replace
+import delimited using rfnum.csv, numericcols(_all) clear
+describe
+list
+import delimited using rfnum.csv, numericcols(_all) varnames(nonames) clear
+describe
+import delimited using rfnum.csv, numericcols(2 3) clear
+describe
+=== recheck-files-charset-29-bytes
+clear
+input Alpha Beta str1 Gamma
+1 2 "x"
+3 4 "y"
+end
+export delimited using rfsemi.csv, delimiter(";") replace
+import delimited using rfsemi.csv, clear
+=== recheck-files-list-tab
+clear
+set obs 2
+generate s = "id" + char(9) + "name"
+replace s = "a" + char(9) + "b" + char(9) + "c" in 2
+list
+list, clean noobs
+list, table divider
+=== recheck-files-cd
+capture noisily cd "/Users/student/Dropbox/ECON400"
+display _rc
+capture noisily cd C:\Users\me\Documents
+capture noisily cd a b
+display _rc
+=== recheck-files2-merge-repeated-notes
+* using: shared var x with chars, var z, notes incl. duplicates
+clear
+input id x z
+1 10 5
+2 20 6
+3 30 7
+end
+char x[unit] grams
+char x[src] using
+char z[unit] m
+char id[keyc] usingkey
+notes x: shared note
+notes x: using x note
+notes x: using x note
+notes z: z note
+notes: using dta
+notes: common dta
+char _dta[who] usingdta
+save r2fmu, replace
+* master
+clear
+input id x w
+1 1 0
+2 2 0
+4 4 1
+end
+char x[unit] kg
+char w[unit] cm
+char id[keyc] masterkey
+notes x: shared note
+notes x: second master
+notes x: third master
+notes drop x in 2
+notes: common dta
+char _dta[who] masterdta
+save r2fmm, replace
+merge 1:1 id using r2fmu
+char list
+notes
+count
+* update replace
+use r2fmm, clear
+merge 1:1 id using r2fmu, update replace nogen
+char list x[]
+notes x
+* keepusing excludes z
+use r2fmm, clear
+merge 1:1 id using r2fmu, keepusing(x) nogen
+char list
+* nonotes
+use r2fmm, clear
+merge 1:1 id using r2fmu, nonotes nogen
+notes
+char list _dta[]
+* m:1
+use r2fmm, clear
+merge m:1 id using r2fmu, nogen
+notes
+=== recheck-files2-append-repeated-notes
+clear
+input id x
+1 10
+2 20
+end
+char x[unit] grams
+notes x: dup
+notes x: dup
+notes: d1
+save r2fau1, replace
+clear
+input id x
+3 30
+end
+char x[unit] lb
+char x[extra] e2
+notes x: dup
+notes x: other
+notes: d1
+notes: d2
+save r2fau2, replace
+clear
+input id x
+5 50
+end
+notes x: mine
+save r2fam, replace
+append using r2fau1 r2fau2
+char list
+notes
+use r2fam, clear
+append using r2fau1
+append using r2fau2
+notes
+use r2fam, clear
+append using r2fau1 r2fau2, nonotes
+char list
+use r2fam, clear
+append using r2fau1, keep(id)
+char list
+use r2fam, clear
+cross using r2fau1
+notes
+use r2fam, clear
+replace id = 1
+joinby id using r2fau1
+notes
+char list
+=== recheck-files2-append-loop-notes
+clear
+input id x
+1 10
+2 20
+end
+char x[unit] grams
+notes x: dup
+notes x: dup
+notes: d1
+save r2fbu1, replace
+clear
+input id x
+3 30
+end
+char x[unit] lb
+char x[extra] e2
+notes x: dup
+notes x: other
+notes: d1
+notes: d2
+save r2fbu2, replace
+clear
+input id x
+5 50
+end
+notes x: mine
+save r2fbm, replace
+clear
+append using r2fbu1
+notes
+char list
+clear
+foreach f in r2fbu1 r2fbu2 r2fbm {
+append using `f'
+}
+notes
+char list
+label data "x"
+save r2fball, replace
+use r2fball, clear
+char list
+=== recheck-files2-char-order-preserve
+clear
+set obs 2
+gen x = _n
+gen y = 2
+char x[a] one
+char x[b] two
+char x[c] three
+char _dta[p] P
+char _dta[q] Q
+notes x: first
+notes: dta note
+char list
+save r2fc1, replace
+use r2fc1, clear
+char list
+save r2fc2, replace
+use r2fc2, clear
+char list
+preserve
+char x[d] four
+restore
+char list
+char x[b] changed
+char list x[]
+save r2fc3, replace
+use r2fc3, clear
+char list x[]
+=== recheck-files2-char-order-merge
+clear
+set obs 2
+gen id = _n
+save r2fplain, replace
+gen x = 1
+char x[a] one
+char x[b] two
+char _dta[p] P
+char _dta[q] Q
+merge 1:1 id using r2fplain, nogen
+char list
+notes x: n1
+notes: d1
+merge 1:1 id using r2fplain, nogen
+char list
+char x[a] one
+char x[b] two
+notes x: n1
+save r2fwith, replace
+use r2fplain, clear
+gen x = 2
+merge 1:1 id using r2fwith, nogen
+char list
+merge 1:1 id using r2fwith, nogen
+char list
+=== recheck-files2-char-order-combine
+clear
+set obs 2
+gen id = _n
+gen x = _n
+char _dta[u1] C
+char _dta[s] Utext
+char _dta[u2] D
+char x[ux] UX
+char x[sx] USX
+notes: shared
+notes: unew
+notes: unew
+notes x: xs
+notes x: xu
+save r2fxu, replace
+use r2fxu, clear
+char list
+clear
+set obs 2
+gen id = _n
+char _dta[m1] A
+char _dta[s] Mtext
+char _dta[m2] B
+notes: mnote
+notes: shared
+gen x = 5
+char x[mx] MX
+char x[sx] MSX
+notes x: xs
+char list
+save r2fxm, replace
+merge 1:1 id using r2fxu, nogen
+char list
+use r2fxm, clear
+append using r2fxu
+char list
+use r2fxm, clear
+joinby id using r2fxu
+char list
+use r2fxm, clear
+drop id x
+cross using r2fxu
+char list
+=== recheck-files2-merge-sorted
+clear
+input id y
+3 30
+1 10
+2 20
+4 40
+end
+save r2fsuu, replace
+sort id
+char _dta[u1] C
+char _dta[u2] D
+save r2fsus, replace
+clear
+input id x
+1 1
+2 2
+3 3
+5 5
+end
+char _dta[m1] A
+char _dta[m2] B
+capture noisily merge 1:1 id using r2fsus, sorted
+di _rc
+sort id
+capture noisily merge 1:1 id using r2fsuu, sorted
+di _rc
+merge 1:1 id using r2fsus, sorted
+describe, short
+list
+char list
+clear
+input id x
+1 1
+1 2
+3 3
+5 5
+end
+sort id
+merge m:1 id using r2fsus, sorted keep(match) nogen
+list
+sort id
+capture noisily merge 1:1 id using r2fsus, sorted
+di _rc
+clear
+input id x
+1 1
+2 2
+3 3
+end
+sort id x
+merge 1:1 id using r2fsus, sorted nogen
+list
+clear
+input id x
+1 1
+2 2
+3 3
+end
+sort x id
+capture noisily merge 1:1 id using r2fsus, sorted nogen
+di _rc
+clear
+input str3 s x
+"a" 1
+end
+sort s
+capture noisily merge 1:1 s using r2fsus, sorted nogen
+di _rc
+merge 1:1 _n using r2fsus, sorted nogen
+list
+=== recheck-files2-use-varlist-not-dataset
+clear
+set seed 2026
+set obs 10
+generate id = _n
+generate wage = round(10 + 20 * runiform(), .01)
+save r2fpeople, replace
+export delimited using r2fextra.csv, replace
+use r2fpeople, clear
+capture noisily use r2fextra.csv
+di _N
+use r2fpeople, clear
+replace wage = 1 in 1
+capture noisily use r2fextra.csv
+di _N
+capture noisily use r2fextra.csv, clear
+di _N
+use r2fpeople, clear
+capture noisily use id using r2fextra.csv, clear
+di _N
+use r2fpeople, clear
+capture noisily use in 1/3 using r2fextra.csv
+di _N
+use r2fpeople, clear
+capture noisily merge 1:1 id using r2fextra.csv
+di _N
+capture noisily describe using r2fextra.csv
+use r2fpeople, clear
+capture noisily append using r2fpeople r2fextra.csv
+di _N
+capture noisily append using "r2fextra.csv"
+capture noisily cross using r2fextra.csv
+capture noisily joinby id using r2fextra.csv
+use r2fpeople, clear
+capture noisily use if id > 2 using r2fextra.csv, clear
+di _N
+use r2fpeople, clear
+capture noisily use id wage using r2fextra.csv
+di _N
+use r2fpeople, clear
+capture noisily use id if id>2 using r2fextra.csv, clear
+di _N
+use r2fpeople, clear
+capture noisily use using r2fextra.csv, clear
+di _N
+use r2fpeople, clear
+replace wage = 1 in 1
+capture noisily use id using r2fextra.csv
+di _rc
+di _N
+capture noisily use id using nosuch.dta
+di _rc
+di _N
+capture noisily use id using r2fpeople, clear
+di _N
+use r2fpeople, clear
+replace wage = 1 in 1
+capture noisily use nosuch.dta
+di _rc
+capture noisily use in 1/2 using nosuch.dta
+di _rc
+capture noisily use if id>2 using nosuch.dta
+di _rc
+capture noisily use id using nosuch.dta, clear
+di _rc
+di _N
+capture noisily use id using r2fpeople, clear
+di _N
+=== recheck-files2-append-empty-name
+clear
+set seed 2026
+set obs 10
+generate id = _n
+generate wage = round(10 + 20 * runiform(), .01)
+save r2fpe2, replace
+export delimited using r2fex2.csv, replace
+use r2fpe2, clear
+capture noisily append using
+display _rc
+capture noisily append using ""
+display _rc
+capture noisily append using `""'
+display _rc
+display _N
+=== recheck-files2-save-message-wrap
+set linesize 50
+clear
+set obs 1
+gen x = 1
+save r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace
+save r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace
+capture noisily save r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat
+save "r2fa b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i.dta", replace
+save r2fUPPER.DTA, replace
+save r2flow.dta, replace
+save r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes_and_even_longer_than_two_lines_of_text.dat, replace
+export delimited using r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace
+export delimited using r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace
+capture noisily export delimited using r2faveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv
+set linesize 79
+clear
+set obs 1
+gen x = 1
+save r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace
+save r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat, replace
+capture noisily save r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.dat
+save "r2fbb b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i.dta", replace
+save r2fUP2.DTA, replace
+save r2flw2.dta, replace
+save r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes_and_even_longer_than_two_lines_of_text.dat, replace
+export delimited using r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace
+export delimited using r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv, replace
+capture noisily export delimited using r2fbveryveryverylongfilename_with_lots_of_characters_to_force_wrapping_yes.csv
+set linesize 200
+
+=== recheck-files2-numericcols-nonames
+clear
+input str8 v
+"b"
+"1.5"
+"x"
+"2.25"
+end
+export delimited using r2fnc1.csv, novarnames replace
+import delimited using r2fnc1.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"1.5"
+end
+export delimited using r2fnc2.csv, novarnames replace
+import delimited using r2fnc2.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"1.5"
+"x"
+end
+export delimited using r2fnc3.csv, novarnames replace
+import delimited using r2fnc3.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"x"
+"1.5"
+"x"
+end
+export delimited using r2fnc4.csv, novarnames replace
+import delimited using r2fnc4.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"1.5"
+"2.25"
+end
+export delimited using r2fnc5.csv, novarnames replace
+import delimited using r2fnc5.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"x"
+"1.5"
+end
+export delimited using r2fnc6.csv, novarnames replace
+import delimited using r2fnc6.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"ab"
+"1.5"
+"x"
+end
+export delimited using r2fnc7.csv, novarnames replace
+import delimited using r2fnc7.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"1.5"
+"x"
+"2.25"
+end
+export delimited using r2fnc8.csv, novarnames replace
+import delimited using r2fnc8.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+".5"
+"333"
+end
+export delimited using r2fnc9.csv, novarnames replace
+import delimited using r2fnc9.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"1"
+".5"
+"1.5"
+end
+export delimited using r2fnc10.csv, novarnames replace
+import delimited using r2fnc10.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"1.5"
+"2.25"
+"70000"
+end
+export delimited using r2fnc11.csv, novarnames replace
+import delimited using r2fnc11.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"1.5"
+"22.5"
+"1.25"
+end
+export delimited using r2fnc12.csv, novarnames replace
+import delimited using r2fnc12.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"333"
+"1.5"
+"2.25"
+end
+export delimited using r2fnc13.csv, novarnames replace
+import delimited using r2fnc13.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"100000"
+"2.25"
+end
+export delimited using r2fnc14.csv, novarnames replace
+import delimited using r2fnc14.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"1.5"
+"1234"
+"2.25"
+end
+export delimited using r2fnc15.csv, novarnames replace
+import delimited using r2fnc15.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"5"
+"b"
+"1.5"
+"2.25"
+end
+export delimited using r2fnc16.csv, novarnames replace
+import delimited using r2fnc16.csv, numericcols(1) varnames(nonames) clear
+describe v1
+clear
+input str8 v
+"b"
+"1.5"
+"12.25"
+"1"
+end
+export delimited using r2fnc17.csv, novarnames replace
+import delimited using r2fnc17.csv, numericcols(1) varnames(nonames) clear
+describe v1
+=== recheck-files2-confirm-file
+clear
+set obs 2
+generate id = _n
+save r2fcp, replace
+export delimited using r2fcx.csv, replace
+capture noisily confirm file r2fcp.dta
+di _rc
+capture noisily confirm file people
+di _rc
+capture noisily confirm file "r2fcp.dta"
+di _rc
+capture noisily confirm file `"r2fcp.dta"'
+di _rc
+capture noisily confirm file ./r2fcp.dta
+di _rc
+capture noisily confirm file nosuch.dta
+di _rc
+capture noisily confirm file R2FCP.DTA
+di _rc
+capture noisily confirm file "no such.dta"
+di _rc
+capture noisily confirm file r2fcp.dta r2fcx.csv
+di _rc
+capture noisily confirm file
+di _rc
+capture noisily confirm new file x.dta
+di _rc
+capture noisily confirm new file r2fcp.dta
+di _rc
+capture noisily confirm new file "r2fcp.dta"
+di _rc
+capture noisily confirm new file
+di _rc
+capture noisily confirm new file nofolder/x.dta
+di _rc
+capture noisily confirm new file x.dta y.dta
+di _rc
+capture noisily confirm fi r2fcp.dta
+di _rc
+capture noisily confirm new fi x.dta
+di _rc
+capture noisily confirm file r2fcx.csv, x
+di _rc
+capture mkdir r2fdd
+capture noisily confirm file r2fdd
+di _rc
+capture noisily confirm new file r2fdd
+di _rc
+use r2fcp, clear
+save r2fnw, replace
+capture noisily confirm file r2fnw.dta
+di _rc
+capture noisily confirm new file r2fnw.dta
+di _rc
+capture noisily confirm f r2fcp.dta
+di _rc
+capture noisily confirm new f x
+di _rc
+capture noisily confirm file "r2fcp.dta"x
+di _rc
+=== recheck-files2-mkdir-cd
+capture noisily mkdir r2fs1
+display _rc
+capture noisily mkdir r2fs1
+display _rc
+capture noisily mkdir "r2fs2", public
+display _rc
+capture noisily mkdir r2fs1/r2fin
+display _rc
+capture noisily mkdir r2fnope/r2fin
+display _rc
+capture cd r2fs1/
+display _rc
+capture cd r2fin
+display _rc
+capture cd ../..
+display _rc
+capture cd "./r2fs1/r2fin"
+display _rc
+capture cd ..
+capture noisily cd r2fs1
+display _rc
+capture cd ..
+capture cd r2fs2/../r2fs1
+display _rc
+capture cd ..
+capture noisily cd r2fnosuch
+display _rc
+capture noisily mkdir
+display _rc
+capture noisily mkdir r2fs3, nosuch
+display _rc
+clear
+set obs 1
+generate x = 1
+capture mkdir r2fout
+capture cd r2fout
+save r2fincd, replace
+capture cd ..
+=== recheck-files2-tabs
+clear
+set obs 3
+gen str30 s = "a" + char(9) + "b"
+replace s = "abcdefghi" + char(9) + "x" + char(9) + "y" in 2
+replace s = char(9) + "lead" in 3
+gen x = _n
+gen str3 t = "q" + char(9)
+list
+list, clean
+list, noobs sep(0)
+list s, string(5)
+list in 2, display
+list, table divider
+label variable s "lab"
+list s x, abbreviate(2)
+tab s
+display s[1]
+clear
+set obs 2
+gen str30 s = "a" + char(9) + "b"
+replace s = "zz" in 2
+gen x = _n
+levelsof s
+table s
+label define l 1 "one	two" 2 "z"
+label values x l
+list x
+tab x
+label variable x "v	l"
+describe x
+clear
+set obs 1
+gen str20 s = "a	b"
+di length(s[1])
+di strpos(s[1], char(9))
+local m "x	y"
+di length("`m'")
+	di "ok"
+label define l 1 "one	two"
+di length("`: label l 1'")
+label variable s "v	l"
+di length("`: variable label s'")
+notes s: n	t
+notes
+char s[c] u	v
+local z : char s[c]
+di length("`z'")
+=== recheck-files2-split-unicode-stub
+clear
+set obs 1
+gen str20 s = "x y z"
+split s, gen(ét)
+ds
+split s, gen(ab)
+gen ét9 = 1
+=== recheck-files2-dot-slash-excel
+clear
+set seed 2026
+set obs 10
+generate id = _n
+generate wage = round(10 + 20 * runiform(), .01)
+save r2fxp, replace
+export delimited using r2fxe.csv, replace
+use r2fxp, clear
+export excel using ./r2ft.xlsx, firstrow(variables) replace
+import excel using r2ft.xlsx, firstrow clear
+describe, short
+export excel using r2ft2.xlsx, firstrow(variables) replace
+import excel using ./r2ft2.xlsx, firstrow clear
+describe, short
+putexcel set ./r2fpe.xlsx, replace
+putexcel A1 = "hi"
+import excel r2fpe.xlsx, clear
+list
+label define yn 1 "yes"
+label save yn using ./r2fls, replace
+do r2fls.do
+label list yn
+label define edulbl 1 "HS" 2 "College" 3 "Grad"
+label values edu edulbl
+save labdref, replace
+use if edu == "College":edulbl using labdref, clear
+count
+use labdref, clear
+keep if edu != "College":edulbl
+list
+=== expr-regex-stata-syntax
+display regexm("x", "*")
+display regexs(0)
+display regexm("GA 30303", "[0-9]{5}") " " regexm("a{2}", "a{2}")
+display regexm("GA 30303", "\d+") " " regexm("ad", "\d") " " regexm("a b", "a\sb") " " regexm("abc", "\w+")
+display regexm("a1b22", "[[:digit:]]+") " " regexm("a]", "[[:alpha:]]") " [" regexs(0) "]"
+display regexm("aaa", "a+?")
+display regexs(0)
+display regexm("x(y)", "\(y\)") " " regexm("a.b", "a.b") " " regexm("axb", "a\.b")
+display regexr("2020-01-02", "([0-9]+)-([0-9]+)", "\2/\1")
+display regexm("ab", "^(a|b)+" + char(36)) " " regexm("ab", "(a|ab)") " [" regexs(1) "]"
+display regexm("café", "^caf.$") " " regexm("café", "^caf..") " " regexm("über", "^.ber")
+display regexm("café", "(caf)(.*)") " [" regexs(2) "] " strlen(regexs(2))
+display regexm("ABC", "(?i)abc")
+display "D " regexm("x", "x**") " E " regexm("x", "(a*)*")
+display regexm("x", "[b-a]") regexm("x", "[abc") regexm("x", "(abc") regexm("x", "abc)") regexm("x", "abc\") regexm("a", "((((((((((a))))))))))")
+display regexm("aaa", "(a*)(a*)") " [" regexs(1) "][" regexs(2) "]"
+display regexm("abab", "(ab)*") " [" regexs(0) "][" regexs(1) "]"
+display regexm("ac", "a(b)?c") " [" regexs(1) "]"
+display regexm("ab", "(a)(b)") " [" regexs(3) "] " regexs(1.7)
+display regexm("]", "[]a]") " " regexm("-", "[a-]") " " regexm("b", "[^]a]") " " regexm("b", "[a-c-e]") " " regexm("-", "[a-c-e]")
+display regexm("\", "[\d]") " " regexm("ab", "a\b") " " regexm("an", "a\n") " " regexm("AB", "ab")
+display regexr("abc", "x*", "Q") " " regexr("abc", "x*" + char(36), "Q") " " regexr("abcb", "b", "Q") " " regexr("abc", "b", "[&]")
+display regexr("abc", "(b", "Q")
+display regexm("abc", "(a)") regexr("xbx", "(b)", "Q") " [" regexs(1) "]"
+display regexm("abc", "(a)") ustrregexm("xbx", "(b)") " [" regexs(1) "]"
+clear
+set obs 3
+gen s = "a" + string(_n) + "-" + string(10*_n)
+gen m = regexm(s, "x**")
+gen t = regexs(1)
+gen n = regexs(1) if regexm(s, "-([0-9]+)" + char(36))
+count if regexm(s, "(?i)A")
+replace s = regexr(s, "[", "z")
+list
+=== expr-unicode-functions
+display "[" usubinstr("a.b.c", ".", "-", .) "] [" usubinstr("café café", "é", "e", 1) "] [" usubinstr("a.b.c", ".", "-", -1) "]"
+display "[" ustrtoname("x y") "] [" ustrtoname("1abc") "] [" ustrtoname("1abc", 0) "] [" ustrtoname("x😀y") "] [" ustrtoname("x²") "]"
+display "[" ustrtoname("ééééééééééééééééééééééééééééééééééééééé") "] [" strtoname("ééééééééééééééééééééééééééééééééééééééé") "]"
+display "[" strtoname("x😀y") "] [" strtoname("e" + uchar(769) + "x") "] [" ustrtoname("e" + uchar(769) + "x") "]"
+display indexnot("ééa", "é") " " indexnot("aéb", "a") " " indexnot("abc", "")
+display ustrtitle("ﬁrst ﬂow") " " ustrtitle("ǆemal") " " ustrtitle("ßa")
+display mindouble() == c(mindouble) " " mindouble()
+display nchi2den(3, 2, 1.5) " " nchi2tail(3, 2, 1.5) " " invnchi2tail(3, 2, .3)
+display invnF(2, 10, 3, .5) " " invnt(10, 1, .5) " " invnF(3, 7, 2, 0)
+display nchi2den(3, 2, 0) " " nchi2den(2, 2, 0) " " nchi2den(1, 2, 0) " " nchi2tail(3, 2, 0)
+display dgammapdx(2, 1.5) " " dgammapdxdx(2, 1.5) " " dgammapdadx(2, 1.5) " " dgammapdadx(0.5, 0.2)
+display _caller() " " has_eprop(b)
+matrix A = (1, 0 \ 2, 0)
+matrix B = (1, 0.5 \ 2, 4)
+matrix C = (1, 2, 3)
+display diag0cnt(A) " " diag0cnt(B) " " mreldif(A, B) " " mreldif(B, A) " " diag0cnt(C) " " mreldif(A, C)
+=== expr-name-errors
+clear
+set obs 3
+gen x1 = _n
+gen x2 = _n
+gen x3 = _n^2
+capture noisily gen y = max(aa, bb)
+capture noisily gen y = max(aa, min(bb, cc))
+capture noisily gen y = max(aa, foo(1))
+capture noisily gen y = max(foo(1), aa)
+capture noisily gen y = cond(aa, bb, cc)
+capture noisily gen y = max(aa, 1+)
+capture noisily gen y = max(aa, x1) + bb
+capture noisily summarize x1 if x2 == 1 & ,
+capture noisily summarize x1 if x2 == 1 + 2 & , detail
+capture noisily summarize x1 if (x2 == 1) & ,
+capture noisily summarize x1 if x2 >= ,
+capture noisily summarize x1 if x2 + 1.5 + ,
+capture noisily gen y = x1 * ,
+capture noisily display 1 + 2 & ,
+capture noisily display (x2 == 1 + 2 & )
+capture noisily display (1 + x2 & & 2)
+capture noisily display (x2 > )
+capture noisily sort -x1
+capture noisily sort +x1
+capture noisily sort @x
+capture noisily sort .x
+capture noisily sort 1x
+capture noisily sort x1-
+capture noisily summarize x1 - x3
+capture noisily summarize x1 -x3
+capture noisily summarize x3 - x1
+capture noisily summarize x1 -- x3
+capture noisily summarize q~3
+capture noisily summarize x~
+capture noisily summarize q~3*
+capture noisily drop q~3
+capture noisily list q~3
+=== expr-label-dereference-codes
+clear
+input g
+1
+2
+3
+.a
+end
+label define gl 1 "low" 2 "mid" 3 "high" .a "na" 4 "mid"
+label values g gl
+count if g == "na":gl
+display ("na":gl)
+display 0 + "na":gl
+gen y = "na":gl
+list
+label define h 4 "dup" 2 "dup"
+display 0 + "dup":h
+label define gl 0 "mid", add
+count if g == "mid":gl
+display ("mid":gl)
+label define k .b "x" .a "x" 7 "z" .c "z"
+display ("x":k) " " ("z":k)
+=== expr-label-dereference-errors
+clear
+set obs 3
+gen g = _n
+gen str3 s = "a"
+label define gl 1 "low" 2 "mid" 3 "high"
+display g["high":gl]
+display g[ "high":gl ]
+display g["mid":gl + 1]
+capture noisily count if s == "a":gl
+capture noisily display ("a" + "b":gl)
+capture noisily display "a" + "b":gl
+capture noisily display "a" + "mid" : gl
+matrix M = (1,2,3)
+capture noisily display M[1, "mid":gl]
+capture noisily display M["mid":gl, 1]
+display M[1, ("mid":gl)]
+capture noisily count if g == "a":gl & zz
+capture noisily count if zz & g == "a":gl
+capture noisily gen y = max(g == "a":gl, zz)
+capture noisily gen y = max(zz, g == "a":gl)
+capture noisily gen y = max("q", g == "a":gl)
+capture noisily count if g == "high":gl[1
+capture noisily count if g == "high":gl[1]
+capture noisily count if g == "a":gl & 1 +
+=== expr-arguments-last-first
+clear
+set obs 3
+gen x = _n
+gen str3 s = "a"
+capture noisily gen y = foo(bb)
+capture noisily gen y = max(aa, foo(bb))
+capture noisily gen y = max(aa,,bb)
+capture noisily gen y = max(x, , aa)
+capture noisily gen y = max(aa, x, )
+capture noisily gen y = max("a" + 1, aa)
+capture noisily gen y = max(aa, "a" + 1)
+capture noisily gen y = max(1 +, aa)
+capture noisily gen y = max(aa, min(1 +, bb))
+capture noisily gen y = substr(s, 1 +, aa)
+capture noisily gen y = max(s + 1, aa)
+capture noisily gen y = max(1 & , aa)
+capture noisily gen y = max(.z_, aa)
+capture noisily gen y = max(x, aa, .z_)
+capture noisily gen y = max(strlen(1), aa)
+capture noisily gen y = cond(x>1, "a", aa)
+capture noisily gen y = cond(x>1, "a", 2) + aa
+capture noisily gen y = max(aa, bb, x[)
+capture noisily gen y = max(x[, aa)
+capture noisily gen y = max(x[1), aa)
+capture noisily gen y = (x[1)]
+capture noisily gen y = zz + (1
+capture noisily gen y = aa + 1 +
+capture noisily gen y = aa + .z_
+capture noisily gen y = .z_ + aa
+=== expr-operator-before-comma
+clear
+set obs 3
+gen x1 = _n
+gen x2 = mod(_n,2)
+gen str3 s = "a"
+capture noisily count if x1 > 5 & x1 < 7.5 & ,
+capture noisily count if x2 == .a & ,
+capture noisily count if x1 >= 1.5 & x2 == . & ,
+capture noisily count if x1 == 1e3 & ,
+capture noisily count if x2 == .a | ,
+capture noisily count if x2 == 1.5 | ,
+capture noisily count if x1 * 1.5 * ,
+capture noisily count if x1 + 1.5 + ,
+capture noisily count if x1 / 1.5 / ,
+capture noisily count if x1 > 1.5 > ,
+capture noisily count if x1 + 1e3 * ,
+capture noisily count if x1[1] + ,
+capture noisily count if x1[_n - 1] * ,
+matrix M = (1,2\3,4)
+capture noisily display M[1,1] + ,
+capture noisily display (1e3 + )
+capture noisily display (1.5e3 + )
+capture noisily display (1.5e3 & )
+capture noisily display (.a * )
+capture noisily display (1.5 ^ )
+capture noisily list x1 if x2 == .a | , clean
+capture noisily assert 1 == 1 & , fast
+capture noisily assert x1 == 1.5 & ,
+assert s == "a" & ,
+capture noisily gen y = x1 * if x2 == 1
+capture noisily gen y = x1 + in 1
+capture noisily gen y = x1 == if x2 == 1
+capture noisily gen y = (x1 * if x2 == 1)
+capture noisily replace x1 = x1 * if x2 == 1
+capture noisily count if x1 * if x2 == 1
+list x1* if x2 == 1, clean
+summarize x1 if s == "a" & , detail
+list x1 if s == "a" | , clean
+list x1 if s == "b" & , clean
+capture noisily count if s == "a" & ,
+capture noisily count if x1 == 1 ,
+capture noisily count ,
+display ("a" + )
+display ("a" * )
+display ("a" < )
+display ("a" + "b" + )
+capture noisily display ("a" == )
+capture noisily display (1 + "a" + )
+gen z = ("a" + )
+list z, clean
+=== expr-regex-long-strings
+clear
+set obs 1
+gen strL s = "x" + 40000*"a"
+count if regexm(s, ".*x$")
+count if regexm(s, ".*x")
+display strlen(regexs(0))
+replace s = 5000*"abcdefgh"
+count if regexm(s, "[a-z ]*[0-9]$")
+count if regexm(s, "[a-z ]*[0-9]")
+count if regexm(s, "(a|b)+ c")
+count if regexm(s, "^[a-h]*$")
+replace s = 3000*"a" + "x" + 3000*"a"
+count if regexm(s, ".*x.*b")
+count if regexm(s, "a*xa*$")
+display strlen(regexs(0))
+=== expr-regex-quietly
+clear
+set obs 2
+gen s = "abc"
+gen x = _n
+quietly gen q = regexm(s, "(")
+quietly gen z = regexm(s, "(") + .
+quietly replace x = regexm(s, "(")
+quietly summarize x if regexm(s, "(")
+quietly di regexm("a", "(")
+quietly di "x" regexm("a", "(") "y"
+quietly di "x" _n regexm("a", "(") _n "y"
+quietly local m = regexm("a", "(")
+capture quietly gen q4 = regexm(s, "(")
+quietly gen r = regexs(1)
+quietly replace s = regexs(1)
+quietly di regexm("abc", "b") regexs(5)
+quietly di "x" regexs(5) "y"
+quietly gen q5 = regexs(5)
+quietly {
+  gen q2 = regexm(s, "(")
+  gen q3 = 1
+}
+=== expr-regex-byte-pieces
+clear
+set obs 1
+gen s = "é"
+display regexm(s, "^(.)(.)$")
+display (regexs(1) + regexs(2)) == "é"
+gen a = regexs(1)
+gen b = regexs(2)
+gen c = a + b
+display strlen(a) " " strlen(c) " " (c == "é") " " ustrlen(c)
+display regexr("naïve", "a.", "A") + "|"
+display strtoname("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀")
+display substr("é", 1, 1) + substr("é", 2, 1) == "é"
+=== expr-gammap-derivatives-eprop
+display dgammapda(2, 1.5) " " dgammapdada(2, 1.5)
+display dgammapda(1, 1) " " dgammapdada(1, 1)
+display dgammapda(10, 9) " " dgammapdada(10, 9)
+display dgammapda(50, 45) " " dgammapdada(50, 45)
+display dgammapda(3, .5) " " dgammapdada(3, .5)
+display dgammapda(.01, 20) " " dgammapdada(.01, 20)
+display dgammapda(200, 210) " " dgammapdada(200, 210)
+display dgammapda(5, 0) " " dgammapdada(5, -1) " " dgammapda(0, 2) " " dgammapdada(-1, 2)
+capture noisily display dgammapda(2)
+capture noisily display dgammapda("a", 1)
+clear
+set seed 1
+set obs 20
+gen x = runiform()
+gen y = x + runiform()
+quietly regress y x
+display has_eprop(b) has_eprop("V") has_eprop() has_eprop(1) has_eprop(1+2) has_eprop(b V) has_eprop(.a) has_eprop(nosuch)
+=== expr-varlist-ranges-spaced
+clear
+input x1 x2 x3
+1 5 9
+2 5 8
+1 7 7
+2 3 6
+end
+gsort x1 - x2
+list, clean noobs
+gsort - x1 + x3
+list, clean noobs
+capture noisily gsort x1 - - x2
+capture noisily gsort x1 - -x2
+gen y = x1 + 2*x2 - x3
+regress y x1 - x2
+collapse (mean) x1 - x3
+list
+=== recheck-manage-gsort-options
+clear
+input id x y str2 s
+1 3 2 "b"
+2 . 1 "a"
+3 5 2 ""
+4 .a 1 "c"
+5 1 2 "a"
+6 4 . "b"
+7 .b 1 "a"
+end
+gsort -x
+list, noobs sep(0)
+gsort -x, mfirst
+list, noobs sep(0)
+gsort -y +x, m
+list, noobs sep(0)
+gsort y -x, gen(g)
+list, noobs sep(0)
+describe g
+describe, short
+gsort -x y, g(g2) mfirst
+list id x y g2, noobs sep(0)
+capture noisily gsort x, gen(g)
+capture noisily gsort x, gen(1a)
+capture noisily gsort x, bogus
+capture noisily gsort , mfirst
+capture noisily gsort -
+capture noisily gsort x -
+capture noisily gsort zz
+gsort id-y
+list id y, noobs sep(0)
+=== recheck-manage-xtile-weights-cutpoints-altdef
+clear
+set obs 12
+generate x = mod(_n*7, 11) + (_n > 6)*0.5
+replace x = . in 12
+generate w = 1 + mod(_n,3)
+generate a = 0.5 + mod(_n,4)/3
+generate c = 4 in 1
+replace c = 7 in 2
+replace c = 4 in 3
+replace c = -1 in 4
+generate c2 = 100 in 1
+xtile q1 = x [fw=w], nq(3)
+xtile q2 = x [aw=a], nq(4)
+xtile q3 = x [pw=a], nq(5)
+xtile q4 = x, cutpoints(c)
+return list
+xtile q5 = x, nq(4) altdef
+return list
+xtile q6 = x, nq(5) altdef
+xtile q7 = x if x > 2, cutpoints(c)
+xtile q8 = x, cut(c2)
+xtile double q9 = x*2, nq(3)
+xtile q10 = x [w=a], nq(3)
+list x w a c q1-q10, sep(0)
+describe q1-q10
+capture noisily xtile z1 = x [fw=w], nq(3) altdef
+capture noisily xtile z2 = x, nq(3) cutpoints(c)
+capture noisily xtile z3 = x, nq(1)
+capture noisily xtile z3 = x, nq(14)
+capture noisily xtile z4 = x, cutpoints(s)
+generate str1 s = "a"
+capture noisily xtile z4 = x, cutpoints(s)
+capture noisily xtile z4 = s, nq(2)
+capture noisily xtile z5 = x [iw=w], nq(3)
+generate e = .
+capture noisily xtile z6 = x, cutpoints(e)
+capture noisily xtile z7 = x if x > 100
+return list
+capture noisily xtile z8 = x [fw=a], nq(2)
+capture noisily xtile z9 = x [aw=-w], nq(2)
+=== recheck-manage-pctile-weights-altdef
+clear
+set obs 12
+generate x = mod(_n*7, 11) + (_n > 6)*0.5
+replace x = . in 12
+generate w = 1 + mod(_n,3)
+generate a = 0.5 + mod(_n,4)/3
+pctile p1 = x [aw=a], nq(4)
+return list
+pctile p2 = x [fw=w], nq(5) genp(pp)
+pctile p3 = x, nq(4) altdef
+pctile p4 = x, nq(6) altdef
+pctile p5 = x [pw=a], nq(3)
+pctile p6 = x [w=a], nq(3)
+list p1-p6 pp in 1/6, sep(0)
+describe p1-p6 pp
+capture noisily pctile z1 = x [fw=w], nq(3) altdef
+capture noisily pctile z2 = x, nq(14)
+capture noisily pctile z3 = x if x > 100, nq(2)
+return list
+capture noisily pctile z4 = x, nq(1)
+capture noisily pctile z5 = x, nq(3) genp(g1 g2)
+capture noisily pctile z5 = x, nq(3) genp(x)
+capture noisily pctile x = x, nq(3)
+capture noisily pctile z6 = x, nq(2.5)
+generate str1 s = "a"
+capture noisily pctile z7 = s
+_pctile x [pw=a], p(25 50 90)
+return list
+_pctile x [fw=w], nq(4)
+return list
+_pctile x [aw=a], nq(4)
+return list
+_pctile x [iw=w], p(50 75)
+return list
+_pctile x [w=w], p(50 50)
+return list
+_pctile x, p(10 33.3 50 99) altdef
+return list
+_pctile x, nq(5) altdef
+return list
+_pctile x, nq(14)
+return list
+capture noisily _pctile x [fw=w], nq(3) altdef
+capture noisily _pctile x, nq(3) p(50)
+capture noisily _pctile x, n(3) percentiles(50)
+capture noisily _pctile x, p(0 50)
+return list
+capture noisily _pctile x, p(50 20)
+capture noisily _pctile x, nq(1)
+capture noisily _pctile s
+return list
+capture noisily _pctile x if x > 100
+capture noisily _pctile x [fw=-w]
+=== recheck-manage-altdef-digits
+clear
+set seed 12345
+set obs 37
+generate x = round(runiform()*100, .01)
+generate w = runiform()*3
+generate f = 1 + floor(runiform()*4)
+_pctile x, nq(3) altdef
+return list
+_pctile x, nq(7) altdef
+return list
+_pctile x, p(1 2.5 33.3 66.7 97.5 99) altdef
+return list
+_pctile x [aw=w], nq(7)
+return list
+_pctile x [pw=w], p(1 2.5 33.3 66.7 97.5 99)
+return list
+_pctile x [fw=f], nq(9)
+return list
+xtile qa = x [aw=w], nq(6)
+xtile qb = x, nq(7) altdef
+xtile qc = x [fw=f], nq(5)
+list x qa qb qc in 1/15, sep(0)
+=== recheck-manage-order-sequential
+clear
+set obs 1
+generate v10 = 1
+generate v2 = 2
+generate v1 = 3
+generate a = 4
+generate b11 = 5
+generate b9 = 6
+generate ab = 7
+order v*, seq
+describe, simple
+order _all, sequential
+describe, simple
+order b*, seq last
+describe, simple
+order v*, alpha
+describe, simple
+order v* a, sequential after(b9)
+describe, simple
+capture noisily order v* b*, alphabetic sequential
+capture noisily order v1, before(a) after(b9)
+capture noisily order v1, first last
+capture noisily order v1, before(v1)
+capture noisily order v1, after(v1)
+capture noisily order v1, before(a) first
+capture noisily order v1, after(a) last
+capture noisily order v1, before(zz)
+clear
+set obs 1
+foreach v in v01 v1 v1a v1b x10 x9 xa x x_2 x2_ b2c10 b2c9 b10c1 v001 a1E5 a1E3 {
+  generate `v' = 1
+}
+order _all, sequential
+describe, simple
+order x*, alphabetic last
+describe, simple
+order v* a*, sequential first
+describe, simple
+=== recheck-manage-collapse-statistic-names
+clear
+set obs 6
+generate g = ceil(_n/3)
+generate y = _n^2
+generate z = _n
+foreach s in sem seme semea seb sebin sepois sep med mea co su se total p0 p100 p01 pxyz perc mean2 {
+  preserve
+  capture noisily collapse (`s') a=y, by(g)
+  if !_rc display "(`s') " a[1] " " a[2]
+  restore
+}
+preserve
+collapse (sem) y (seb) z, by(g)
+describe
+restore
+capture noisily collapse (median) y (mean) y, by(g)
+capture noisily collapse (mean) a=y (sd) a=z, by(g)
+capture noisily collapse (p25) y (sum) y
+capture noisily collapse (mean) y z (max) z, by(g)
+capture noisily collapse (mean) a=y a=z, by(g)
+capture noisily collapse (count) z (sum) za=z z, by(g)
+capture noisily collapse (count) g, by(g)
+=== recheck-manage-destring-label-chars
+clear
+input str5 s str6 m
+"1" "$1"
+"2" "$2,0"
+end
+label variable s "Score (text)"
+char s[note1] "hello"
+destring s, gen(n)
+char list
+describe
+destring m, gen(m2) ignore("$,")
+char list
+destring m, replace ignore("$,")
+char list
+generate str2 k = "3"
+destring k s, gen(k2 s2)
+char list
+describe
+=== recheck-manage-contract-split-errors
+clear
+set obs 3
+generate id = _n
+generate k = 1
+capture noisily contract id, zero
+contract id k, zero
+list
+clear
+set obs 2
+generate x = _n
+generate str3 s = "a b"
+capture noisily split x
+capture noisily split s x
+=== recheck-manage-order-sequential-long-numbers
+clear
+set obs 1
+foreach v in v10 v3000000000 v2 v2147483647 v1 v99999999999999999999 v9999999999999999999a v20240115 {
+  generate `v' = 1
+}
+order *, sequential
+describe, simple
+capture noisily order v1, after(v1*)
+display _rc
+capture noisily order v1, before(v2 v10)
+display _rc
+capture noisily order v1, after(_all)
+display _rc
+capture noisily order v1, before()
+display _rc
+capture noisily order v1, before(zz)
+display _rc
+order v1, after() last
+describe, simple
+generate c = 1
+capture noisily xtile q = v1, cutpoints(v1 c)
+display _rc
+=== recheck-manage-xtile-labels-and-nquantiles
+clear
+set seed 2024
+set obs 30
+generate x = round(runiform()*10)
+generate w = 1 + mod(_n, 3)
+generate g = mod(_n, 2)
+generate c = 3*_n in 1/3
+xtile q1 = x [aw=w], nq(4)
+xtile q2 = x+( 1 ) [aw=w], nq(3)
+xtile q3 = x if g==1, nq(3)
+xtile q4 = x   , nq(3)
+xtile q5 = x if g, cutpoints(c)
+xtile q6 = x[aw=w], nq(3)
+xtile q7 = (x) *2 [fw=w] if g , nq(3)
+xtile q8 = x, nq(4.0)
+xtile q9 = x, cutpoints()
+pctile p1 = x [aw=w] , nq(3)
+pctile p2 = x   in 1/10
+foreach v of varlist q* p* {
+  display "`v' [`:variable label `v'']"
+}
+tabulate q1
+tabulate q5
+capture noisily xtile z1 = x, nq(1+3)
+display _rc
+capture noisily xtile z2 = x, nq(x)
+display _rc
+capture noisily xtile z3 = x, nq(nosuch)
+display _rc
+capture noisily xtile z4 = x, nq(0+1)
+display _rc
+capture noisily xtile z5 = x, nq(2.5)
+display _rc
+capture noisily xtile q9 = x, nq()
+display _rc
+capture noisily pctile z6 = x, nq(1+3)
+display _rc
+capture noisily _pctile x, nq(4.0)
+display _rc
+capture noisily _pctile x, p()
+display _rc
+capture noisily _pctile x, nq()
+display _rc
+describe, short
+=== recheck-manage-pctile-importance-weights
+clear
+input x iw
+1 -1
+2 2
+3 1
+4 0.5
+5 2
+6 1
+end
+_pctile x [iw=iw], p(25 50 75)
+return list
+_pctile x [iw=iw], nq(3)
+return list
+=== recheck-manage-gsort-generate-names
+clear
+input id v1 v2 str2 s w
+1 1 2 "a" 3
+2 1 . "b" 1
+3 2 1 "c" 2
+4 . 3 "d" 3
+5 2 .a "e" 1
+6 .b 1 "f" 2
+end
+foreach n in "a b" "_n" "_b" "in" "byte g" "a-b" "_N" "id" "X1 id" "1a" "a 1b" "a*" "str5" "byte" {
+  capture noisily gsort w, gen(`n')
+  display "rc=" _rc
+}
+describe, simple
+summarize id
+capture noisily gsort -v*
+display _rc
+display "[`:sortedby']"
+list id v1 v2, noobs sep(0)
+return list
+capture noisily gsort -s v*, gen(z)
+display _rc
+capture noisily gsort -id w*
+display _rc
+capture noisily gsort -(v1)
+display _rc
+capture noisily gsort id(v1)
+display _rc
+summarize id
+capture noisily gsort -id, gen(_b)
+display _rc
+display "[`:sortedby']"
+list id, noobs sep(0)
+return list
+summarize w
+gsort -id, gen(gg)
+return list
+describe, simple
+=== recheck-manage-collapse-p050-and-order
+clear
+input g y z
+1 2 5
+1 4 3
+1 . 7
+2 6 1
+2 9 2
+2 10 8
+end
+preserve
+collapse (p050) a=y (p01) b=y, by(g)
+describe
+list
+restore
+capture noisily collapse (mean) y (sd) y if g > 5, by(g)
+display _rc
+capture noisily collapse (mean) y (sd) y, by(g)
+display _rc
+capture noisily collapse (p0) y, by(g)
+display _rc
+=== recheck-manage-reserved-new-names
+clear
+set obs 3
+generate x = _n
+capture noisily rename x _b
+capture noisily rename x str5
+capture noisily rename x byte
+capture noisily egen _N = mean(x)
+capture noisily egen str5 = mean(x)
+capture noisily egen _b = mean(nosuch)
+capture noisily xtile _n = x
+capture noisily xtile in = x
+capture noisily xtile _skip = x
+capture noisily pctile _n = x
+capture noisily pctile if = x
+capture noisily generate _b = 1
+capture noisily generate _skip = 1
+capture noisily clonevar _cons = x
+egen _skip = mean(x)
+rename _skip y
+describe, simple
+=== recheck-program-expansion-errors
+clear
+set obs 1
+generate x = 2
+display "start"
+display "a`=1+'b"
+display "c`=nosuch'd"
+local m "e`=x*'f"
+display "[`m']"
+quietly display "q`=1+'q"
+capture display "c`=1+'c"
+display _rc
+capture noisily display "n`=1+'n"
+display "[`:variable label nosuch']"
+display "[`:type x']"
+forvalues i = 1/2 {
+  display "loop `i' `=1+'"
+}
+if `=1+' 1 {
+  display "if ran"
+}
+local k : word count `=1+'
+display "k=`k'"
+display "after"
+=== recheck-program-subinstr-label
+local v "lwage wage  age wage"
+local s : subinstr local v "wage" "", word
+display "[`s']"
+local s : subinstr local v "wage" "W", word all count(local n)
+display "[`s'] n=`n'"
+local s : subinstr local v "wage" "W", count(local n)
+display "[`s'] n=`n'"
+local s : subinstr local v "zzz" "W", all count(global G)
+display "[`s'] G=$G"
+local s : subinstr local v "a" "", all word
+display "[`s']"
+capture noisily local s : subinstr local v "a" "b", nosuch
+capture noisily local s : subinstr local v "a" "b", count(n)
+capture noisily local s : subinstr local v "" "b", all
+capture noisily local s : subinstr local v a b, all
+local s : subinstr local v "a" "b", wo all cou(local c2)
+display "`c2' `s'"
+clear
+set obs 3
+generate region = _n
+generate other = _n
+label define reg 1 "North" 2 "Southeast" 3 "W"
+label values region reg
+local a : label (region) 2
+display "[`a']"
+local a : label (reg) 2
+display "[`a']"
+local a : label (other) 2
+display "[`a']"
+local a : label (region) 7, strict
+display "[`a']"
+local a : label reg 2 4
+display "[`a']"
+local a : label reg 2.5
+display "[`a']"
+local b : label reg maxlength
+display "[`b']"
+local b : label nosuch 3
+display "[`b']"
+label define reg .a "Missing A", add
+local b : label reg .a
+display "[`b']"
+capture noisily local b : label reg 1, nosuch
+capture noisily local b : label reg abc
+capture noisily local b : label reg 1 2 3
+=== recheck-program-prefixed-if
+clear
+set obs 2
+generate x = _n
+quietly if 1 {
+    noisily display "q if"
+    display "hidden"
+}
+display "after1"
+capture if 1 {
+    display "c if"
+    nosuchcmd
+}
+display "rc=" _rc
+quietly if x[1] == 2 {
+    noisily display "first"
+}
+else display "inline else"
+capture quietly if x[2] == 2 {
+    noisily display "second"
+    generate y = 1
+    generate y = 2
+}
+display "rc=" _rc
+display "end"
+=== recheck-program-foreach-lists
+clear
+set obs 1
+generate z1 = 1
+local e
+capture noisily foreach v of varlist `e' {
+  display "`v'"
+}
+display _rc
+capture noisily foreach v of numlist `e' {
+  display "`v'"
+}
+display _rc
+capture noisily foreach v of newlist z2 z2 {
+  display "`v'"
+}
+capture noisily foreach v of newlist z3 z1 {
+  display "`v'"
+}
+capture noisily foreach v of newlist 1bad {
+  display "`v'"
+}
+foreach v of newlist z3-z5 {
+  display "`v'"
+}
+generate a = 1
+generate b = 2
+generate c = 3
+capture noisily summarize c-a
+=== recheck-program-syntax-fv-ts
+clear
+set obs 6
+generate region = mod(_n, 3) + 1
+generate educ = _n
+generate wage = _n * 2
+generate t = _n
+generate s = "a"
+program define pf
+    syntax varlist(fv)
+    display "[`varlist']"
+end
+program define pt
+    syntax varlist(ts)
+    display "[`varlist']"
+end
+program define pb
+    syntax varlist(fv ts)
+    display "[`varlist']"
+end
+capture noisily pt L.wage
+tsset t
+capture noisily pf educ i.reg
+capture noisily pf ed-wage i.region
+capture noisily pf c.educ#i.region
+capture noisily pf i.region##c.educ
+capture noisily pf i.(region educ)
+capture noisily pf 2.region
+capture noisily pf L.wage
+capture noisily pf i.s
+capture noisily pf educ#region
+capture noisily pf c.educ##c.educ
+capture noisily pt L.wa
+capture noisily pt L(1/2).wage
+capture noisily pt DL.wage
+capture noisily pt L(0/1).wage
+capture noisily pt i.region
+capture noisily pt L.s
+capture noisily pb L.wage#i.region
+capture noisily pb L(1/2).wage##i.region
+program ps
+    syntax varlist(fv ts)
+    sreturn list
+end
+ps i.region L.wage
+ps educ
+=== recheck-program-syntax-options
+clear
+set obs 5
+generate x = _n
+generate y = _n^2
+program o4
+    syntax [, by(varname) Level(real 95) Nm(name) V(varlist) NL(numlist) CI(cilevel)]
+    display "ok `by'"
+end
+capture noisily o4, by(nosuch)
+capture noisily o4, by(x y)
+capture noisily o4, nm(a b)
+capture noisily o4, nl(a)
+capture noisily o4, ci(5)
+capture noisily o4, ci(abc)
+capture noisily o4, l(abc)
+capture noisily o4, by()
+program o5
+    syntax [, Reps(integer 50) Level(real 95) *]
+    display "reps=`reps' level=`level' rest=`options'"
+end
+o5, reps(2.5)
+o5, r(abc) lev(abc)
+program p7
+    syntax [, CUToff(real 0.5) Reps(integer 5)]
+end
+capture noisily p7, cut(abc)
+capture noisily p7, r(1.5)
+capture noisily list x, sep(2.5)
+capture noisily tabstat x, by(nosuch)
+capture noisily tabstat x, by(x y)
+capture noisily egen m = mean(x), by(nosuch)
+=== recheck-program-matrix-names-list
+matrix T = (1, 2 \ 3, 4 \ 5, 6)
+matrix rownames T = a b
+matrix colnames T = onlyone
+matrix list T
+capture noisily matrix colnames T = x y z
+matrix A = (1, 2.5 \ 3, 4)
+matrix S = (1, 2 \ 2, 5)
+matrix list A, title("Summary")
+matrix list A, format(%9.3f) title(My matrix)
+matrix list A, noheader
+matrix list A, nonames
+matrix list A, noblank
+matrix list S, nohalf
+matrix list A, nob noh
+capture noisily matrix list A, bogus
+=== recheck-program-return-order
+sreturn clear
+program sp1, sclass
+    sreturn local a "first"
+    sreturn local b "second"
+    sreturn local c "third"
+    sreturn local a "again"
+end
+sp1
+sreturn list
+program rp1, rclass
+    return local a "first"
+    return local b "second"
+    return scalar x = 1
+    return scalar y = 2
+    return local c "third"
+    return local a "again"
+    return scalar x = 3
+end
+rp1
+return list
+clear
+set obs 10
+generate x = _n
+generate y = 2 * x + mod(_n, 3)
+regress y x
+program addt, eclass
+    ereturn local tag "mine"
+    ereturn local tag2 "two"
+    ereturn scalar extra = 5
+end
+addt
+ereturn list
+=== recheck-program-levelsof
+clear
+set obs 8
+generate double d = _n / 7
+generate float f = _n / 7
+generate double huge = 1e20 * _n
+generate tiny = 1e-8 * _n
+generate y = mod(_n, 3)
+replace y = . in 1
+replace y = .a in 2
+generate s = cond(mod(_n, 2), "b", "a")
+replace s = "" in 3
+levelsof d
+levelsof f, separate(,)
+levelsof huge
+levelsof tiny
+levelsof y, missing
+levelsof y, matcell(F) matrow(R)
+matrix list F
+matrix list R
+return list
+levelsof y, missing matcell(G) matrow(H)
+matrix list H
+levelsof s, matcell(S)
+matrix list S
+capture noisily levelsof s, matrow(S)
+levelsof s, missing
+levelsof y if y > 5
+return list
+=== recheck-program-macro-list
+local a "x    y   z"
+macro list _a
+global B "p     q"
+macro list B
+local b `"  lead  "q  r"  trail  "'
+macro list _b
+=== recheck-program-delimit
+#delimit ;
+display "one" ; display "two" ; display "three" ;
+display "semi;colon" ; display "x" ;
+display "a" ; // comment
+display "long"
+  "er" ; display "next" ;
+local q = 1 ; local r = 2 ; display `q' + `r' ;
+#delimit cr
+display "done"
+=== recheck-program-local-names
+local 1bad x
+display "`1bad'"
+capture noisily local abcdefghijabcdefghijabcdefghij12 bad
+capture noisily local abcdefghijabcdefghijabcdefghij12 = 1
+capture noisily tempvar abcdefghijabcdefghijabcdefghij12
+capture noisily local ++abcdefghijabcdefghijabcdefghij12
+capture noisily args abcdefghijabcdefghijabcdefghij12
+capture noisily global 1bad x
+=== recheck2-program-expansion
+display "[`='|"
+display "[`= '|"
+display "`=`=nosuch'' ok"
+local a `="x"'
+display "[`a']"
+local b "`="y"' z"
+display "[`b']"
+local c = "`: display "q"'"
+display "[`c']"
+display "[`=3*"ab"']"
+global G3 "long `=3*"ab"' x"
+display "$G3"
+local x = 1
+if `x' == 1 {
+  display "in if"
+}
+else if `=bad' == 1 {
+  display "never"
+}
+display "end"
+display `="a"+"b"'
+=== recheck2-program-expansion-header
+if `=nosuch' == 1 {
+  display "yes"
+}
+else {
+  display "no"
+}
+=== recheck2-program-expansion-empty-if
+if `=bad' {
+  display "never"
+}
+=== recheck2-program-syntax-fv-bases
+clear
+set obs 6
+generate region = mod(_n, 3) + 1
+generate educ = _n
+generate wage = _n * 2
+generate y = _n^2
+generate t = _n
+tsset t
+program define r2pf
+    syntax varlist(fv)
+    display "[`varlist'] [`s(fvops)']"
+end
+program define r2pt
+    syntax varlist(ts)
+    display "[`varlist'] [`s(tsops)']"
+end
+program define r2pb
+    syntax varlist(fv ts)
+    display "[`varlist'] [`s(fvops)'] [`s(tsops)']"
+end
+r2pf b2.region
+r2pf b(2).region
+r2pf b(#2).region
+r2pf b(#1).region
+r2pf 2b.region
+r2pf i2b.region
+r2pf 2bn.region
+r2pf bn.region
+r2pf ib(first).region
+r2pf 2o.region
+r2pf o2.region
+r2pf co.educ
+r2pf ib2.region#c.educ
+r2pf b2.region#c.educ
+r2pf 2b.region#c.educ
+r2pf b2.region##c.educ
+r2pf b2.(region educ)
+r2pf educ wage educ
+r2pf c.educ c.educ
+r2pf educ educ
+r2pf educ c.educ##c.educ
+r2pf c.educ##c.educ
+r2pf i.region educ i.region
+r2pf ib2.region i.region
+r2pf i.region ib2.region
+r2pf c.educ#c.educ c.educ#c.educ
+r2pf c.educ
+capture noisily r2pt cL.y
+capture noisily r2pt Lc.y
+capture noisily r2pt c.y
+capture noisily r2pt co.y
+capture noisily r2pt o.y
+capture noisily r2pt i.region
+r2pb cL.y
+r2pb Lb2.region
+r2pb L.y L.y
+=== recheck2-program-syntax-option-specs
+clear
+set obs 3
+generate x = 1
+generate y = 2
+generate z = 3
+generate s = "a"
+program r2po
+    syntax [, BYvar(varlist max=2 min=2 numeric) NList(numlist max=2 min=2 integer >0 ascending) ///
+        GENerate(namelist max=2 min=2) GVar(varname numeric) Reps(integer 5) CUToff(real 1) Level(cilevel) NM(name)]
+    display "by=`byvar' nl=`nlist' gen=`generate' gv=`gvar' reps=`reps' cut=`cutoff' level=`level' nm=`nm'"
+end
+capture noisily r2po, by(x y z)
+capture noisily r2po, by(x)
+capture noisily r2po, by(x s)
+capture noisily r2po, byv(x y z)
+capture noisily r2po, nl(1 2 3)
+capture noisily r2po, nli(1)
+capture noisily r2po, nl(1.5 2)
+capture noisily r2po, nl(-1 2)
+capture noisily r2po, nl(2 1)
+capture noisily r2po, nl(1 .)
+capture noisily r2po, gen(a b c)
+capture noisily r2po, gen(a)
+capture noisily r2po, gv(s)
+capture noisily r2po, gv(x y)
+capture noisily r2po, r(1e2)
+capture noisily r2po, r(2.0)
+capture noisily r2po, r(+3)
+capture noisily r2po, r( 4 )
+capture noisily r2po, r(0x10)
+capture noisily r2po, r(.)
+capture noisily r2po, r(-0)
+capture noisily r2po, r(1e10)
+capture noisily r2po, cut(.)
+capture noisily r2po, cut(.a)
+capture noisily r2po, cut(1e2)
+capture noisily r2po, cut(abc)
+capture noisily r2po, l(abc)
+capture noisily r2po, l(.)
+capture noisily r2po, l(5 6)
+capture noisily r2po, l(1e1)
+capture noisily r2po, l(95.5)
+capture noisily r2po, nm(a b)
+program r2pstar
+    syntax [, Reps(integer 50) Level(cilevel) *]
+    display "reps=`reps' level=`level' rest=[`options']"
+end
+r2pstar, reps(1e2)
+r2pstar, reps(2.0)
+r2pstar, reps(.)
+capture noisily r2pstar, level(abc)
+capture noisily r2pstar, level(5 6)
+=== recheck2-program-newvarlist
+clear
+set obs 2
+generate y = 1
+program r2pn
+    syntax newvarlist
+    display "[`varlist'] [`typlist']"
+end
+program r2pnl
+    foreach v of newlist `0' {
+        display "loop `v'"
+    }
+    display "done"
+end
+capture noisily r2pn y y
+capture noisily r2pn z z
+capture noisily r2pn _n
+capture noisily r2pn _cons
+capture noisily r2pn _se
+capture noisily r2pn _skip
+capture noisily r2pn byte
+capture noisily r2pn int z
+capture noisily r2pn in
+capture noisily r2pn with
+capture noisily generate _n = 1
+capture noisily generate _b = 1
+capture noisily r2pnl _N
+capture noisily r2pnl int
+capture noisily r2pnl in
+capture noisily r2pnl a b a
+r2pnl c1-c3
+=== recheck2-program-varlist-ranges
+clear
+set obs 2
+generate a = 1
+generate b = 2
+generate c = 3
+summarize a - c
+list a -c
+list a- b
+capture noisily summarize c - a
+capture noisily summarize c*-a
+capture noisily foreach v of varlist c-a {
+display "x"
+}
+display _rc
+drop a - b
+describe, simple
+=== recheck2-program-matrix-stripes
+matrix T = (1, 2 \ 3, 4 \ 5, 6)
+matrix rownames T = e1:a e2:b e2:c
+matrix colnames T = q:u q:v
+matrix rownames T = x y z
+matrix list T
+matrix colnames T = m
+matrix list T
+matrix rownames T = a g:b c
+local r : rowfullnames T
+display "`r'"
+matrix rownames T = k:
+local r : rowfullnames T
+display "`r'"
+matrix colnames T = "my name" other
+matrix list T
+local c : colnames T
+display "[`c']"
+local c : colnames T, quoted
+display `"[`c']"'
+local c : coleq T
+display "[`c']"
+local c : rownumb T "e2:c"
+display "[`c']"
+local c : colsof T
+display "[`c']"
+foreach n in L.y 2.g c.x 1b.g o.x co.x 1bn.g x#y LD.y L.2.g 2.g#c.x a.b i.x ib2.g {
+    capture noisily matrix rownames T = `n'
+    local r : rownames T
+    display "`n' -> " _rc " [`r']"
+}
+capture noisily local r : colnames nosuch
+matrix Z = (1, .z \ ., .a)
+matrix list Z, nodotz
+matrix A = (1e10, 2 \ 3, -4.5e-8)
+matrix list A, format(%-9.2f)
+capture noisily matrix list A, format(abc)
+clear
+set seed 3
+set obs 40
+generate x = rnormal()
+generate g = mod(_n, 3)
+generate y = 1 + 2*x + g + rnormal()
+quietly regress y x i.g
+local names : colnames e(b)
+display "`names'"
+local names : colfullnames e(V)
+display "`names'"
+=== recheck2-program-delimit-lines
+#delimit ;
+display "a" ; #delimit cr
+display "b"
+#delimit ;
+display "w" ; * star comment ;
+display "v" ;
+foreach v in a b { ; display "`v'" ; } ;
+#delimit cr
+display "end"
+=== recheck2-program-macro-names
+global abcdefghijabcdefghijabcdefghijab = 1
+display "$abcdefghijabcdefghijabcdefghijab"
+capture noisily global abcdefghijabcdefghijabcdefghijabc = 1
+capture noisily local a.b = 1
+capture noisily local = 1
+capture noisily local `"x"' = 1
+local c-d hello
+display "[`c']"
+=== recheck2-program-macro-list-wrap
+set linesize 79
+global G6 "long `=50*"ab"' with spaces"
+macro list G6
+local L6 "abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij abcdefghij"
+macro list _L6
+set linesize 200
+=== recheck2-program-noisily-in-quietly
+quietly {
+  noisily if 1 {
+    display "shown"
+  }
+  if 1 {
+    display "hidden"
+  }
+  noisily if 0 {
+    display "skipped"
+  }
+  noisily foreach v in a b {
+    display "`v'"
+  }
+  noisily {
+    display "bare"
+  }
+  noisily if 1 display "inline"
+}
+display "end"
+=== recheck2-program-display-continue
+forvalues i = 1/3 {
+  display `i' _c
+}
+display
+display "a" _c
+display "b"
+program r2pc
+  display "x" _c
+  display "y"
+  forvalues i = 1/2 {
+    display "`i'" _c
+  }
+  display "!"
+end
+r2pc
+program r2opt
+  syntax anything [, Times(integer 1) Sep(string)]
+  forvalues i = 1/`times' {
+    display "`anything'`sep'" _c
+  }
+  display
+end
+r2opt hi, t(3) sep(-)
+=== recheck2-program-capture-if-quiet
+display "before"
+capture if 1 + "a" {
+  display "x"
+  display "y"
+}
+display "after " _rc
+=== recheck2-program-capture-if-noisy
+capture noisily if nosuch {
+  display "x"
+}
+display "after " _rc
+=== recheck-describe-mean-posted
+clear
+set seed 12345
+set obs 30
+generate y = round(runiform()*10, .01)
+generate x = round(runiform()*5, .01)
+generate g = 1 + floor(runiform()*3)
+generate w = 1 + floor(runiform()*4)
+generate c = ceil(_n/3)
+label define gl 1 "North" 2 "South" 3 "West"
+label values g gl
+mean y x
+ereturn list
+matrix list e(b)
+matrix list e(V)
+matrix list e(sd)
+matrix list e(_N)
+lincom y - x
+test y = x
+estat vce
+estat sd
+return list
+display _b[y] " " _se[y]
+estimates store m1
+mean
+estimates table m1
+capture noisily predict p
+capture noisily estat ic
+mean y, over(g)
+matrix list e(b)
+matrix list r(table)
+lincom _b[c.y@1.g] - _b[c.y@2.g]
+test _b[c.y@1.g] = _b[c.y@2.g] = _b[c.y@3.g]
+estat sd, variance
+mean y x [pw=w]
+matrix list e(V)
+estat sd
+mean y x [aw=w]
+matrix list e(V)
+mean y x [fw=w]
+matrix list e(sd)
+matrix list e(_N)
+mean y x, vce(cluster c)
+matrix list e(V)
+mean i.g
+matrix list e(b)
+lincom 1.g - 2.g
+mean y, coeflegend
+=== recheck-describe-total-posted
+clear
+set seed 12345
+set obs 30
+generate y = round(runiform()*10, .01)
+generate x = round(runiform()*5, .01)
+generate g = 1 + floor(runiform()*3)
+generate w = 1 + floor(runiform()*4)
+label define gl 1 "North" 2 "South" 3 "West"
+label values g gl
+total y
+ereturn list
+matrix list e(b)
+lincom y/30
+capture noisily estat sd
+estat vce
+total y, over(g)
+test _b[c.y@1.g] = _b[c.y@3.g]
+total y x [iw=w]
+matrix list e(V)
+=== recheck-describe-proportion-posted
+clear
+set seed 12345
+set obs 30
+generate g = 1 + floor(runiform()*3)
+generate h = runiform() < .4
+generate w = 1 + floor(runiform()*3)
+generate c = ceil(_n/3)
+label define gl 1 "North" 2 "South" 3 "West"
+label values g gl
+proportion g h
+matrix list r(table)
+matrix list e(b)
+ereturn list
+lincom 1.g - 2.g
+test 1.g = 3.g
+estat vce
+display _b[2.g] " " _se[2.g]
+proportion g h, coeflegend
+proportion, level(90)
+proportion, percent
+proportion g, noheader
+proportion g, nolabel
+proportion g, citype(normal) level(90)
+proportion g, vce(cluster c)
+proportion g h, citype(wilson)
+proportion g h, citype(exact)
+proportion g h, citype(jeffreys)
+proportion g [pw=w], citype(wilson)
+proportion g [fw=w], citype(exact)
+proportion g, percent coeflegend
+proportion g [pw=w]
+matrix list e(V)
+capture noisily estat sd
+capture noisily proportion g, citype(clopper)
+capture noisily proportion g h if h > .5 & g > 1.5
+=== recheck-describe-mean-replicated
+clear
+set seed 12345
+set obs 30
+generate y = round(runiform()*10, .01)
+generate x = round(runiform()*5, .01)
+generate g = 1 + floor(runiform()*3)
+label define gl 1 "North" 2 "South" 3 "West"
+label values g gl
+bootstrap, reps(20) seed(1): mean y x
+bootstrap, reps(20) seed(1): total y
+jackknife: mean y
+jackknife: total y, over(g)
+mean y, vce(bootstrap, reps(20) seed(1))
+mean y, vce(jackknife)
+total y, vce(bootstrap, reps(20) seed(1))
+total y, vce(jackknife)
+mean y, over(g) vce(bootstrap, reps(20) seed(2))
+bootstrap, reps(20) seed(1): proportion g
+proportion g, vce(bootstrap, reps(20) seed(1))
+proportion g, vce(jackknife)
+capture noisily predict p
+=== recheck-describe-long-names
+clear
+set seed 3
+set obs 40
+generate household_income_2023 = round(rnormal(60000,9000),1)
+generate years_of_schooling = floor(8+10*runiform())
+generate byte owns_home_flag = runiform()<.6
+generate byte longfactorvariablename = 1 + mod(_n,2)
+generate byte region = 1 + mod(_n,3)
+label define reg 1 "Northeast" 2 "Comparison group for the study" 3 "Sou"
+label values region reg
+mean household_income_2023
+mean household_income_2023, coeflegend
+total years_of_schooling household_income_2023
+proportion owns_home_flag
+proportion longfactorvariablename
+mean i.region
+mean i.longfactorvariablename
+mean i.region, nofvlabel
+summarize i.region
+summarize i.region i.longfactorvariablename
+summarize i.region, nofvlabel
+=== recheck-describe-summarize-fvlabels
+clear
+set obs 12
+generate byte g = 1 + mod(_n,6)
+label define gl 1 "Northeastern" 2 "VeryLongLabelWithoutSpaces" 3 "Abcdefghijk" 4 "Région Île-de-France" 5 "a b" 6 "東京都の中心部です"
+label values g gl
+summarize i.g
+summarize i.g, nofvlabel
+summarize 2.g
+summarize i.g, separator(2)
+summarize i.g [aw=g]
+mean i.g
+=== recheck-describe-missing-comma
+clear
+set obs 10
+generate y = _n
+generate x = mod(_n, 3)
+generate byte region = 1 + mod(_n, 2)
+capture noisily ttest y by(region)
+capture noisily tabstat y by(region)
+capture noisily tabulate y by(region)
+capture noisily sdtest y by(region)
+capture noisily summarize y by(region)
+capture noisily mean y over(region)
+capture noisily total y over(region)
+capture noisily proportion x over(region)
+capture noisily ratio y/x over(region)
+capture noisily regress y x by(region)
+capture noisily list y by(region)
+capture noisily correlate y x by(region)
+capture noisily pwcorr y x by(region)
+capture noisily ci means y by(region)
+capture noisily summarize y ar(1)
+capture noisily tabulate y x(1)
+summarize y (region)
+mean y (region)
+capture noisily logit region x by(y)
+capture noisily prtest region by(x)
+=== recheck-describe-sdtest-labels
+clear
+set seed 7
+set obs 30
+generate score_post = round(rnormal(60,10),0.1)
+generate a_rather_long_variable_name_x = round(rnormal(58,9),0.1)
+generate byte grp = _n>15
+label define g 0 "Control group" 1 "Treatment group"
+label values grp g
+generate str20 arm = cond(_n>15, "Standard curriculum arm", "  New arm")
+generate double frac = cond(_n>15, 0.1, 1e10)
+generate byte three = mod(_n,3)
+sdtest score_post == a_rather_long_variable_name_x
+sdtest a_rather_long_variable_name_x == 9
+sdtest score_post, by(grp)
+sdtest score_post, by(arm)
+sdtest score_post, by(frac)
+sdtest score_post, by(grp) level(99)
+capture noisily sdtest score_post, by(three)
+capture noisily sdtest score_post if grp == 0, by(grp)
+capture noisily sdtest score_post if score_post > 1000, by(grp)
+=== recheck-describe-sdtesti
+sdtesti 30 5 2.5 40 6 3.1
+sdtesti 30 . 2.5 40 . 3.1
+sdtesti 30 5 2.5 40 6 3.1, xname(Treated) yname(Control_group_long)
+sdtesti 30 5 2.5 3
+sdtesti 30 . 2.5 3, level(90)
+sdtesti 30 5 2.5 3, xname(weights)
+sdtesti 30 5 2.5 40 6 0
+sdtesti 1 5 0 3
+sdtesti 30 5 2.5 40 . 3.1, yname(Short)
+sdtesti 1000000 5 2.5 2000000 6 3.1
+capture noisily sdtesti 30 5 2.5 40 6
+capture noisily sdtesti 30 5 -2.5 3
+capture noisily sdtesti 1 5 2.5 3
+capture noisily sdtesti 30.5 5 2.5 3
+capture noisily sdtesti 30 5 2.5 40 6 3.1 7
+capture noisily sdtesti 30 a 2.5 3
+capture noisily sdtesti 0 5 2.5 3
+capture noisily sdtesti -3 5 2.5 3
+capture noisily sdtesti 30 5 2.5 -3
+capture noisily sdtesti 30 5 . 3
+capture noisily sdtesti 30 5 2.5 .
+=== recheck-describe-tabulate-generate-nolabel
+clear
+set obs 8
+generate byte region = 1 + mod(_n,3)
+label define reg 1 "Northeast" 2 "Midwest" 3 "South"
+label values region reg
+tabulate region, generate(r) nolabel
+describe r1 r2 r3
+tabulate region, generate(s)
+describe s1 s2 s3
+=== recheck-describe2-regress-instruments
+clear
+set obs 40
+set seed 31
+generate y = runiform()
+generate x = runiform()
+generate z = runiform()
+generate g = 1 + floor(3*runiform())
+generate t = _n
+regress y x (z)
+display e(model) " " e(cmd) " " e(predict) " " e(title) " " e(r2) " " e(rank)
+regress y x (z), robust
+regress y x (z), vce(cluster g)
+display e(vce) " " e(clustvar) " " e(N_clust)
+regress y x (z x)
+regress y x (z t), level(90)
+predict p
+summarize p
+regress
+regress y x (z) if g<3 [aw=g]
+regress y x (z) [w=g]
+regress y x (z) [fw=g]
+regress y x (z) [pw=g]
+regress y x (z), beta
+regress y x (z), robust beta
+regress y x (z), eform(ef)
+regress y x (z), noheader
+regress y x (z), depname(w)
+regress y c.x (z)
+regress y x (y)
+generate x2 = x^2
+regress y x x2 (z t x)
+matrix list e(b)
+test x
+lincom x + x2
+regress y x (z), vce(bootstrap, reps(5) seed(1) nodots)
+ivreg y (x = z)
+capture noisily regress y (x)
+capture noisily regress y (z) x
+capture noisily regress y x (z) (g)
+capture noisily regress y x t (z)
+capture noisily regress y x ()
+capture noisily regress y x (1.g)
+capture noisily regress y x#x (z)
+capture noisily regress y x L.y (z)
+capture noisily regress y x (z), hc2
+capture noisily regress y x (z), vce(hc3)
+capture noisily regress y x (z), vce(unadjusted)
+capture noisily regress y x (z), cluster(g) beta
+capture noisily regress y x (z ,)
+=== recheck-describe2-varlist-parentheses
+clear
+set obs 40
+set seed 31
+generate y = runiform()
+generate x = runiform()
+generate z = runiform()
+generate g = 1 + floor(3*runiform())
+generate t = _n
+generate b = y > .5
+capture noisily summarize y detail(1)
+capture noisily summarize y (1)
+capture noisily summarize y ar(1)
+capture noisily summarize y (x 1)
+summarize y (x) (g)
+capture noisily summarize y (x
+capture noisily summarize y x)
+capture noisily summarize y x sep(2)
+capture noisily summarize y x se(2)
+capture noisily summarize y x s(2)
+capture noisily summarize y x foo(2)
+capture noisily summarize y x lag(2)
+capture noisily summarize y x eo(2)
+capture noisily summarize y x co(2)
+capture noisily summarize y x h(x)
+capture noisily summarize y x(1/2)
+capture noisily summarize y x(a b)
+capture noisily list y x sep(2) in 1
+capture noisily list y x(2) in 1
+capture noisily list y x detail(1) in 1
+capture noisily regress y x detail(1)
+capture noisily mean y detail(1)
+capture noisily xtset g
+capture noisily xtreg y x fe(1)
+capture noisily xtreg y x (1)
+capture noisily correlate y x cov(1)
+capture noisily correlate y ar(1)
+capture noisily correlate y cov(x)
+capture noisily correlate y x(g)
+capture noisily correlate y by(x)
+capture noisily correlate y i(x)
+capture noisily correlate y over(x)
+capture noisily correlate y (zz)
+capture noisily correlate y (x
+correlate (y x)
+correlate y (x g)
+pwcorr (y x)
+tabulate (g)
+tabulate g (b)
+capture noisily tabulate g (1)
+capture noisily tabulate g b(1)
+tabstat (y x)
+capture noisily tabstat y zz(1)
+capture noisily tabstat y (x
+codebook (y), compact
+describe (y x)
+anova y (g)
+=== recheck-describe2-resampled-level
+clear
+set obs 60
+set seed 12345
+generate y = round(50 + 10*runiform(), 0.01)
+generate x = round(20 + 5*runiform(), 0.01)
+generate g = 1 + floor(3*runiform())
+generate h = runiform() > .5
+generate w = 1 + floor(4*runiform())
+label define gl 1 "North" 2 "South" 3 "West"
+label values g gl
+replace y = . in 5
+mean y, vce(jackknife, nodots) level(90)
+total y, vce(bootstrap, reps(5) seed(1) nodots) level(90)
+proportion h, vce(bootstrap, reps(5) seed(1) nodots) level(90)
+mean y, vce(bootstrap, reps(5) seed(1) nodots) level(80)
+mean
+bootstrap
+bootstrap, reps(5) seed(1) nodots: mean y, level(90)
+bootstrap, reps(5) seed(1) nodots: regress y x, level(90)
+display e(level)
+regress
+ratio y/x, vce(bootstrap, reps(5) seed(1) nodots) level(90)
+jackknife, nodots: mean y, level(80)
+mean
+capture noisily bootstrap, reps(5) seed(1) nodots level(80): mean y, level(90)
+capture noisily mean y, vce(bootstrap, reps(5) seed(1) nodots level(80)) level(90)
+=== recheck-describe2-resampled-names
+clear
+set obs 60
+set seed 12345
+generate y = round(50 + 10*runiform(), 0.01)
+generate x = round(20 + 5*runiform(), 0.01)
+generate g = 1 + floor(3*runiform())
+generate h = runiform() > .5
+label define gl 1 "North" 2 "South" 3 "West"
+label values g gl
+replace y = . in 5
+bootstrap, reps(5) seed(1) nodots: mean y
+lincom y - 50
+bootstrap, reps(5) seed(1) nodots: proportion h
+lincom _b[1.h] - _b[0.h]
+matrix list e(b)
+mean y x, vce(bootstrap, reps(5) seed(1) nodots)
+lincom y - x
+matrix list e(b)
+bootstrap, reps(5) seed(1) nodots: total y x
+lincom y - x
+test y = x
+jackknife, nodots: mean y x
+lincom y - x
+mean y, vce(bootstrap, reps(10) seed(1) strata(h) nodots)
+total y, vce(bootstrap, reps(10) seed(1) strata(h) nodots)
+proportion h, vce(bootstrap, reps(10) seed(1) strata(g) nodots)
+ratio y/x, vce(bootstrap, reps(10) seed(1) strata(h) nodots)
+mean y x, vce(bootstrap, reps(10) seed(2) nodots) over(h)
+estat bootstrap
+estat bootstrap, all
+total y, over(h) vce(bootstrap, reps(10) seed(1) nodots)
+estat bootstrap, percentile
+bootstrap, reps(10) seed(1) nodots: proportion g
+estat bootstrap, normal
+ratio y/x, vce(bootstrap, reps(10) seed(1) nodots)
+estat bootstrap
+=== recheck-describe2-svy-mean-sd
+clear
+set obs 60
+set seed 12345
+generate y = round(50 + 10*runiform(), 0.01)
+generate x = round(20 + 5*runiform(), 0.01)
+generate g = 1 + floor(3*runiform())
+generate h = runiform() > .5
+generate pw = 0.5 + runiform()
+label define gl 1 "North" 2 "South" 3 "West"
+label values g gl
+replace y = . in 5
+svyset [pw=pw], strata(h)
+svy: mean y, over(g)
+estat sd
+estat sd, srssubpop
+matrix list e(_N)
+matrix list e(V_srs)
+svy: mean y x, over(g)
+matrix list e(V_srs)
+svy, subpop(h): mean y x
+estat sd
+estat sd, variance
+matrix list e(_N)
+matrix list e(V_srs)
+generate fp = 100
+svyset [pw=pw], strata(h) fpc(fp)
+svy: mean y, over(g)
+estat sd
+=== recheck-describe2-over-factor-values
+clear
+set obs 40
+set seed 31
+generate y = runiform()
+generate x = runiform()
+generate g = 1 + floor(3*runiform())
+generate t = _n
+generate neg = g - 2
+generate half = g/2
+replace half = 1 in 1/40
+replace half = 1.5 in 1
+capture noisily mean y, over(g x)
+capture noisily mean y, over(x)
+capture noisily total y, over(x)
+capture noisily mean y, over(neg)
+capture noisily total y, over(g neg)
+mean y in 2/40, over(half)
+mean y if t > 1, over(half)
+capture noisily mean y, over(half)
+replace y = . in 1
+capture noisily mean y, over(half)
+capture noisily ratio y/x, over(x)
+capture noisily proportion g, over(x)
+=== recheck-describe2-sdtest-checks
+clear
+set obs 50
+set seed 4242
+generate score_before_intervention = round(50 + 10*runiform(), .1)
+generate score_after = round(55 + 12*runiform(), .1)
+generate arm = 1 + (runiform() > .5)
+label define arml 1 "Control group" 2 "Treatment group"
+label values arm arml
+generate str20 site = cond(runiform() > .5, "Downtown Clinic", "Uptown")
+capture noisily sdtest score_after, by(arm site)
+capture noisily sdtest score_after, by(site arm)
+capture noisily sdtest score_after score_before_intervention
+capture noisily sdtest score_after site
+capture noisily sdtest score_after zz
+capture noisily sdtest score_after score_before_intervention, by(arm)
+capture noisily sdtest score_after == -1
+sdtest score_after == 0
+sdtest score_after == -0
+capture noisily sdtest site == 3
+capture noisily sdtest site == score_after
+capture noisily sdtest score_after == site
+capture noisily sdtest site == site
+capture noisily sdtest site, by(arm)
+capture noisily sdtest score_after, by(zz)
+capture noisily sdtest score_after, by(arm zz)
+=== recheck-describe2-sdtest-shown
+clear
+set obs 30
+set seed 1
+generate x = 100*runiform()
+sdtest x == 1e-3
+sdtest x == 0.001
+sdtest x == .01
+sdtest x == 123456789
+sdtest x == 2.5e2
+sdtesti 30 . 5 0.001
+sdtesti 30 . 5 .5
+sdtesti 30 . 5 1234567
+sdtesti 30 . 500 0.01
+sdtesti 30 -2 5 1e-3
+=== recheck-describe2-sdtesti-checks
+capture noisily sdtesti 30 . 5 1 . 6
+capture noisily sdtesti 1 . 5 30 . 6
+capture noisily sdtesti 1 . 5 1 . 6
+capture noisily sdtesti 1 . 5 4
+capture noisily sdtesti 1 . 0 30 . 6
+sdtesti 2 10 1 3
+sdtesti 1 10 0 3
+sdtesti 1 . . 3
+capture noisily sdtesti 30 . 5 40 . -6
+capture noisily sdtesti 30 . -5 30 . -6
+capture noisily sdtesti 30 . 5 .
+capture noisily sdtesti 30 . . 4
+capture noisily sdtesti . . 5 4
+capture noisily sdtesti 30 . 5 . . 6
+capture noisily sdtesti 30 . . 30 . 6
+capture noisily sdtesti 30 . 5 -2 . 6
+capture noisily sdtesti 30 . 5 0 . 6
+sdtesti 1 . . 30 . 6
+sdtesti 30 . 5 1 . .
+=== recheck-describe2-narrow-tables
+set linesize 79
+clear
+set obs 40
+set seed 777
+generate household_income_2023 = round(50000 + 20000*runiform(), 1)
+generate number_of_children_in_household = floor(4*runiform())
+generate region_of_residence = 1 + floor(3*runiform())
+generate a = runiform() > .4
+generate bb = 1 + floor(2*runiform())
+label define rr 1 "Northeastern United States of America" 2 "Midwest" 3 "Pacific Northwest and Alaska"
+label values region_of_residence rr
+label define ab 0 "No, never at any point in time" 1 "Yes"
+label values a ab
+mean a, over(region_of_residence) coeflegend
+proportion a, coeflegend
+total household_income_2023, over(region_of_residence) coeflegend
+mean household_income_2023, over(a) coeflegend
+mean household_income_2023, over(region_of_residence)
+estat sd
+mean household_income_2023 number_of_children_in_household
+estat sd, variance
+ratio household_income_2023/bb, over(region_of_residence)
+ratio household_income_2023/bb, over(a)
+ratio (r: household_income_2023/bb), over(a)
+svyset [pw=bb]
+svy: mean household_income_2023
+svy: mean household_income_2023 number_of_children_in_household
+svy: mean household_income_2023, over(a)
+estat sd, srssubpop
+svy: proportion region_of_residence
+svy: total household_income_2023
+svy: ratio household_income_2023/bb
+set linesize 200
+=== recheck-describe2-proportion-over
+clear
+set obs 60
+set seed 12345
+generate y = round(50 + 10*runiform(), 0.01)
+generate x = round(20 + 5*runiform(), 0.01)
+generate g = 1 + floor(3*runiform())
+generate h = runiform() > .5
+generate w = 1 + floor(4*runiform())
+generate pw = 0.5 + runiform()
+label define gl 1 "North" 2 "South" 3 "West"
+label values g gl
+replace y = . in 5
+proportion h, over(g)
+matrix list e(b)
+matrix list e(V)
+display e(N_over) " " e(rank) " " e(over) " " e(varlist)
+proportion g w, over(h)
+display e(rank)
+matrix list e(_N)
+proportion g, over(h) percent
+proportion g [pw=pw], over(h)
+proportion g [fw=w], over(h)
+matrix list e(freq)
+proportion h [iw=pw], over(g)
+matrix list e(V)
+proportion g, over(h) vce(cluster w)
+matrix list e(V)
+proportion h, over(g w)
+matrix list e(b)
+display e(rank)
+proportion h, over(g) citype(normal)
+proportion h, over(g) coeflegend
+lincom _b[1.h@2.g] - _b[1.h@1.g]
+proportion h, over(g) nolabel
+proportion h if g < 3, over(g)
+generate str5 s = "a"
+capture noisily proportion h, over(s)
+capture noisily proportion h, over(h)
+=== recheck-describe2-ereturn-display
+clear
+set obs 60
+set seed 12345
+generate y = round(50 + 10*runiform(), 0.01)
+generate x = round(20 + 5*runiform(), 0.01)
+generate g = 1 + floor(3*runiform())
+generate h = runiform() > .5
+generate w = 1 + floor(4*runiform())
+generate pw = 0.5 + runiform()
+label define gl 1 "North" 2 "South" 3 "West"
+label values g gl
+replace y = . in 5
+quietly mean y x
+ereturn display
+quietly mean y x, over(g)
+ereturn display
+quietly total y, vce(cluster w)
+ereturn display
+quietly proportion g [fw=w], citype(exact)
+ereturn display
+quietly proportion h, over(g)
+ereturn display
+ereturn display, level(90)
+quietly mean y [pw=pw]
+ereturn display
+=== recheck-describe2-factor-bases
+clear
+set obs 60
+set seed 12345
+generate y = round(50 + 10*runiform(), 0.01)
+generate g = 1 + floor(3*runiform())
+generate h = runiform() > .5
+label define gl 1 "North" 2 "South" 3 "West"
+label values g gl
+replace y = . in 5
+mean ib2.g
+matrix list e(b)
+mean ib2.g y
+matrix list e(b)
+matrix list e(V)
+matrix list e(_N)
+matrix list e(sd)
+matrix list e(error)
+display e(rank) " " e(varlist)
+lincom _b[3.g] - _b[2.g]
+estat sd
+ereturn display
+total ib3.g
+matrix list e(b)
+display e(rank)
+matrix list e(_N)
+mean y i.h
+matrix list e(b)
+clear
+set obs 20
+set seed 9
+generate g = 1 + floor(4*runiform())
+generate y = runiform()
+summarize i(1 3).g
+summarize i(1/3).g
+regress y i(1 3).g
+list i(1 3).g in 1
+=== recheck-linear-hc-weights
+clear
+set obs 120
+set seed 5101
+generate x = rnormal()
+generate z = runiform()
+generate w = 1 + floor(runiform()*4)
+generate y = 1 + 2*x + z + rnormal()*(1 + x^2)
+regress y x z [aw=w], vce(hc2)
+regress y x z [aw=w], vce(hc3)
+regress y x z [pw=w], vce(hc2)
+regress y x z [iw=w], vce(hc3)
+regress y x z [fw=w], vce(hc3)
+capture noisily regress y x z [pw=w], vce(hc3)
+display _rc
+=== recheck-linear-estat-vif
+clear
+set obs 150
+set seed 5102
+generate x1 = rnormal()
+generate x2 = .6*x1 + rnormal()
+generate x3 = runiform()
+generate w = 1 + floor(runiform()*3)
+generate c = 1 + floor(runiform()*10)
+generate y = 1 + x1 + x2 + x3 + rnormal()
+quietly regress y x1 x2 x3 [aw=w]
+estat vif
+estat vif, uncentered
+estat vif, uncentered nosort
+quietly regress y x1 x2 x3 [pw=w]
+estat vif
+quietly regress y x1 x2 x3, vce(cluster c)
+estat vif
+return list
+capture noisily estat vif, junk
+display _rc
+capture noisily estat vif x1
+display _rc
+quietly regress y x1 x2 x3, noconstant
+capture noisily estat vif
+display _rc
+estat vif, uncentered
+=== recheck-linear-beta-weights
+clear
+set obs 100
+set seed 5103
+generate x = rnormal()
+generate z = rnormal()
+generate w = 1 + floor(runiform()*5)
+generate y = 1 + x - z + rnormal()
+regress y x z [aw=w], beta
+matrix list e(beta)
+regress y x z [pw=w], beta
+regress y x z [fw=w], beta
+=== recheck-linear-areg-predict
+clear
+set obs 90
+set seed 5104
+generate g = 1 + floor(runiform()*6)
+generate x = rnormal()
+generate w = 1 + floor(runiform()*4)
+generate y = g + x + rnormal()
+quietly areg y x [aw=w] if g != 3, absorb(g)
+predict r, residuals
+predict d, d
+predict xbd, xbd
+predict dr, dresiduals
+summarize r d xbd dr
+describe r d xbd dr
+capture noisily predict q, d xb
+display _rc
+quietly regress y x
+capture noisily predict q, d
+display _rc
+=== recheck-linear-margins-weights
+clear
+set obs 140
+set seed 5105
+generate f = runiform() < .4
+generate x = 8 + floor(runiform()*10)
+generate w = .5 + runiform()
+generate y = 2 + x + 3*f + .5*x*f + rnormal()
+quietly regress y c.x##i.f [aw=w]
+margins, atmeans
+quietly regress y c.x##i.f [pw=w]
+margins, at((mean) _all x=12)
+margins, at(x=generate(x+1))
+margins, at(x=generate(x*1.1) f=(0 1))
+margins, dydx(f) at(x=gen(x-1))
+capture noisily margins, at(f=generate(f))
+display _rc
+=== recheck-linear-iv-estat
+clear
+set obs 200
+set seed 5106
+generate z1 = rnormal()
+generate z2 = rnormal()
+generate z3 = rnormal()
+generate u = rnormal()
+generate x = rnormal()
+generate h = z1 + z2 + .5*z3 + u + rnormal()
+generate y = 1 + h + x + u + rnormal()
+quietly ivregress 2sls y x (h = z1 z2 z3)
+estat firststage, all
+capture noisily estat firststage, junk
+display _rc
+capture noisily estat firststage x
+display _rc
+capture noisily estat endogenous x
+display _rc
+capture noisily estat endogenous, junk
+display _rc
+estat endogenous h
+estat overid, forcenonrobust
+capture noisily estat overid, lags(1)
+display _rc
+quietly ivregress 2sls y x (h = z1 z2 z3), vce(robust)
+estat firststage, all
+quietly ivregress gmm y x (h = z1 z2 z3)
+estat overid
+capture noisily estat overid, junk
+display _rc
+quietly ivregress gmm y x (h = z1 z2 z3), wmatrix(unadjusted)
+estat overid
+display r(J_df) " " %9.0g r(HansenJ) " " %9.0g r(p_HansenJ)
+quietly ivregress liml y x (h = z1 z2 z3)
+capture noisily estat overid, junk
+display _rc
+=== recheck-linear-nlcom-returns
+clear
+set obs 80
+set seed 5107
+generate x = rnormal()
+generate z = rnormal()
+generate y = 1 + 2*x + z + rnormal()
+quietly regress y x z
+nlcom _b[x]/_b[z]
+return list
+matrix list r(table)
+nlcom (ratio: _b[x]/_b[z]) (product: _b[x]*_b[z]), level(90)
+matrix list r(b)
+matrix list r(V)
+=== recheck-linear-iv-areg-results
+clear
+set obs 160
+set seed 5108
+generate z1 = rnormal()
+generate z2 = rnormal()
+generate x = rnormal()
+generate g = 1 + floor(runiform()*5)
+generate h = z1 + z2 + rnormal()
+generate y = 1 + h + x + rnormal()
+quietly ivregress 2sls y x (h = z1 z2)
+display "[" e(endog) "] [" e(exog) "] [" e(exogr) "] [" e(instd) "] [" e(insts) "] " e(k_endog) " " e(kappa) " " e(iterations)
+display "[" e(cmdline) "] [" e(estat_cmd) "] [" e(footnote) "] [" e(marginsnotok) "] [" e(predict) "]"
+quietly ivregress liml y x (h = z1 z2)
+display "[" e(cmdline) "] " e(df_r) " " e(k_endog)
+quietly ivregress gmm y x (h = z1 z2)
+display "[" e(wmatrix) "] " e(iterations) " " e(df_r)
+quietly ivregress 2sls y x (h = z1 z2), vce(robust)
+matrix list e(V_modelbased)
+quietly areg y x, absorb(g)
+display "[" e(cmdline) "] [" e(predict) "] [" e(footnote) "] [" e(marginsnotok) "] " e(sum_w) " " e(rc) " [" e(model) "] [" e(estmethod) "] [" e(title2) "]"
+quietly areg y x, absorb(g) vce(robust)
+matrix list e(V_modelbased)
+quietly areg y x, absorb(g) vce(cluster g)
+display "[" e(marginsnotok) "] " e(sum_w) " " e(mss) " " e(p)
+=== recheck-linear-meanonly
+clear
+set obs 30
+set seed 5109
+generate x = rnormal(5, 2)
+generate w = 1 + floor(runiform()*3)
+summarize x, meanonly
+return list
+summarize x [aw=w], meanonly
+return list
+summarize x if x > 100, meanonly
+return list
+summarize x
+return list
+=== recheck-linear-regress-display
+clear
+set obs 200
+set seed 4021
+generate educ = 8 + floor(runiform()*10)
+generate region = 1 + floor(runiform()*4)
+label define reg 1 "North" 2 "South" 3 "East" 4 "West"
+label values region reg
+generate female = runiform() < .5
+generate male = 1 - female
+generate wage = 5 + .8*educ + 2*female + region + rnormal()*3
+generate educ2 = 2*educ
+generate one = 1
+generate school = 1 + floor(runiform()*12)
+regress wage educ i.region, coeflegend
+regress wage educ i.region, noheader
+regress wage educ, notable
+regress wage educ i.region, cformat(%9.3f)
+regress wage educ, pformat(%5.2f) sformat(%8.3f)
+regress wage educ i.region, vsquish
+regress wage educ educ2 female, noomitted
+regress wage educ, depname(y)
+regress wage educ i.region, noci
+regress wage educ, nopvalues
+capture noisily regress wage educ, noci nopvalues
+display _rc
+regress wage educ i.region, nofvlabel
+regress wage educ one, hascons
+regress wage educ female male, hascons
+regress wage educ female, hascons
+regress wage educ, noconstant tsscons
+regress wage educ, mse1
+regress wage educ, mse1 vce(robust)
+regress wage educ i.region, noemptycells
+regress wage educ, nolstretch
+regress wage educ, vce(robust) noheader
+regress wage educ, vce(cluster school) noheader
+regress wage educ, vce(robust) coeflegend
+regress wage educ, vce(robust) noci
+regress wage educ, beta noheader
+regress wage educ i.region, beta cformat(%9.3f)
+regress wage educ i.region, eform(exp b)
+regress wage educ i.region, eform(exp b) noci
+capture noisily regress wage educ, eform(Exponentiated)
+display _rc
+regress wage educ, cformat(%9.2f) pformat(%4.2f) sformat(%7.2f) noci
+regress wage educ i.region, coeflegend baselevels
+regress wage educ i.region, noci vsquish nofvlabel depname(pay) level(90)
+regress wage educ, nopvalues level(99.5)
+regress wage educ educ2, coeflegend
+regress
+regress, coeflegend
+regress, noheader cformat(%8.3f)
+regress, noci
+regress, vsquish
+capture noisily regress, depname(y)
+display _rc
+regress wage educ, cformat(%12.3f)
+capture noisily regress wage educ, cformat(%s)
+display _rc
+=== recheck-linear-coef-synonym
+clear
+set obs 50
+set seed 3
+generate x = rnormal()
+generate y = 2 + x + rnormal()
+quietly regress y x
+display _coef[x]
+display _coef[_cons] + _b[x]
+capture noisily display [y]_coef[x]
+generate p = _coef[_cons] + _coef[x]*x
+summarize p
+lincom _coef[x] - 1
+=== recheck-linear-string-factor
+clear
+set obs 60
+set seed 5111
+generate x = rnormal()
+generate str5 s = cond(runiform() < .5, "north", "south")
+generate y = x + rnormal()
+quietly regress y x
+capture noisily testparm i.s
+display _rc
+capture noisily margins s
+display _rc
+=== recheck-linear-ivregress-specs
+clear
+set obs 100
+set seed 5
+generate z1 = rnormal()
+generate z2 = rnormal()
+generate z3 = rnormal()
+generate educ = rnormal()
+generate hours = z1 + z2 + rnormal()
+generate exper = z3 + rnormal()
+generate wage = 1 + hours + educ + rnormal()
+capture noisily ivregress 2sls wage educ (hours = )
+display _rc
+capture noisily ivregress foo wage (hours = z1)
+display _rc
+capture noisily ivregress wage educ (hours = z1)
+display _rc
+ivregress 2sls wage educ hours
+capture noisily ivregress 2sls wage educ (hours z1)
+display _rc
+capture noisily ivregress 2sls wage (= z1)
+display _rc
+capture noisily ivregress 2sls
+display _rc
+capture noisily ivregress 2sls wage educ (hours = z1 z2), vce(hc3)
+display _rc
+capture noisily ivregress 2sls wage educ (hours = z1 z2), vce(ols)
+display _rc
+capture noisily ivregress gmm wage educ (hours = z1 z2), wmatrix(junk)
+display _rc
+capture noisily ivregress 2sls wage educ (hours = z1 z2) (exper = z3)
+display _rc
+capture noisily ivregress 2sls (hours = z1)
+display _rc
+capture noisily ivregress 2SLS wage (hours = z1)
+display _rc
+=== recheck-linear-cluster-rank
+clear
+set obs 60
+set seed 5112
+generate g = ceil(_n/3)
+generate c = ceil(g/4)
+forvalues k = 1/6 {
+generate x`k' = rnormal()
+}
+generate y = g/5 + x1 - x2 + rnormal()
+areg y x1-x6, absorb(g) vce(cluster c)
+display e(df_m) " " e(rank)
+quietly regress y x1 i.g, vce(cluster g)
+display e(df_m) " " e(rank)
+=== recheck-linear-summarize-precision
+clear
+set obs 199
+set seed 5113
+generate x = exp(rnormal(2, .6))
+quietly summarize x
+return list
+display %21.0g r(Var)
+=== recheck2-linear-hc-vce
+clear
+set obs 300
+set seed 2026
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate cl = 1+floor(runiform()*15)
+generate w = 0.5+runiform()*2
+generate y = 1 + 2*x1 - x2 + invnormal(runiform())*2
+regress y x1 x2, vce(hc2)
+display e(vce) "|" e(vcetype)
+margins, atmeans
+regress y x1 x2 [aw=w], vce(hc3)
+display e(vce) "|" e(vcetype)
+margins
+regress y x1 x2, hc2
+display e(vce) "|" e(vcetype)
+regress y x1 x2, hc3
+regress y x1 x2, robust hc3
+display e(vce) "|" e(vcetype)
+regress y x1 x2 [pw=w], hc3
+display e(vce) "|" e(vcetype)
+regress y x1 x2, hc3 vce(robust)
+display e(vce) "|" e(vcetype)
+quietly regress y x1 x2, hc2 hc3
+display e(vce) "|" e(vcetype)
+quietly regress y x1 x2, hc2 cluster(cl)
+display e(vce) "|" e(vcetype)
+capture noisily regress y x1 x2, hc2 vce(cluster cl)
+display _rc
+=== recheck2-linear-iweights
+clear
+set obs 300
+set seed 2026
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate w = 0.5+runiform()*2
+generate y = 1 + 2*x1 - x2 + invnormal(runiform())*2
+regress y x1 x2 [iw=w]
+display e(N) " " e(df_r) " " e(df_m) " " e(rmse) " " e(r2_a) " " e(ll)
+regress y x1 x2 [iw=w], beta
+generate w5 = w/100
+regress y x1 x2 [iw=w5]
+display e(N) " " e(df_r) " " e(rmse) " " e(r2_a) " " e(F) " " e(ll)
+=== recheck2-linear-display-options
+clear
+set obs 300
+set seed 2026
+generate g = 1+floor(runiform()*6)
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate x3 = runiform()*10
+generate z1 = invnormal(runiform())
+generate z2 = invnormal(runiform())
+generate d = runiform()<.4
+generate y = 1 + 2*x1 - x2 + .3*x3 + invnormal(runiform())*2 + g*.5
+capture noisily regress y x1 x2, beta nopvalues
+display _rc
+capture noisily regress y x1 x2, beta noci
+display _rc
+regress y x1 x2, beta coeflegend
+regress y x1, tsscons noconstant
+display e(mss) " " e(r2) " " e(r2_a) " " e(F)
+regress y z1 z2, tsscons noconstant
+regress y x1 x3 g, tsscons noconstant
+regress y x1, hascons noconstant
+generate d2 = g==2
+generate x4 = x1
+regress y x1 x2 x1, noomitted
+regress y x1 x2 x1 x3 i.g, noomitted
+regress y x1 x2 x4, noomitted noconstant
+regress y d2 i.g x1, noomitted
+regress y x1 x2 x4 i.d, noomitted
+regress y x1 x2 x1, noomitted vsquish
+regress y x1 i.g x1, noomitted
+=== recheck2-linear-r2-precision
+clear
+set obs 300
+set seed 2026
+generate g = 1+floor(runiform()*6)
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate x3 = runiform()*10
+generate w = 0.5+runiform()*2
+generate fw = 1+floor(runiform()*4)
+generate y = 1 + 2*x1 - x2 + .3*x3 + invnormal(runiform())*2 + g*.5
+quietly regress y x1 i.g
+display %21.0g e(r2) " " %21.0g e(mss) " " %21.0g e(F)
+display %21.0g e(r2_a) " " %21.0g e(ll_0)
+quietly regress y x1 x2
+display %21.0g e(r2) " " %21.0g e(mss) " " %21.0g e(F)
+display %21.0g e(r2_a) " " %21.0g e(ll_0)
+quietly regress y x1, noconstant
+display %21.0g e(r2) " " %21.0g e(mss) " " %21.0g e(F)
+quietly regress y x1 x2 [aw=w]
+display %21.0g e(r2) " " %21.0g e(mss) " " %21.0g e(F)
+display %21.0g e(ll_0)
+quietly regress y x1 x2 [fw=fw]
+display %21.0g e(r2) " " %21.0g e(mss) " " %21.0g e(F)
+display %21.0g e(ll_0)
+quietly regress y x1 x2 [iw=w]
+display %21.0g e(r2) " " %21.0g e(mss) " " %21.0g e(F)
+=== recheck2-linear-margins-at
+clear
+set obs 300
+set seed 2026
+generate g = 1+floor(runiform()*6)
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate w = 0.5+runiform()*2
+generate fw = 1+floor(runiform()*4)
+generate s = cond(runiform() < .4, "a", "b")
+generate y = 1 + 2*x1 - x2 + invnormal(runiform())*2 + g*.5
+regress y x1 x2 [aw=w]
+margins, at(x1=0) at(x1=1)
+margins, at(x1=1) at(x1=generate(x1-1))
+margins, at(x1=generate(x1+1)) at(x1=generate(x1-1))
+regress y x1 x2
+foreach e in "x1+" "nosuch" "x1*" "s" "x1 x2" "" "ln(x1)" {
+capture noisily margins, at(x2=generate(`e'))
+display _rc
+}
+margins, at(x2=generate((x1+1)) x1=2) at(x1=0) at(x2=(1 2))
+margins, at(x1=0) at(x1=1) at((mean) _all)
+margins, dydx(x1) at(x1=0) at(x1=1)
+margins, at(x1=0) at(x1=1) at(x2=generate(x2*2) x1=3) vsquish noatlegend
+regress y c.x1##i.g x2
+margins g, at(x1=0) at(x1=1)
+margins, at(x1=(0 1)) at(x2=0) atmeans
+=== recheck2-linear-dydx-atmeans
+clear
+set obs 300
+set seed 2026
+generate g = 1+floor(runiform()*6)
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate fw = 1+floor(runiform()*4)
+generate w = 0.5+runiform()*2
+generate d = runiform()<.4
+generate y = 1 + 2*x1 - x2 + invnormal(runiform())*2 + g*.5
+generate yb = y > 5
+regress y c.x1##i.g x2 [fw=fw]
+margins, dydx(x1) atmeans
+margins, dydx(*) atmeans
+margins, dydx(x1 x2) atmeans at(x2=1)
+regress y c.x1##i.d c.x2##i.g
+margins, dydx(*) atmeans
+margins, dydx(x1) atmeans at(x1=(0 1))
+logit yb c.x1##i.d i.g
+margins, dydx(x1) atmeans
+regress y c.x1##c.x2##i.d
+margins, dydx(x1) atmeans
+regress y c.x1##i.g x2 [aw=w]
+margins g, dydx(x1) atmeans
+margins, dydx(x1) atmeans at(g=2)
+=== recheck2-linear-predict-robust
+clear
+set obs 300
+set seed 2026
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate cl = 1+floor(runiform()*15)
+generate w = 0.5+runiform()*2
+generate fw = 1+floor(runiform()*4)
+generate y = 1 + 2*x1 - x2 + invnormal(runiform())*2
+local stats leverage hat cooksd rstudent rstandard stdf stdr dfits welsch
+local stats `stats' covratio dfbeta(x1)
+local fits `"", vce(robust)" ", vce(hc2)" ", vce(hc3)" "[pw=w]""'
+local fits `"`fits' ", vce(cluster cl)" "[aw=w], vce(hc2)""'
+local fits `"`fits' "[fw=fw], vce(robust)" ", hc2""'
+foreach f of local fits {
+quietly regress y x1 x2 `f'
+foreach s of local stats {
+capture noisily predict zz, `s'
+display "`s' " _rc
+capture drop zz
+}
+}
+quietly regress y x1 x2 [fw=fw]
+predict lev, leverage
+summarize lev
+=== recheck2-linear-ivregress-options
+clear
+set obs 300
+set seed 2026
+generate cl = 1+floor(runiform()*15)
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate z1 = invnormal(runiform())
+generate z2 = invnormal(runiform())
+generate w = 0.5+runiform()*2
+generate en = x1 + z1*.8 + z2*.5 + invnormal(runiform())
+generate y = 1 + 2*x1 - x2 + en + invnormal(runiform())*2
+capture noisily ivregress 2sls y (en = z1 z2), wmatrix(robust)
+display _rc
+capture noisily ivregress 2sls y (en = z1 z2), wmatrix(unadjusted)
+display _rc
+capture noisily ivregress liml y (en = z1 z2), wmatrix(unadjusted)
+display _rc
+capture noisily ivregress liml y (en = z1 z2), wmatrix(cluster cl)
+display _rc
+capture noisily ivregress 2sls y (en = z1 z2), igmm
+display _rc
+capture noisily ivregress liml y (en = z1 z2), igmm
+display _rc
+capture noisily ivregress 2sls y (en = z1 z2), center
+display _rc
+capture noisily ivregress liml y (en = z1 z2), center
+display _rc
+capture noisily ivregress 2sls y (en = z1 z2) x1, vce(cluster)
+display _rc
+ivregress 2sls y x2 (en = z1 z2), noheader
+ivregress 2sls y x2 (en = z1 z2), coeflegend
+ivregress 2sls y x2 (en = z1 z2) [aw=w], vce(robust) noheader
+ivregress gmm y x2 (en = z1 z2), coeflegend
+ivregress 2sls y x2 (en = z1 z2), noheader coeflegend
+ivregress gmm y x2 (en = z1 z2), center
+display e(moments)
+ivregress gmm y x2 (en = z1 z2), wmatrix(unadjusted) center
+ivregress gmm y x2 (en = z1 z2), igmm
+display e(iterations)
+quietly regress y x1 x2
+nlcom _b[x1]^2, noheader
+nlcom (a: _b[x1]^2) (b: _b[x2]/_b[x1]), noheader
+=== recheck2-linear-iv-diagnostics
+clear
+set obs 300
+set seed 2026
+generate g = 1+floor(runiform()*6)
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate x3 = runiform()*10
+generate z1 = invnormal(runiform())
+generate z2 = invnormal(runiform())
+generate w = 0.5+runiform()*2
+generate fw = 1+floor(runiform()*4)
+generate en = x1 + z1*.8 + z2*.5 + invnormal(runiform())
+generate y = 1 + 2*x1 - x2 + .3*x3 + en + invnormal(runiform())*2 + g*.5
+quietly ivregress 2sls y x2 (en = z1 z2)
+estat firststage, all
+quietly ivregress 2sls y x2 (en = z1 z2), vce(robust)
+estat firststage, all forcenonrobust
+estat endog
+estat overid
+quietly ivregress 2sls y x3 (en x1 = z1 z2 x2)
+estat firststage
+estat firststage, all
+estat endog en
+estat endog
+quietly ivregress 2sls y x3 (en x1 = z1 z2 x2), vce(robust)
+estat firststage, all
+capture noisily estat endog en
+estat endog en, forcenonrobust
+estat endog
+estat overid
+quietly ivregress 2sls y x2 (en = z1 z2) [aw=w]
+estat firststage, all
+capture noisily estat endog
+display _rc
+estat endog, forceweights
+capture noisily estat overid
+estat overid, forceweights
+quietly ivregress 2sls y x2 (en = z1 z2) [fw=fw]
+estat firststage, all
+estat endog
+estat overid
+quietly ivregress 2sls y x2 (en = z1 z2) [pw=w]
+estat firststage
+capture noisily estat endog
+estat endog, forceweights
+estat overid, forceweights
+quietly ivregress 2sls y x2 (en = z1 z2) [iw=w]
+capture noisily estat overid
+estat firststage
+estat endog, forceweights
+estat overid, forceweights
+quietly ivregress 2sls y x3 (en x1 = z1 z2 x2) [aw=w]
+estat firststage, all
+estat endog x1, forceweights
+estat overid, forceweights
+quietly ivregress 2sls y x3 (en x1 = z1 z2 x2) [pw=w]
+estat firststage, all
+estat endog, forceweights
+estat overid, forceweights
+quietly ivregress 2sls y (en x1 x3 = z1 z2 x2 g)
+estat firststage, all
+estat endog x3 en
+quietly ivregress 2sls y (en x1 x3 = z1 z2 x2 g), vce(robust)
+estat firststage, forcenonrobust
+estat endog
+estat overid
+=== recheck2-linear-ereturn-all
+clear
+set obs 300
+set seed 2026
+generate g = 1+floor(runiform()*6)
+generate x1 = invnormal(runiform())
+generate x2 = x1*.5 + invnormal(runiform())
+generate y = 1 + 2*x1 - x2 + invnormal(runiform())*2 + g*.5
+regress y x1 x2
+ereturn list, all
+quietly regress y x1 i.g
+quietly margins g
+estimates store m1
+quietly regress y x1
+estimates restore m1
+ereturn list, all
+capture noisily ereturn list, junk
+display _rc
+=== recheck2-linear-matrix-list
+clear
+set obs 300
+set seed 2026
+generate g = 1+floor(runiform()*6)
+generate x1 = invnormal(runiform())
+generate y = 1 + 2*x1 + invnormal(runiform())*2 + g*.5
+quietly regress y i.g x1, beta
+matrix list e(beta)
+matrix list e(b)
+matrix A = (1.123456789, 2.123456789, 3.123456789, 4.123456789)
+matrix A = A, (5.123456789, 6.123456789, 7.123456789)
+matrix rownames A = longrowname
+set linesize 80
+matrix list A
+set linesize 89
+matrix list A
+set linesize 90
+matrix list A
+set linesize 200
+=== recheck-limited-glm-gaussian-links
+clear
+set seed 7301
+set obs 200
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double h = 30 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)
+generate double s = h/100
+generate byte w = 1 + f
+glm h x, link(log)
+glm h x f, link(log) vce(robust)
+glm h x [fw=w], link(log) nolog
+capture noisily glm h x, link(logit) nolog
+capture noisily glm h x, family(gaussian) link(probit) nolog
+glm s x, link(logit)
+glm s x f, link(cloglog) nolog
+=== recheck-limited-glm-predict
+clear
+set seed 7301
+set obs 200
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double u = runiform()
+generate byte d = (x - 2 + f + ln(u/(1-u))) > 0
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+generate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)
+generate double p = (c + .5) / 12
+replace x = . in 5
+quietly glm d x f, family(binomial)
+foreach o in mu xb eta stdp anscombe cooksd deviance hat likelihood pearson response score working {
+  predict double b_`o', `o'
+}
+predict double b_dsa, deviance standardized adjusted
+predict double b_ps, pearson studentized
+predict double b_pm, pearson modified
+predict double b_rs, response standardized studentized modified
+predict double b_tx, t(x)
+predict double b_wsm, working standardized modified
+predict b_n if x > 2, deviance
+summarize b_*
+describe b_*
+quietly glm c x f, family(poisson)
+foreach o in mu anscombe cooksd deviance hat likelihood pearson response score working {
+  predict double q_`o', `o'
+}
+predict double q_da, deviance adjusted
+predict double q_ps, pearson standardized studentized
+summarize q_*
+quietly glm h x f, link(log)
+predict double l_sc, score
+predict double l_an, anscombe
+predict double l_ck, cooksd
+summarize l_*
+quietly glm p x f, family(binomial) link(probit)
+predict double r_an, anscombe
+predict double r_da, deviance adjusted
+predict double r_sc, score
+predict double r_w, working
+summarize r_*
+=== recheck-limited-glm-predict-checks
+clear
+set seed 7301
+set obs 200
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double u = runiform()
+generate byte d = (x - 2 + f + ln(u/(1-u))) > 0
+replace x = . in 5
+quietly glm d x f, family(binomial)
+capture noisily predict double z3, deviance pearson
+capture noisily predict double z4, hat studentized
+capture noisily predict double z6, likelihood modified standardized
+capture noisily predict double z7, mu xb
+capture noisily predict double z9, xb studentized
+capture noisily predict double z10, stdp standardized
+capture noisily predict double z13, cooksd modified
+capture noisily predict double z14, mu t(x)
+capture noisily predict double z15, score studentized
+capture noisily predict double z16, pr
+capture noisily predict double z17, nooffset
+capture noisily predict double z18 in 1/50, hat
+capture noisily predict double z19, xb stdp
+capture noisily predict z20 z21, score
+capture noisily predict double z22, anscombe adjusted
+summarize z*
+describe z*
+quietly glm d x f, family(binomial) vce(robust)
+capture noisily predict double y1, pearson standardized
+capture noisily predict double y2, hat
+capture noisily predict double y3, deviance pearson
+capture noisily predict double y4, pearson adjusted
+capture noisily predict double y5, xb studentized
+capture noisily predict y6 if x > 2, deviance
+capture noisily predict y7, cooksd
+summarize y*
+=== recheck-limited-count-predict
+clear
+set seed 7301
+set obs 200
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double u = runiform()
+generate byte d = (x - 2 + f + ln(u/(1-u))) > 0
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+replace x = . in 5
+quietly logit d x f
+predict s1, score
+predict double s2 if f, score
+quietly probit d x f
+predict s3, score
+quietly poisson c x f
+predict s4, score
+predict s5, ir
+predict s6 in 1/20, ir
+predict t1, pr(2)
+predict t2, pr(1,3)
+predict t3, pr(3,.)
+predict t4, pr(0,.)
+predict t5, pr(0,2)
+generate k = mod(_n,4)
+replace k = . in 7
+replace k = 1.5 in 9
+predict t6, pr(k)
+predict t7, pr(1,k)
+predict t8, pr(k,3)
+quietly nbreg c x f
+predict s7, score
+predict s8 s9, score
+predict s10, ir
+predict s11, pr(0)
+predict s12, pr(1,3)
+predict s13, pr(2,.)
+predict s21, pr(0,0)
+predict s24, pr(0, .)
+predict t9, pr(k)
+predict t10, pr(k,k)
+quietly cloglog d x f
+predict k1, score
+summarize s* t* k1
+describe s* t* k1
+=== recheck-limited-count-predict-checks
+clear
+set seed 7301
+set obs 200
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+replace x = . in 5
+replace c = . in 8
+quietly poisson c x f
+capture noisily predict z1, xb n
+capture noisily predict z2, xb ir
+capture noisily predict z3, stdp pr(1)
+capture noisily predict z4, score xb
+capture noisily predict z5 z6, n
+capture noisily predict z7 z8, score
+capture noisily predict z9, n nooffset
+capture noisily predict z10, ir pr(1)
+capture noisily predict z12, pr()
+capture noisily predict z13, pr(1,2,3)
+capture noisily predict z14, pr(1 2)
+capture noisily predict z15, score
+quietly nbreg c x f
+capture noisily predict w1 w2 w3, score
+capture noisily predict w4, n stdp
+capture noisily predict w5 w6, score
+capture noisily predict s14, pr(.,2)
+capture noisily predict s15, pr(3,1)
+capture noisily predict s16, pr(-1)
+capture noisily predict s17, pr(1.5)
+capture noisily predict s18, pr(a)
+capture noisily predict s19, ir n
+capture noisily predict s20, pr(1) n
+capture noisily predict s22, pr(1.5, 3)
+capture noisily predict s23, pr(1, 3.5)
+capture noisily predict s25, pr(-1, 2)
+summarize z* w*
+=== recheck-limited-tobit-predict
+clear
+set seed 7302
+set obs 200
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)
+replace h = max(0, min(h, 25))
+replace x = . in 5
+replace h = . in 6
+generate double lo = 2 + mod(_n, 3)
+quietly tobit h x f, ll(0) ul(25)
+predict a1
+predict a2, xb
+predict a3, stdp
+predict a4, stdf
+predict a5, pr(0,25)
+predict a6, e(0,25)
+predict a7, ystar(0,25)
+predict a8, e(0,.)
+predict a9, pr(.,10)
+predict a10, ystar(.,.)
+predict a11, e(.,.)
+predict a12, pr(.,.)
+predict a13, e(lo,20)
+predict double a14, ystar(lo, .)
+predict a15, pr(2*3, 10)
+predict a16 a17, scores
+capture noisily predict a18, scores
+capture noisily predict a19, e(5,2)
+capture noisily predict a20, e(5)
+capture noisily predict a21, pr(1,2) e(1,2)
+capture noisily predict a22, stdf pr(1,2)
+capture noisily predict a23, e(q,2)
+capture noisily predict a24, residuals
+summarize a*
+describe a*
+quietly tobit h x f, ll(0)
+predict b1 b2, scores
+predict b3, ystar(0,.)
+quietly tobit h x f, ul(25)
+predict b4 b5, scores
+quietly tobit h x f
+predict b6 b7, scores
+predict b8, ystar(0, 25)
+quietly tobit h x f, ll(0) ul(25) vce(robust)
+predict b9, stdf
+predict b10, e(0,25)
+summarize b*
+describe b*
+=== recheck-limited-tobit-uncensored
+clear
+set seed 7302
+set obs 300
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)
+tobit h x
+tobit h x f, nolog
+tobit h x, vce(robust)
+tobit h x, ll(.) ul(.)
+tobit h x, noconstant nolog
+=== recheck-limited-noncount-outcomes
+clear
+set seed 7304
+set obs 300
+generate double x = runiform()*4
+generate int c = floor(exp(.2 + .3*x) * (-ln(runiform())) * 1.5)
+generate double y = c + .5
+poisson y x, vce(robust)
+poisson y x
+poisson y x in 1/50, nolog irr
+poisson y x, robust nolog
+nbreg y x
+nbreg y x, nolog vce(robust)
+predict n1
+summarize n1
+generate yn = c - 3
+capture noisily nbreg yn x
+capture noisily poisson yn x
+=== recheck-limited-outcome-names
+clear
+set seed 7303
+set obs 300
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double u = x + f + 2*runiform()
+generate byte t = 1 + (u > 2) + (u > 3.2) + (u > 4.4)
+replace t = 7 if t == 4
+label define tl 1 "Bus" 2 "Car" 3 "Train" 7 "Walk"
+label values t tl
+generate byte s = t
+quietly mlogit t x f
+capture noisily predict p1, outcome(Bus)
+capture noisily predict p2, outcome(Walk) pr
+capture noisily predict p3, outcome(5)
+capture noisily predict p4, outcome(#5)
+capture noisily predict p5, outcome(Plane)
+capture noisily predict p6, xb outcome(Train)
+capture noisily predict p7, outcome(bus)
+capture noisily predict p8 p9, outcome(Car)
+capture noisily predict p10 p11, outcome(9)
+predict p12 p13 p14 p15
+capture noisily margins, predict(outcome(Bus))
+capture noisily margins, predict(outcome(5))
+capture noisily margins, predict(outcome(Plane))
+capture noisily margins, predict(outcome(#5))
+summarize p*
+describe p*
+quietly ologit t x f
+capture noisily predict q1, outcome(Bus)
+capture noisily predict q2, outcome(9)
+capture noisily predict q3, outcome(#9)
+capture noisily predict q4, outcome(7)
+capture noisily predict q5, xb outcome(9)
+capture noisily predict q6, outcome(#2)
+capture noisily predict q7, stdp outcome(#1)
+capture noisily predict q8 q9, outcome(#2)
+capture noisily margins, predict(outcome(Bus))
+capture noisily margins, predict(outcome(9))
+capture noisily margins, predict(outcome(#9))
+capture noisily margins, predict(outcome(7))
+quietly oprobit s x f
+capture noisily predict r1, outcome(5)
+capture noisily margins, predict(outcome(5))
+summarize q*
+capture noisily mlogit t x f, baseoutcome(5)
+capture noisily mlogit t x f, baseoutcome(Car)
+capture noisily mlogit t x f, baseoutcome(1.5)
+mlogit t x f, baseoutcome(7) nolog
+=== recheck-limited-outcome-factor-margins
+clear
+set seed 7305
+set obs 400
+generate byte g = runiform() > .5
+generate byte r = 1 + floor(runiform()*3)
+label define rl 1 "North" 2 "South" 3 "West"
+label values r rl
+generate double x = runiform()*3
+generate double u = x + g + 2*runiform()
+generate byte t = 1 + (u > 1.8) + (u > 3) + (u > 4)
+ologit t i.g, nolog
+margins g
+margins g, predict(outcome(2))
+oprobit t i.r, nolog
+margins r
+mlogit t i.g, nolog
+margins g, predict(outcome(2))
+margins g
+mlogit t i.g x, nolog
+margins g, predict(outcome(3))
+=== recheck-limited-lrtest-force-heckman-jackknife
+clear
+set seed 7306
+set obs 400
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double z = rnormal()
+generate double u = runiform()
+generate byte d = (x - 2 + f + ln(u/(1-u))) > 0
+quietly logit d x f
+estimates store a
+quietly logit d x if x > 1
+estimates store b
+capture noisily lrtest a b
+lrtest a b, force
+generate double e1 = rnormal()
+generate double e2 = .5*e1 + rnormal()
+generate byte works = (.5 + .7*z + .2*x + e1) > 0
+generate double lw = 1 + .1*x + .4*e2 if works
+heckman lw x, select(works = z x) twostep vce(jackknife)
+heckman lw x, select(works = z x) vce(jackknife) nolog
+=== recheck-limited-one-cluster-and-noncount-notes
+clear
+set seed 9
+set obs 100
+generate x = runiform()
+generate x2 = 2*x
+generate w = floor(3*runiform()) + .5
+generate y = floor(3*runiform())
+generate d = runiform() > .4
+generate z = runiform() > .5
+generate g = 1 + (runiform() > .5)
+generate x3 = runiform()
+poisson w x x2, nolog
+nbreg w x x2 i.z, nolog
+poisson w x if z, nolog vce(cluster z)
+logit d x if z, nolog vce(cluster z)
+probit d x if z, nolog vce(cluster z)
+poisson y x if z, nolog vce(cluster z) irr
+nbreg y x if z, nolog vce(cluster z)
+tobit y x if z, ll(0) vce(cluster z) nolog
+display e(df_m) " " e(df_r) " " e(rank)
+glm d x if z, family(binomial) vce(cluster z) nolog
+tobit y x x3, ll(0) vce(cluster g) nolog
+display e(df_m) " " e(df_r) " " e(rank)
+=== recheck2-limited-scores-zero-weights
+clear
+set seed 7311
+set obs 300
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double u = runiform()
+generate byte d = (x - 2 + f + ln(u/(1-u))) > 0
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+generate double h = 30 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)
+generate w = mod(_n,3)
+replace w = . in 1/4
+generate double iw = w - .5*(w==1)
+generate pw = w + .5
+replace pw = . in 5
+quietly poisson c x f [fweight=w]
+predict a1, score
+quietly poisson c x f [iweight=iw]
+predict a2, score
+quietly poisson c x f [pweight=pw]
+predict a3, score
+quietly nbreg c x f [pweight=w]
+predict a4 a5, scores
+quietly glm c x f [fweight=w], family(poisson)
+predict a6, score
+quietly glm c x f [aweight=pw], family(poisson)
+predict a7, score
+quietly glm d x f [iweight=iw], family(binomial) link(probit)
+predict a8, score
+quietly glm h x f [aweight=pw]
+predict a9, score
+quietly logit d x f [fweight=w]
+predict a10, score
+quietly probit d x f [pweight=pw]
+predict a11, score
+quietly tobit h x f [pweight=w], ll(30)
+predict a12 a13, scores
+quietly poisson c x f [fweight=w] if x > 1
+predict a14, score
+predict a15 if x < 3, score
+summarize a*
+=== recheck2-limited-mlogit-equation-names-stddp
+clear
+set seed 7312
+set obs 300
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate double u = x + f + 2*runiform()
+generate byte t = 1 + (u > 2) + (u > 3.2)
+generate byte mode = cond(t == 1, 1, cond(t == 2, 5, 9))
+label define md 1 "By car" 5 "Bus-line" 9 "2 wheels"
+label values mode md
+replace x = . in 3
+quietly mlogit mode x f
+mlogit
+display e(eqnames)
+foreach o in "By car" "By_car" "Bus-line" "Bus_line" "2 wheels" "2_wheels" "_2_wheels" "By_car Bus_line" "By_car By_car" "#0" "#1.5" "#4" "1.0" "5.00000001" "3" {
+  capture noisily predict p, outcome(`o')
+  display "`o' " _rc
+  capture noisily margins, predict(outcome(`o'))
+  display "m `o' " _rc
+  capture drop p
+}
+predict double s1, stddp outcome(5,9)
+predict double s2, stddp outcome(1, 5)
+predict double s3, stddp outcome(#1,#1)
+predict double s4 if f, stddp outcome(2_wheels,By_car)
+predict double s5, stddp equation(9,1)
+predict double s6, index outcome(Bus_line)
+predict double s7, xb equation(Bus_line)
+summarize s*
+describe s*
+capture noisily predict q1, stddp
+capture noisily predict q2, stddp outcome(5)
+capture noisily predict q3 q4, stddp outcome(5,9)
+capture noisily predict q5 q6 q7, stddp
+capture noisily predict q8, stddp outcome(5,Bike)
+capture noisily predict q9, stddp xb outcome(5,9)
+capture noisily predict q10, xb stdp
+capture noisily predict q11, xb stdp pr
+capture noisily predict q12, stddp outcome(#4,1)
+capture noisily predict q13, outcome(5) equation(5)
+capture noisily predict q14 q15, xb outcome(5)
+capture noisily predict q16 q17, xb
+quietly mlogit mode x f, baseoutcome(5)
+predict double r1, stddp outcome(5,9)
+predict double r2, stdp outcome(9)
+summarize r*
+quietly ologit t x f
+capture noisily predict z1, stddp outcome(1,2)
+=== recheck2-limited-count-pr-bounds
+clear
+set seed 7313
+set obs 300
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+generate double n1 = mod(_n,4) - 1
+replace n1 = . in 1/3
+generate double n2 = n1 + .5
+generate n4 = mod(_n,3)
+generate str3 sv = "a"
+quietly poisson c x f
+predict a1, pr(n2)
+predict a2, pr(n1)
+predict a3, pr(n4, 1)
+predict a4, pr(n4, 2)
+capture noisily predict a5, pr(n1, 3)
+capture noisily predict a6, pr(sv)
+capture noisily predict a7, pr(sv, 2)
+capture noisily predict a8, pr(1, sv)
+capture noisily predict a9, pr(sv, -1)
+replace n4 = . in 1
+capture noisily predict a10, pr(n4, 2)
+replace n4 = 3 in 1
+capture noisily predict a11, pr(n4, 2)
+predict a12, pr(n4, 3)
+quietly nbreg c x f
+predict b1, pr(n2)
+capture noisily predict b2, pr(n1, 3)
+predict b3, pr(2, n2)
+summarize a* b*
+quietly tobit c x f, ll(0)
+capture noisily predict t1, e(sv,5)
+capture noisily predict t2, e(0,sv)
+capture noisily predict t3, ystar(sv,.)
+capture noisily predict t4, pr(sv,5)
+foreach k in -2 -1 -.5 -1e-9 0 .5 1.5 {
+  display "k=`k' " poissonp(2,`k') " " poisson(2,`k') " " poissontail(2,`k') " " nbinomialp(2,`k',.5) " " nbinomial(2,`k',.5) " " nbinomialtail(2,`k',.5)
+}
+=== recheck2-limited-ordered-outcomes-and-margins
+clear
+set seed 7314
+set obs 400
+generate double x = runiform()*4
+generate float xf = runiform()*4
+generate byte g = runiform() > .5
+generate double u = x + xf/2 + g + 2*runiform()
+generate byte t = 1 + (u > 2.5) + (u > 3.7) + (u > 5)
+quietly ologit t x
+foreach o in "#0" "#-1" "#1.5" "#1.0" "#+2" "#+1" "#+4" "#+5" "#2e0" "#9" "# 2" "#a" "2.0" "7" "abc" "#01" {
+  capture noisily predict p, outcome(`o')
+  display "`o' " _rc
+  capture noisily margins, predict(outcome(`o'))
+  display "m `o' " _rc
+  capture drop p
+}
+quietly oprobit t x
+capture noisily predict p, outcome(#0)
+capture noisily predict p, outcome(#1.5)
+quietly ologit t i.g xf
+margins g, at(g=1)
+margins g, at(g=0 xf=2.3)
+quietly oprobit t xf i.g
+margins g, atmeans
+matrix b = r(b)
+display %14.0g b[1,5]
+quietly margins, at(xf=2.3) predict(outcome(2))
+display %14.0g r(b)[1,1]
+quietly mlogit t i.g xf
+margins g, at(g=1) predict(outcome(2))
+quietly margins g, atmeans predict(outcome(2))
+display %14.0g r(b)[1,1]
+quietly margins, at(xf=2.3) predict(outcome(2))
+display %14.0g r(b)[1,1]
+quietly margins g
+display %14.0g sqrt(r(V)[2,2])
+quietly margins, dydx(xf) predict(outcome(2))
+display %14.0g r(b)[1,1] " " %14.0g sqrt(r(V)[1,1])
+quietly margins, dydx(*) predict(outcome(3))
+display %14.0g sqrt(r(V)[1,1]) " " %14.0g sqrt(r(V)[2,2]) " " %14.0g sqrt(r(V)[3,3])
+quietly ologit t c.xf##c.xf i.g
+quietly margins, dydx(xf) predict(outcome(2))
+display %14.0g r(b)[1,1] " " %14.0g sqrt(r(V)[1,1])
+quietly margins, dydx(*) atmeans predict(outcome(4))
+display %14.0g sqrt(r(V)[1,1]) " " %14.0g sqrt(r(V)[2,2]) " " %14.0g sqrt(r(V)[3,3])
+quietly oprobit t xf i.g
+quietly margins, dydx(*) predict(outcome(1))
+display %14.0g sqrt(r(V)[1,1]) " " %14.0g sqrt(r(V)[2,2]) " " %14.0g sqrt(r(V)[3,3])
+margins, dydx(xf)
+=== recheck2-limited-dispersion-tobit-glm-margins
+clear
+set seed 7315
+set obs 400
+generate double x = runiform()*4
+generate byte f = runiform() > .5
+generate byte r = 1 + floor(runiform()*3)
+generate double a = 20 + 20*runiform()
+generate int c = floor(exp(.2 + .3*x + .2*f) * runiform() * 2)
+generate double h = -10 + 8*x + 5*f + 12*(runiform()+runiform()+runiform()-1.5)
+generate double u = runiform()
+generate byte d = (x - 2 + f + ln(u/(1-u))) > 0
+replace h = 30 if h > 30
+replace h = 0 if h < 0
+capture noisily nbreg c x, dispersion(mean) nolog
+capture noisily nbreg c x, disp(m) nolog irr
+capture noisily nbreg c x, dispersion() nolog
+capture noisily nbreg c x, dispersion(mean constant) nolog
+capture noisily nbreg c x, dispersion(foo) nolog
+capture noisily nbreg c x, dispersion(Mean) nolog
+quietly tobit h x i.r c.a#c.f, ll(0) ul(30)
+margins, predict(ystar(0,30))
+margins, predict(pr(0,30))
+margins r, predict(e(0,30))
+margins, predict(xb)
+margins, predict(e(.,.))
+margins, at(x=2) predict(pr(10,.))
+margins, predict(e(.,20))
+margins, dydx(x) predict(e(0,.))
+margins r, predict(ystar(0,30)) at(x=(1 3))
+margins, dydx(a) atmeans
+capture noisily margins, predict(stdp)
+capture noisily margins, predict(e(0))
+capture noisily margins, predict(e(5,1))
+quietly glm h x f, family(gaussian) link(log)
+margins, dydx(x)
+quietly glm d x f, family(binomial)
+margins, dydx(*)
+quietly glm d x f, family(binomial) link(probit)
+margins, dydx(x)
+generate double iw = mod(_n,3) - .5
+glm d x f [iweight=iw], family(binomial) link(probit) nolog
+=== recheck-panel-settings-chars
+clear
+set obs 6
+generate id = ceil(_n/3)
+generate t = mod(_n-1,3)*2 + 1
+generate w = _n
+generate st = mod(_n,2)
+generate tt = _n*2
+xtset id t, delta(2)
+return list
+char list
+capture noisily tsset t, delta(2)
+char list
+tsset tt, delta(2)
+char list
+tsset, clear
+char list
+xtset id
+return list
+char list
+xtset
+xtset, clear
+capture noisily tsset
+capture noisily xtset
+svyset id [pw=w], strata(st) fpc(w) vce(linearized) singleunit(certainty)
+char list
+svyset, clear
+svyset id [pw=w], strata(st)
+tsset id t, delta(2)
+save recheck_panel_s1, replace
+clear
+capture noisily xtset
+use recheck_panel_s1, clear
+xtset
+svyset
+char list
+rename t time
+rename id panel
+char list
+xtset
+=== recheck-panel-settings-reverify
+clear
+set obs 6
+generate t = _n
+generate id = 1
+generate y = _n^2
+tsset t
+replace t = 1 in 2
+sort t
+capture noisily tsset
+capture noisily xtset id t
+capture noisily xtset
+capture noisily regress y L.y
+generate ly = L.y
+replace t = 3 in 2
+capture noisily tsset t, yearly daily
+capture noisily tsset t, format(%ty) yearly
+capture noisily tsset t, format(%foo)
+capture noisily tsset t, delta
+capture noisily tsset t, delta(1 year)
+capture noisily xtset id, yearly
+capture noisily xtset, noquery
+capture noisily tsset t, yearly(2)
+capture noisily tsset t, bogus
+capture noisily tsset t, clear
+=== recheck-panel-settings-units
+clear
+input id t y
+1 1 2
+1 2 3
+1 4 5
+2 1 1
+2 2 4
+2 3 2
+3 2 6
+3 3 1
+3 . 2
+. 1 3
+end
+xtset id t
+xtset id t, panelname(Firm) displayindent(2) noblank
+xtset id t, tsvarlabel(Year) panellabel(firm)
+drop if t == .
+drop if id == .
+xtset id t
+replace t = 4 in 6
+xtset id t
+xtset id
+tsset id t, delta(1) noquery
+return list
+tsset, clear
+generate d = mdy(1,1,2000) + 7*t
+format d %td
+keep if id == 1
+tsset d, delta(7 days)
+capture noisily tsset d, delta(1 week)
+tsset d, weekly
+generate m = ym(2000,1) + t
+tsset m, monthly
+generate c = t*3600000
+tsset c, clocktime delta(1 hour)
+return list
+generate dd = mdy(1,1,2000) + _n
+format dd %td
+tsset dd, yearly
+=== recheck-panel-xtreg-options
+clear
+set seed 2024
+set obs 30
+generate id = ceil(_n/10)
+generate t = mod(_n-1,10) + 1
+generate x = rnormal()
+generate y = x + rnormal()
+xtset id t
+xtreg y, re
+xtreg y, be
+replace t = . in 4
+xtset id t
+xtreg y x, fe
+xtreg y x, re
+capture noisily xtreg y x, fe re
+capture noisily xtreg y x, be fe
+capture noisily xtreg y x, fe pa
+capture noisily xtreg y x, fe wls
+drop in 1/3
+xtreg y x, be wls
+xtreg y x, be
+=== recheck-panel-corrgram-gaps
+clear
+set seed 12
+set obs 40
+generate t = _n
+generate y = sum(rnormal())
+replace y = . in 7
+replace y = . in 20/22
+drop in 30
+tsset t
+corrgram y, lags(4)
+corrgram D.y, lags(3) noplot
+capture noisily corrgram y, lags(0)
+capture noisily corrgram y, lags(50)
+corrgram L2.y in 5/35, lags(2)
+capture noisily corrgram y z
+corrgram S2.y if t > 3
+ac D.y, lags(3)
+pac y, lags(3)
+tsline D.y y
+generate id = t > 20
+xtset id t
+capture noisily corrgram y
+corrgram y if id == 1, lags(2)
+=== recheck-panel-tin-twithin
+clear
+set obs 8
+generate q = tq(1995q1) + _n - 1
+format q %tq
+generate y = _n
+capture noisily count if tin(1995q3, 1996q1)
+tsset q
+list q if tin(1995q3, 1996q1)
+count if twithin(1995q3, 1996q1)
+count if tin(, 1995q2)
+count if tin(2001q1, )
+count if tin(,)
+capture noisily count if tin(tq(1995q3), tq(1996q1))
+capture noisily count if tin(142, 144)
+count if tin(1995m3, 1996m1)
+capture noisily count if tin(1995q3)
+generate x = tin(1995q3, 1996q1) + 1
+count if x == 2
+count if !tin(1995q3, 1996q1)
+count if tin(1995 q3, 1996q1)
+capture noisily count if TIN(1995q3, 1996q1)
+generate tt = q
+format tt %9.0g
+tsset tt
+count if tin(142,144)
+capture noisily count if tin(1995q3,1996q1)
+count if tin(.5, 143.5)
+generate d = mdy(1,1,2000) + mod(_n-1,3)
+format d %td
+generate id = ceil(_n/3)
+replace d = . in 8
+xtset id d
+count if tin(02jan2000, )
+count if twithin(, 02jan2000)
+=== recheck-panel-factor-series
+clear
+set seed 77
+set obs 160
+generate firm = ceil(_n/8)
+generate year = 2010 + mod(_n-1,8)
+generate x1 = rnormal()
+generate x2 = 5 + rnormal()
+generate union = runiform() > .5
+generate y = 1 + .5*x1 + .3*union + rnormal()
+xtset firm year
+regress y c.x1##cL.x1
+regress y c.x1#c.L.x1
+regress y L.c.x1
+regress y union##cL.x1
+matrix list e(b)
+regress y L.union i.union#cL.x1
+regress y L.i.union
+matrix list e(b)
+regress y iL.union x2
+regress y i.L.union
+regress y L(1/2).c.x1
+regress y cL(1/2).x1
+regress y ibnL.union, nocons
+regress y L.union#c.x2
+regress y LD.c.x1 c.x2#cD.x1
+regress y cL.x1##cL.x1
+regress y Lc.x1
+capture noisily regress y c.x1#L.x1
+xtreg y cL.x1##i.union, fe
+label define un 0 "no" 1 "yes"
+label values union un
+regress y i.union##cL.x1
+test 1.union#cL.x1
+testparm i.union#cL.x1
+lincom 1.union + 1.union#cL.x1
+test 1.union#cL.x1 = L.x1
+display _b[1.union#cL.x1]
+regress y iL.union
+lincom 1L.union
+testparm iL.union
+=== recheck-panel-testparm-levels
+clear
+set seed 9
+set obs 100
+generate g = ceil(4*runiform())
+generate x = rnormal()
+generate y = g/3 + x + rnormal()
+regress y x i.g
+testparm i(2/3).g
+testparm i(2 4).g
+testparm 2.g 3.g
+testparm i(2/3).g x
+=== recheck-panel-estimates-labels
+clear
+set seed 31
+set obs 60
+generate g = ceil(3*runiform())
+generate exper = 10*runiform()
+generate y = exper - .03*exper^2 + g + rnormal()
+quietly regress y c.exper##c.exper
+estimates store a
+quietly regress y c.exper##c.exper i.g
+estimates store b
+estimates table a b
+hausman b a
+=== recheck-panel-concordance
+clear
+set seed 404
+set obs 200
+generate treat = runiform() > .5
+generate age = 40 + 20*runiform()
+generate t = ceil(-ln(runiform())*20/exp(.5*treat - .03*(age-50)))
+generate died = runiform() < .7
+stset t, failure(died)
+quietly stcox treat age
+estat concordance
+return list
+estat concordance, noshow
+estat conc if age > 50
+estat concordance, all noshow
+quietly streg treat age, dist(weibull)
+capture noisily estat concordance
+=== recheck-panel-series-errors
+clear
+set seed 3
+set obs 30
+generate t = _n
+generate y = rnormal()
+generate x = rnormal()
+generate b = y > 0
+generate s = "a"
+tsset t
+capture noisily regress y L.s
+capture noisily regress y L(1/2).s
+capture noisily regress y x, vce(hac nwest 2)
+capture noisily logit b x, vce(hac nwest 2)
+capture noisily poisson b x, vce(hac)
+=== recheck-panel2-xtreg-fe-empty
+clear
+set seed 2
+set obs 30
+generate id = ceil(_n/6)
+generate t = mod(_n-1,6)+1
+generate y = rnormal() + id
+xtset id t
+xtreg y, fe
+display e(r2_w)
+display e(r2_a)
+=== recheck-panel2-generic-format
+clear
+set obs 4
+generate t = tm(2001m1)+_n
+format t %tm
+generate g = _n
+tsset t, generic
+tsset t, format(%tg)
+format t %tg
+list in 1
+generate id = 1
+xtset id t, generic
+display "[" %tg 493.5 "]"
+display "[" %-tg 5 "]"
+display "[" %tg 123456789 "]"
+clear
+set obs 3
+generate t = 493 + _n*1000.25
+format t %-tg
+describe t
+list
+=== recheck-panel2-svyset-noclear
+clear
+set seed 71
+set obs 60
+generate psu = ceil(_n/4)
+generate st = ceil(_n/30)
+generate w = 1 + runiform()*3
+generate w2 = w*2
+generate y = rnormal()
+svyset [pw=w], noclear
+char list
+svy: mean y
+svyset psu [pw=w], strata(st)
+svyset [pw=w2], noclear
+char list
+svy: mean y
+svyset, noclear dof(5) singleunit(certainty)
+svyset, noclear vce(linearized)
+capture noisily svyset, noclear clear
+capture noisily svyset psu, noclear
+capture noisily svyset [pw=w], noclear strata(st)
+capture noisily svyset [pw=w] || psu, noclear
+svyset, noclear
+svyset, clear
+svyset, noclear dof(4)
+char list
+=== recheck-panel2-svyset-designs
+clear
+set seed 71
+set obs 60
+generate psu = ceil(_n/4)
+generate st = ceil(_n/30)
+generate ssu = mod(_n,2)
+generate w = 1 + runiform()*3
+generate fp = 40
+generate fp2 = 100
+generate y = rnormal()
+forvalues k = 1/4 {
+generate double rw`k' = w*(1+(mod(_n,`k'+1)==0))
+}
+generate ps = 1 + mod(_n,3)
+generate pw = 100*ps
+svyset psu [iw=w], strata(st)
+char list
+svyset
+svyset psu [pw=w], strata(st) fpc(fp) || ssu, fpc(fp2)
+char list
+svyset psu, weight(w) strata(st) fpc(fp) || ssu, weight(w) || _n
+char list
+svyset psu [pw=w], strata(st) poststrata(ps) postweight(pw)
+char list
+svyset [pw=w], vce(brr) brrweight(rw1-rw4) fay(.3) mse
+char list
+svyset [pw=w], vce(bootstrap) bsrweight(rw*) bsn(4)
+svyset [pw=w], vce(jackknife) jkrweight(rw1 rw2)
+svyset [pw=w], vce(sdr) sdrweight(rw1-rw4, fpc(.05))
+char list
+svyset psu [pw=w], dofsubpop
+svyset psu [pw=w], nodofsubpop
+svyset psu [pw=w], brrweight(rw1 rw2)
+capture noisily svyset psu, srs
+svyset, srs
+svyset, psu(psu) strata(st)
+svyset _n, vce(jackknife) mse singleunit(scaled)
+svyset psu [pw=w], strata(st) || ssu, strata(st) fpc(fp2) || _n, fpc(fp)
+char list
+=== recheck-panel2-svyset-errors
+clear
+set seed 71
+set obs 60
+generate psu = ceil(_n/4)
+generate st = ceil(_n/30)
+generate ssu = mod(_n,2)
+generate w = 1 + runiform()*3
+generate fp = 40
+generate s = "a"
+forvalues k = 1/4 {
+generate double rw`k' = w*(1+(mod(_n,`k'+1)==0))
+}
+generate ps = 1 + mod(_n,3)
+generate pw = 100*ps
+svyset psu [pw=w], strata(st)
+capture noisily svyset psu [pw=w], vce(foo)
+capture noisily svyset psu [pw=w], vce(linearized) mse
+capture noisily svyset psu [pw=w], mse
+capture noisily svyset psu [pw=w], fay(3)
+capture noisily svyset psu [pw=w], fay(a)
+capture noisily svyset psu [pw=w], bsn(0)
+capture noisily svyset psu [pw=w], bsn(2.5)
+capture noisily svyset psu [pw=w], poststrata(ps)
+capture noisily svyset psu [pw=w], postweight(pw)
+capture noisily svyset psu [pw=w], dofsubpop nodofsubpop
+capture noisily svyset psu [pw=w], brrweight(s)
+capture noisily svyset psu [pw=w], brrweight(nosuch)
+svyset psu [pw=w], jkrweight(rw1 rw2, stratum(1 2))
+capture noisily svyset psu [pw=w], brrweight(w)
+svyset psu [iw=w] || ssu
+capture noisily svyset psu, weight(w) || ssu [pw=w]
+svyset psu [pw=w] || _n || ssu
+svyset psu || ssu, fpc(fp) weight(w) strata(st)
+capture noisily svyset psu, clear noclear
+capture noisily svyset psu [pw=w], fpc(s)
+capture noisily svyset [pw=w], strata(st) srs
+capture noisily svyset, srs psu(psu)
+svyset, psu(ssu) strata(st) fpc(fp)
+capture noisily svyset psu, psu(ssu)
+capture noisily svyset psu, singleunit(foo)
+svyset , fay(.5)
+svyset , bsn(3) bsrweight(rw1 rw2)
+char list
+svyset
+clear
+capture noisily svyset
+=== recheck-panel2-ac-pac-generate
+clear
+set seed 31
+set obs 50
+generate t = _n
+generate y = sum(rnormal())
+drop in 10
+drop in 25/26
+replace y = . in 40
+tsset t
+ac y, lags(5) generate(a1) nograph
+pac y, lags(5) generate(p1) nograph
+pac y, lags(5) generate(p2) yw nograph
+capture noisily ac y, lags(5) generate(a2) fft nograph
+pac y, lags(5) generate(p3) nograph fft
+capture noisily pac y, yw srv nograph generate(p4)
+capture noisily pac y, yw srv
+capture noisily ac y, nograph
+capture noisily ac y, nograph generate(a3 a4)
+capture noisily ac y, nograph generate(a1)
+capture noisily ac y, nograph generate(1a)
+capture noisily ac y, nograph generate(a5) title(x)
+capture noisily ac y, nograph generate(a5) yw
+capture noisily ac y, generate(a5) yw
+capture noisily ac y, nograph generate(a5) level(90)
+capture noisily ac y, nograph generate(a6) lags(100)
+describe a1 p1 p2 p3 a5
+list t a1 p1 p2 p3 a5 in 1/7, sep(0)
+corrgram y in 3/45, lags(4) yw
+corrgram y, lags(6) yw
+corrgram L.y, lags(3) yw noplot
+tsset, clear
+drop if y == .
+generate tt = _n
+tsset tt
+ac y, lags(5) generate(f1) fft nograph
+ac y, lags(5) generate(f2) nograph
+list tt f1 f2 in 1/6, sep(0)
+generate id = ceil(_n/23)
+xtset id tt
+capture noisily ac y, nograph
+capture noisily ac y, nograph generate(g1)
+=== recheck-panel2-predict-ue
+clear
+set obs 16
+generate id = ceil(_n/4)
+generate t = mod(_n-1,4)+1
+set seed 7
+generate x = rnormal()
+generate y = 1 + x + rnormal() + id/3
+replace t = . in 3
+replace t = . in 10
+xtset id t
+xtreg y x, fe
+predict xb1, xb
+predict u1, u
+predict e1, e
+predict ue1, ue
+predict xbu1, xbu
+list id t xb1 u1 e1 ue1 xbu1, sep(0)
+predict ue2 if id < 3, ue
+summarize ue2
+xtreg y x, re
+predict ue3, ue
+list id t ue3 in 1/4, sep(0)
+=== recheck-panel2-repeated-times
+clear
+set seed 111
+set obs 30
+generate t = _n
+generate x = rnormal()
+generate y = x + rnormal()
+tsset t
+replace t = 5 in 6
+sort t
+capture noisily dfuller y
+capture noisily dfuller y, lags(2) trend
+capture noisily pperron y
+capture noisily arima y, ar(1)
+capture noisily var y x, lags(1)
+capture noisily varsoc y
+capture noisily correlate y L.x
+capture noisily corrgram y, lags(2)
+capture noisily ac y, nograph generate(a1)
+capture noisily pac y, nograph generate(p1)
+capture noisily tssmooth ma s1 = y, window(1)
+capture noisily tsappend, add(2)
+capture noisily tsfill
+summarize L.x
+=== recheck-panel2-restricted-operated
+clear
+set seed 42
+set obs 60
+generate id = ceil(_n/10)
+generate year = 2000 + mod(_n-1,10)
+generate x = rnormal()
+generate g = 1 + mod(_n,3)
+generate d = runiform() > .5
+generate y = x + d + id/4 + rnormal()
+xtset id year
+regress y i(1)L.d
+regress y i(2 3)L.g
+regress y L.i(2 3).g
+regress y i(0 1)L.d
+regress y i(1).d
+regress y i(2).g x
+regress y i(1)L.d x
+regress y i(3)L.g
+regress y x i(2 3)L.g i(1)L.d
+regress y L.i(2).g
+regress y iL.d x
+regress y ib1L.d x
+regress y L.ibn.d x, nocons
+=== recheck-panel2-tin-empty
+clear
+set obs 10
+generate y = _n
+generate t = _n
+tsset t
+count if tin()
+count if twithin()
+count if tin( )
+capture noisily count if tin(3)
+count if tin(,)
+=== recheck-panel2-tsline-groups
+clear
+set seed 91
+set obs 40
+generate q = tq(2000q1) + _n
+format q %tq
+generate y = sum(rnormal())
+generate x = sum(rnormal())
+tsset q
+tsline D.(y), nodraw
+tsline L(1/2).y, nodraw
+tsline D.(y x), nodraw
+capture noisily tsline D.(y nosuch), nodraw
+=== recheck-panel2-dropped-time
+clear
+set obs 12
+generate id = ceil(_n/4)
+generate year = 2000 + mod(_n-1,4)
+set seed 1
+generate y = runiform()
+generate x = runiform()
+xtset id year
+drop year
+capture noisily xtset
+capture noisily regress y L.x
+capture noisily generate z = L.x
+generate year = _n
+xtset id year
+drop id
+capture noisily xtset
+capture noisily regress y L.x
+capture noisily generate z = L.x
+capture noisily tsfill
+=== recheck-panel2-bootstrap-panels
+clear
+set seed 101
+set obs 60
+generate id = ceil(_n/6)
+generate t = mod(_n-1,6)+1
+generate x = rnormal()
+generate y = x + rnormal() + id/4
+generate nid = id
+xtset nid t
+set seed 5
+bootstrap _b, reps(20) cluster(id) idcluster(nid) nodots: regress y L.x
+xtset
+set seed 5
+bootstrap, reps(20) cluster(id) idcluster(nid) nodots: xtreg y x, fe
+=== recheck-panel2-svyset-empty
+clear
+capture noisily svyset
+capture noisily svyset, clear
+set obs 3
+capture noisily svyset
+=== recheck-panel2-margins-operated
+clear
+set seed 121
+set obs 80
+generate id = ceil(_n/8)
+generate t = mod(_n-1,8)+1
+generate union = runiform() > .5
+generate x = rnormal()
+generate y = x + union + rnormal()
+xtset id t
+regress y L.x
+margins, dydx(L.x)
+regress y L(0/2).x D.x union
+margins, dydx(*)
+regress y L.x L2.x
+margins, dydx(*)
+=== recheck-panel2-gheller
+clear
+set seed 404
+set obs 200
+generate treat = runiform() > .5
+generate age = 40 + 20*runiform()
+generate t = ceil(-ln(runiform())*20/exp(.5*treat - .03*(age-50)))
+generate died = runiform() < .7
+stset t, failure(died)
+quietly stcox treat age
+estat concordance, gheller
+estat concordance, gheller harrell
+estat concordance, gheller se
+estat concordance, gheller harrell se noshow
+capture noisily estat concordance, se
+estat concordance if age > 50, gheller
+estat concordance, gheller all
+quietly stcox i.treat c.age##c.age
+estat concordance, gheller se
+=== recheck-panel2-tsfill
+clear
+input id t y str3 s
+1 1 10 "a"
+1 2 11 "b"
+1 5 14 "c"
+2 2 20 "d"
+2 4 22 "e"
+2 . 99 "f"
+3 3 30 "g"
+end
+xtset id t
+tsfill
+list, sep(0)
+xtset
+clear
+input id t y
+1 1 10
+1 2 11
+1 5 14
+2 2 20
+2 4 22
+3 3 30
+end
+xtset id t
+tsfill, full
+list, sep(0)
+clear
+input t y
+1990 1
+1992 2
+1996 3
+end
+tsset t, delta(2)
+tsfill
+list
+generate r = t
+replace t = 1990 in 2
+sort t
+capture noisily tsfill
+capture noisily tsfill, full
+clear
+input t y
+1 1
+3 1
+. 2
+end
+tsset t
+capture noisily tsfill, full
+tsfill
+list
+=== recheck-panel2-xtline
+clear
+set seed 5
+set obs 40
+generate id = ceil(_n/10)
+generate t = mod(_n-1,10)+1
+generate y = sum(rnormal())
+generate x = rnormal()
+label define idl 1 "first" 2 "second" 3 "third" 4 "fourth"
+capture noisily xtline y, nodraw
+xtset id t
+xtline y, nodraw
+xtline y x, nodraw
+xtline y, overlay nodraw
+capture noisily xtline y x, overlay nodraw
+capture noisily xtline y, overlay byopts(title(a)) nodraw
+xtline y if t > 3, overlay nodraw
+capture noisily xtline y, i(id) nodraw
+capture noisily xtline y, t(t) nodraw
+xtline y, i(id) t(t) nodraw
+xtline y in 1/20, overlay legend(off) nodraw
+label values id idl
+xtline y, overlay nodraw title(hi)
+capture noisily xtline y if t > 20, nodraw
+xtline D.y, nodraw
+xtline D.y, overlay nodraw
+tsset, clear
+generate tt = _n
+tsset tt
+twoway tsline D.y L.y, nodraw
+twoway (tsline y) (line y tt), nodraw
+twoway tsline y || tsline L2.y, nodraw
+capture noisily twoway tsline nosuch, nodraw
+ac y, lags(5) nodraw
+pac y, lags(5) srv nodraw
+pac y, lags(5) yw level(90) nodraw
+capture noisily pac y, srv yw nodraw
+=== recheck-panel2-xtreg-resampled
+clear
+set seed 101
+set obs 60
+generate id = ceil(_n/6)
+generate t = mod(_n-1,6)+1
+generate x = rnormal()
+generate z = rnormal()
+generate y = x + rnormal() + id/4
+xtset id t
+xtreg y x, fe vce(bootstrap, reps(20) seed(3) nodots)
+display e(N_reps) " " e(N_clust) " " e(cmd) " " e(vce) " " e(clustvar)
+xtset
+xtreg y x, re vce(jackknife, nodots)
+xtreg y x, be vce(bootstrap, reps(10) seed(1) nodots)
+xtreg y x, fe vce(jackknife)
+xtreg y x, fe vce(bootstrap, reps(5) seed(2)) level(90)
+xtreg y x, be vce(jackknife, nodots)
+xtreg y x z, re vce(jackknife, nodots)
+xtreg y x z, be vce(bootstrap, nodots reps(5) seed(1))
+regress y x, vce(bootstrap, reps(5) seed(2) nodots) level(90)
+capture noisily bootstrap, reps(10) cluster(id) idcluster(id) nodots: xtreg y x, be

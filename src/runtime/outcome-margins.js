@@ -8,14 +8,20 @@ import { applyFormat } from "./format.js";
 import { density, invnormal, normal } from "./functions-normal.js";
 import { marginTermsOf, marginsTable, withBaseLevels } from "./margins.js";
 import { count, labelled, wrapLine } from "./reports.js";
+import { equationName } from "./likelihood.js";
 import { MISSING, isMissing } from "./values.js";
 import { parseNumlist } from "./numlist.js";
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 const logistic = (v) => 1 / (1 + Math.exp(-v));
+// Each ordered model's distribution, density and the density's slope.
 const CDF = {
-  ologit: [logistic, (v) => logistic(v) * (1 - logistic(v))],
-  oprobit: [normal, density],
+  ologit: [
+    logistic,
+    (v) => logistic(v) * (1 - logistic(v)),
+    (v) => logistic(v) * (1 - logistic(v)) * (1 - 2 * logistic(v)),
+  ],
+  oprobit: [normal, density, (v) => -v * density(v)],
 };
 
 /** Probabilities of every outcome at one row of covariates. */
@@ -52,6 +58,79 @@ export function probabilities(model, theta, x) {
   });
 }
 /**
+ * The gradient of outcome j's probability at one row in every parameter
+ * of the model, cut points included, taken analytically.
+ */
+function probabilityGradient(model, theta, x, j) {
+  const s = model.outcomeModel,
+    gradient = new Array(theta.length).fill(0);
+  if (model.kind === "mlogit") {
+    const p = probabilities(model, theta, x),
+      row = s.constant ? [...x, 1] : x;
+    s.others.forEach((o, e) => {
+      const factor = p[j] * ((o === j ? 1 : 0) - p[o]);
+      row.forEach((v, a) => (gradient[e * s.k + a] = factor * v));
+    });
+    return gradient;
+  }
+  const [, pdf] = CDF[model.kind],
+    xb = x.reduce((t, v, a) => t + v * theta[a], 0),
+    upper = j < s.cuts ? pdf(theta[s.k + j] - xb) : 0,
+    lower = j > 0 ? pdf(theta[s.k + j - 1] - xb) : 0;
+  x.forEach((v, a) => (gradient[a] = -(upper - lower) * v));
+  if (j < s.cuts) gradient[s.k + j] += upper;
+  if (j > 0) gradient[s.k + j - 1] -= lower;
+  return gradient;
+}
+
+/**
+ * The gradient of outcome j's slope at one row (d holding each column's
+ * derivative in the covariate) in every parameter, taken analytically.
+ */
+function slopeGradient(model, theta, x, d, j) {
+  const s = model.outcomeModel,
+    gradient = new Array(theta.length).fill(0);
+  if (model.kind === "mlogit") {
+    // s_j = p_j (b_j - B), b_m the slope of outcome m's index and B the
+    // average of the b_m weighted by the p_m.
+    const p = probabilities(model, theta, x),
+      row = s.constant ? [...x, 1] : x,
+      b = s.outcomes.map((_, m) => {
+        const e = s.others.indexOf(m);
+        return e < 0 ? 0 : d.reduce((t, v, a) => t + v * theta[e * s.k + a], 0);
+      }),
+      B = p.reduce((t, v, m) => t + v * b[m], 0);
+    s.others.forEach((o, e) => {
+      const same = o === j ? 1 : 0;
+      row.forEach((r, a) => {
+        const da = a < d.length ? d[a] : 0;
+        gradient[e * s.k + a] =
+          p[j] * (same - p[o]) * r * (b[j] - B) +
+          p[j] * (same * da - p[o] * r * (b[o] - B) - p[o] * da);
+      });
+    });
+    return gradient;
+  }
+  // s_j = -(f(u) - f(l)) D, u and l the cut points about outcome j less
+  // the index and D the index's slope.
+  const [, pdf, slope] = CDF[model.kind],
+    xb = x.reduce((t, v, a) => t + v * theta[a], 0),
+    D = d.reduce((t, v, a) => t + v * theta[a], 0),
+    upper = j < s.cuts,
+    lower = j > 0,
+    u = upper ? theta[s.k + j] - xb : 0,
+    l = lower ? theta[s.k + j - 1] - xb : 0,
+    fu = upper ? pdf(u) : 0,
+    fl = lower ? pdf(l) : 0,
+    su = upper ? slope(u) : 0,
+    sl = lower ? slope(l) : 0;
+  x.forEach((v, a) => (gradient[a] = (su - sl) * v * D - (fu - fl) * d[a]));
+  if (upper) gradient[s.k + j] -= su * D;
+  if (lower) gradient[s.k + j - 1] += sl * D;
+  return gradient;
+}
+
+/**
  * Derivative of every outcome's probability at one row, d holding each
  * column's derivative in the covariate.
  */
@@ -85,11 +164,81 @@ function covariatesOf(s) {
   return found;
 }
 
-/** How an outcome is named in Pr(y==...): mlogit uses its value label. */
+/**
+ * How an outcome is named in Pr(y==...): mlogit uses its equation name,
+ * which its value label makes.
+ */
 function outcomeName(session, model, value) {
   if (model.kind !== "mlogit") return String(value);
-  const text = labelled(session, session.data.get(model.depvar), value);
-  return text.replace(/ /g, "_");
+  return equationName(session, session.data.get(model.depvar), value);
+}
+
+/**
+ * The index of the outcome outcome() names, as ologit_p's and mlogit_p's
+ * Eq read it. ologit and oprobit take #k, k a whole number from 1 (more
+ * than there are is "there is no outcome #k"), or a value of the outcome;
+ * anything else is not a value of it, r(111). mlogit takes #k (any other
+ * #word is an equation not found), a number within 1e-7 of an outcome, or
+ * an equation name (By_car for "By car"); several names that are all
+ * equation names make Stata look for equation #0, and anything else is an
+ * outcome not found, r(303).
+ */
+function chooseOutcome(session, model, s, word) {
+  const ordered = model.kind !== "mlogit",
+    k = s.outcomes.length,
+    numeric = (text) =>
+      /^\s*[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?\s*$/i.test(text);
+  if (ordered) {
+    const notValue = (prefix = "") =>
+      new StataError(
+        `${prefix}outcome() must be either a value of ${model.depvar}\nor #1, #2, ...`,
+        111,
+      );
+    if (word.startsWith("#")) {
+      // confirm integer number: digits only, with blanks around them.
+      const n = word.slice(1).trim();
+      if (!/^\+?\d+$/.test(n) || Number(n) < 1) throw notValue();
+      if (Number(n) > k)
+        throw new StataError(
+          `there is no outcome #${word.slice(1)}\nthere are only ${k} categories`,
+          111,
+        );
+      // A sign is kept in the cut point's name, which is then not found
+      // for an outcome between two cut points.
+      if (n.startsWith("+") && Number(n) > 1 && Number(n) < k)
+        throw new StataError(`[/cut${n}] not found`, 111);
+      return Number(n) - 1;
+    }
+    if (!numeric(word)) throw notValue();
+    const j = s.outcomes.findIndex((value) => Number(word) === value);
+    if (j >= 0) return j;
+    throw notValue(`outcome ${word} not found\n`);
+  }
+  if (word.startsWith("#")) {
+    // OneP compares the text after # with each equation's number.
+    const n = Number(word.slice(1));
+    if (/^#[1-9]\d*$/.test(word) && n <= k) return n - 1;
+    throw new StataError(`equation ${word} not found`, 303);
+  }
+  if (numeric(word)) {
+    const x = Number(word),
+      j = s.outcomes.findIndex(
+        (value) => Math.abs(value - x) / (Math.abs(x) + 1) < 1e-7,
+      );
+    if (j >= 0) return j;
+  } else {
+    const variable = session.data.get(model.depvar),
+      names = s.outcomes.map((value) => equationName(session, variable, value)),
+      words = word.split(/\s+/);
+    if (
+      words.every((w) => names.includes(w)) &&
+      new Set(words).size === words.length
+    ) {
+      if (words.length === 1) return names.indexOf(word);
+      throw new StataError("equation #0 not found", 303);
+    }
+  }
+  throw new StataError(`outcome ${word} not found`, 303);
 }
 
 export function outcomeMargins(session, model, text, ctx) {
@@ -144,13 +293,9 @@ export function outcomeMargins(session, model, text, ctx) {
         0,
       ) / total,
     // The outcomes asked for: one, or all of them.
-    asked = /outcome\(\s*([^)\s]+)\s*\)/.exec(options.predict ?? ""),
+    asked = /outcome\(\s*([^)]*?)\s*\)/.exec(options.predict ?? ""),
     chosen = asked
-      ? [
-          asked[1].startsWith("#")
-            ? Number(asked[1].slice(1)) - 1
-            : s.outcomes.findIndex((value) => String(value) === asked[1]),
-        ]
+      ? [chooseOutcome(session, model, s, asked[1])]
       : s.outcomes.map((_, j) => j),
     terms = parsed.anything?.trim()
       ? marginTermsOf(session, parsed.anything, factors)
@@ -173,8 +318,6 @@ export function outcomeMargins(session, model, text, ctx) {
       `predict(${options.predict}) is not available here; use predict(outcome(#))`,
       198,
     );
-  if (!(chosen[0] >= 0 && chosen[0] < s.outcomes.length))
-    throw new StataError(`outcome ${asked[1]} not found`, 303);
   for (const name of wrt)
     if (name !== null && !names.includes(name))
       throw new StataError(
@@ -217,7 +360,10 @@ export function outcomeMargins(session, model, text, ctx) {
   // takes, when at() fixes no other such factor; the effects are then
   // conditional, as margins says of others.
   const fixedAll = sets.every((set) => {
-    const free = names.filter((name) => !set.has(name));
+    // The factors of the margins term are fixed in each of its cells.
+    const free = names.filter(
+      (name) => !set.has(name) && !(terms[0] ?? []).includes(name),
+    );
     return (
       !free.length ||
       (free.length === 1 &&
@@ -228,14 +374,14 @@ export function outcomeMargins(session, model, text, ctx) {
   });
   // The columns of observation i, and their derivatives in one variable,
   // under a set of fixed values. A factor held at its means enters as the
-  // share of the sample at each level.
+  // share of the sample at each level. Stata holds a fixed value, a mean
+  // or a share included, in float precision, as margins after other
+  // models does.
   const getter = (i, fixed) => (variable) => {
       const value = fixed.get(variable.name);
       return value === undefined
         ? variable.data[i]
-        : value === "mean"
-          ? means.get(variable.name)
-          : value;
+        : Math.fround(value === "mean" ? means.get(variable.name) : value);
     },
     columnsAt = (i, fixed) => {
       const get = getter(i, fixed);
@@ -255,7 +401,7 @@ export function outcomeMargins(session, model, text, ctx) {
             const at = c.levels[k++];
             value *=
               fixed.get(part.variable.name) === "mean"
-                ? shareOf(part.variable, at)
+                ? Math.fround(shareOf(part.variable, at))
                 : Number(get(part.variable) === at);
           } else value *= get(part.variable);
         return value;
@@ -273,49 +419,42 @@ export function outcomeMargins(session, model, text, ctx) {
         w: weightOf.get(i),
       }));
   // Each quantity: the weighted average over the points of a probability or
-  // slope, or the difference of two averages of probabilities.
-  const average = (theta, points, j, slope) => {
-      let sum = 0,
+  // slope, or the difference of two averages of probabilities, with its
+  // gradient in the parameters, which is analytic, as Stata's is.
+  const averaged = (points, j, slope) => {
+      const theta = s.theta,
+        gradient = new Array(theta.length).fill(0);
+      let value = 0,
         weights = 0;
       for (const point of points) {
-        sum +=
+        value +=
           point.w *
           (slope
             ? slopes(model, theta, point.x, point.d)
             : probabilities(model, theta, point.x))[j];
+        (slope
+          ? slopeGradient(model, theta, point.x, point.d, j)
+          : probabilityGradient(model, theta, point.x, j)
+        ).forEach((v, a) => (gradient[a] += point.w * v));
         weights += point.w;
       }
-      return sum / weights;
+      return {
+        value: value / weights,
+        gradient: gradient.map((v) => v / weights),
+      };
     },
-    estimate = (quantity) => {
-      const theta = s.theta,
-        value = quantity(theta),
-        gradient = theta.map((v, a) => {
-          const step = 1e-6 * (Math.abs(v) + 1e-3),
-            up = theta.slice(),
-            down = theta.slice();
-          up[a] += step;
-          down[a] -= step;
-          return (quantity(up) - quantity(down)) / (2 * step);
-        });
-      return { value, gradient };
-    },
-    margin = (fixed, j) => {
-      const points = pointsOf(fixed);
-      return estimate((theta) => average(theta, points, j, false));
-    },
+    margin = (fixed, j) => averaged(pointsOf(fixed), j, false),
     effect = (fixed, name, j) => {
-      const variable = variables.find((v) => v.name === name),
-        points = pointsOf(fixed, variable);
-      return estimate((theta) => average(theta, points, j, true));
+      const variable = variables.find((v) => v.name === name);
+      return averaged(pointsOf(fixed, variable), j, true);
     },
     change = (fixed, name, to, from, j) => {
-      const high = pointsOf(new Map(fixed).set(name, to)),
-        low = pointsOf(new Map(fixed).set(name, from));
-      return estimate(
-        (theta) =>
-          average(theta, high, j, false) - average(theta, low, j, false),
-      );
+      const high = averaged(pointsOf(new Map(fixed).set(name, to)), j, false),
+        low = averaged(pointsOf(new Map(fixed).set(name, from)), j, false);
+      return {
+        value: high.value - low.value,
+        gradient: high.gradient.map((v, a) => v - low.gradient[a]),
+      };
     },
     label = (j) =>
       `Pr(${model.depvar}==${outcomeName(session, model, s.outcomes[j])})`,
@@ -353,7 +492,7 @@ export function outcomeMargins(session, model, text, ctx) {
           .map((value, k) => levelText(term[k], value))
           .join(named ? "#" : " ");
         results.push({
-          label: all ? `${j + 1}#${text}` : text,
+          label: all ? `${j + 1}${named ? "#" : " "}${text}` : text,
           factor: term.join("#"),
           ...margin(fixed, j),
         });
@@ -436,7 +575,7 @@ export function outcomeMargins(session, model, text, ctx) {
                   name,
                   value === "mean" ? g(means.get(name)) : g(value),
                   value === "mean" ? " (mean)" : "",
-                  false,
+                  marginNames.includes(name),
                 ],
               ],
         ),
@@ -612,82 +751,166 @@ export function outcomePredict(session, model, text, ctx) {
       stub[1] +
       s.outcomes.map((_, k) => `${stub[2]}${k + 1}`).join(" ") +
       text.slice(stub[0].length);
-  const parsed = session.parse(
-      "newvarlist [if] [in] [, Pr XB STDP Outcome(string) | SCores]",
+  const multinomial = model.kind === "mlogit",
+    parsed = session.parse(
+      multinomial
+        ? "newvarlist [if] [in] [, Pr XB Index STDP STDDP Outcome(string) Equation(string) | SCores d1(string) d2(string)]"
+        : "newvarlist [if] [in] [, Pr XB STDP Outcome(string) | SCores]",
       text,
     ),
     options = parsed.options,
     data = session.data,
-    names = parsed.varlist,
-    multinomial = model.kind === "mlogit",
-    linearOnly = options.xb || options.stdp;
-  if (Number(!!options.pr) + Number(!!options.xb) + Number(!!options.stdp) > 1)
+    names = parsed.varlist;
+  // mlogit's index is its xb, and equation() its outcome().
+  if (multinomial) {
+    const both = ["equation", "outcome"].filter(
+      (o) => options[o] !== undefined,
+    );
+    if (both.length > 1)
+      throw new StataError(
+        "only one of options equation() or outcome() is allowed",
+        198,
+      );
+    options.outcome ??= options.equation;
+    const types = ["index", "xb", "stdp", "stddp", "pr"].filter(
+      (o) => options[o],
+    );
+    if (types.length > 1)
+      throw new StataError(
+        `only one of options ${
+          types.length === 2
+            ? types.join(" or ")
+            : `${types.slice(0, -1).join(", ")}, or ${types.at(-1)}`
+        } is allowed`,
+        198,
+      );
+    if (options.index) options.xb = true;
+  } else if (
+    Number(!!options.pr) + Number(!!options.xb) + Number(!!options.stdp) >
+    1
+  )
     throw new StataError("only one statistic may be specified", 198);
-  let chosen = 0;
-  if (options.outcome !== undefined) {
-    const word = options.outcome.trim();
-    chosen = word.startsWith("#")
-      ? Number(word.slice(1)) - 1
-      : s.outcomes.findIndex((value) => String(value) === word);
-    if (!(chosen >= 0 && chosen < s.outcomes.length))
-      throw new StataError(`outcome ${word} not found`, 303);
-  }
+  const typeName = options.index
+      ? "index"
+      : options.xb
+        ? "xb"
+        : options.stdp
+          ? "stdp"
+          : options.stddp
+            ? "stddp"
+            : "pr",
+    linearOnly = options.xb || options.stdp || options.stddp;
+  // The note comes before Stata looks for the outcome.
   if (!linearOnly && !options.pr)
     ctx.out(
       `(option pr assumed; predicted ${options.outcome !== undefined ? "probability" : "probabilities"})`,
     );
+  // The index of an ordered model belongs to no one outcome.
+  if (!multinomial && linearOnly && options.outcome !== undefined)
+    throw new StataError(
+      `option outcome() cannot be specified with option ${options.xb ? "xb" : "stdp"}`,
+      198,
+    );
   // One new variable, or one for each outcome; Stata's mlogit wraps its
   // explanation at the words, ologit's and oprobit's break after "or".
   const k = s.outcomes.length,
-    linesize = session.settings.linesize ?? 79;
-  if (![1, k].includes(names.length)) {
-    const head = `${model.depvar} has ${k} outcomes and so you must specify ${k} new variables, or `,
-      tail =
-        "you can use the outcome() option and specify variables one at a time",
-      explained = multinomial
-        ? wordWrap(head + tail, linesize)
-        : [...wrapLine(head, linesize), tail];
-    throw new StataError(
-      [
-        `too ${names.length < k ? "few" : "many"} variables specified`,
-        ...explained,
-      ].join("\n"),
-      names.length < k ? 102 : 103,
-    );
+    linesize = session.settings.linesize ?? 79,
+    counted = () => {
+      if ([1, k].includes(names.length)) return;
+      const head = `${model.depvar} has ${k} outcomes and so you must specify ${k} new variables, or `,
+        tail =
+          "you can use the outcome() option and specify variables one at a time",
+        explained = multinomial
+          ? wordWrap(head + tail, linesize)
+          : [...wrapLine(head, linesize), tail];
+      throw new StataError(
+        [
+          `too ${names.length < k ? "few" : "many"} variables specified`,
+          ...explained,
+        ].join("\n"),
+        names.length < k ? 102 : 103,
+      );
+    },
+    oneVariable = (option) =>
+      new StataError(
+        `option ${option} requires that you specify 1 new variable\ntoo many variables specified`,
+        103,
+      );
+  let chosen = 0,
+    // stddp's second outcome.
+    second = null;
+  if (multinomial) {
+    // mlogit_p: several variables with outcome() are one too many, and
+    // without it must be one per outcome and probabilities; one variable
+    // without outcome() is of the first outcome, but stddp needs two.
+    if (names.length > 1) {
+      if (options.outcome !== undefined)
+        throw oneVariable(typeName === "pr" ? "pr with outcome()" : typeName);
+      counted();
+      if (typeName !== "pr") throw oneVariable(typeName);
+    } else if (options.outcome === undefined && options.stddp)
+      throw new StataError("option stddp requires the outcome() option", 198);
+    if (options.stddp) {
+      const comma = options.outcome.indexOf(",");
+      if (comma < 0) throw new StataError("second outcome not found", 303);
+      chosen = chooseOutcome(
+        session,
+        model,
+        s,
+        options.outcome.slice(0, comma).trim(),
+      );
+      second = chooseOutcome(
+        session,
+        model,
+        s,
+        options.outcome.slice(comma + 1).trim(),
+      );
+    } else if (options.outcome !== undefined)
+      chosen = chooseOutcome(session, model, s, options.outcome.trim());
+  } else {
+    counted();
+    if (options.outcome !== undefined)
+      chosen = chooseOutcome(session, model, s, options.outcome.trim());
+    if (names.length > 1 && (linearOnly || options.outcome !== undefined))
+      throw oneVariable(
+        linearOnly ? (options.xb ? "xb" : "stdp") : "pr with outcome()",
+      );
   }
-  if (names.length > 1 && (linearOnly || options.outcome !== undefined))
-    throw new StataError(
-      `option ${linearOnly ? (options.xb ? "xb" : "stdp") : "pr with outcome()"} requires that you specify 1 new variable\ntoo many variables specified`,
-      103,
-    );
   const columns = names.map(() => new Array(data.n).fill(MISSING)),
     theta = s.theta;
-  // The linear index of one mlogit outcome and the weights that give it.
+  // The linear index of one mlogit outcome (less another's, for stddp) as
+  // weights on theta; the base outcome has no coefficients.
   const indexRow = (x) => {
-    if (!multinomial) return { row: x, offset: 0 };
-    const e = s.others.indexOf(chosen);
-    return { row: s.constant ? [...x, 1] : x, offset: e < 0 ? -1 : e * s.k };
+    if (!multinomial) return x;
+    const row = s.constant ? [...x, 1] : x,
+      weights = new Array(theta.length).fill(0),
+      add = (j, sign) => {
+        const e = s.others.indexOf(j);
+        if (e >= 0) row.forEach((v, a) => (weights[e * s.k + a] += sign * v));
+      };
+    add(chosen, 1);
+    if (second !== null) add(second, -1);
+    return weights;
   };
   const variables = covariatesOf(s);
   session.select(parsed, null, (i) => {
     if (variables.some((v) => isMissing(v.data[i]))) return;
     const x = s.columns.map((c) => c.value(i));
     if (linearOnly) {
-      const { row, offset } = indexRow(x);
-      if (offset < 0) columns[0][i] = 0;
-      else if (options.xb)
-        columns[0][i] = row.reduce((t, v, a) => t + v * theta[offset + a], 0);
+      const row = indexRow(x);
+      if (options.xb)
+        columns[0][i] = row.reduce((t, v, a) => t + v * theta[a], 0);
       else
         columns[0][i] = Math.sqrt(
-          row.reduce(
-            (t, va, a) =>
-              t +
-              va *
-                row.reduce(
-                  (u, vb, b) => u + s.V[offset + a][offset + b] * vb,
-                  0,
-                ),
+          Math.max(
             0,
+            row.reduce(
+              (t, va, a) =>
+                va === 0
+                  ? t
+                  : t + va * row.reduce((u, vb, b) => u + s.V[a][b] * vb, 0),
+              0,
+            ),
           ),
         );
       return;
@@ -703,16 +926,18 @@ export function outcomePredict(session, model, text, ctx) {
     });
     missing = Math.max(missing, made.missing);
     const j = names.length > 1 ? k : chosen,
-      which = `${model.depvar}==${s.outcomes[j]}`;
-    data.get(name).label = options.xb
-      ? multinomial
-        ? `Linear prediction, ${which}`
-        : "Linear prediction (cutpoints excluded)"
-      : options.stdp
+      which = `${model.depvar}==${outcomeName(session, model, s.outcomes[j])}`;
+    data.get(name).label = options.stddp
+      ? `stddp(${options.outcome})`
+      : options.xb
         ? multinomial
-          ? `S.E. of linear prediction, ${which}`
-          : "S.E. of linear prediction (cutpoints excluded)"
-        : `Pr(${which})`;
+          ? `Linear prediction, ${which}`
+          : "Linear prediction (cutpoints excluded)"
+        : options.stdp
+          ? multinomial
+            ? `S.E. of linear prediction, ${which}`
+            : "S.E. of linear prediction (cutpoints excluded)"
+          : `Pr(${which})`;
   });
   data.sortedBy = sorted;
   if (missing)

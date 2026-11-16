@@ -12,7 +12,8 @@ import {
 } from "./format.js";
 import { evaluateAll } from "./expression.js";
 import { chi2tail } from "./distributions.js";
-import { operatorGroups } from "./varlist.js";
+import { operatorGroups, tildeAsStar } from "./varlist.js";
+import { expandTabs } from "./echo.js";
 import {
   assumedWeights,
   clauses,
@@ -84,11 +85,13 @@ export function moments(values) {
     if (v < min) min = v;
     if (v > max) max = v;
   }
+  // The squared deviations are summed with their rounding error carried,
+  // as Stata's more precise accumulation sums them: its last digits of
+  // r(Var) come out only so.
   const sum = accurateSum(values),
-    mean = sum / n;
-  let ss = 0;
-  for (const v of values) ss += (v - mean) ** 2;
-  const variance = n > 1 ? ss / (n - 1) : MISSING;
+    mean = sum / n,
+    ss = accurateSum(values, (v) => (v - mean) ** 2),
+    variance = n > 1 ? ss / (n - 1) : MISSING;
   return {
     n,
     sum,
@@ -315,13 +318,13 @@ function parseNamingVariables(session, declaration, text) {
       !session.data.names.length
     )
       throw new StataError("no variables defined", 111);
-    throw error;
+    throw tildeAsStar(error);
   }
 }
 export function summarize(session, text, ctx) {
   const parsed = parseNamingVariables(
     session,
-    "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) Format]",
+    "[varlist] [if] [in] [aweight fweight iweight] [, Detail MEANonly SEParator(integer 5) Format NOFVLabel]",
     text,
   );
   if (parsed.options.meanonly && parsed.options.detail)
@@ -406,14 +409,28 @@ export function summarize(session, text, ctx) {
     const at = groupOf.get(k),
       group = groups[at],
       shortened = (text) =>
-        padDisplay(abbreviateAmong(text, 12, session.data.names), 12);
+        padDisplay(abbreviateAmong(text, 12, session.data.names), 12),
+      // A factor variable's level shows its value label, cut to 11
+      // columns; a labelled level alone, as 2.g, is then headed by g.
+      shownLabel = (v) =>
+        v.ts?.factor && v.ts.shown != null && !parsed.options.nofvlabel
+          ? v.ts.shown
+          : null,
+      headed = (g) =>
+        g.headed ||
+        (g.members.length === 1 &&
+          listed[g.members[0]].ts?.base !== undefined &&
+          shownLabel(listed[g.members[0]]) !== null),
+      head = group.headed ? group.base : variable.ts?.base;
     if (group.members[0] === k) {
-      if (at && (group.headed || groups[at - 1].headed))
+      if (at && (headed(group) || headed(groups[at - 1])))
         ctx.out(`${" ".repeat(12)} |`);
-      if (group.headed) ctx.out(`${shortened(group.base)} |`);
+      if (headed(group)) ctx.out(`${shortened(head)} |`);
     }
-    const label = group.headed
-      ? (variable.ts?.label ?? "--.").padStart(12)
+    const label = headed(group)
+      ? shownLabel(variable) !== null
+        ? padDisplay(`${cutLabel(shownLabel(variable), 11).text} `, 12)
+        : (variable.ts?.label ?? "--.").padStart(12)
       : shortened(variable.ts?.alone ? variable.ts.name : name);
     ctx.out(
       analytic
@@ -441,6 +458,14 @@ export function summarize(session, text, ctx) {
         sum: m.sum,
       }
     : { N: 0, sum_w: 0, sum: 0 };
+  // meanonly leaves the count, the sums, the mean and the extremes, in
+  // that order, and no variance.
+  if (parsed.options.meanonly) {
+    const { N, sum_w, sum, mean, min, max } = session.results.r;
+    session.results.r = m.n
+      ? { N, sum_w, sum, mean, min, max }
+      : { N: 0, sum_w: 0, sum: 0 };
+  }
   if (parsed.options.detail && m.n) {
     // With detail, Stata stores the moments before the sum and the
     // extremes, and return list shows them in that order.
@@ -562,6 +587,52 @@ function detail(ctx, variable, m, shape, formats, observed, frequency) {
 // Screen columns, as Stata's udstrlen() counts them, come from format.js.
 // padDisplay comes from values.js.
 export { displayWidth, padDisplay };
+
+/**
+ * A label cut to fit `limit` columns, as Stata 19 cuts the labels of
+ * mean's and proportion's tables: { text, width }. A label of at most 32
+ * characters (a name's length) without blanks is abbreviated as a name
+ * is, by columns: as much of its start as fits before ~ and its last
+ * character. Any other is cut to two columns less and "..": by columns
+ * when what is kept takes no more bytes in UTF-8 than the whole label
+ * takes columns, less two, and otherwise by bytes, a character the cut
+ * falls inside kept unless it is wide (CJK). width is what the label
+ * counts for in the header, where that character counts one column.
+ * Recorded from Stata 19 over some 200 labels of Latin, Cyrillic and CJK
+ * text, and as summarize cuts a factor level's label.
+ */
+export function cutLabel(text, limit) {
+  const columns = displayWidth(text);
+  if (columns <= limit) return { text, width: columns };
+  const characters = [...text];
+  if (characters.length <= 32 && !/\s/.test(text)) {
+    const last = characters.at(-1),
+      cut = `${truncateColumns(text, limit - 1 - displayWidth(last))}~${last}`;
+    return { text: cut, width: displayWidth(cut) };
+  }
+  const room = limit - 2,
+    byColumns = truncateColumns(text, room);
+  if (utf8Length(byColumns) <= columns - 2)
+    return { text: `${byColumns}..`, width: displayWidth(byColumns) + 2 };
+  let used = 0,
+    kept = "",
+    straddles = false;
+  for (const character of characters) {
+    const size = utf8Length(character);
+    if (used >= room) break;
+    if (used + size > room && displayWidth(character) === 2) {
+      straddles = true;
+      break;
+    }
+    kept += character;
+    used += size;
+  }
+  return {
+    text: `${kept}..`,
+    width: displayWidth(kept) + 2 + (straddles ? 1 : 0),
+  };
+}
+const utf8Length = (text) => new TextEncoder().encode(text).length;
 // Text left-aligned in `width` screen columns.
 export const padDisplayEnd = (text, width) =>
   text + " ".repeat(Math.max(0, width - displayWidth(text)));
@@ -584,7 +655,7 @@ function cutBytes(text, width) {
 // tabulate do (Stata 19 measures them in bytes, so an accented or East
 // Asian heading wraps sooner than its screen width); a word longer than a
 // line is cut into pieces of the line's width, and its last piece
-// continues the next line.
+// continues the next line. Blanks are kept as they are within a line.
 function wrapWords(text, width) {
   if (width < 1) return [text];
   const lines = [];
@@ -594,7 +665,10 @@ function wrapWords(text, width) {
       line += " " + word;
       continue;
     }
-    if (line !== null) lines.push(line);
+    // A line ended by the wrap loses its trailing blanks; the last keeps
+    // them, so a label of "x  categorized by c" heads "x", and one ending
+    // in a blank shows it.
+    if (line !== null) lines.push(line.trimEnd());
     let rest = word;
     while (byteLength(rest) > width) {
       const piece = cutBytes(rest, width) || [...rest][0];
@@ -1389,10 +1463,13 @@ export function tabulate(session, text, ctx) {
           ),
           { type: "byte" },
         );
+        // A labelled value is named by its label, unless nolabel asks for
+        // the number, which is then written as an unlabelled one is.
         data.get(name).label =
           `${source.name}==` +
           (typeof value === "string" ||
-          session.data.valueLabels.get(source.valueLabel)?.has(value)
+          (!options.nolabel &&
+            session.data.valueLabels.get(source.valueLabel)?.has(value))
             ? show(0, value)
             : applyFormat(value, "%11.4f"));
       });
@@ -1703,7 +1780,14 @@ export function tabulate(session, text, ctx) {
  * than the line allows, or than string(), is cut and ends in "..", and its
  * column turns to the left. The rules were read off Stata 19's output.
  */
-export function list(session, text, ctx) {
+export function list(session, text, outer) {
+  // A tab in a string is measured as one character but shown, as Stata's
+  // Results show it, as the spaces to the next tab stop of the line.
+  let ctx = { ...outer };
+  ctx.out = (line) =>
+    outer.out(
+      typeof line === "string" && line.includes("\t") ? expandTabs(line) : line,
+    );
   if (/(?:^|[\s,])head(?:e(?:r)?)?\s*\(/i.test(splitAtComma(text)[1] ?? ""))
     throw new StataError(
       "option header() is not available in the browser yet",

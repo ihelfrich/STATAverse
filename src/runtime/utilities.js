@@ -14,6 +14,7 @@ import { invttail, ttail } from "./distributions.js";
 import { FUNCTIONS } from "./functions.js";
 import { count, moments, percentile, perGroup } from "./reports.js";
 import {
+  byteLength,
   formatNumber,
   isMissing,
   isStringType,
@@ -24,36 +25,74 @@ import {
 
 const g = (value) => applyFormat(value, "%9.0g").trim();
 
+/**
+ * levelsof, as levelsof.ado: the distinct values in order, integers as
+ * %21.0g writes them and other numbers as a macro holds them (%18.0g);
+ * matcell() keeps the count of each and matrow() the values. r(N) is the
+ * number of observations, r(r) of levels.
+ */
 function levelsof(session, text, ctx) {
   const parsed = session.parse(
-      "varname [if] [in] [, Local(name) Missing Separate(string) Clean]",
+      "varname [if] [in] [, Separate(string) MISSing Local(name) Clean MATROW(name) MATCELL(name) HEXadecimal]",
       text,
     ),
+    { options } = parsed,
     variable = session.data.get(parsed.varlist[0]),
-    string = isStringType(variable.type),
-    values = [
-      ...new Set(
-        session
-          .rows(parsed, null)
-          .map((i) => variable.data[i])
-          .filter(
-            (v) =>
-              parsed.options.missing || (string ? v !== "" : !isMissing(v)),
-          ),
-      ),
-    ].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
-    levels = values
-      .map((v) =>
-        string
-          ? parsed.options.clean
-            ? v
-            : '`"' + v + "\"'"
-          : formatNumber(v),
-      )
-      .join(parsed.options.separate ?? " ");
-  ctx.out(levels);
-  if (parsed.options.local) ctx.frame.locals.set(parsed.options.local, levels);
-  session.results.r = { levels, r: values.length };
+    string = isStringType(variable.type);
+  if (string && options.hexadecimal)
+    throw new StataError(
+      "option hexadecimal not allowed with string variable",
+      198,
+    );
+  if (string && options.matrow)
+    throw new StataError("option matrow not allowed with string variable", 198);
+  const counts = new Map();
+  for (const i of session.rows(parsed, null)) {
+    const v = variable.data[i];
+    if (!options.missing && (string ? v === "" : isMissing(v))) continue;
+    counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  const values = [...counts.keys()].sort((a, b) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    ),
+    separator = options.separate || " ",
+    integers = values.every((v) => isMissing(v) || Number.isInteger(v)),
+    shown = (v) =>
+      options.hexadecimal
+        ? applyFormat(v, "%21x").trim()
+        : integers
+          ? applyFormat(v, "%21.0g").trim()
+          : applyFormat(v, "%18.0g").trim(),
+    levels = string
+      ? options.clean
+        ? values.join(separator)
+        : values.map((v) => '`"' + v + "\"'").join(separator)
+      : values.map(shown).join(separator),
+    observations = values.reduce((total, v) => total + counts.get(v), 0),
+    store = (name, column) => {
+      (session.matrices ??= new Map()).delete(name);
+      session.matrices.set(name, {
+        rowNames: column.map((_, k) => `r${k + 1}`),
+        colNames: ["c1"],
+        values: column.map((v) => [v]),
+      });
+    };
+  session.results.r = { N: observations, r: values.length };
+  if (!values.length) {
+    ctx.out("");
+    return;
+  }
+  if (options.matcell)
+    store(
+      options.matcell,
+      values.map((v) => counts.get(v)),
+    );
+  if (options.matrow) store(options.matrow, values);
+  // A line longer than the linesize goes on after "> ", as display's do.
+  for (const line of fold(levels, session.settings.linesize ?? 79))
+    ctx.out(line);
+  if (options.local) ctx.frame.locals.set(options.local, levels);
+  session.results.r.levels = levels;
 }
 
 /**
@@ -84,11 +123,13 @@ export function abbreviateVariable(data, name, width) {
 
 /**
  * ds_util.ado's DisplayInCols: items in as many columns of equal width as
- * the line holds, filled down each column in turn.
+ * the line holds, filled down each column in turn. The width is that of the
+ * longest item in bytes, so a name with letters beyond ASCII widens the
+ * columns by more than its characters do.
  */
 export function displayInColumns(session, items, ctx, skip = 2) {
   if (!items.length) return;
-  const width = greatest(items.map((item) => item.length)) + skip,
+  const width = greatest(items.map((item) => byteLength(item))) + skip,
     columns = Math.floor(((session.settings.linesize ?? 80) + 1) / width);
   if (columns < 2) {
     items.forEach((item) => ctx.out(item));
@@ -380,6 +421,29 @@ function notVariables(session, text) {
     return new StataError(`${word} invalid name`, 198);
   }
   return new StataError("invalid syntax", 198);
+}
+
+/**
+ * The names ttest and sdtest give the groups of by(): each group's first
+ * eight characters, without the blanks around them. A number is written
+ * out in full, as a macro holds it, whatever the variable's format, so 0.1
+ * stored as a float is .1000000 (shown as 1000000 once abbrev() drops the
+ * period) and 1e10 is 10000000. Its value label stands in for it unless
+ * empty. A string group is cut to eight columns of the screen, a label to
+ * eight characters.
+ */
+export function groupNames(session, by, levels) {
+  const map = isStringType(by.type)
+    ? null
+    : session.data.valueLabels.get(by.valueLabel);
+  return levels.map((value) =>
+    (typeof value === "string"
+      ? truncateColumns(value, 8)
+      : Array.from(map?.get(value) || applyFormat(value, "%18.0g").trim())
+          .slice(0, 8)
+          .join("")
+    ).trim(),
+  );
 }
 
 /** The pieces ttest and ttesti print their tables with. */
@@ -756,24 +820,7 @@ function ttest(session, text, ctx) {
         level,
       ),
     ),
-    // Each group is named by its first eight characters, without the
-    // blanks around them. A number is written out in full, as a macro
-    // holds it, whatever the variable's format, so 0.1 stored as a float
-    // is .1000000 (shown as 1000000 once abbrev() drops the period) and
-    // 1e10 is 10000000. Its value label stands in for it unless empty.
-    map = isStringType(by.type)
-      ? null
-      : session.data.valueLabels.get(by.valueLabel),
-    // A string group is cut to eight columns of the screen, a label to
-    // eight characters.
-    [xname, yname] = levels.map((value) =>
-      (typeof value === "string"
-        ? truncateColumns(value, 8)
-        : Array.from(map?.get(value) || applyFormat(value, "%18.0g").trim())
-            .slice(0, 8)
-            .join("")
-      ).trim(),
-    );
+    [xname, yname] = groupNames(session, by, levels);
   twoSampleTable(ctx, session, printers)(
     a,
     b,

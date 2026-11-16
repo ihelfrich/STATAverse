@@ -20,16 +20,21 @@ export function expandMacros(source, env, depth = 0) {
       out += next;
       i++;
     } else if (c === "`" && next !== '"') {
+      // A compound quote `"..."' opened inside the reference is closed by
+      // its "'; any other ', the one after "x" in `="x"' too, closes a
+      // reference.
       let end = i + 1,
-        nesting = 1;
+        nesting = 1,
+        compound = 0;
       for (; end < source.length; end++) {
-        if (source[end] === "`" && source[end + 1] !== '"') nesting++;
-        else if (
-          source[end] === "'" &&
-          source[end - 1] !== '"' &&
-          --nesting === 0
-        )
-          break;
+        if (source[end] === "`" && source[end + 1] === '"') {
+          compound++;
+          end++;
+        } else if (source[end] === "`") nesting++;
+        else if (source[end] === '"' && source[end + 1] === "'" && compound) {
+          compound--;
+          end++;
+        } else if (source[end] === "'" && --nesting === 0) break;
       }
       if (nesting) {
         // An unmatched ` is ordinary text.
@@ -74,11 +79,14 @@ function reference(inner, env) {
     env.locals.set(m[1], String(Number(before) + (m[2] === "++" ? 1 : -1)));
     return before;
   }
-  if (!/^[A-Za-z_0-9]{1,31}$/.test(text)) return "";
+  if (!isLocalName(text)) return "";
   return env.locals.get(text) ?? "";
 }
 
-export const isMacroName = (name) => NAME.test(name) && name.length <= 31;
+/** A global's name, as a variable's, is at most 32 characters. */
+export const isMacroName = (name) => NAME.test(name) && name.length <= 32;
+/** A local's name may start with a digit, as `1' does. */
+export const isLocalName = (name) => /^[\p{L}\p{N}_]{1,31}$/u.test(name);
 
 /** Splits a macro list into words; "quoted words" and `"compound"' stay whole. */
 export function macroWords(text) {

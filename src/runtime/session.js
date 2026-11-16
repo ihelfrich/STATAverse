@@ -2,7 +2,7 @@
 // programs, and the control flow of a do-file. Commands themselves are in
 // commands.js; this file decides which command runs, under which prefixes,
 // and what happens when one fails.
-import { Signal, StataError, errorLine } from "./errors.js";
+import { Signal, StataError, errorLine, joinContinued } from "./errors.js";
 import { Dataset } from "./store.js";
 import { splitCommands, parseBlocks } from "./dofile.js";
 import { expandMacros, isMacroName, macroWords } from "./macros.js";
@@ -12,6 +12,7 @@ import {
   clauses,
   equalsOperands,
   loneEquals,
+  newVariableNames,
   splitAtComma,
 } from "./syntax.js";
 import { numlistText, parseNumlist } from "./numlist.js";
@@ -29,13 +30,14 @@ import {
   truncateBytes,
 } from "./values.js";
 import { greatest } from "./extremes.js";
+import { Folder, temporaryFileName } from "./files.js";
 import { COMMANDS, extendedFunction, restoreSaved } from "./commands.js";
 import { changed, fold, markChanged } from "./data-commands.js";
 import { abbreviateName } from "./data-utilities.js";
-import { timeSeriesOperator } from "./panel.js";
+import { readPanel, timeSeriesOperator, writePanel } from "./panel.js";
 import { matrixAccess } from "./matrix.js";
 import { coefficientValue, tableResults } from "./estimation.js";
-import { echoOf, fileEcho } from "./echo.js";
+import { echoOf, expandTabs, fileEcho, tabsOut } from "./echo.js";
 import { STATA_COMMANDS } from "./stata-commands.js";
 import { perGroup } from "./reports.js";
 import { dropTemporaries } from "./programming.js";
@@ -92,6 +94,9 @@ const READ_ONLY = new Set([
 const PREFIX_WORD =
     /^(?:(cap(?:t(?:u(?:re?)?)?)?)|(qui(?:e(?:t(?:ly?)?)?)?)|(n(?:o(?:i(?:s(?:i(?:ly?)?)?)?)?)?))(?:\s+|$)/,
   LOOP_HEADER = /^(?:foreach|forv(?:a(?:l(?:u(?:es?)?)?)?)?|while)\s/,
+  // An if under a prefix, as quietly if exp {, is a prefixed block that
+  // runs when exp is true.
+  IF_HEADER = /^if\s/,
   // The headers that open a block: a loop, if, else, or none ({ alone).
   BLOCK_HEADER =
     /^(?:$|(?:foreach|forv(?:a(?:l(?:u(?:es?)?)?)?)?|while|if|else)(?:\s|$))/;
@@ -288,7 +293,6 @@ const FAILED_R = new Map([
     "duplicates",
     "separate",
     "split",
-    "gsort",
     "insobs",
     "numlabel",
     "append",
@@ -519,7 +523,7 @@ const PREFIX_COMMANDS = new Set([
 ]);
 // The options a replay takes: those that change how the fit is shown.
 const REPLAY_OPTIONS =
-  /^(l(e(v(el?)?)?)?|or|irr|rrr|eform|hr|beta|nohe(a(d(er?)?)?)?|notable|nocnsr(e(p(o(rt?)?)?)?)?|noomit(t(ed?)?)?|vsquish|base(l(e(v(e(ls?)?)?)?)?)?|allbase(l(e(v(e(ls?)?)?)?)?)?|noempty(c(e(l(ls?)?)?)?)?|cformat|pformat|sformat|coefl(e(g(e(nd?)?)?)?)?|nofvl(a(b(el?)?)?)?|nolstretch)$/;
+  /^(l(e(v(el?)?)?)?|or|irr|rrr|eform|hr|beta|nohe(a(d(er?)?)?)?|notable|noci|nopv(a(l(u(es?)?)?)?)?|fvwrap|fvwrapon|nocnsr(e(p(o(rt?)?)?)?)?|noomit(t(ed?)?)?|vsquish|base(l(e(v(e(ls?)?)?)?)?)?|allbase(l(e(v(e(ls?)?)?)?)?)?|noempty(c(e(l(ls?)?)?)?)?|cformat|pformat|sformat|coefl(e(g(e(nd?)?)?)?)?|nofvl(a(b(el?)?)?)?|nolstretch)$/;
 // Commands that leave the data as an earlier fit saw them, so that the fit
 // need not keep a copy of them yet (see dispatch).
 const KEEP_DATA = new Set([
@@ -705,9 +709,58 @@ function absentVariable(name) {
   };
 }
 
-// The e() results whose scalars have been posted again by a command that
-// holds the estimates (see dispatch).
-const heldScalars = new WeakSet();
+// The order in which ereturn list shows e() once commands that hold the
+// estimates have posted them again (see dispatch): the keys as the fit
+// stored them, and whether the scalars (s) and the macros (m) now list in
+// reverse. It is kept on e() itself, so that estimates store keeps it.
+const HELD_ORDER = Symbol("held order");
+
+/**
+ * e() with its scalars and macros in the order a hold left them: reversed
+ * from the fit's order or not, each list on its own. The matrices after
+ * e(b) and e(V) go with the macros. areg's own scalars, which come before
+ * those of the regression it runs, stay a run of their own: with the
+ * macros reversed the regression's come first, reversed, and areg's after
+ * them; with the scalars reversed areg's are reversed and the
+ * regression's follow as they were, as recorded from Stata 19. Other keys
+ * keep their place after them, the hidden list and the order itself
+ * carried over.
+ */
+function heldOrder(e, s, m) {
+  // Results set since the fit (as e(_estimates_name)) come after its own.
+  const kept = e[HELD_ORDER]?.keys ?? [],
+    keys = [...kept, ...Object.keys(e).filter((key) => !kept.includes(key))],
+    numbers = keys.filter((key) => typeof e[key] === "number"),
+    strings = keys.filter((key) => typeof e[key] === "string"),
+    others = keys.filter(
+      (key) => typeof e[key] !== "number" && typeof e[key] !== "string",
+    ),
+    split = numbers.includes("k_absorb")
+      ? numbers.indexOf("k_absorb") + 1
+      : numbers.length,
+    own = numbers.slice(0, split),
+    posted = numbers.slice(split),
+    fixed = others.filter((key) => key === "matrix:b" || key === "matrix:V"),
+    rest = others.filter((key) => !fixed.includes(key)),
+    order = [
+      ...(s && m
+        ? [...numbers].reverse()
+        : s
+          ? [...own.reverse(), ...posted]
+          : m
+            ? [...posted.reverse(), ...own]
+            : numbers),
+      ...(m ? strings.reverse() : strings),
+      ...fixed,
+      ...(m ? rest.reverse() : rest),
+    ],
+    out = Object.fromEntries(
+      order.filter((key) => key in e).map((key) => [key, e[key]]),
+    );
+  for (const symbol of Object.getOwnPropertySymbols(e)) out[symbol] = e[symbol];
+  out[HELD_ORDER] = { keys, s, m };
+  return out;
+}
 
 /**
  * What an r-class program returned, as r() holds it: return list shows the
@@ -715,6 +768,16 @@ const heldScalars = new WeakSet();
  * keep the order they were set in).
  */
 const posted = (staged) => Object.fromEntries(Object.entries(staged).reverse());
+
+/**
+ * What a quiet command shows: the messages Stata prints even under
+ * quietly, and what display writes after one (see dispatch).
+ */
+function loudLines(lines, flags) {
+  return lines.filter(
+    (_, k) => flags.loudAt?.has(k) || k >= (flags.loudFrom ?? lines.length),
+  );
+}
 
 export class Session {
   constructor() {
@@ -729,6 +792,22 @@ export class Session {
     this.steps = 0;
     this.temporary = 0;
     this.state = {};
+    // The files in the session's folder, which is Stata's working
+    // directory: those added, saved and written.
+    this.files = new Folder();
+  }
+
+  /**
+   * The panel and time variables xtset and tsset declared, { id, time,
+   * delta }, or null. They live in the data's characteristics, as in
+   * Stata, so they are saved and used with the data and go when other
+   * data are loaded.
+   */
+  get panel() {
+    return readPanel(this.data);
+  }
+  set panel(value) {
+    writePanel(this.data, value);
   }
 
   // ----- expressions -----
@@ -778,6 +857,8 @@ export class Session {
         return coefficientValue(model, kind, name, form);
       },
       series: (ops, name) => timeSeriesOperator(this, ops, name),
+      // tin() and twithin() read the time variable tsset declared.
+      timeVariable: () => this.panel,
       system: (name) =>
         ({
           N: this.data.n,
@@ -795,7 +876,7 @@ export class Session {
           version: 17,
           os: "Browser",
           machine_type: "STATAverse",
-          pwd: "/stataverse",
+          pwd: this.cwd ? `/stataverse/${this.cwd}` : "/stataverse",
           dirsep: "/",
           rng: "default",
           rng_current: "mt64",
@@ -931,6 +1012,10 @@ export class Session {
       n: this.data.n,
       level: this.settings.level,
       defaultType: this.data.defaultType,
+      timeSet: !!this.panel?.time,
+      // How the running command's varlist reads parentheses (see
+      // expandVarlist).
+      parentheses: this.varlistParentheses ?? null,
       expression: (text, clause) => {
         this.compile(text, { assign: clause === "exp" });
       },
@@ -940,7 +1025,11 @@ export class Session {
     return applySyntax(declaration, text, this.context());
   }
   varlist(text) {
-    return expandVarlist(text, this.data.names);
+    return expandVarlist(
+      text,
+      this.data.names,
+      this.varlistParentheses ?? null,
+    );
   }
 
   /**
@@ -1016,7 +1105,7 @@ export class Session {
     let rc = 0;
     if (doFile) this.enterScope();
     try {
-      this.runNodes(parseBlocks(splitCommands(source)), frame, output);
+      this.runNodes(parseBlocks(splitCommands(tabsOut(source))), frame, output);
     } catch (error) {
       if (error instanceof Signal && error.kind === "exit") rc = error.code;
       else if (error instanceof Signal) rc = 0;
@@ -1025,16 +1114,30 @@ export class Session {
     } finally {
       if (doFile) this.leaveScope();
     }
+    // What display left open with _continue goes on with the next line
+    // the loop or program printed.
+    for (const record of output)
+      if (record.lines?.length) record.lines = joinContinued(record.lines);
     return { output, rc, locals: frame.locals };
   }
   /** A do-file or program begins: what it preserves is its own. */
   enterScope() {
     this.scopeDepth = (this.scopeDepth ?? 0) + 1;
+    // Its tempfile names are numbered on from the caller's, and the numbers
+    // are used again once it ends, as Stata's are.
+    (this.fileCounts ??= []).push(this.temporaryFiles ?? 0);
   }
   /** A do-file or program ends, however it ends: its preserved data return. */
   leaveScope() {
     const depth = this.scopeDepth ?? 0;
     this.scopeDepth = Math.max(0, depth - 1);
+    // Its tempfiles are erased, and their numbers are free again.
+    if (this.fileCounts?.length) {
+      const back = this.fileCounts.pop();
+      for (let k = back + 1; k <= (this.temporaryFiles ?? 0); k++)
+        this.files?.delete(temporaryFileName(k));
+      this.temporaryFiles = back;
+    }
     let saved;
     while (this.preserved.length && (this.preserved.at(-1).depth ?? 0) >= depth)
       saved = this.preserved.pop();
@@ -1059,13 +1162,20 @@ export class Session {
                 ? String(this.settings.level)
                 : undefined),
       },
-      evaluate: (text) => {
-        const value = this.scalar(text);
-        return typeof value === "string"
-          ? value
-          : applyFormat(value, "%18.0g").trim();
-      },
-      extended: (text) => extendedFunction(this, frame, text),
+      // An error in `=exp' or `:fcn' does not stop the command: Stata
+      // prints its message, the reference expands to nothing, and the
+      // command runs on what is left.
+      evaluate: (text) =>
+        this.softly(() => {
+          // `=' with nothing after it is Stata's invalid syntax.
+          if (!text.trim()) throw new StataError("invalid syntax", 198);
+          const value = this.scalar(text);
+          return typeof value === "string"
+            ? value
+            : applyFormat(value, "%18.0g").trim();
+        }),
+      extended: (text) =>
+        this.softly(() => extendedFunction(this, frame, text)),
       result: (kind, name) => {
         if (kind === "c") return this.scope().system(name) ?? "";
         const value = this.results[kind]?.[name];
@@ -1078,6 +1188,23 @@ export class Session {
   }
   expand(text, frame) {
     return expandMacros(text, this.macroEnv(frame));
+  }
+  softly(evaluate) {
+    try {
+      return evaluate();
+    } catch (error) {
+      if (!(error instanceof StataError)) throw error;
+      if (error.message) (this.expansionNotes ??= []).push(error.message);
+      return "";
+    }
+  }
+  /** The messages of the references that failed in the last expansion. */
+  takeNotes() {
+    const notes = (this.expansionNotes ?? []).map((note) =>
+      errorLine(this, note),
+    );
+    this.expansionNotes = [];
+    return notes;
   }
 
   runNodes(nodes, frame, output) {
@@ -1276,7 +1403,15 @@ export class Session {
     // is passed over) as any block is, and that line then stops the file.
     const trailing = node.trailing;
     try {
-      if (prefixes.any) {
+      if (prefixes.any && prefixes.rest) {
+        // noisily if exp {: the if decides whether the body runs.
+        const inner = { ...node, header: prefixes.rest, ran: false };
+        try {
+          this.runBlock(inner, frame, output);
+        } finally {
+          node.ran = inner.ran;
+        }
+      } else if (prefixes.any) {
         node.ran = true;
         this.runNodes(node.body, frame, output);
       } else
@@ -1289,10 +1424,37 @@ export class Session {
       if (trailing) node.trailing = true;
       this.quietDepth = quietDepth;
       if (!(error instanceof StataError)) throw error;
+      if (
+        !error.recorded &&
+        prefixes.capture &&
+        IF_HEADER.test(prefixes.rest) &&
+        !node.ran &&
+        !trailing
+      ) {
+        // capture noisily if 1 + "a" {: capture keeps the error of the
+        // if's own line, the lines of its body are then commands of the
+        // file, run as any are, and its } is not a command, which stops the
+        // file with r(199).
+        error.recorded = true;
+        this.rc = error.code;
+        if (prefixes.noisy && error.message) header.lines.push(error.message);
+        try {
+          this.runNodes(node.body, frame, output);
+        } catch (failure) {
+          relabel();
+          throw failure;
+        }
+        relabel(true);
+        if (!this.doDepth && !this.inProgram) this.line = node.end;
+        this.runLine(source(node.end), frame, output);
+        return;
+      }
       if (!error.recorded) {
-        // The block's own line failed, as if 1 + "a" { does.
+        // The block's own line failed, as if 1 + "a" { does, under the
+        // messages of the references in it that failed.
         error.recorded = true;
         header.lines = [
+          ...header.lines,
           ...(error.message ? [error.message] : []),
           `r(${error.code});`,
         ];
@@ -1335,9 +1497,23 @@ export class Session {
     this.quietDepth = quietDepth;
     if (prefixes.capture) this.rc = 0;
     if (!node.ran) {
-      header.echo = [];
+      const passed = [];
       for (let n = node.line + 1; n < node.end + (trailing ? 0 : 1); n++)
-        header.echo.push(`. ${source(n)}`.trimEnd());
+        passed.push(`. ${source(n)}`.trimEnd());
+      // The messages of a reference that failed in the block's own line
+      // (else if `=bad' == 1 {) stand under that line, before the lines
+      // passed over.
+      if (header.lines.length)
+        passed.forEach((shown, k) =>
+          output.push({
+            command: shown.slice(2),
+            echo: [],
+            lines: [],
+            rc: 0,
+            line: node.line + 1 + k,
+          }),
+        );
+      else header.echo = passed;
     } else relabel(true);
     if (trailing) {
       const message =
@@ -1365,7 +1541,8 @@ export class Session {
         !this.inProgram &&
         !this.folding &&
         (LOOP_HEADER.test(prefixes.rest + " ") ||
-          (!prefixes.rest && prefixes.silent));
+          ((!prefixes.rest || IF_HEADER.test(prefixes.rest)) &&
+            prefixes.silent));
     if (
       !fold &&
       this.foldLoops &&
@@ -1376,7 +1553,7 @@ export class Session {
       !node.unclosed &&
       node.end > node.line &&
       (prefixes.any
-        ? !prefixes.rest && !prefixes.silent
+        ? (!prefixes.rest || IF_HEADER.test(prefixes.rest)) && !prefixes.silent
         : /^(?:if\s|else(?:\s|$)|$)/.test(node.header.trim()))
     )
       return this.echoedBlock(node, prefixes, frame, output);
@@ -1400,6 +1577,7 @@ export class Session {
     const inner = [],
       at = this.line;
     let failure = null;
+    node.unblocked = false;
     this.folding++;
     try {
       this.runBlock(node, frame, inner);
@@ -1418,6 +1596,8 @@ export class Session {
         source,
         node.line,
         node.unclosed ? source.length : node.end || node.line,
+        2,
+        node.semicolon,
       ),
       lines = inner.flatMap((record) => record.lines);
     let rc = 0;
@@ -1442,7 +1622,88 @@ export class Session {
       if (graphs.length > 1) record.graphs = graphs;
     }
     output.push(record);
+    // A captured if whose own line failed ran its body as commands of the
+    // file, each echoed as Stata reads it.
+    if (node.unblocked)
+      this.noisyEcho(node, inner, output, source, [{ ...node, loop: false }]);
+    else if (prefixes.silent && !LOOP_HEADER.test(prefixes.rest + " "))
+      this.noisyEcho(node, inner, output, source);
     if (failure) throw failure;
+  }
+
+  /**
+   * In a quiet block (quietly {) a noisily block is echoed as Stata echoes
+   * it: not its first line, which was read quietly, but each line of its
+   * body as it is read, after the prompt, then its }; a noisily loop shows
+   * its numbered lines before what it printed. The block's record (the
+   * last in output) is split into records for those lines.
+   */
+  noisyEcho(node, inner, output, source, given = null) {
+    const regions = given ?? [];
+    const collect = (nodes) => {
+      for (const each of nodes)
+        if (each.kind !== "block") continue;
+        else if (prefixesOf(each.header).noisy && each.end > each.line)
+          regions.push({
+            ...each,
+            loop: LOOP_HEADER.test(prefixesOf(each.header).rest + " "),
+          });
+        else collect(each.body);
+    };
+    if (!given) collect(node.body);
+    if (!regions.length) return;
+    const first = output.at(-1),
+      { rc } = first,
+      shown = (n) => (source[n - 1] ?? "").replace(/\t/g, "    ").trimEnd(),
+      records = [{ ...first, lines: [], rc: 0 }],
+      echoLine = (n) =>
+        records.push({ command: shown(n), echo: [], lines: [], rc: 0 }),
+      done = new Set();
+    let current = null,
+      cursor = 0;
+    const open = (region) => {
+      current = region;
+      done.add(region);
+      cursor = region.line + 1;
+      if (!region.loop) return;
+      const { echo } = echoOf(source, region.line, region.end),
+        last = records.at(-1);
+      if (last.lines.length)
+        records.push({ command: "", echo, lines: [], rc: 0 });
+      else last.echo = [...(last.echo ?? []), ...echo];
+    };
+    const close = () => {
+      if (current && !current.loop)
+        while (cursor <= current.end) echoLine(cursor++);
+      current = null;
+    };
+    const inside = (region, at) => at > region.line && at <= region.end;
+    // Before what was printed at line `at`: the regions passed over that
+    // printed nothing are echoed, and the one the line is in is opened.
+    const reach = (at) => {
+      if (current && !inside(current, at)) close();
+      for (const region of regions)
+        if (!done.has(region) && region.end < at) {
+          open(region);
+          close();
+        }
+      const hit = regions.find((region) => inside(region, at));
+      if (hit && hit !== current && !done.has(hit)) open(hit);
+    };
+    for (const each of inner) {
+      if (each.line) reach(each.line);
+      if (current && !current.loop && each.line)
+        while (cursor <= each.line) echoLine(cursor++);
+      records.at(-1).lines.push(...each.lines);
+    }
+    reach(Infinity);
+    // What the block's failure added is reported last.
+    const failed = first.lines.slice(
+      inner.flatMap((each) => each.lines).length,
+    );
+    records.at(-1).lines.push(...failed);
+    records.at(-1).rc = rc;
+    output.splice(output.length - 1, 1, ...records);
   }
 
   record(output, command, lines, rc, graph, line = this.line) {
@@ -1454,8 +1715,13 @@ export class Session {
 
   /** One command line, with its prefixes. Errors stop the run unless captured. */
   runLine(raw, frame, output, inherited = {}) {
-    const text = this.expand(raw, frame).trim();
-    if (!text) return;
+    this.expansionNotes = [];
+    const text = this.expand(raw, frame).trim(),
+      notes = this.takeNotes();
+    if (!text) {
+      if (notes.length) this.record(output, raw, notes, 0);
+      return;
+    }
     const at = this.line,
       lines = [],
       quietDepth = this.quietDepth ?? 0,
@@ -1470,7 +1736,7 @@ export class Session {
     // the file sets flags.leadAt to where the record belongs, and reports
     // its own errors there.
     const put = (shown, rc, graph) => {
-      this.record(output, raw, shown, rc, graph, at);
+      this.record(output, raw, [...notes, ...shown], rc, graph, at);
       if (flags.leadAt !== undefined && flags.leadAt < output.length - 1)
         output.splice(flags.leadAt, 0, output.pop());
     };
@@ -1501,7 +1767,7 @@ export class Session {
       const reported = flags.leadAt !== undefined && error.recorded,
         // quietly hides what the command printed before it failed, as
         // "(analytic weights assumed)", but not the error.
-        before = flags.quiet ? [] : lines;
+        before = flags.quiet ? loudLines(lines, flags) : lines;
       if (flags.capture) {
         this.rc = error.code;
         // The message is shown in the error style, as Stata shows it.
@@ -1511,7 +1777,9 @@ export class Session {
                 ...before,
                 ...(error.message ? [errorLine(this, error.message)] : []),
               ]
-            : [],
+            : error.loud
+              ? [errorLine(this, error.message)]
+              : [],
           0,
         );
         return;
@@ -1531,9 +1799,14 @@ export class Session {
     }
     this.quietDepth = quietDepth;
     if (flags.capture) this.rc = 0;
-    // quietly silences text, not graphs.
+    // quietly silences text, not graphs, and not what follows a message
+    // Stata prints even under quietly.
     put(
-      flags.quiet || (flags.capture && !flags.noisy) ? [] : lines,
+      flags.capture && !flags.noisy
+        ? []
+        : flags.quiet
+          ? loudLines(lines, flags)
+          : lines,
       0,
       flags.graph,
     );
@@ -1611,7 +1884,14 @@ export class Session {
       ctx = {
         frame,
         by: flags.by,
-        out: (line) => lines.push(line),
+        // A tab in a line of output is shown, as Stata's Results show it,
+        // as the spaces to the next tab stop of the line.
+        out: (line) =>
+          lines.push(
+            typeof line === "string" && line.includes("\t")
+              ? line.split("\n").map(expandTabs).join("\n")
+              : line,
+          ),
         // Every graph is kept by its name(), or as Graph, for graph combine,
         // display, dir, rename and drop. nodraw keeps it without showing it.
         graph: (picture) => {
@@ -1651,6 +1931,7 @@ export class Session {
         );
       let value;
       const before = this.estimates,
+        eBefore = this.results.e,
         // Where the lines of the fit start: after by's heading for the last
         // group, so that a replay shows that group's fit.
         // (A command run by another may pass an object with push only.)
@@ -1674,8 +1955,34 @@ export class Session {
       this.postedSample = null;
       // A function's message while an expression is evaluated, as regexs()
       // gives for a group it does not have, goes to this command's output.
-      const outerNote = this.state.note;
-      this.state.note = ctx.out;
+      const outerNote = this.state.note,
+        outerLoud = this.state.loud,
+        // A command reads parentheses in its varlist as its own varlist
+        // does (see expandVarlist), which it says when it runs.
+        outerParentheses = this.varlistParentheses;
+      // Some messages of the regular-expression functions Stata prints
+      // even under quietly: a "shown" one itself, an "unmuting" one, as
+      // regexm() gives for a pattern it cannot read, with the messages
+      // after it. loud() keeps the lines from here on, for display, which
+      // shows what it writes after such a message, and says whether the
+      // command is quiet.
+      this.state.loud = (keep) => {
+        if (keep) flags.loudFrom ??= lines.length ?? 0;
+        return !!flags.quiet;
+      };
+      this.state.note = (text, kind) => {
+        if (kind === "unmuting") flags.unmuted = true;
+        // count, alone of the commands, then shows its result too.
+        if (kind === "unmuting" && command.name === "count")
+          flags.loudFrom ??= lines.length ?? 0;
+        // A message wider than the line goes on after "> ".
+        for (const line of fold(text, this.settings.linesize ?? 79)) {
+          if (kind || flags.unmuted)
+            (flags.loudAt ??= new Set()).add(lines.length ?? 0);
+          ctx.out(line);
+        }
+      };
+      this.varlistParentheses = null;
       try {
         if (replayed) value = this.replay(command, body, ctx, lines);
         else if (recall) {
@@ -1736,6 +2043,8 @@ export class Session {
         throw error;
       } finally {
         this.state.note = outerNote;
+        this.state.loud = outerLoud;
+        this.varlistParentheses = outerParentheses;
         // Once the data have changed they stay changed until use, save or
         // clear, even if a later command changes them back.
         if (!READ_ONLY.has(command.name)) markChanged(this);
@@ -1755,26 +2064,73 @@ export class Session {
         } else if (this.data.esampleOf !== model)
           markSample(this, model, model.sample);
       }
-      // Stata's estat ic, ovtest, imtest, hettest and vif, and lincom, hold
-      // the estimates while they work and post them again, and e()'s
-      // scalars then list in the reverse of the order the fit stored them.
+      // Stata's estat ic, ovtest, imtest, hettest and vif, lincom, margins
+      // and estimates restore hold the estimates while they work and post
+      // them again, which changes the order ereturn list shows them in, as
+      // recorded from Stata 19. After lincom and the estat tests the
+      // scalars list in reverse; after estimates restore, too, with the
+      // macros as the fit stored them. margins reverses the macros alone,
+      // or, run again, gives the order restore gives.
       const e = this.results.e;
-      if (
-        e &&
-        !heldScalars.has(e) &&
-        (command.name === "lincom" ||
-          (command.name === "estat" &&
-            /^\s*(ic|ovt\w*|imt\w*|hett\w*|vif)\b/.test(body)))
-      ) {
-        const entries = Object.entries(e),
-          numbers = entries.filter(([, v]) => typeof v === "number").reverse(),
-          reordered = Object.fromEntries([
-            ...numbers,
-            ...entries.filter(([, v]) => typeof v !== "number"),
-          ]);
-        heldScalars.add(reordered);
-        this.results.e = reordered;
-        if (this.meanTotalResults?.e === e) this.meanTotalResults.e = reordered;
+      if (e && Object.keys(e).length) {
+        const held = e[HELD_ORDER] ?? { s: 0, m: 0 },
+          name = command.name;
+        let next = null;
+        if (
+          e === eBefore &&
+          (name === "lincom" ||
+            (name === "estat" &&
+              /^\s*(ic|ovt\w*|imt\w*|hett\w*|vif)\b/.test(body)))
+        )
+          next = held.s ? null : [1, held.m];
+        else if (
+          name === "margins" &&
+          e === eBefore &&
+          !/,[\s\S]*\bpost\b/.test(body)
+        ) {
+          // Each step leaves the macros reversed, or, from there, the
+          // scalars; from the fit's own order a model with factor
+          // variables goes straight to reversed scalars. Derivatives of a
+          // model without them take two steps.
+          // After ivregress the scalars end reversed, the macros not.
+          const factors = !!model?.columns?.some(
+              (c) =>
+                c?.term?.components?.some((p) => p.factor) ||
+                /#/.test(c?.name ?? ""),
+            ),
+            derivative = /\b(dydx|eyex|dyex|eydx)\s*\(/.test(body);
+          let state = held.s ? "C" : held.m ? "B" : "A";
+          for (let k = !factors && derivative ? 2 : 1; k > 0; k--)
+            state =
+              state === "B" ? "C" : state === "C" ? "B" : factors ? "C" : "B";
+          next =
+            model?.command === "ivregress"
+              ? [1, 0]
+              : state === "B"
+                ? [0, 1]
+                : [1, 0];
+        } else if (
+          name === "estimates" &&
+          /^\s*res(t(o(re?)?)?)?\b/.test(body)
+        ) {
+          // Restoring the results already active reverses the scalars of
+          // a fit not yet held and leaves any other order alone; restoring
+          // others steps their order as margins does, the stored copy
+          // with them.
+          if (model === before) next = held.s || held.m ? null : [1, 0];
+          else next = held.s ? [0, 1] : held.m ? [1, 0] : [0, 1];
+        }
+        if (next) {
+          const reordered = heldOrder(e, ...next);
+          this.results.e = reordered;
+          const restored =
+            name === "estimates" &&
+            /^\s*res\w*\s+([A-Za-z_]\w*)/.exec(body)?.[1];
+          if (restored && this.storedEstimates?.get(restored))
+            this.storedEstimates.get(restored).e = { ...reordered };
+          if (this.meanTotalResults?.e === e)
+            this.meanTotalResults.e = reordered;
+        }
       }
       // The observations the fit used, known by their identities, which
       // a later sort or drop does not change (see inFitLayout).
@@ -1943,15 +2299,12 @@ export class Session {
       shownWith = typedOptions.some(display);
     // Shown as the fit was, unless another estimator's fit is shown its
     // own way (logit after logistic).
-    const table = (lines) =>
-      noHeader
-        ? lines.slice(
-            Math.max(
-              0,
-              lines.findIndex((line) => /^-+$/.test(line)),
-            ),
-          )
-        : lines;
+    // With notable as well there is no table, and nothing is left.
+    const table = (lines) => {
+      if (!noHeader) return lines;
+      const at = lines.findIndex((line) => /^-+$/.test(line));
+      return at < 0 ? [] : lines.slice(at);
+    };
     if (!options && !shownWith && command.name === replay.command) {
       for (const line of ["", ...table(replay.lines)]) ctx.out(line);
       return;
@@ -2188,10 +2541,14 @@ export class Session {
     const prefixes = prefixesOf(node.header);
     if (
       prefixes.any &&
-      (!prefixes.rest || LOOP_HEADER.test(prefixes.rest + " "))
+      (!prefixes.rest ||
+        LOOP_HEADER.test(prefixes.rest + " ") ||
+        IF_HEADER.test(prefixes.rest))
     )
       return this.prefixedBlock(node, prefixes, frame, output);
+    this.expansionNotes = [];
     const header = this.expand(node.header, frame).trim();
+    this.blockNotes(node, output);
     let m;
     const body = () => {
       node.ran = true;
@@ -2250,10 +2607,18 @@ export class Session {
       });
       frame.locals.delete(m[1]);
     } else if ((m = /^while\s+(.*)$/.exec(header))) {
+      // The condition is read again before each pass after the first.
+      let text = null;
+      const holds = () => {
+        if (text === null) text = m[1];
+        else {
+          text = this.expand(node.header, frame).trim().slice(5);
+          this.blockNotes(node, output);
+        }
+        return this.condition(text);
+      };
       loop(() => {
-        while (
-          this.condition(this.expand(node.header, frame).trim().slice(5))
-        ) {
+        while (holds()) {
           if (++this.steps > MAX_STEPS)
             throw new StataError(
               "this loop ran longer than the browser allows",
@@ -2262,6 +2627,11 @@ export class Session {
           once();
         }
       });
+    } else if (/^(?:else\s+)?if$/.test(header)) {
+      // if `=bad' {: nothing is left of the condition. A passed-over else
+      // if is not read.
+      if (header === "if" || !frame.lastIf)
+        throw new StataError("invalid syntax", 198);
     } else if ((m = /^if\s+(.*)$/.exec(header))) {
       // The outcome is recorded after the body runs, so that an if inside
       // the body cannot decide whether this block's else runs.
@@ -2292,6 +2662,20 @@ export class Session {
   }
 
   /**
+   * The messages of what failed in a block's header, shown under it: on
+   * its own record when the do-file echoes it, else on a record of the
+   * header's.
+   */
+  blockNotes(node, output) {
+    const notes = this.takeNotes();
+    if (!notes.length) return;
+    const header = output.at(-1);
+    if (header?.ends === node.end && header.line === node.line)
+      header.lines.push(...notes);
+    else this.record(output, `${node.header} {`, notes, 0);
+  }
+
+  /**
    * quietly { }, capture { } and noisily { }, and a loop with such prefixes
    * (quietly foreach ... {). Inside a quiet block only noisily prints, and
    * errors. capture keeps an error from stopping the do-file; after a
@@ -2319,7 +2703,7 @@ export class Session {
         for (const record of inner) if (keep(record)) output.push(record);
         throw error;
       }
-      this.rc = prefixes.rest ? 0 : error.code;
+      this.rc = LOOP_HEADER.test(prefixes.rest + " ") ? 0 : error.code;
       // The error is reported only with noisily, and without its r().
       const failed = inner.findLast((record) => record.rc);
       if (failed) {
@@ -2329,19 +2713,59 @@ export class Session {
           : failed.lines.filter((line) => !/^r\(\d+\);$/.test(line));
       } else if (LOOP_HEADER.test(prefixes.rest + " ") && !loop.ran) {
         // The loop's own line failed, as foreach over a variable that does
-        // not exist: Stata then reads the block's } as a command, which
-        // fails too, and that is the error capture keeps.
+        // not exist: Stata then runs the lines of its body as commands of
+        // the captured block (`v' empty), and reads the block's } as a
+        // command, which fails too, and that is the error capture keeps.
+        // A body line that fails ends the block with its own error.
+        const at = this.line,
+          ran = [];
         this.rc = 199;
+        if (prefixes.silent) this.quietDepth = quietDepth + 1;
+        try {
+          this.runNodes(node.body, frame, ran);
+        } catch (failure) {
+          if (!(failure instanceof StataError)) throw failure;
+          this.rc = failure.code;
+        } finally {
+          this.quietDepth = quietDepth;
+          if (!this.doDepth && !this.inProgram) this.line = at;
+        }
         if (!prefixes.silent)
           inner.push({
             command: `${node.header} {`,
             lines: [
-              ...(error.message ? [error.message, ""] : []),
-              "} is not a valid command name",
+              ...(error.message ? [error.message] : []),
+              ...ran
+                .flatMap((record) => record.lines)
+                .filter((line) => !/^r\(\d+\);$/.test(line)),
+              ...(this.rc === 199 ? ["} is not a valid command name"] : []),
             ],
+            rc: 0,
+            line: at,
+          });
+      } else if (
+        IF_HEADER.test(prefixes.rest) &&
+        !loop.ran &&
+        !error.recorded &&
+        !node.unclosed
+      ) {
+        // The if's own line failed (capture if 1 + "a" {): capture keeps
+        // that error, and the lines of its body are then commands of the
+        // file, run as any are; its } is not a command, which stops the
+        // file with r(199).
+        if (!prefixes.silent && error.message)
+          inner.push({
+            command: `${node.header} {`,
+            lines: [error.message],
             rc: 0,
             line: this.line,
           });
+        for (const record of inner) if (keep(record)) output.push(record);
+        node.unblocked = true;
+        this.runNodes(node.body, frame, output);
+        if (!this.doDepth && !this.inProgram) this.line = node.end;
+        this.runLine("}", frame, output);
+        return;
       } else if (!prefixes.silent && error.message)
         inner.push({
           command: `${node.header} {`,
@@ -2394,11 +2818,24 @@ export class Session {
           "",
       ).map((w) => w.text);
     }
-    if (/^var(l(i(st?)?)?)?$/.test(kind)) return this.varlist(rest);
+    // An empty list is an error for the variable and number lists.
+    const required = (list, message, code) => {
+      if (!list.length) throw new StataError(message, code);
+      return list;
+    };
+    if (/^var(l(i(st?)?)?)?$/.test(kind))
+      return required(this.varlist(rest), "varlist required", 100);
+    // A newlist of a type alone, as int, is a list of none.
     if (/^new(l(i(st?)?)?)?$/.test(kind))
-      return rest.split(/\s+/).filter(Boolean);
+      return rest.trim()
+        ? newVariableNames(rest, this.data.names)
+        : required([], "varlist required", 100);
     if (/^num(l(i(st?)?)?)?$/.test(kind))
-      return parseNumlist(rest).map(numlistText);
+      return required(
+        parseNumlist(rest).map(numlistText),
+        "invalid numlist has too few elements",
+        122,
+      );
     throw new StataError("invalid syntax", 198);
   }
 

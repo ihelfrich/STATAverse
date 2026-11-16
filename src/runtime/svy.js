@@ -12,6 +12,9 @@
 // refused.
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
+import { renderSmcl } from "./smcl.js";
+import { defineCharacteristic } from "./store.js";
+import { unchangedBy } from "./data-commands.js";
 import { Ftail, invttail, lngamma, ttail } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
 import {
@@ -26,7 +29,8 @@ import {
 import { evaluateAll } from "./expression.js";
 import { poissonStart } from "./likelihood.js";
 import { count, labelled } from "./reports.js";
-import { splitAtComma } from "./syntax.js";
+import { optionItems, splitAtComma } from "./syntax.js";
+import { parseNumlist } from "./numlist.js";
 import { MISSING, isMissing, isStringType } from "./values.js";
 
 const g = (value, format = "%9.0g") => applyFormat(value, format).trim();
@@ -52,10 +56,161 @@ const LINEARIZED_ONLY =
 
 // ----- svyset -----
 
+// The design lives in the dataset's characteristics, _dta[_svy_*], as
+// svyset writes them in Stata: they are saved and used with the data and
+// go when other data are loaded.
+const svyChar = (data, name) => data.chars?.get("_dta")?.get(`_svy_${name}`);
+const positiveInteger = (text) =>
+  /^\s*\d+\s*$/.test(text ?? "") && Number(text) > 0 ? Number(text) : 0;
+
+/**
+ * The design svyset declared, read from the characteristics, or null when
+ * none is set. weight, psu, strata, fpc, singleunit and dof are what the
+ * linearized variance uses; display holds everything svyset shows; and
+ * unsupported names what the design holds that the browser's svy cannot
+ * estimate with (replication, poststratification, calibration, importance
+ * weights, a df of the subpopulation, later stages that enter the
+ * variance), so that svy refuses it while svyset still shows it.
+ */
+export function readDesign(data) {
+  const at = (name) => svyChar(data, name) ?? "";
+  // A session or file kept by an earlier version holds the design as an
+  // object of the data; it is read until svyset writes the characteristics.
+  if (!at("version") && !at("su1") && !at("wvar")) {
+    if (!data.svyset) return null;
+    const old = { singleunit: "missing", ...data.svyset };
+    return {
+      ...old,
+      display: {
+        wtype: old.weight ? "pweight" : "",
+        wvar: old.weight ?? "",
+        vce: "",
+        dof: old.dof ? g(old.dof) : "",
+        singleunit: old.singleunit,
+        stages: 1,
+        stagesWt: 0,
+        list: [
+          { su: old.psu ?? "", strata: old.strata ?? "", fpc: old.fpc ?? "" },
+        ],
+      },
+    };
+  }
+  const stages = positiveInteger(at("stages")),
+    stagesWt = positiveInteger(at("stages_wt")),
+    display = {
+      wtype: at("wtype"),
+      wvar: at("wvar"),
+      vce: at("vce"),
+      mse: at("mse"),
+      brrweight: at("brrweight"),
+      fay: at("fay"),
+      bsrweight: at("bsrweight"),
+      bsn: at("bsn"),
+      jkrweight: at("jkrweight"),
+      sdrweight: at("sdrweight"),
+      dof: at("dof"),
+      dofsubpop: at("dofsubpop"),
+      poststrata: at("poststrata"),
+      postweight: at("postweight"),
+      calmethod: at("calmethod"),
+      singleunit: at("singleunit") || "missing",
+      stages,
+      stagesWt,
+      list: Array.from({ length: Math.max(stages, stagesWt) }, (_, k) => ({
+        su: at(`su${k + 1}`),
+        strata: at(`strata${k + 1}`),
+        fpc: at(`fpc${k + 1}`),
+        weight: at(`weight${k + 1}`),
+      })),
+    },
+    set = {
+      weight: at("wvar") || null,
+      psu: at("su1") && at("su1") !== "_n" ? at("su1") : null,
+      strata: at("strata1") || null,
+      fpc: at("fpc1") || null,
+      singleunit: at("singleunit") || "missing",
+      dof: at("dof") ? Number(at("dof")) : null,
+      display,
+    },
+    vce = at("vce");
+  // What svy here cannot estimate with, and why, for its refusal.
+  if (at("wtype") === "iweight")
+    set.unsupported =
+      "importance weights; svy here takes sampling weights, [pweight=]";
+  else if ((vce && !/^lin/.test(vce)) || at("mse"))
+    set.unsupported = `vce(${vce || "linearized"}${at("mse") ? " mse" : ""}); ${LINEARIZED_ONLY}`;
+  else if (at("poststrata"))
+    set.unsupported = `poststratification; ${LINEARIZED_ONLY}, without poststrata`;
+  else if (at("calmethod"))
+    set.unsupported = `calibrated weights; ${LINEARIZED_ONLY}, without calibration`;
+  else if (at("dofsubpop") === "dofsubpop")
+    set.unsupported =
+      "dofsubpop; svy here takes its degrees of freedom from the whole sample";
+  else if (stages > 1 || stagesWt)
+    set.unsupported =
+      stagesWt && stages <= 1
+        ? "stage-level weights, weight(); svy here takes one sampling weight, [pweight=]"
+        : "a first stage sampled without replacement, fpc(), followed by later stages, which then enter the variance; svy here computes the variance from the first-stage units alone, which is right only when stage 1 is sampled with replacement";
+  return set;
+}
+
+/**
+ * Clears the design as svyset's Clear does: the stages it lists, so a
+ * later stage left over from a design whose first stage was sampled with
+ * replacement stays, as in Stata.
+ */
+function clearDesign(data) {
+  const clear = (name) =>
+    defineCharacteristic(data, "_dta", `_svy_${name}`, "");
+  for (const name of [
+    "wtype",
+    "wvar",
+    "vce",
+    "mse",
+    "brrweight",
+    "fay",
+    "bsrweight",
+    "bsn",
+    "jkrweight",
+    "sdrfpc",
+    "sdrweight",
+    "dof",
+    "dofsubpop",
+    "poststrata",
+    "postweight",
+    "calmethod",
+    "calmodel",
+    "calopts",
+    "cal_totals",
+    "cal_noconstant",
+    "cal_ll",
+    "cal_ul",
+    "cal_iterate",
+    "cal_tolerance",
+    "cal_force",
+    "singleunit",
+  ])
+    clear(name);
+  const stages = positiveInteger(svyChar(data, "stages"));
+  for (let j = 1; j <= stages; j++)
+    for (const name of ["su", "strata", "fpc"]) clear(`${name}${j}`);
+  clear("stages");
+  const weighted = positiveInteger(svyChar(data, "stages_wt"));
+  for (let j = 1; j <= weighted; j++)
+    for (const name of ["su", "weight"]) clear(`${name}${j}`);
+  clear("stages_wt");
+  clear("version");
+  delete data.svyset;
+}
+
 /** The survey design set on the data in memory, or an error. */
 function designOf(session) {
-  const set = session.data.svyset;
+  const set = readDesign(session.data);
   if (!set) throw new StataError("data not set up for svy, use svyset", 119);
+  if (set.unsupported)
+    throw refuse(
+      `svy cannot estimate with the survey design of these data here: it uses ${set.unsupported}`,
+    );
   // The design names its variables; one renamed or dropped since is gone.
   for (const name of [set.weight, set.strata, set.psu, set.fpc])
     if (name && !session.data.has(name))
@@ -63,126 +218,597 @@ function designOf(session) {
   return set;
 }
 
-function svyset(session, text, ctx) {
-  const stages = splitStages(text);
-  if (!stages[0].trim() || /^\s*,\s*$/.test(stages[0])) {
-    if (stages.length > 1) throw refuse("invalid syntax");
-    return showDesign(session, ctx);
-  }
-  const parsed = session.parse(
-      "[anything] [pweight iweight] [, STRata(string) FPC(string) SINGLEunit(string) VCE(string) DOF(string) CLEAR | POSTStrata(varname) POSTWeight(varname) BRRweight(string) FAY(real 0) BSRweight(string) BSN(integer 1) JKRweight(string) SDRweight(string) SDRFPC(real 0) MSE RAKE(string) REGress(string) NOCLEAR DOFSUBpop]",
-      stages[0],
-    ),
-    options = parsed.options;
-  if (options.clear && !parsed.anything && !parsed.weight) {
-    delete session.data.svyset;
-    return;
-  }
-  const words = (parsed.anything ?? "").trim().split(/\s+/).filter(Boolean);
-  if (words.length > 1)
-    throw new StataError("too many variables specified", 103);
-  const named = (word, message) => {
-    try {
-      const found = session.varlist(word);
-      if (found.length !== 1) throw new StataError(message, 103);
-      return session.data.get(found[0]).name;
-    } catch (error) {
-      if (error.code === 111 || error.code === 198)
-        throw new StataError(message ?? error.message, 111);
-      throw error;
-    }
-  };
-  const psu =
-    !words.length || words[0] === "_n"
-      ? null
-      : named(words[0], `${words[0]} invalid psu variable name`);
-  let weight = null;
-  if (parsed.weight) {
-    if (parsed.weight.type === "iweight")
-      throw refuse(
-        "importance weights are not available for survey data here; use [pweight=varname]",
+// svyset's options, each with its shortest abbreviation and whether it
+// takes an argument; the stage options are those of a sampling stage.
+const SVYSET_OPTIONS = [
+  ["vce", 3, true],
+  ["mse", 3, false],
+  ["brrweight", 3, true],
+  ["fay", 3, true],
+  ["bsrweight", 3, true],
+  ["bsn", 3, true],
+  ["jkrweight", 3, true],
+  ["sdrweight", 3, true],
+  ["singleunit", 6, true],
+  ["dof", 3, true],
+  ["nodofsubpop", 8, false],
+  ["dofsubpop", 6, false],
+  ["poststrata", 4, true],
+  ["postweight", 5, true],
+  ["rake", 4, true],
+  ["regress", 3, true],
+  ["clear", 5, null],
+  ["noclear", 7, false],
+  ["srs", 3, false],
+  ["psu", 3, true],
+  ["strata", 3, true],
+  ["fpc", 3, true],
+  ["weight", 1, true],
+];
+const STAGE_OPTIONS = new Set(["strata", "fpc", "weight", "psu"]);
+/**
+ * Reads an options text into { name: argument } (true for a flag), with
+ * Stata's message for an option svyset does not have. weight# is weight()
+ * of stage #, which a stage gives as weight() or weight#().
+ */
+function svysetOptions(text, stage = 0) {
+  const out = {};
+  for (const item of optionItems(text ?? "")) {
+    let name = item.name.toLowerCase();
+    const numbered = /^(w\w*?)(\d+)$/.exec(name);
+    if (
+      numbered &&
+      "weight".startsWith(numbered[1]) &&
+      Number(numbered[2]) === stage
+    )
+      name = numbered[1];
+    const found = SVYSET_OPTIONS.find(
+      ([full, minimum, takes]) =>
+        name.length >= minimum &&
+        full.startsWith(name) &&
+        (takes === null || takes === (item.argument !== undefined)),
+    );
+    if (!found)
+      throw new StataError(
+        `option ${item.name}${item.argument !== undefined ? "()" : ""} not allowed`,
+        198,
       );
-    const exp = parsed.weight.exp.trim();
-    if (!/^[A-Za-z_]\w*$/.test(exp))
-      throw new StataError(`variable ${exp} not found`, 111);
-    weight = session.varlist(exp)[0];
-    if (session.data.isString(weight))
-      throw new StataError("type mismatch", 109);
+    out[found[0]] = item.argument ?? true;
   }
-  // strata() and fpc() name one variable each; Stata says which option
-  // named one it cannot find.
-  const optionVariable = (option) => {
-    const text = options[option]?.trim();
-    if (!text) return null;
+  return out;
+}
+
+/** Two options that may not be given together, in Stata's words. */
+const exclusive = (a, b) =>
+  new StataError(`only one of options ${a} or ${b} is allowed`, 198);
+
+/**
+ * svyset, as svyset.ado sets the design: the options for the whole design
+ * first, then each stage's sampling unit, strata, fpc and weight, the
+ * note when a stage sampled with replacement makes the later ones ignored
+ * for the variance, and the number of stages. Every design Stata takes is
+ * kept and shown, also those svy cannot estimate with here (replicate
+ * weights, poststrata, several stages); svy refuses those. A failure
+ * leaves the design as it was.
+ */
+function svyset(session, text, ctx) {
+  const data = session.data,
+    pieces = splitStages(text).map((stage) => splitAtComma(stage)),
+    linesize = session.settings.linesize ?? 79;
+  // svyset alone shows the design; svyset, clear clears it.
+  if (pieces.length === 1 && !pieces[0][0].trim()) {
+    const options = svysetOptions(pieces[0][1]);
+    if (Object.keys(options).every((name) => name === "clear")) {
+      if (!data.n && !data.variables.length)
+        throw new StataError("no variables defined", 111);
+      if (options.clear === true) unchangedBy(session, () => clearDesign(data));
+      else showDesign(session, ctx);
+      return;
+    }
+  }
+  if (data.n === 0) throw new StataError("no variables defined", 111);
+  const kept = new Map(
+    [...(data.chars ?? new Map())].map(([owner, own]) => [owner, new Map(own)]),
+  );
+  try {
+    unchangedBy(session, () => setDesign(session, pieces, ctx, linesize));
+  } catch (error) {
+    // svyset.ado sets the design it found again when the new one fails.
+    data.chars = kept;
+    throw error;
+  }
+  showDesign(session, ctx);
+}
+
+function setDesign(session, pieces, ctx, linesize) {
+  const data = session.data,
+    set = (name, value) =>
+      defineCharacteristic(data, "_dta", `_svy_${name}`, value ?? ""),
+    stageCount =
+      pieces.length === 1 && !pieces[0][0].trim() ? 0 : pieces.length,
+    // Each stage's own options; the rest, wherever they are typed, are the
+    // design's.
+    stageOptions = [],
+    global = {};
+  pieces.forEach(([, options], k) => {
+    const all = svysetOptions(options, k + 1),
+      own = {};
+    for (const [name, value] of Object.entries(all))
+      if (STAGE_OPTIONS.has(name) && stageCount) own[name] = value;
+      else global[name] = value;
+    stageOptions.push(own);
+  });
+  if (global.clear !== undefined && global.clear !== true)
+    throw refuse(
+      `option clear(${global.clear}) is not available here; svyset, clear clears the whole design, and svyset with noclear changes the options given`,
+    );
+  if (global.weight !== undefined)
+    throw new StataError("option weight() not allowed", 198);
+  if (global.srs && stageCount)
+    throw new StataError("option srs not allowed", 198);
+  for (const name of ["rake", "regress"])
+    if (global[name] !== undefined)
+      throw refuse(
+        `option ${name}() is not available here: calibration of the weights is not available for survey data in the browser`,
+      );
+  const noclear = !!global.noclear;
+  if (noclear && global.clear) throw exclusive("clear", "noclear");
+  let stagesUsed = stageCount;
+  const notAllowed = () =>
+    renderSmcl(
+      "option {bf:noclear} is not allowed with design_options",
+      linesize,
+    );
+  if (noclear) {
+    if (
+      stageCount > 1 ||
+      global.psu !== undefined ||
+      global.strata !== undefined ||
+      global.fpc !== undefined ||
+      global.srs
+    )
+      throw new StataError(notAllowed(), 198);
+    if (stageCount === 1) {
+      // svyset [pw=w], noclear changes the weight alone.
+      const parsed = (() => {
+        try {
+          return session.parse("[pweight iweight]", pieces[0][0]);
+        } catch {
+          return null;
+        }
+      })();
+      if (!parsed || Object.keys(stageOptions[0]).length)
+        throw new StataError(notAllowed(), 198);
+      if (parsed.weight) setWeight(session, set, parsed.weight, true);
+      stagesUsed = 0;
+    }
+  } else clearDesign(data);
+  let defaultPsu = "";
+  // The design's options, written in svyset.ado's order.
+  if (global.vce !== undefined || global.mse) {
+    const typed = String(global.vce ?? "").trim(),
+      vce =
+        global.vce === undefined
+          ? null
+          : /^lin(e(a(r(i(z(ed?)?)?)?)?)?)?$/.test(typed)
+            ? "linearized"
+            : typed === "brr"
+              ? "brr"
+              : /^boot(s(t(r(ap?)?)?)?)?$/.test(typed)
+                ? "bootstrap"
+                : /^jack(k(n(i(fe?)?)?)?)?$/.test(typed)
+                  ? "jackknife"
+                  : typed === "sdr"
+                    ? "sdr"
+                    : undefined;
+    if (vce === undefined)
+      throw new StataError(`option vce(${typed}) invalid`, 198);
+    if (vce === null) throw new StataError("invalid vcetype", 198);
+    if (vce === "linearized" && global.mse)
+      throw new StataError(
+        "option mse is not allowed with vce(linearized)",
+        198,
+      );
+    set("mse", global.mse ? "mse" : "");
+    set("vce", vce);
+    defaultPsu = "_n";
+  }
+  const weightList = (option) => {
+    const typed = String(global[option]);
+    let names;
     try {
-      const found = session.varlist(text);
-      if (found.length !== 1)
-        throw new StataError("too many variables specified", 103);
-      return session.data.get(found[0]).name;
+      names = session.varlist(typed);
     } catch (error) {
+      if (!(error instanceof StataError)) throw error;
       throw new StataError(
         `${error.message}\n(error in option ${option}())`,
         error.code,
       );
     }
+    for (const name of names)
+      if (data.isString(name))
+        throw new StataError(
+          `string variables not allowed in option ${option}();\n${name} is a string variable`,
+          109,
+        );
+    return names;
   };
-  const strata = optionVariable("strata"),
-    fpc = optionVariable("fpc");
-  if (fpc && session.data.isString(fpc))
-    throw new StataError(
-      `string variables not allowed in option fpc();\n${fpc} is a string variable`,
-      109,
+  const number = (option, test, integer = false) => {
+    const typed = String(global[option]).trim();
+    if (!/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(typed))
+      throw new StataError(`${option}() invalid -- invalid number`, 121);
+    const value = Number(typed);
+    if (integer && !Number.isInteger(value))
+      throw new StataError(
+        `${option}() invalid -- invalid number, noninteger value`,
+        126,
+      );
+    if (!test(value))
+      throw new StataError(
+        `${option}() invalid -- invalid number, outside of allowed range`,
+        125,
+      );
+    return g(value);
+  };
+  if (global.brrweight !== undefined)
+    set("brrweight", weightList("brrweight").join(" "));
+  if (global.fay !== undefined)
+    set(
+      "fay",
+      number("fay", (v) => v >= 0 && v < 2),
     );
-  const single = (options.singleunit ?? "missing").trim();
-  if (!["missing", "certainty", "scaled", "centered"].includes(single))
-    throw refuse("option singleunit() invalid");
-  const vce = (options.vce ?? "linearized").trim();
-  if (!/^lin(e(a(r(i(z(ed?)?)?)?)?)?)?$/.test(vce))
-    throw refuse(
-      `vce(${vce}) is not available here; ${LINEARIZED_ONLY}, so svyset with vce(linearized)`,
+  if (global.bsrweight !== undefined)
+    set("bsrweight", weightList("bsrweight").join(" "));
+  if (global.bsn !== undefined)
+    set(
+      "bsn",
+      number("bsn", (v) => v >= 1, true),
     );
-  let dof = null;
-  if (options.dof !== undefined && options.dof.trim() !== "") {
-    const text = options.dof.trim();
-    if (!/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(text))
+  if (global.jkrweight !== undefined)
+    set("jkrweight", jackknifeWeights(session, global.jkrweight, linesize));
+  if (global.sdrweight !== undefined) {
+    const [list, rest] = splitAtComma(String(global.sdrweight));
+    global.sdrweight = list;
+    const names = weightList("sdrweight"),
+      sub = svysetSubOptions(rest, { fpc: 3 });
+    let fpc = "";
+    if (sub.fpc !== undefined) {
+      const value = parseNumlist(sub.fpc);
+      if (value.length > 1)
+        throw new StataError("fpc() invalid -- too many numbers", 123);
+      if (value.some((v) => v < 0))
+        throw new StataError(
+          "fpc() invalid -- invalid numlist has elements outside of allowed range",
+          125,
+        );
+      fpc = value.length ? g(value[0]) : "";
+    }
+    set("sdrweight", names.join(" "));
+    set("sdrfpc", fpc);
+  }
+  if (global.dof !== undefined && String(global.dof).trim() !== "") {
+    const typed = String(global.dof).trim();
+    if (!/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(typed))
       throw new StataError("dof() invalid -- invalid number", 121);
-    dof = Number(text);
+    const dof = Number(typed);
     if (!(dof > 0))
       throw new StataError(
         "dof() invalid -- invalid number, outside of allowed range",
         125,
       );
+    set("dof", g(dof, "%18.0g"));
   }
-  // A design of several stages: with the first sampled with replacement
-  // (no fpc), Stata ignores the later stages for the variance, and so does
-  // this; otherwise they matter and are refused.
-  if (stages.length > 1) {
-    if (options.fpc)
-      throw refuse(
-        "multistage designs are not available here: with an fpc() at the first stage the later stages enter the variance; svyset the first stage only",
+  if (global.dofsubpop && global.nodofsubpop)
+    throw exclusive("nodofsubpop", "dofsubpop");
+  if (global.dofsubpop) set("dofsubpop", "dofsubpop");
+  if (global.nodofsubpop) set("dofsubpop", "nodofsubpop");
+  if (global.poststrata !== undefined || global.postweight !== undefined) {
+    if (global.postweight === undefined)
+      throw new StataError(
+        "option poststrata() requires option postweight()",
+        198,
       );
-    if (stages.slice(1).some((stage) => stage.includes(",")))
-      throw refuse(
-        "options of later sampling stages are not available here; svyset the first stage only",
+    if (global.poststrata === undefined)
+      throw new StataError(
+        "option postweight() requires option poststrata()",
+        198,
       );
-    stages
-      .slice(1)
-      .forEach((stage) =>
-        stage.trim() === "_n" ? null : session.varlist(stage.trim()),
+    set("poststrata", oneVariable(session, "poststrata", global.poststrata));
+    set(
+      "postweight",
+      oneVariable(session, "postweight", global.postweight, true),
+    );
+    defaultPsu = "_n";
+  }
+  if (global.singleunit !== undefined) {
+    const typed = String(global.singleunit).trim(),
+      single = ["missing", "certainty", "scaled", "centered"].find(
+        (word) => typed.length >= 3 && word.startsWith(typed),
       );
-    ctx.out(
-      "note: stage 1 is sampled with replacement; further stages will be ignored for variance estimation.",
+    if (!single) throw refuse("option singleunit() invalid");
+    set("singleunit", single);
+  }
+  // svyset, psu() strata() fpc() srs: the first stage in Stata 8's words.
+  if (!stageCount && !noclear) {
+    if (global.srs && global.strata !== undefined)
+      throw exclusive("strata()", "srs");
+    if (global.srs && global.psu !== undefined) throw exclusive("psu()", "srs");
+    const psu = global.srs ? "_n" : (global.psu ?? defaultPsu);
+    if (psu || global.strata !== undefined || global.fpc !== undefined) {
+      setStage(session, set, 1, 1, "", {
+        psu: psu || undefined,
+        strata: global.strata,
+        fpc: global.fpc,
+      });
+      stagesUsed = 1;
+    }
+  }
+  let weighted = 0;
+  if (stageCount && !(noclear && stageCount === 1)) {
+    for (let i = 1; i <= stageCount; i++) {
+      const stage = setStage(
+        session,
+        set,
+        i,
+        stagesUsed,
+        pieces[i - 1][0],
+        stageOptions[i - 1],
+      );
+      if (!stage.fpc && stagesUsed > i) {
+        renderSmcl(
+          `{p 0 6 2}note: stage ${i} is sampled with replacement; further stages will be ignored for variance estimation.{p_end}`,
+          linesize,
+        )
+          .split("\n")
+          .forEach((line) => ctx.out(line));
+        stagesUsed = i;
+      }
+      if (stage.weight) weighted = i;
+    }
+  }
+  if (!noclear && svyChar(data, "su1"))
+    set("stages", String(Math.max(stagesUsed, 1)));
+  if (weighted) set("stages_wt", String(weighted));
+  if (stagesUsed || Object.keys(global).length) set("version", "3");
+}
+
+/** One variable an option names, with Stata's message when it cannot. */
+function oneVariable(session, option, text, numeric = false) {
+  try {
+    const found = session.varlist(String(text).trim());
+    if (found.length !== 1)
+      throw new StataError("too many variables specified", 103);
+    const name = session.data.get(found[0]).name;
+    if (numeric && session.data.isString(name))
+      throw new StataError(
+        `string variables not allowed in option ${option}();\n${name} is a string variable`,
+        109,
+      );
+    return name;
+  } catch (error) {
+    if (!(error instanceof StataError) || error.code === 109) throw error;
+    throw new StataError(
+      `${error.message}\n(error in option ${option}())`,
+      error.code,
     );
   }
-  session.data.svyset = {
-    psu,
-    weight,
-    strata,
-    fpc,
-    singleunit: single,
-    dof,
-  };
-  showDesign(session, ctx);
+}
+
+/** The suboptions of jkrweight() and sdrweight(), each { name: minimum }. */
+function svysetSubOptions(text, known) {
+  const out = {};
+  if (!text?.trim()) return out;
+  for (const item of optionItems(text)) {
+    const name = item.name.toLowerCase(),
+      found = Object.entries(known).find(
+        ([full, minimum]) => name.length >= minimum && full.startsWith(name),
+      );
+    if (!found)
+      throw new StataError(
+        `option ${item.name}${item.argument !== undefined ? "()" : ""} not allowed`,
+        198,
+      );
+    out[found[0]] = item.argument ?? true;
+  }
+  return out;
+}
+
+/**
+ * jkrweight(varlist [, stratum() fpc() multiplier() reset]): the replicate
+ * weights, with their stratum, fpc and multiplier kept in each variable's
+ * characteristics jk_stratum, jk_fpc and jk_multiplier, as JKnifeVChars
+ * keeps them.
+ */
+function jackknifeWeights(session, text, linesize) {
+  const data = session.data,
+    [list, rest] = splitAtComma(String(text)),
+    sub = svysetSubOptions(rest, {
+      stratum: 3,
+      fpc: 3,
+      multiplier: 4,
+      reset: 5,
+    });
+  let names;
+  try {
+    names = list.trim() ? session.varlist(list) : [];
+  } catch (error) {
+    if (!(error instanceof StataError)) throw error;
+    throw new StataError(
+      `${error.message}\n(error in option jkrweight())`,
+      error.code,
+    );
+  }
+  for (const name of names)
+    if (data.isString(name))
+      throw new StataError(
+        `string variables not allowed in option jkrweight();\n${name} is a string variable`,
+        109,
+      );
+  const lists = {
+      stratum: sub.stratum !== undefined ? parseNumlist(sub.stratum) : [],
+      fpc: sub.fpc !== undefined ? parseNumlist(sub.fpc) : [],
+      multiplier:
+        sub.multiplier !== undefined ? parseNumlist(sub.multiplier) : [],
+    },
+    invalid = (code = 198) =>
+      new StataError("option jkrweight() invalid", code);
+  if (lists.stratum.some((v) => !Number.isInteger(v)))
+    throw new StataError(
+      "stratum() invalid -- invalid numlist has noninteger elements",
+      126,
+    );
+  if (lists.fpc.some((v) => v < 0))
+    throw new StataError(
+      "fpc() invalid -- invalid numlist has elements outside of allowed range",
+      125,
+    );
+  if (lists.multiplier.some((v) => !(v > 0)))
+    throw new StataError(
+      "multiplier() invalid -- invalid numlist has elements outside of allowed range",
+      125,
+    );
+  const given =
+    lists.stratum.length || lists.fpc.length || lists.multiplier.length;
+  if (!names.length && (given || sub.reset)) throw invalid();
+  for (const [option, label] of [
+    ["stratum", "stratum identifiers"],
+    ["fpc", "FPC values"],
+    ["multiplier", "jackknife multiplier values"],
+  ]) {
+    const n = lists[option].length;
+    if (n > 1 && n !== names.length)
+      throw new StataError(
+        `invalid number of ${label}\noption jkrweight() invalid`,
+        n < names.length ? 103 : 102,
+      );
+  }
+  if (given || sub.reset)
+    names.forEach((name, k) => {
+      for (const [option, char] of [
+        ["stratum", "jk_stratum"],
+        ["fpc", "jk_fpc"],
+        ["multiplier", "jk_multiplier"],
+      ]) {
+        const values = lists[option],
+          value = values.length > 1 ? values[k] : values[0],
+          shownValue = value === undefined ? "" : g(value),
+          now = data.chars?.get(name)?.get(char) ?? "";
+        if (!sub.reset && now !== "" && now !== shownValue)
+          throw new StataError(
+            renderSmcl(
+              `{p 0 0 2}characteristic {bf:${name}[${char}]} already exists and is different from the value supplied to option {bf:${option}()}{p_end}`,
+              linesize,
+            ),
+            459,
+          );
+        defineCharacteristic(data, name, char, shownValue);
+      }
+    });
+  return names.join(" ");
+}
+
+/**
+ * The sampling weight [pweight=] or [iweight=], kept as svyset keeps it:
+ * once, not with stage-level weights, and not among the replicate weights.
+ */
+function setWeight(session, set, weight, replace = false) {
+  const data = session.data,
+    type = weight.type === "iweight" ? "iweight" : "pweight",
+    exp = weight.exp.trim();
+  if (!replace && svyChar(data, "wvar") && svyChar(data, "wtype"))
+    throw new StataError("sampling weights may only be specified once", 198);
+  if (
+    [...(data.chars?.get("_dta")?.keys() ?? [])].some((name) =>
+      /^_svy_weight\d+$/.test(name),
+    )
+  )
+    throw new StataError(
+      "invalid weight specification;\npweights not allowed with stage-level weight() options",
+      198,
+    );
+  if (!/^[A-Za-z_]\w*$/.test(exp))
+    throw new StataError(`variable ${exp} not found`, 111);
+  const name = session.data.get(session.varlist(exp)[0]).name;
+  if (data.isString(name)) throw new StataError("type mismatch", 109);
+  set("wtype", type);
+  set("wvar", name);
+  for (const option of ["brrweight", "bsrweight", "jkrweight", "sdrweight"])
+    if ((svyChar(data, option) ?? "").split(/\s+/).includes(name))
+      throw new StataError(
+        `invalid ${option}() option;\nthe ${option}() varlist may not contain ${type} variable ${name}`,
+        198,
+      );
+}
+
+/**
+ * Stage i of the design, as ParseStage reads it: its sampling unit (_n,
+ * the observations, only at the last stage that counts), the weight at the
+ * first, and its strata(), fpc() and weight(). Returns what it set.
+ */
+function setStage(session, set, i, last, head, options) {
+  const data = session.data,
+    parsed = session.parse("[anything] [pweight iweight]", head ?? ""),
+    words = (parsed.anything ?? "").trim().split(/\s+/).filter(Boolean);
+  if (i > 1 && options.psu !== undefined)
+    throw new StataError("option psu() not allowed", 198);
+  if (words.length > 1)
+    throw new StataError("too many variables specified", 103);
+  let su = words[0] ?? "";
+  if (options.psu !== undefined) {
+    const psu = String(options.psu).trim();
+    if (su && su !== psu) throw refuse("option psu() invalid");
+    su = psu;
+  } else if (!su) {
+    if (
+      options.weight === undefined &&
+      !parsed.weight &&
+      options.strata === undefined &&
+      options.fpc === undefined
+    )
+      throw new StataError(i === 1 ? "psuid required" : "ssuid required", 198);
+    su = "_n";
+  }
+  if (su === "_n" && i < last)
+    throw refuse(
+      "invalid use of _n; observations can only be sampled in the final stage",
+    );
+  if (parsed.weight) setWeight(session, set, parsed.weight);
+  if (su !== "_n") {
+    try {
+      const found = session.varlist(su);
+      if (found.length !== 1)
+        throw new StataError("too many variables specified", 103);
+      su = data.get(found[0]).name;
+    } catch (error) {
+      if (!(error instanceof StataError)) throw error;
+      throw new StataError(
+        `${su} invalid ${i === 1 ? "psu" : "ssu"} variable name`,
+        error.code === 198 ? 198 : 111,
+      );
+    }
+  }
+  set(`su${i}`, su);
+  const strata =
+      options.strata !== undefined
+        ? oneVariable(session, "strata", options.strata)
+        : "",
+    fpc =
+      options.fpc !== undefined
+        ? oneVariable(session, "fpc", options.fpc, true)
+        : "",
+    weight =
+      options.weight !== undefined
+        ? oneVariable(session, "weight", options.weight, true)
+        : "";
+  set(`strata${i}`, strata);
+  set(`fpc${i}`, fpc);
+  if (weight && svyChar(data, "wtype"))
+    throw new StataError(
+      "invalid weight specification;\npweights not allowed with stage-level weight() options",
+      198,
+    );
+  set(`weight${i}`, weight);
+  return { su, strata, fpc, weight };
 }
 
 /** The stages of a svyset line, split at || outside parentheses. */
@@ -204,23 +830,86 @@ function splitStages(text) {
   return parts;
 }
 
-/** The lines svyset prints for the design. */
+/**
+ * The lines svyset prints for a design, as svyset.ado's Display lays them
+ * out: the labels right-aligned to the longest one shown.
+ */
 function designLines(set) {
-  const line = (label, value) => `${`${label}:`.padStart(17)} ${value}`;
-  return [
-    line("Sampling weights", set.weight ?? "<none>"),
-    line("VCE", "linearized"),
-    set.dof ? line("Design df", g(set.dof)) : line("Subpop. df", "off"),
-    line("Single unit", set.singleunit),
-    line("Strata 1", set.strata ?? "<one>"),
-    line("Sampling unit 1", set.psu ?? "<observations>"),
-    line("FPC 1", set.fpc ?? "<zero>"),
-  ];
+  const d = set.display,
+    I = Math.max(d.stages, d.stagesWt),
+    weightLabel =
+      d.wtype === "iweight" ? "Importance weights" : "Sampling weights",
+    width = Math.max(
+      weightLabel.length,
+      `Sampling unit ${I}`.length,
+      d.bsrweight || d.jkrweight || (d.bsn && d.bsn !== "1") ? 17 : 0,
+    ),
+    line = (label, value) => `${`${label}:`.padStart(width + 1)} ${value}`,
+    firstLast = (list) => {
+      const names = list.split(/\s+/).filter(Boolean);
+      return names.length > 2
+        ? `${names[0]} .. ${names.at(-1)}`
+        : names.join(" ");
+    },
+    shown = (text) => (/^[-+.\d]/.test(text) ? g(Number(text)) : text),
+    out = [
+      d.wtype ? line(weightLabel, d.wvar) : line("Sampling weights", "<none>"),
+    ];
+  out.push(line("VCE", d.vce || "linearized"));
+  if (d.vce && d.vce !== "linearized")
+    out.push(line("MSE", d.mse ? "on" : "off"));
+  if (d.brrweight) out.push(line("BRR weights", firstLast(d.brrweight)));
+  if (d.fay && d.fay !== "0") out.push(line("Fay's adjustment", shown(d.fay)));
+  if (d.bsrweight) out.push(line("Bootstrap weights", firstLast(d.bsrweight)));
+  if (d.bsn && d.bsn !== "1") out.push(line("Bootstrap samples", shown(d.bsn)));
+  if (d.jkrweight) out.push(line("Jackknife weights", firstLast(d.jkrweight)));
+  if (d.sdrweight) out.push(line("SDR weights", firstLast(d.sdrweight)));
+  out.push(
+    d.dof
+      ? line("Design df", shown(d.dof))
+      : line("Subpop. df", d.dofsubpop === "dofsubpop" ? "on" : "off"),
+  );
+  if (d.poststrata) out.push(line("Poststrata", d.poststrata));
+  if (d.postweight) out.push(line("Post. pop. sizes", d.postweight));
+  if (d.calmethod) out.push(line("Calibration", d.calmethod));
+  out.push(line("Single unit", d.singleunit || "missing"));
+  d.list.forEach((stage, k) => {
+    const i = k + 1;
+    out.push(line(`Strata ${i}`, stage.strata || "<one>"));
+    out.push(
+      line(
+        `Sampling unit ${i}`,
+        stage.su && stage.su !== "_n" ? stage.su : "<observations>",
+      ),
+    );
+    out.push(line(`FPC ${i}`, stage.fpc || "<zero>"));
+    if (stage.weight) out.push(line(`Weight ${i}`, stage.weight));
+    else if (d.stagesWt) out.push(line(`Weight ${i}`, "<none>"));
+  });
+  return out;
 }
 function showDesign(session, ctx) {
-  const set = session.data.svyset;
+  const set = readDesign(session.data);
   if (!set) return ctx.out("no survey characteristics are set");
-  designOf(session);
+  // svyset.ado's Get looks for each variable the design names.
+  const d = set.display,
+    named = [
+      d.wvar,
+      ...[d.brrweight, d.bsrweight, d.jkrweight, d.sdrweight].flatMap((list) =>
+        (list ?? "").split(/\s+/),
+      ),
+      d.poststrata,
+      d.postweight,
+      ...d.list.flatMap((stage) => [
+        stage.su === "_n" ? "" : stage.su,
+        stage.strata,
+        stage.fpc,
+        stage.weight,
+      ]),
+    ];
+  for (const name of named)
+    if (name && !session.data.has(name))
+      throw new StataError(`variable ${name} not found`, 111);
   ctx.out("");
   designLines(set).forEach((line) => ctx.out(line));
 }
@@ -339,6 +1028,12 @@ function surveySample(
       );
   } else kept = kept.filter(usable);
   let omitted = 0;
+  // The sample before strata without members of the subpopulation are
+  // set aside, which mean's e(V_srs) is taken over.
+  const whole = {
+    n: kept.length,
+    weight: kept.reduce((t, i) => t + (weight ? weight.data[i] : 1), 0),
+  };
   if (inside && strata) {
     const all = new Set(kept.map((i) => strata.data[i])),
       used = new Set([...inside].map((i) => strata.data[i]));
@@ -392,6 +1087,7 @@ function surveySample(
     // The weight each observation carries in the estimate: none outside
     // the subpopulation.
     ew: w.map((v, j) => (sub[j] ? v : 0)),
+    whole,
     units,
     subpop: !!inside,
     omitted,
@@ -1038,10 +1734,21 @@ function summary(session, text, ctx, prefix, kind) {
           value = kind === "mean" ? sum / weight : sum;
         if (kind === "mean" && !(weight > 0))
           throw new StataError("no observations", 2000);
+        // estat sd's standard deviation: the weighted sum of squares over
+        // the sum of the weights, times n/(n - 1), as mean's.
+        let squares = 0,
+          n = 0;
+        rows.forEach((i, j) => {
+          if (kind !== "mean" || !inGroup(tuple, i) || !ew[j]) return;
+          squares += ew[j] * (variable.data[i] - value) ** 2;
+          n++;
+        });
         items.push({
           variable,
           tuple,
           value,
+          weight,
+          sd: Math.sqrt(((squares / weight) * n) / (n - 1)),
           score: (i, j) =>
             inGroup(tuple, i)
               ? kind === "mean"
@@ -1098,6 +1805,42 @@ function summary(session, text, ctx, prefix, kind) {
     ),
     variance = linearizedVariance(survey, scores, k),
     se = items.map((item, a) => shownError(item.value, variance.V[a][a]));
+  // mean's variance under simple random sampling, e(V_srs), as Stata 19
+  // posts it without an fpc: M/(m - 1) times the sum over the sample of
+  // w u u', u an observation's deviation from its group's mean over the
+  // group's sum of weights (zero outside the group), m the observations
+  // and M their weights, strata without the subpopulation included. estat sd's standard deviation of a group is
+  // sqrt(e(_N) e(V_srs)), its count times its variance.
+  const srs =
+    kind === "mean"
+      ? (() => {
+          const m = survey.whole.n,
+            M = survey.whole.weight,
+            inside = (item, i, j) =>
+              survey.sub[j] && ew[j] > 0 && inGroup(item.tuple, i),
+            u = items.map((item) =>
+              rows.map((i, j) =>
+                inside(item, i, j)
+                  ? (item.variable.data[i] - item.value) / item.weight
+                  : 0,
+              ),
+            ),
+            V = items.map(() => items.map(() => 0));
+          items.forEach((_, a) => {
+            for (let b = 0; b <= a; b++)
+              V[a][b] = V[b][a] =
+                (M / (m - 1)) *
+                rows.reduce(
+                  (t, i, j) => t + survey.w[j] * u[a][j] * u[b][j],
+                  0,
+                );
+          });
+          const N = items.map((item) =>
+            rows.reduce((t, i, j) => t + (inside(item, i, j) ? 1 : 0), 0),
+          );
+          return { V, N, sd: N.map((n, a) => Math.sqrt(n * V[a][a])) };
+        })()
+      : null;
   // The table's rows as termRows lays them out.
   const terms = new Map(),
     termOf = (key, make) => {
@@ -1164,9 +1907,12 @@ function summary(session, text, ctx, prefix, kind) {
     shape = { floor: 79, breakPad: 2 },
     w = tableWidth(session, table, [], 50, shape),
     width = w + 50,
-    headerWidth =
-      tableWidth(session, table, [], 50, { ...shape, needed: true }) + 50,
     linesize = session.settings?.linesize ?? 80,
+    // No wider than the line, or 79 when the line is narrower.
+    headerWidth = Math.min(
+      tableWidth(session, table, [], 50, { ...shape, needed: true }) + 50,
+      Math.max(79, linesize),
+    ),
     percent = kind === "proportion" && !!options.percent,
     [title, statistic] = percent
       ? ["Percent estimation", "Percent"]
@@ -1294,6 +2040,53 @@ function summary(session, text, ctx, prefix, kind) {
         d: survey.df,
         level: shownLevel,
       }),
+    // estat sd after svy: mean: each mean and its standard deviation (or
+    // variance), in the table's rows, under "Over" with over().
+    ...(kind === "mean"
+      ? {
+          svySd: (out, variance, srssubpop) => {
+            // For a subpopulation (over() or subpop()) Stata's default
+            // estimates the spread from the whole sample, e(_N) times
+            // e(V_srs); srssubpop's takes each subpopulation as a simple
+            // random sample.
+            const sds = items.map((item, a) =>
+                (over.length || survey.subpop) && !srssubpop
+                  ? srs.sd[a]
+                  : item.sd,
+              ),
+              // Its first column is a coefficient table's, 12 wide at 79
+              // columns.
+              ws = tableWidth(session, table),
+              rule = "-".repeat(ws + 25),
+              shown = sds.map((sd) => (variance ? sd ** 2 : sd));
+            out.out("");
+            out.out(rule);
+            out.out(
+              `${over.length ? "Over".padStart(ws) : " ".repeat(ws)} |       Mean   ${variance ? " Variance" : "Std. dev."}`,
+            );
+            out.out(`${"-".repeat(ws + 1)}+${"-".repeat(23)}`);
+            termRows(
+              session,
+              table,
+              (a) =>
+                `${g(items[a].value).padStart(11)}${g(shown[a]).padStart(12)}`,
+              ws,
+            ).forEach(out.out);
+            out.out(rule);
+            out.out("");
+            const stripe = (values) => ({
+              rowNames: ["r1"],
+              colNames: table.names,
+              values: [values],
+            });
+            session.results.r = {
+              "matrix:sd": stripe(sds),
+              "matrix:variance": stripe(sds.map((sd) => sd ** 2)),
+              "matrix:mean": stripe(items.map((item) => item.value)),
+            };
+          },
+        }
+      : {}),
   };
   session.results.e = surveyResults(survey, {
     singleton: Number(variance.singleton),
@@ -1318,6 +2111,26 @@ function summary(session, text, ctx, prefix, kind) {
         }
       : {}),
     level,
+    // With an fpc Stata's e(V_srs) is scaled by it, which is not computed
+    // here, so it is left out.
+    ...(srs && !survey.set.fpc
+      ? {
+          "matrix:V_srs": {
+            rowNames: table.names,
+            colNames: table.names,
+            values: srs.V,
+          },
+        }
+      : {}),
+    ...(srs
+      ? {
+          "matrix:_N": {
+            rowNames: ["r1"],
+            colNames: table.names,
+            values: [srs.N],
+          },
+        }
+      : {}),
   });
 }
 
@@ -2598,7 +3411,7 @@ export function guardAfterSvy(session, name, text) {
     );
   if (name === "estat") {
     const sub = /^\s*(\w+)/.exec(text)?.[1] ?? "";
-    if (/^vce$/.test(sub)) return;
+    if (/^vce$/.test(sub) || sub === "sd") return;
     if (
       /^(ic|class(i(f(i(c(a(t(i(on?)?)?)?)?)?)?)?)?|hett(e(st?)?)?|ovt(e(st?)?)?|imt(e(st?)?)?|vif|lroc|szroc)$/.test(
         sub,

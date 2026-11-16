@@ -6,8 +6,13 @@ import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { evaluateAll } from "./expression.js";
 import { project } from "./diagnostics.js";
 import {
+  HIDDEN,
+  HISTORICAL,
   RULE,
   coefficientHeader,
+  coefficientSpace,
+  stripeName,
+  symmetricRank,
   coefficientRows,
   design,
   fit,
@@ -170,7 +175,13 @@ function ivFrame(session, model) {
   // observations are dropped.
   const iv = model.iv,
     rows = model.sample ?? iv.rows,
-    column = (c) => rows.map((i) => c.value(i));
+    column = (c) => rows.map((i) => c.value(i)),
+    // The fit's weights, analytic and sampling weights scaled to sum to
+    // the observations, while they still match the sample.
+    w =
+      model.weights && model.weights.length === rows.length
+        ? model.weights
+        : null;
   return {
     iv,
     // The observations of the sample still in the data, which the
@@ -178,16 +189,123 @@ function ivFrame(session, model) {
     // count even when some of them have been dropped since.
     n: rows.length,
     N: model.N ?? rows.length,
+    // What the weighted statistics count: e(N), frequency weights summed
+    // and importance weights by the whole part of their sum.
+    count: w ? (model.N ?? rows.length) : rows.length,
+    w,
+    frequency: model.wtype === "fweight",
     y: rows.map((i) => session.data.get(iv.dep).data[i]),
     endogenous: iv.columns.endogenous.map(column),
     exogenous: iv.columns.exogenous.map(column),
     instruments: iv.columns.instruments.map(column),
   };
 }
-function unadjusted(model, what) {
-  if (model.vce !== "unadjusted")
+
+/**
+ * Weighted least squares of y on the columns and, first, a constant: the
+ * columns kept (one collinear with those before it is dropped), where
+ * each column went (-1 when dropped; the constant is at 0), the
+ * coefficients, the inverse of X'WX, and the residuals in y's own scale
+ * with their weighted sum of squares.
+ */
+function leastSquares(columns, y, w, constant = true) {
+  const n = y.length,
+    weight = (i) => (w ? w[i] : 1),
+    all = constant ? [new Array(n).fill(1), ...columns] : columns,
+    basis = [],
+    kept = [],
+    position = [];
+  for (const column of all) {
+    let rest = column.map((v, i) => v * Math.sqrt(weight(i)));
+    const size = rest.reduce((t, v) => t + v * v, 0);
+    for (const q of basis) {
+      const a = rest.reduce((t, v, i) => t + v * q[i], 0);
+      rest = rest.map((v, i) => v - a * q[i]);
+    }
+    const left = rest.reduce((t, v) => t + v * v, 0);
+    if (!size || !(left > 1e-10 * size)) {
+      position.push(-1);
+      continue;
+    }
+    basis.push(rest.map((v) => v / Math.sqrt(left)));
+    position.push(kept.length);
+    kept.push(column);
+  }
+  const inverse = invertSymmetric(
+      kept.map((a) =>
+        kept.map((b) => a.reduce((t, v, i) => t + weight(i) * v * b[i], 0)),
+      ),
+    ),
+    b = apply(
+      inverse,
+      kept.map((a) => a.reduce((t, v, i) => t + weight(i) * v * y[i], 0)),
+    ),
+    residuals = y.map(
+      (v, i) => v - kept.reduce((t, c, k) => t + c[i] * b[k], 0),
+    );
+  return {
+    kept,
+    position: constant ? position.slice(1) : position,
+    b,
+    inverse,
+    residuals,
+    fitted: y.map((v, i) => v - residuals[i]),
+    rss: residuals.reduce((t, e, i) => t + weight(i) * e * e, 0),
+  };
+}
+
+/**
+ * The robust Wald statistic that the coefficients at the positions given
+ * are zero, from a fit of leastSquares(): the sandwich with each score
+ * weighted as the fit was (a frequency weight counts its observation that
+ * many times) and the small-sample factor N/(N - k).
+ */
+function robustWald(fitted, at, f) {
+  const k = fitted.kept.length,
+    meat = Array.from({ length: k }, () => new Array(k).fill(0));
+  fitted.residuals.forEach((e, i) => {
+    const wi = f.w ? f.w[i] : 1,
+      s = f.frequency ? wi * e * e : (wi * e) ** 2;
+    for (let a = 0; a < k; a++)
+      for (let c = 0; c < k; c++)
+        meat[a][c] += s * fitted.kept[a][i] * fitted.kept[c][i];
+  });
+  const V = times(times(fitted.inverse, meat), fitted.inverse).map((row) =>
+      row.map((v) => (v * f.count) / (f.count - k)),
+    ),
+    inverse = invertSymmetric(at.map((r) => at.map((c) => V[r][c])));
+  if (!inverse) throw new StataError("the instruments are collinear", 506);
+  return quadratic(
+    at.map((j) => fitted.b[j]),
+    inverse,
+  );
+}
+
+/** N less the residual sum of squares of 1 on the columns, no constant. */
+function scoreStatistic(columns, f) {
+  const ones = new Array(f.n).fill(1),
+    fitted = leastSquares(columns, ones, f.w, false);
+  return f.count - fitted.rss;
+}
+
+/** The residuals of the fit as estimated, from e(b). */
+function ivResiduals(f, b) {
+  const x = [...f.endogenous, ...f.exogenous];
+  return f.y.map(
+    (value, i) =>
+      value - x.reduce((t, column, k) => t + column[i] * b[k], 0) - b[x.length],
+  );
+}
+
+/** Residuals of a weighted project() in the scale of the variable. */
+const unscaled = (residuals, w) =>
+  w ? residuals.map((v, i) => v / Math.sqrt(w[i])) : residuals;
+
+/** Refuses what needs a cluster-robust version not yet written. */
+function notClustered(model, what) {
+  if (model.vce === "cluster")
     throw new StataError(
-      `estat ${what} after a robust ivregress is not available yet`,
+      `estat ${what} after vce(cluster) is not available yet`,
       198,
     );
 }
@@ -236,9 +354,8 @@ const robustGmm = (model, what) => {
       198,
     );
 };
-/** Hansen's J after ivregress gmm. */
+/** Hansen's J after ivregress gmm, e(J), whatever the weight matrix. */
 function overidGmm(session, model, ctx) {
-  robustGmm(model, "overid");
   const f = ivFrame(session, model),
     df = f.instruments.length - f.endogenous.length;
   if (df < 1) {
@@ -251,7 +368,10 @@ function overidGmm(session, model, ctx) {
   // Stata says restriction, however many there are.
   ctx.out("  Test of overidentifying restriction:");
   ctx.out("");
-  ctx.out(`  Hansen's J chi2(${df}) = ${six(J)} (p = ${four(p)})`);
+  // ivregress_estat.ado prints J in %8.0g straight after the equals sign.
+  ctx.out(
+    `  Hansen's J chi2(${df}) =${applyFormat(J, "%8.0g")} (p = ${four(p)})`,
+  );
   ctx.out("");
   session.results.r = { J_df: df, p_HansenJ: p, HansenJ: J };
 }
@@ -287,170 +407,429 @@ function endogenousGmm(session, model, ctx) {
   session.results.r = { p_C: p, C, df };
 }
 
-function firststage(session, model, ctx) {
-  const f = ivFrame(session, model);
+/** Text placed at fixed columns, as Stata's {col #} places it. */
+function placed(parts) {
+  let line = "";
+  for (const [at, text] of parts) line = `${line.padEnd(at)}${text}`;
+  return line;
+}
+
+/**
+ * Shea's partial R-squared of each endogenous regressor: the squared
+ * correlation of what is left of it once the other regressors are taken
+ * out and what is left of its first-stage fit once the fits of the other
+ * endogenous regressors and the exogenous ones are; adjusted by the count
+ * of exogenous variables, included and excluded. With one endogenous
+ * regressor it is the partial R-squared of the first stage.
+ */
+function sheaOf(f, partials) {
+  const k = f.exogenous.length + f.instruments.length,
+    adjust = (r2) => 1 - ((f.count - 1) / (f.count - k)) * (1 - r2);
+  if (f.endogenous.length === 1)
+    return [{ partial: partials[0], adjusted: adjust(partials[0]) }];
+  const z = [...f.exogenous, ...f.instruments],
+    fitted = f.endogenous.map((x) => {
+      const r = unscaled(project(z, x, f.w).residuals, f.w);
+      return x.map((v, i) => v - r[i]);
+    });
+  return f.endogenous.map((x, j) => {
+    const others = f.endogenous.filter((_, k2) => k2 !== j),
+      otherFits = fitted.filter((_, k2) => k2 !== j),
+      a = project([...others, ...f.exogenous], x, f.w).residuals,
+      b = project([...otherFits, ...f.exogenous], fitted[j], f.w).residuals,
+      ab = a.reduce((t, v, i) => t + v * b[i], 0),
+      partial =
+        (ab * ab) /
+        (a.reduce((t, v) => t + v * v, 0) * b.reduce((t, v) => t + v * v, 0));
+    return { partial, adjusted: adjust(partial) };
+  });
+}
+
+function sheaTable(f, shea, ctx) {
+  const rule = "  " + "-".repeat(50);
+  ctx.out("");
+  ctx.out("  Shea's partial R-squared");
+  ctx.out(rule);
+  ctx.out("               |     Shea's             Shea's");
+  ctx.out("      Variable |  partial R-sq.   adj. partial R-sq.");
+  ctx.out("  -------------+------------------------------------");
+  shea.forEach(({ partial, adjusted }, j) =>
+    ctx.out(
+      placed([
+        [0, `${abbreviate(f.iv.endogenous[j], 12).padStart(14)} |`],
+        [21, applyFormat(partial, "%5.4f").trim()],
+        [40, applyFormat(adjusted, "%5.4f").trim()],
+      ]),
+    ),
+  );
+  ctx.out(rule);
+  ctx.out("");
+}
+
+/**
+ * The minimum eigenvalue statistic of Cragg and Donald: with the
+ * exogenous regressors partialled out, the smallest eigenvalue of the
+ * first-stage fits' cross-products scaled by the first stages' residual
+ * covariance, over the count of excluded instruments. With one
+ * endogenous regressor it is the first stage's F.
+ */
+function minimumEigenvalue(f, F) {
+  if (f.endogenous.length === 1) return F;
+  const z = [...f.exogenous, ...f.instruments],
+    p = f.endogenous.length,
+    L = f.instruments.length,
+    left = f.endogenous.map((x) => project(f.exogenous, x, f.w).residuals),
+    within = f.endogenous.map((x) => project(z, x, f.w).residuals),
+    explained = left.map((a, r) =>
+      left.map(
+        (b, c) =>
+          a.reduce((t, v, i) => t + v * b[i], 0) -
+          within[r].reduce((t, v, i) => t + v * within[c][i], 0),
+      ),
+    ),
+    df = f.count - (project(z, f.endogenous[0], f.w).rank + 1),
+    sigma = within.map((a) =>
+      within.map((b) => a.reduce((t, v, i) => t + v * b[i], 0) / df),
+    ),
+    // Cholesky of sigma, then L^-1 A L^-T, whose eigenvalues are those of
+    // sigma^-1/2 A sigma^-1/2.
+    chol = sigma.map(() => new Array(p).fill(0));
+  for (let i = 0; i < p; i++)
+    for (let j = 0; j <= i; j++) {
+      let s = sigma[i][j];
+      for (let k = 0; k < j; k++) s -= chol[i][k] * chol[j][k];
+      chol[i][j] = i === j ? Math.sqrt(s) : s / chol[j][j];
+    }
+  const lower = chol.map((row) => [...row]),
+    solveLower = (v) => {
+      const out = new Array(p).fill(0);
+      for (let i = 0; i < p; i++) {
+        let s = v[i];
+        for (let k = 0; k < i; k++) s -= lower[i][k] * out[k];
+        out[i] = s / lower[i][i];
+      }
+      return out;
+    },
+    half = explained.map((row) => solveLower(row)),
+    C = transpose(transpose(half).map((col) => solveLower(col)));
+  return Math.min(...jacobiEigenvalues(C)) / L;
+}
+
+/** The eigenvalues of a small symmetric matrix, by Jacobi rotations. */
+function jacobiEigenvalues(matrix) {
+  const n = matrix.length,
+    A = matrix.map((row, i) => row.map((v, j) => (v + matrix[j][i]) / 2));
+  for (let sweep = 0; sweep < 100; sweep++) {
+    let off = 0;
+    for (let p = 0; p < n; p++)
+      for (let q = p + 1; q < n; q++) off += A[p][q] ** 2;
+    if (off < 1e-30) break;
+    for (let p = 0; p < n; p++)
+      for (let q = p + 1; q < n; q++) {
+        if (!A[p][q]) continue;
+        const theta = (A[q][q] - A[p][p]) / (2 * A[p][q]),
+          t =
+            Math.sign(theta || 1) /
+            (Math.abs(theta) + Math.sqrt(theta * theta + 1)),
+          c = 1 / Math.sqrt(t * t + 1),
+          s = t * c;
+        for (let k = 0; k < n; k++) {
+          const kp = A[k][p],
+            kq = A[k][q];
+          A[k][p] = c * kp - s * kq;
+          A[k][q] = s * kp + c * kq;
+        }
+        for (let k = 0; k < n; k++) {
+          const pk = A[p][k],
+            qk = A[q][k];
+          A[p][k] = c * pk - s * qk;
+          A[q][k] = s * pk + c * qk;
+        }
+      }
+  }
+  return A.map((row, i) => row[i]);
+}
+
+function firststage(session, model, ctx, rest) {
+  const { options } = session.parse("[, ALL FORCENONROBUST debug]", rest);
+  if (options.debug)
+    throw new StataError(
+      "option debug of estat firststage is not available in the browser",
+      198,
+    );
+  const f = ivFrame(session, model),
+    robust = model.vce !== "unadjusted";
   if (model.iv.columns.endogenous.some((c) => !c.term.variable))
     throw new StataError(
       "estat firststage after a factor-variable endogenous regressor is not available yet",
       198,
     );
-  if (model.vce !== "unadjusted") {
+  if (robust) {
+    notClustered(model, "firststage");
     if (model.iv.estimator === "liml")
       throw new StataError(
         "estat firststage after a robust ivregress liml is not available yet",
         198,
       );
-    return firststageRobust(f, ctx, session, model);
   }
-  if (f.endogenous.length > 1)
-    throw new StataError(
-      "estat firststage with more than one endogenous regressor is not available yet",
-      198,
-    );
   generatedNotes(session, model, ctx);
-  const full = project([...f.exogenous, ...f.instruments], f.endogenous[0]),
-    restricted = project(f.exogenous, f.endogenous[0]),
-    df = f.n - full.rank - 1,
-    q = full.rank - restricted.rank,
-    r2 = full.ess / full.tss,
-    adjusted = 1 - full.rss / df / (full.tss / (f.n - 1)),
-    partial = (restricted.rss - full.rss) / restricted.rss,
-    F = (restricted.rss - full.rss) / q / (full.rss / df),
-    p = Ftail(q, df, F),
-    table = STOCK_YOGO[1][f.instruments.length] ?? [null, null, null],
-    values = (row) =>
-      row
-        ? row.map((v, k) => applyFormat(v, k ? "%8.2f" : "%7.2f")).join("")
-        : "         (not available)",
-    wide = "  " + "-".repeat(74),
-    narrow = "  " + "-".repeat(69);
-  ctx.out("");
-  ctx.out("  First-stage regression summary statistics");
-  ctx.out(wide);
-  ctx.out("               |            Adjusted      Partial");
-  ctx.out(
-    `      Variable |   R-sq.       R-sq.        R-sq.${`F(${q},${df})`.padStart(14)}   Prob > F`,
-  );
-  ctx.out(
-    "  -------------+------------------------------------------------------------",
-  );
-  ctx.out(
-    `${abbreviate(f.iv.endogenous[0], 12).padStart(14)} |${applyFormat(r2, "%8.4f")}${applyFormat(adjusted, "%12.4f")}${applyFormat(partial, "%13.4f")}${six(F).padStart(14)}${applyFormat(p, "%10.4f")}`,
-  );
-  ctx.out(wide);
-  ctx.out("");
-  ctx.out("");
-  ctx.out(`  Minimum eigenvalue statistic = ${six(F)}     `);
-  ctx.out("");
-  ctx.out(
-    `  Critical Values                      # of endogenous regressors:${"1".padStart(5)}`,
-  );
-  ctx.out(
-    `  H0: Instruments are weak             # of excluded instruments: ${String(f.instruments.length).padStart(5)}`,
-  );
-  ctx.out(narrow);
-  ctx.out(
-    "                                     |    5%     10%     20%     30%",
-  );
-  ctx.out(`  2SLS relative bias                 |${values(table[0])}`);
-  ctx.out(
-    "  -----------------------------------+---------------------------------",
-  );
-  ctx.out(
-    "                                     |   10%     15%     20%     25%",
-  );
-  ctx.out(`  2SLS size of nominal 5% Wald test  |${values(table[1])}`);
-  ctx.out(`  LIML size of nominal 5% Wald test  |${values(table[2])}`);
-  ctx.out(narrow);
-  ctx.out("");
-  ctx.out("");
-  session.results.r = { mineig: F };
-}
-
-/** The summary table when the variance is robust: a robust F. */
-function firststageRobust(f, ctx, session, model) {
-  if (f.endogenous.length > 1)
-    throw new StataError(
-      "estat firststage with more than one endogenous regressor is not available yet",
-      198,
-    );
-  generatedNotes(session, model, ctx);
-  const y = f.endogenous[0],
-    full = project([...f.exogenous, ...f.instruments], y),
-    restricted = project(f.exogenous, y),
-    R = withConstant([...f.exogenous, ...f.instruments], f.n),
-    size = R[0].length,
-    df = f.n - size,
+  const z = [...f.exogenous, ...f.instruments],
     q = f.instruments.length,
-    bread = invertSymmetric(crossProduct(R, R)),
-    b = apply(
-      bread,
-      R[0].map((_, a) => R.reduce((t, row, i) => t + row[a] * y[i], 0)),
-    ),
-    e = y.map((v, i) => v - R[i].reduce((t, x, k) => t + x * b[k], 0)),
-    meat = momentCovariance(R, e).map((row) => row.map((v) => v * f.n)),
-    V = times(times(bread, meat), bread).map((row) =>
-      row.map((v) => (v * f.n) / df),
-    ),
-    at = f.instruments.map((_, k) => f.exogenous.length + k),
-    inverse = invertSymmetric(at.map((r) => at.map((c) => V[r][c])));
-  if (!inverse) throw new StataError("the instruments are collinear", 506);
-  const F =
-      quadratic(
-        at.map((k) => b[k]),
-        inverse,
-      ) / q,
-    p = Ftail(q, df, F),
-    r2 = full.ess / full.tss,
-    adjusted = 1 - full.rss / df / (full.tss / (f.n - 1)),
-    partial = (restricted.rss - full.rss) / restricted.rss,
-    wide = "  " + "-".repeat(74);
+    p = f.endogenous.length,
+    importance = model.wtype === "iweight" && !!f.w,
+    summaries = f.endogenous.map((x) => {
+      const full = project(z, x, f.w),
+        restricted = project(f.exogenous, x, f.w),
+        df = f.count - full.rank - 1,
+        partial = (restricted.rss - full.rss) / restricted.rss,
+        plainF =
+          (restricted.rss - full.rss) /
+          (full.rank - restricted.rank) /
+          (full.rss / df);
+      let F = plainF,
+        dfNum = full.rank - restricted.rank;
+      if (robust) {
+        // The robust F of the excluded instruments in the first stage.
+        const fitted = leastSquares(z, x, f.w),
+          at = f.instruments.map(
+            (_, k) => fitted.position[f.exogenous.length + k],
+          );
+        dfNum = q;
+        F = robustWald(fitted, at, f) / q;
+      }
+      // Under importance weights the total is summarize's variance times
+      // the whole part of the weights' sum less one, as regress takes it.
+      const tss = importance
+        ? (full.tss * (f.count - 1)) / (f.w.reduce((t, v) => t + v, 0) - 1)
+        : full.tss;
+      return {
+        r2: importance ? 1 - full.rss / tss : full.ess / full.tss,
+        adjusted: 1 - full.rss / df / (tss / (f.count - 1)),
+        partial,
+        F,
+        plainF,
+        dfNum,
+        df,
+        p: Ftail(dfNum, df, F),
+      };
+    }),
+    all = !!options.all,
+    summaryShown = p === 1 || all,
+    sheaShown = p > 1 || all,
+    // The minimum eigenvalue statistic and its critical values, for a fit
+    // without weights other than frequency weights, and after a robust
+    // one only when forcenonrobust asks for them.
+    eigenShown = (!robust || !!options.forcenonrobust) && (!f.w || f.frequency),
+    wide = "  " + "-".repeat(74),
+    narrow = "  " + "-".repeat(69),
+    shea = sheaShown
+      ? sheaOf(
+          f,
+          summaries.map((s) => s.partial),
+        )
+      : null;
+  if (summaryShown) {
+    const { dfNum, df } = summaries[0];
+    ctx.out("");
+    ctx.out("  First-stage regression summary statistics");
+    ctx.out(wide);
+    ctx.out(
+      `               |            Adjusted      Partial${robust ? "       Robust" : ""}`,
+    );
+    ctx.out(
+      `      Variable |   R-sq.       R-sq.        R-sq.${`F(${dfNum},${df})`.padStart(14)}   Prob > F`,
+    );
+    ctx.out(
+      "  -------------+------------------------------------------------------------",
+    );
+    summaries.forEach((s, j) =>
+      ctx.out(
+        placed([
+          [0, `${abbreviate(f.iv.endogenous[j], 12).padStart(14)} |`],
+          [18, applyFormat(s.r2, "%6.4f").trim()],
+          [30, applyFormat(s.adjusted, "%6.4f").trim()],
+          [43, applyFormat(s.partial, "%6.4f").trim()],
+          [49, `${six(s.F).padStart(14)}${applyFormat(s.p, "%10.4f")}`],
+        ]),
+      ),
+    );
+    ctx.out(wide);
+    ctx.out("");
+  }
+  if (sheaShown) sheaTable(f, shea, ctx);
   ctx.out("");
-  ctx.out("  First-stage regression summary statistics");
-  ctx.out(wide);
-  ctx.out("               |            Adjusted      Partial       Robust");
-  ctx.out(
-    `      Variable |   R-sq.       R-sq.        R-sq.${`F(${q},${df})`.padStart(14)}   Prob > F`,
-  );
-  ctx.out(
-    "  -------------+------------------------------------------------------------",
-  );
-  ctx.out(
-    `${abbreviate(f.iv.endogenous[0], 12).padStart(14)} |${applyFormat(r2, "%8.4f")}${applyFormat(adjusted, "%12.4f")}${applyFormat(partial, "%13.4f")}${six(F).padStart(14)}${applyFormat(p, "%10.4f")}`,
-  );
-  ctx.out(wide);
-  ctx.out("");
-  ctx.out("");
-  session.results.r = {};
+  const results = {};
+  if (eigenShown) {
+    const statistic = minimumEigenvalue(f, summaries[0].plainF),
+      table = STOCK_YOGO[p]?.[q] ?? [null, null, null],
+      values = (row) =>
+        row
+          ? row.map((v, k) => applyFormat(v, k ? "%8.2f" : "%7.2f")).join("")
+          : "         (not available)";
+    ctx.out(`  Minimum eigenvalue statistic = ${six(statistic).padEnd(8)}    `);
+    ctx.out("");
+    ctx.out(
+      `  Critical Values                      # of endogenous regressors:${String(p).padStart(5)}`,
+    );
+    ctx.out(
+      `  H0: Instruments are weak             # of excluded instruments: ${String(q).padStart(5)}`,
+    );
+    ctx.out(narrow);
+    ctx.out(
+      "                                     |    5%     10%     20%     30%",
+    );
+    ctx.out(`  2SLS relative bias                 |${values(table[0])}`);
+    ctx.out(
+      "  -----------------------------------+---------------------------------",
+    );
+    ctx.out(
+      "                                     |   10%     15%     20%     25%",
+    );
+    ctx.out(`  2SLS size of nominal 5% Wald test  |${values(table[1])}`);
+    ctx.out(`  LIML size of nominal 5% Wald test  |${values(table[2])}`);
+    ctx.out(narrow);
+    ctx.out("");
+    ctx.out("");
+    // Stata names the rows and columns of r(mineigcv) after where they
+    // sit in its own table of critical values.
+    results.mineig = statistic;
+    results["matrix:mineigcv"] = {
+      rowNames: [1, 2, 3].map(() => `r${p + 1}`),
+      colNames: [1, 2, 3, 4].map((k) => `c${4 * (p - 1) + k}`),
+      values: table.map((row) =>
+        row ? [...row] : [0, 0, 0, 0].map(() => MISSING),
+      ),
+    };
+  }
+  if (sheaShown)
+    results["matrix:multiresults"] = {
+      rowNames: [...f.iv.endogenous],
+      colNames: ["partial_R2", "adj_partial_R2"],
+      values: shea.map((s) => [s.partial, s.adjusted]),
+    };
+  if (summaryShown)
+    results["matrix:singleresults"] = {
+      rowNames: summaries.map((_, j) => `r${j + 1}`),
+      colNames: [1, 2, 3, 4, 5, 6, 7, 8].map((k) => `c${k}`),
+      values: summaries.map((s) => [
+        s.r2,
+        s.adjusted,
+        s.partial,
+        s.F,
+        s.dfNum,
+        s.df,
+        s.p,
+        MISSING,
+      ]),
+    };
+  session.results.r = results;
 }
 
-function endogenous(session, model, ctx) {
+/**
+ * Reads what follows estat endogenous as ivregress_estat.ado reads it: a
+ * varlist of the endogenous regressors to test, all by default, and the
+ * options of each estimator. Returns the regressors tested and the
+ * options.
+ */
+function endogenousOptions(session, model, rest) {
+  const estimator = model.iv.estimator,
+    { options, varlist = [] } = session.parse(
+      estimator === "gmm"
+        ? "[varlist(numeric default=none)] [, FORCEWEIGHTS *]"
+        : "[varlist(numeric default=none)] [, FORCENONROBUST FORCEWEIGHTS Lags(integer -1) debug DOALLTESTS]",
+      rest,
+    );
+  if (estimator === "gmm" && options["*"].length)
+    throw new StataError(`${options["*"].join(" ")} not allowed`, 198);
+  if (estimator !== "gmm" && options.lags !== -1)
+    throw new StataError("lags() only valid with models with HAC VCEs", 198);
+  const endogenous = model.iv.endogenous,
+    leftover = varlist.filter((name) => !endogenous.includes(name));
+  if (leftover.length)
+    throw new StataError(
+      `${leftover.join(" ")} not endogenous in original model`,
+      498,
+    );
+  const subset =
+    varlist.length && endogenous.some((name) => !varlist.includes(name));
+  if (
+    subset &&
+    estimator !== "gmm" &&
+    model.vce !== "unadjusted" &&
+    !options.forcenonrobust
+  )
+    throw new StataError(
+      "cannot test a subset of endogenous regressors if a\nrobust, cluster, or HAC VCE was used at estimation",
+      498,
+    );
+  if (subset && estimator === "gmm")
+    throw new StataError(
+      "estat endogenous with a subset of the endogenous regressors is not available yet after ivregress gmm; name them all, or none",
+      198,
+    );
+  for (const name of ["debug", "doalltests"])
+    if (options[name])
+      throw new StataError(
+        `option ${name} of estat endogenous is not available in the browser`,
+        198,
+      );
+  return {
+    options,
+    tested: subset
+      ? endogenous
+          .map((name, k) => (varlist.includes(name) ? k : -1))
+          .filter((k) => k >= 0)
+      : null,
+  };
+}
+
+function endogenous(session, model, ctx, rest) {
   if (model.iv.estimator === "liml")
     throw new StataError("not available after LIML estimator", 321);
+  const { options, tested } = endogenousOptions(session, model, rest);
   if (model.iv.estimator === "gmm") return endogenousGmm(session, model, ctx);
-  unadjusted(model, "endogenous");
+  const robust = model.vce !== "unadjusted" && !options.forcenonrobust;
+  if (robust) {
+    notClustered(model, "endogenous");
+    return endogenousRobust(session, model, ctx);
+  }
   // As Stata's ivregress_estat.ado: the residuals of the fit (uc) and of
-  // OLS of the dependent variable on the regressors (ue), each projected
-  // over the sample as it now is, and e(N).
+  // the fit that takes the regressors tested as exogenous (ue, OLS when
+  // they are all of them), each projected over the sample as it now is,
+  // and e(N).
   const f = ivFrame(session, model),
     x = [...f.endogenous, ...f.exogenous],
     z = [...f.exogenous, ...f.instruments],
-    uc = f.y.map(
-      (value, i) =>
-        value -
-        x.reduce((t, column, k) => t + column[i] * model.iv.b[k], 0) -
-        model.iv.b[x.length],
-    ),
-    ols = project(x, f.y),
-    // ue on the instruments and the regressors tested, uc on the
-    // instruments.
-    difference =
-      project([...z, ...f.endogenous], ols.residuals).ess - project(z, uc).ess,
+    uc = ivResiduals(f, model.iv.b),
+    trial = tested ? tested.map((k) => f.endogenous[k]) : f.endogenous;
+  let ue, rssE;
+  if (!tested) {
+    const ols = project(x, f.y, f.w);
+    ue = unscaled(ols.residuals, f.w);
+    rssE = ols.rss;
+  } else {
+    // 2SLS with the regressors tested among the instruments.
+    const wider = [...z, ...trial],
+      fits = x.map((column) => {
+        const r = unscaled(project(wider, column, f.w).residuals, f.w);
+        return column.map((v, i) => v - r[i]);
+      }),
+      second = leastSquares(fits, f.y, f.w),
+      b = [...x.map((_, k) => second.b[second.position[k]] ?? 0), second.b[0]];
+    ue = ivResiduals(f, b);
+    rssE = ue.reduce((t, e, i) => t + (f.w ? f.w[i] : 1) * e * e, 0);
+  }
+  // ue on the instruments and the regressors tested, uc on the
+  // instruments.
+  const difference =
+      project([...z, ...trial], ue, f.w).ess - project(z, uc, f.w).ess,
     // Stata counts a factor's base level among the endogenous regressors.
-    df = model.iv.endogenousCount ?? f.endogenous.length,
+    df = tested
+      ? tested.length
+      : (model.iv.endogenousCount ?? f.endogenous.length),
     dfResidual = f.N - x.length - 1 - df,
-    durbin = difference / (ols.rss / f.N),
-    wu = difference / df / ((ols.rss - difference) / dfResidual),
+    durbin = difference / (rssE / f.N),
+    wu = difference / df / ((rssE - difference) / dfResidual),
     pDurbin = chi2tail(df, durbin),
     pWu = Ftail(df, dfResidual, wu),
     line = (label, value, p) =>
@@ -472,31 +851,126 @@ function endogenous(session, model, ctx) {
   };
 }
 
-function overid(session, model, ctx) {
-  if (model.iv.estimator === "gmm") return overidGmm(session, model, ctx);
-  unadjusted(model, "overid");
+/**
+ * After a robust 2SLS fit, Wooldridge's robust score test (1 regressed on
+ * the OLS residuals times what is left of each first-stage residual once
+ * the regressors are taken out; N less the residual sum of squares) and
+ * the regression-based test (the first-stage residuals added to the
+ * regressors, their coefficients tested with a robust variance).
+ */
+function endogenousRobust(session, model, ctx) {
+  const f = ivFrame(session, model),
+    x = [...f.endogenous, ...f.exogenous],
+    z = [...f.exogenous, ...f.instruments],
+    ols = leastSquares(x, f.y, f.w),
+    first = f.endogenous.map(
+      (column) => leastSquares(z, column, f.w).residuals,
+    ),
+    products = first.map((v) => {
+      const r = leastSquares(x, v, f.w).residuals;
+      return r.map((value, i) => value * ols.residuals[i]);
+    }),
+    score = scoreStatistic(products, f),
+    df = f.endogenous.length,
+    augmented = leastSquares([...x, ...first], f.y, f.w),
+    at = first.map((_, k) => augmented.position[x.length + k]),
+    regF = robustWald(augmented, at, f) / df,
+    dfResidual = f.count - augmented.kept.length,
+    pScore = chi2tail(df, score),
+    pF = Ftail(df, dfResidual, regF),
+    line = (label, value, p) =>
+      `${label.padEnd(34)}= ${six(value).padStart(8)}  (p = ${four(p)})`;
+  ctx.out("");
+  ctx.out("  Tests of endogeneity");
+  ctx.out("  H0: Variables are exogenous");
+  ctx.out("");
+  ctx.out(line(`  Robust score chi2(${df})`, score, pScore));
+  ctx.out(line(`  Robust regression F(${df},${dfResidual})`, regF, pF));
+  ctx.out("");
+  session.results.r = {
+    df,
+    regFdf_d: dfResidual,
+    regFdf_n: df,
+    p_regF: pF,
+    regF,
+    p_r_score: pScore,
+    r_score: score,
+  };
+}
+
+function overid(session, model, ctx, rest) {
+  const estimator = model.iv.estimator,
+    { options } = session.parse(
+      estimator === "gmm"
+        ? "[, FORCEWEIGHTS *]"
+        : estimator === "liml"
+          ? "[, FORCEWEIGHTS FORCENONROBUST]"
+          : "[, FORCEWEIGHTS Lags(integer -1) FORCENONROBUST]",
+      rest,
+    );
+  if (estimator === "gmm") {
+    if (options["*"].length)
+      throw new StataError(
+        `${options["*"].join(" ")} not allowed after GMM estimation`,
+        198,
+      );
+    return overidGmm(session, model, ctx);
+  }
+  const robust = model.vce !== "unadjusted" && !options.forcenonrobust;
+  if (estimator === "liml") {
+    // The LIML tests use kappa alone; forcenonrobust lets them be shown
+    // after a robust variance.
+    if (robust)
+      throw new StataError(
+        "tests not available after LIML estimation with robust VCE\nuse forcenonrobust to override",
+        498,
+      );
+  } else {
+    if (options.lags !== -1)
+      throw new StataError("lags() only valid with models with HAC VCEs", 198);
+    if (robust) notClustered(model, "overid");
+  }
   const f = ivFrame(session, model),
     df = f.instruments.length - f.endogenous.length;
   if (df < 1) {
     ctx.out("no overidentifying restrictions");
     throw new StataError("", 498);
   }
-  if (model.iv.estimator === "liml")
-    return overidLiml(session, model, f, df, ctx);
-  const x = [...f.endogenous, ...f.exogenous],
-    e = f.y.map(
-      (value, i) =>
-        value -
-        x.reduce((t, column, k) => t + column[i] * model.iv.b[k], 0) -
-        model.iv.b[x.length],
-    ),
-    z = [...f.exogenous, ...f.instruments],
-    fitted = project(z, e),
+  if (estimator === "liml") return overidLiml(session, model, f, df, ctx);
+  const e = ivResiduals(f, model.iv.b),
+    z = [...f.exogenous, ...f.instruments];
+  if (robust) {
+    // Wooldridge's score test: what is left of each excluded instrument
+    // once the first-stage fits and the exogenous regressors are taken
+    // out, times the residuals; 1 regressed on those, N less the
+    // residual sum of squares.
+    const fits = f.endogenous.map(
+        (column) => leastSquares(z, column, f.w).fitted,
+      ),
+      products = f.instruments.map((column) =>
+        leastSquares([...fits, ...f.exogenous], column, f.w).residuals.map(
+          (r, i) => r * e[i],
+        ),
+      ),
+      score = scoreStatistic(products, f),
+      p = chi2tail(df, score);
+    ctx.out("");
+    ctx.out("  Test of overidentifying restrictions:");
+    ctx.out("");
+    ctx.out(
+      `${`  Score chi2(${df})`.padEnd(25)}= ${six(score).padStart(8)}  (p = ${four(p)})`,
+    );
+    ctx.out("");
+    session.results.r = { df, p_score: p, score };
+    return;
+  }
+  const fitted = project(z, e, f.w),
     // Stata divides by the fit's e(rss), the sum of these squares over the
     // sample as it was.
-    total = model.rss ?? e.reduce((t, v) => t + v * v, 0),
-    sargan = f.n * (1 - fitted.rss / total),
-    basmann = (sargan * (f.n - z.length - 1)) / (f.n - sargan),
+    total =
+      model.rss ?? e.reduce((t, v, i) => t + (f.w ? f.w[i] : 1) * v * v, 0),
+    sargan = f.count * (1 - fitted.rss / total),
+    basmann = (sargan * (f.count - z.length - 1)) / (f.count - sargan),
     pSargan = chi2tail(df, sargan),
     pBasmann = chi2tail(df, basmann),
     line = (label, value, p) =>
@@ -504,7 +978,14 @@ function overid(session, model, ctx) {
   ctx.out("");
   ctx.out("  Tests of overidentifying restrictions:");
   ctx.out("");
-  ctx.out(line(`  Sargan (score) chi2(${df})`, sargan, pSargan));
+  // forcenonrobust drops the word score from the label.
+  ctx.out(
+    line(
+      `  Sargan ${options.forcenonrobust ? "" : "(score) "}chi2(${df})`,
+      sargan,
+      pSargan,
+    ),
+  );
   ctx.out(line(`  Basmann chi2(${df})`, basmann, pBasmann));
   ctx.out("");
   session.results.r = {
@@ -550,7 +1031,7 @@ function overidLiml(session, model, f, df, ctx) {
 }
 
 /** Runs a diagnostic after ivregress; returns false when it is not one. */
-export function ivDiagnostic(session, model, what, ctx) {
+export function ivDiagnostic(session, model, what, ctx, text = "") {
   const run = /^first(s(t(a(ge?)?)?)?)?$/.test(what)
     ? firststage
     : /^endog(e(n(o(us?)?)?)?)?$/.test(what)
@@ -559,17 +1040,25 @@ export function ivDiagnostic(session, model, what, ctx) {
         ? overid
         : null;
   if (!run) return false;
-  // ivreg, the older command, has none of these tests.
-  if (model.legacy === "ivreg")
-    throw new StataError(`estat ${what} not valid`, 321);
+  // ivreg and regress y x (z), the older commands, have none of these
+  // tests.
+  if (model.legacy) throw new StataError(`estat ${what} not valid`, 321);
   if (model.command !== "ivregress")
     throw new StataError(`estat ${what} not valid`, 321);
-  if (model.wtype)
+  // After analytic, sampling or importance weights the tests of
+  // endogeneity and of the overidentifying restrictions need forceweights.
+  if (
+    model.wtype &&
+    model.wtype !== "fweight" &&
+    run !== firststage &&
+    !/(^|[\s,])forceweights(?=[\s,]|$)/.test(text.trim().slice(what.length))
+  )
     throw new StataError(
-      `estat ${what} after a weighted ivregress is not available yet`,
-      198,
+      `not available after estimation with ${model.wtype}s; use forceweights to override`,
+      498,
     );
-  run(session, model, ctx);
+  // What follows the subcommand: its varlist and options.
+  run(session, model, ctx, text.trim().slice(what.length));
   return true;
 }
 
@@ -852,7 +1341,19 @@ function areg(session, text, ctx) {
       : Ftail(dfAbsorbed, dfResidual, fAbsorb),
     slopeV = V.slice(0, size).map((row) => row.slice(0, size)),
     block = size && dfResidual > 0 ? invertSymmetric(slopeV) : null,
-    F = size && block ? finite(quadratic(b, block) / size) : MISSING,
+    // A robust variance of less than full rank, as with fewer clusters
+    // than coefficients, leaves F missing: e(df_m) is the rank of the
+    // slopes' variance and e(rank) that of the whole, constant included.
+    shortOf = (M) =>
+      (robust || hc2) && dfResidual > 0
+        ? symmetricRank(M.map((row) => row.map((v) => finite(v))))
+        : M.length,
+    vRank = shortOf(V),
+    dfModel = shortOf(slopeV),
+    F =
+      size && block && dfModel === size
+        ? finite(quadratic(b, block) / size)
+        : MISSING,
     r2 = finite(1 - rss / tss),
     r2a = dfResidual > 0 ? finite(1 - s2 / (tss / (n - 1))) : MISSING,
     rmse = dfResidual > 0 ? Math.sqrt(s2) : rss === 0 ? 0 : MISSING,
@@ -884,10 +1385,10 @@ function areg(session, text, ctx) {
       constant: true,
       estimable: position.map((p) => p >= 0),
       N: n,
-      df_m: size,
+      df_m: dfModel,
       df_r: dfR,
       dfResidual: dfR,
-      rank: size + 1,
+      rank: vRank,
       F,
       rss,
       tss,
@@ -906,11 +1407,11 @@ function areg(session, text, ctx) {
       sample: rows,
       level: options.level,
     },
-    p = isMissing(F) ? MISSING : Ftail(size, dfR, F),
+    p = isMissing(F) ? MISSING : Ftail(dfModel, dfR, F),
     values = [
       ["Number of obs", count(n)],
       ["No. of categories", count(groups)],
-      [`F(${size}, ${dfR})`, applyFormat(F, "%9.2f").trim()],
+      [`F(${dfModel}, ${dfR})`, applyFormat(F, "%9.2f").trim()],
       ["Prob > F", applyFormat(p, "%6.4f").trim()],
       ["R-squared", applyFormat(r2, "%6.4f").trim()],
       // A statistic that cannot be computed is left out, as
@@ -927,34 +1428,45 @@ function areg(session, text, ctx) {
     width = Math.max(...values.map(([, v]) => v.length)) + 1,
     left = [model.title, `Absorbed variable: ${absorb.name}`];
   session.estimates = model;
-  session.results.e = {
-    N: n,
-    df_m: size,
-    df_r: dfR,
+  session.results.e = aregResults(session, model, {
+    text,
+    n,
+    dfR,
     F,
     p,
-    r2,
-    r2_a: r2a,
-    rmse,
-    mss: model.mss,
-    rss,
-    tss,
-    ll: model.ll,
-    ll_0: model.ll_0,
-    rank: size + 1,
-    df_a: dfAbsorbed,
-    k_absorb: groups,
-    ...(robust || hc2 ? {} : { F_absorb: fAbsorb, p_absorb: pAbsorb }),
-    ...(clusters ? { N_clust: clusters } : {}),
-    cmd: "areg",
-    title: model.title,
-    depvar: model.depvar,
-    absvar: absorb.name,
-    vce,
-    ...(vcetype ? { vcetype } : {}),
-    ...(asked.cluster ? { clustvar: asked.cluster.name } : {}),
-    ...(wtype ? { wtype, wexp: `= ${parsed.weight.exp}` } : {}),
-  };
+    sumW,
+    dfAbsorbed,
+    groups,
+    fAbsorb,
+    pAbsorb,
+    clusters,
+    vcetype,
+    clustvar: asked.cluster?.name,
+    wexp: wtype ? `= ${parsed.weight.exp}` : null,
+    // e(r2_c), the R-squared of the regression without the absorbed
+    // indicators, which Stata keeps hidden.
+    r2c:
+      vce === "ols"
+        ? (() => {
+            try {
+              return fit(
+                session,
+                { ...parsed, options: {}, positiveWeights: true },
+                null,
+              ).r2;
+            } catch {
+              return undefined;
+            }
+          })()
+        : undefined,
+    // (X'X)^-1 of the same fit, which Stata posts as e(V_modelbased).
+    modelBased:
+      vce !== "ols" && dfResidual > 0
+        ? position.map((p) =>
+            position.map((q) => (p < 0 || q < 0 ? 0 : finite(bread[p][q]))),
+          )
+        : null,
+  });
   // [weight=exp] is an analytic weight, and Stata says so first.
   if (wtype && genericWeight(text)) ctx.out(assumedWeights(wtype));
   for (const k of active.keys())
@@ -1001,6 +1513,210 @@ function areg(session, text, ctx) {
       `${`F test of absorbed indicators: F(${dfAbsorbed}, ${dfResidual}) = ${applyFormat(fAbsorb, "%4.3f")}`.padEnd(61)} Prob > F = ${applyFormat(pAbsorb, "%4.3f")}`,
     );
   ctx.out("");
+}
+
+/**
+ * areg's e(), in the order ereturn list shows it after Stata 19's areg,
+ * which differs with the variance: areg.ado posts through _regress and
+ * holds the results while it works, which reverses some of them. Stata's
+ * e(datasignature) is a checksum of its own that the browser does not
+ * compute; it and e(datasignaturevars) are left out.
+ */
+function aregResults(session, model, a) {
+  const vce = model.vce,
+    stripe = coefficientSpace(model).entries.map(stripeName),
+    weights = a.wexp ? { wexp: a.wexp, wtype: model.wtype } : {},
+    sumW = model.wtype ? a.sumW : a.n,
+    common = {
+      cmdline: `areg ${a.text.trim()}`,
+      cmd: "areg",
+      footnote: "areg_footnote",
+      title: model.title,
+      predict: "areg_p",
+    },
+    // What ereturn list, all shows as hidden, which differs with the
+    // variance: a clustered fit runs areg.ado's older code.
+    hidden =
+      vce === "cluster"
+        ? {
+            estmethod: "areg_11",
+            _r_z_abs__CL: "|t|",
+            _r_z__CL: "t",
+            title2: `Absorbed variable: ${model.absorb}`,
+          }
+        : {
+            ...(vce === "ols" && a.r2c !== undefined ? { r2_c: a.r2c } : {}),
+            _r_z_abs__CL: "|t|",
+            _r_z__CL: "t",
+            estmethod: "areg",
+            title2: `Absorbed variable: ${model.absorb}`,
+            marginsprop: "nolinearize",
+          },
+    matrices = a.modelBased
+      ? {
+          "matrix:V_modelbased": {
+            rowNames: stripe,
+            colNames: stripe,
+            values: a.modelBased,
+          },
+        }
+      : {};
+  let e;
+  // Clustered on the absorbed variable itself, areg.ado fits through
+  // _regress, which posts as a robust fit does, the cluster count first.
+  if (vce === "cluster" && a.clustvar === model.absorb)
+    e = {
+      N_clust: a.clusters,
+      N: a.n,
+      sum_w: sumW,
+      df_r: a.dfR,
+      r2: model.r2,
+      mss: model.mss,
+      rss: model.rss,
+      r2_a: model.r2_a,
+      df_a: a.dfAbsorbed,
+      tss: model.tss,
+      ll: model.ll,
+      ll_0: model.ll_0,
+      df_m: model.df_m,
+      F: a.F,
+      p: a.p,
+      rank: model.rank,
+      rmse: model.rmse,
+      rc: 0,
+      k_absorb: a.groups,
+      ...common,
+      marginsnotok: "Residuals SCore D XBD",
+      vce,
+      depvar: model.depvar,
+      properties: "b V",
+      model: "ols",
+      absvar: model.absorb,
+      ...weights,
+      vcetype: a.vcetype,
+      clustvar: a.clustvar,
+    };
+  else if (vce === "cluster")
+    e = {
+      rank: model.rank,
+      df_m: model.df_m,
+      F: a.F,
+      N_clust: a.clusters,
+      N: a.n,
+      rss: model.rss,
+      ll: model.ll,
+      ll_0: model.ll_0,
+      tss: model.tss,
+      r2: model.r2,
+      r2_a: model.r2_a,
+      df_r: a.dfR,
+      df_a: a.dfAbsorbed,
+      rmse: model.rmse,
+      k_absorb: a.groups,
+      cmdline: common.cmdline,
+      ...weights,
+      cmd: "areg",
+      footnote: common.footnote,
+      title: common.title,
+      predict: common.predict,
+      marginsnotok: "Residuals SCore",
+      depvar: model.depvar,
+      absvar: model.absorb,
+      clustvar: a.clustvar,
+      vcetype: a.vcetype,
+      vce,
+      properties: "b V",
+    };
+  else if (vce === "ols")
+    e = {
+      F_absorb: a.fAbsorb,
+      p_absorb: a.pAbsorb,
+      rank: model.rank,
+      p: a.p,
+      rc: 0,
+      k_absorb: a.groups,
+      ll_0: model.ll_0,
+      ll: model.ll,
+      tss: model.tss,
+      df_a: a.dfAbsorbed,
+      r2_a: model.r2_a,
+      rss: model.rss,
+      mss: model.mss,
+      rmse: model.rmse,
+      r2: model.r2,
+      F: a.F,
+      df_r: a.dfR,
+      df_m: model.df_m,
+      sum_w: sumW,
+      N: a.n,
+      ...common,
+      marginsnotok: "Residuals SCore D XBD",
+      vce,
+      depvar: model.depvar,
+      properties: "b V",
+      model: "ols",
+      absvar: model.absorb,
+      ...weights,
+    };
+  else {
+    const scalars =
+      vce === "hc2"
+        ? [
+            ["N", a.n],
+            ["sum_w", sumW],
+            ["df_r", a.dfR],
+            ["r2", model.r2],
+            ["mss", model.mss],
+            ["rss", model.rss],
+            ["df_a", a.dfAbsorbed],
+            ["tss", model.tss],
+            ["ll", model.ll],
+            ["ll_0", model.ll_0],
+            ["rank", model.rank],
+            ["r2_a", model.r2_a],
+            ["rmse", model.rmse],
+            ["df_m", model.df_m],
+          ]
+        : [
+            ["N", a.n],
+            ["sum_w", sumW],
+            ["df_r", a.dfR],
+            ["r2", model.r2],
+            ["rmse", model.rmse],
+            ["mss", model.mss],
+            ["rss", model.rss],
+            ["r2_a", model.r2_a],
+            ["df_a", a.dfAbsorbed],
+            ["tss", model.tss],
+            ["ll", model.ll],
+            ["ll_0", model.ll_0],
+            ["df_m", model.df_m],
+          ];
+    e = {
+      ...Object.fromEntries(scalars),
+      F: a.F,
+      p: a.p,
+      ...(vce === "hc2" ? {} : { rank: model.rank }),
+      rc: 0,
+      k_absorb: a.groups,
+      ...common,
+      marginsnotok: "Residuals SCore D XBD",
+      vce,
+      ...(vce === "hc2" ? { vcetype: a.vcetype } : {}),
+      depvar: model.depvar,
+      properties: "b V",
+      model: "ols",
+      absvar: model.absorb,
+      ...weights,
+      ...(vce === "hc2" ? {} : { vcetype: a.vcetype }),
+    };
+  }
+  // e(ar2), the adjusted R-squared, is kept for older versions' sake.
+  return Object.assign(e, matrices, hidden, {
+    ar2: model.r2_a,
+    [HIDDEN]: Object.keys(hidden),
+    [HISTORICAL]: ["ar2"],
+  });
 }
 
 /** bread * meat * bread, scaled. */

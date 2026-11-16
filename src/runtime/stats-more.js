@@ -14,6 +14,7 @@ import { invnormal, normal } from "./functions-normal.js";
 import { count, perGroup, weightedRows } from "./reports.js";
 import { assumedWeights, genericWeight, splitAtComma } from "./syntax.js";
 import { abbreviateColumns } from "./utilities.js";
+import { overLevels } from "./tables.js";
 import {
   MISSING,
   displayWidth,
@@ -1052,6 +1053,9 @@ function contract(session, text, ctx) {
   let columns = kept.map((v) => cells.map((c) => v.data[c.row])),
     freqs = cells.map((c) => c.freq);
   if (options.zero) {
+    // contract.ado runs fillin on the varlist, which takes two or more.
+    if (varlist.length < 2)
+      throw new StataError("too few variables specified", 102);
     // fillin: every combination of the values that occur.
     const levels = kept.map((v, k) =>
         [...new Set(columns[k])].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
@@ -1154,6 +1158,13 @@ function readRatios(session, text) {
       one(rest.slice(1, close));
       rest = rest.slice(close + 1).trim();
     } else {
+      // A parenthesis after a ratio standing alone, as y/x over(g) without
+      // its comma, begins another.
+      if (rest.includes("("))
+        throw new StataError(
+          "parentheses are required for multiple ratio specifications",
+          198,
+        );
       one(rest);
       rest = "";
     }
@@ -1264,6 +1275,7 @@ function ratio(session, text, ctx) {
         `string variables not allowed in varlist;\n${v.name} is a string variable\ninvalid over() option`,
         109,
       );
+  overLevels(over, selected(session, parsed, ctx));
   // Rows with every variable present; the types are read once.
   const checked = [
       ...new Set([
@@ -1489,9 +1501,14 @@ function ratio(session, text, ctx) {
       width = wStub + 50,
       // The legend's header is as wide as at the narrowest line, whatever
       // the line size.
+      // The header is as wide as the first column wants, up to 29 columns
+      // at a line of 79 or less, as mean's.
       headerWidth = shownOptions.coeflegend
         ? 62
-        : tableWidth(session, table, [], 50, { ...shape, needed: true }) + 50,
+        : Math.min(
+            tableWidth(session, table, [], 50, { ...shape, needed: true }) + 50,
+            (session.settings?.linesize ?? 79) > 79 ? Infinity : 79,
+          ),
       critical = resampled
         ? resampled.critical
         : invttail(df, (1 - level / 100) / 2),

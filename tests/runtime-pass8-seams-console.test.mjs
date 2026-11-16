@@ -224,7 +224,10 @@ test("hints for r(601) and r(9) look at the command", () => {
   const graph = advice("graph export g.png");
   assert.match(graph.text, /draw/i);
   assert.doesNotMatch(graph.text, /file or dataset/);
-  assert.match(advice("use nosuchfile, clear").text, /No file or dataset/);
+  assert.match(
+    advice("use nosuchfile, clear").text,
+    /nosuchfile\.dta is not among your files/,
+  );
   s.run(
     "clear\nset obs 4\ngenerate region = mod(_n, 2)\ngenerate y2018 = _n\ngenerate y2019 = _n",
   );

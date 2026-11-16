@@ -1465,7 +1465,11 @@ export const EVERYDAY_COMMANDS = [
   {
     name: "pwcorr",
     minimum: 6,
-    run: operatorVariables(perGroup(pwcorr)),
+    // Its varlist takes time-series operators but no factor variables.
+    run: (session, text, ctx) => {
+      session.varlistParentheses = "factor-variable operators not allowed";
+      return operatorVariables(perGroup(pwcorr))(session, text, ctx);
+    },
     byable: true,
   },
   { name: "spearman", minimum: 8, run: spearman },

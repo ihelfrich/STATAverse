@@ -1,13 +1,20 @@
 // do, run and include on do-files held in the session, and the commands
 // that combine or rearrange datasets: cross, joinby and stack.
 import { greatest } from "./extremes.js";
-import { Signal, StataError } from "./errors.js";
-import { fileName, load, strLKey } from "./data-commands.js";
+import { ERROR_MARK, Signal, StataError, errorLine } from "./errors.js";
+import {
+  bringCharacteristics,
+  fileName,
+  keyTypes,
+  load,
+  redefinedCharacteristics,
+  strLKey,
+} from "./data-commands.js";
 import { INSPECT_COMMANDS } from "./data-inspect.js";
 import { parseBlocks, splitCommands } from "./dofile.js";
-import { fileEcho } from "./echo.js";
+import { fileEcho, tabsOut } from "./echo.js";
 import { splitAtComma } from "./syntax.js";
-import { findFile } from "./files.js";
+import { findFile, plainText } from "./files.js";
 import { MISSING, isStringType } from "./values.js";
 
 const RANK = ["byte", "int", "long", "float", "double"];
@@ -32,6 +39,30 @@ function bring(data, source, index) {
     label: source.label,
     valueLabel: source.valueLabel,
   });
+}
+
+/**
+ * How many lines end a record with the error that stopped it, its message
+ * and r(#);, or 0 when it does not end so.
+ */
+function faultLength(lines, failure) {
+  if (lines.at(-1) !== `r(${failure.code});`) return 0;
+  // The message is as many lines before the code as make up its text.
+  for (let k = 1; k < lines.length; k++)
+    if (lines.slice(-1 - k, -1).join("\n") === failure.message) return k + 1;
+  return Math.min(lines.length, failure.message ? 2 : 1);
+}
+/**
+ * Marks the error that ends a record's lines as printed in Stata's error
+ * style, unless an inner do-file marked it.
+ */
+function markFault(lines, failure) {
+  for (
+    let k = lines.length - faultLength(lines, failure);
+    k < lines.length;
+    k++
+  )
+    if (!lines[k].startsWith(ERROR_MARK)) lines[k] = ERROR_MARK + lines[k];
 }
 
 function doFile(mode) {
@@ -101,7 +132,7 @@ function doFile(mode) {
       start = output.length,
       { sourceLines, loopDepth, inProgram, folding } = session,
       quietDepth = session.quietDepth ?? 0;
-    session.sourceLines = stored.text.replace(/\r\n?/g, "\n").split("\n");
+    session.sourceLines = plainText(stored).replace(/\r\n?/g, "\n").split("\n");
     session.loopDepth = 0;
     // A do-file run from a program or a loop is a file of its own: its
     // loops are echoed and its exit ends it, as at the top of a file.
@@ -117,7 +148,7 @@ function doFile(mode) {
     // its lines as the caller's own.
     if (mode !== "include") session.enterScope();
     try {
-      const nodes = parseBlocks(splitCommands(stored.text)),
+      const nodes = parseBlocks(splitCommands(tabsOut(plainText(stored)))),
         lines = session.sourceLines,
         file = leads || nested ? fileEcho(lines) : null;
       for (const node of nodes) {
@@ -168,13 +199,41 @@ function doFile(mode) {
       session.quietDepth = quietDepth;
     }
     // run: what noisily printed, under the run command.
-    if (quietRun)
+    if (quietRun) {
+      // An error in the file is shown once: its message there, and the
+      // r(#) of the run command, which a capture noisily hides.
+      const failed =
+        failure instanceof StataError && failure.recorded
+          ? output.findLast((record) => record.rc)
+          : null;
+      if (failed && failed.lines.at(-1) === `r(${failure.code});`)
+        failed.lines.pop();
       for (const record of output)
         record.lines.forEach((line) => ctx.out(line));
+      if (failure instanceof StataError) {
+        if (!failure.recorded && failure.message) ctx.out(failure.message);
+        failure = Object.assign(new StataError("", failure.code), {
+          hint: failure.hint,
+        });
+      }
+    } else if (
+      mode === "run" &&
+      ctx.flags?.capture &&
+      failure instanceof StataError &&
+      failure.message
+    )
+      // capture run still shows the message of the error that ended it.
+      failure.loud = true;
     if (nested) {
       // Each command after a blank line, as the log shows it; a comment
       // or a blank line of the file directly under the line before.
       let comment = false;
+      // The error that stopped the file is in Stata's error style.
+      const failed =
+        failure instanceof StataError && failure.recorded && session.markErrors
+          ? output.findLast((record) => record.rc)
+          : null;
+      if (failed) markFault(failed.lines, failure);
       for (const record of output) {
         if (!comment) ctx.out("");
         ctx.out(`. ${record.command}`.trimEnd());
@@ -183,8 +242,8 @@ function doFile(mode) {
         comment = !!record.comment && !record.lines.length;
       }
       if (failure instanceof StataError && !failure.recorded) {
-        if (failure.message) ctx.out(failure.message);
-        ctx.out(`r(${failure.code});`);
+        if (failure.message) ctx.out(errorLine(session, failure.message));
+        ctx.out(errorLine(session, `r(${failure.code});`));
       }
       // The prompt at the end of the file, unless an error ended it first.
       if (!comment) ctx.out("");
@@ -206,13 +265,18 @@ function doFile(mode) {
           last.rc = failure.code;
         }
         if (last) failure.recorded = true;
-        if (last && mode === "do")
+        if (last && mode === "do") {
+          // The error above "end of do-file" stays in Stata's error style.
+          if (session.markErrors) markFault(last.lines, failure);
           last.lines.push(
             "",
             "end of do-file",
             // A captured do-file reports no return code after it.
-            ...(ctx.flags?.capture ? [] : [`r(${failure.code});`]),
+            ...(ctx.flags?.capture
+              ? []
+              : [errorLine(session, `r(${failure.code});`)]),
           );
+        }
       } else if (!failure && mode === "do") {
         if (exited && last) last.lines.push("", "end of do-file");
         else
@@ -256,6 +320,7 @@ function cross(session, text) {
   data.sortedBy = [];
   for (const variable of other.variables)
     if (!data.has(variable.name)) bring(data, variable, using);
+  bringCharacteristics(data, other, other.names);
 }
 
 function joinby(session, text, ctx) {
@@ -287,6 +352,7 @@ function joinby(session, text, ctx) {
   }
   for (const key of keys)
     if (!other.has(key)) throw new StataError(`variable ${key} not found`, 111);
+  for (const key of keys) keyTypes(session, key, data, other);
   // A key may be str# but not strL, as in merge.
   for (const key of keys) {
     const mine = data.get(key).type === "strL",
@@ -364,6 +430,8 @@ function joinby(session, text, ctx) {
   }
   for (const variable of other.variables)
     if (!data.has(variable.name)) bring(data, variable, using);
+  data.chars = redefinedCharacteristics(data);
+  bringCharacteristics(data, other, other.names);
   unfiled(data);
 }
 /**

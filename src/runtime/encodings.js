@@ -50,10 +50,20 @@ const OWN = {
   utf32be: (bytes) => utf32(bytes, false),
   utf32le: (bytes) => utf32(bytes, true),
 };
-/** Decodes with one of the decoders above or a WHATWG encoding label. */
+/**
+ * Decodes with one of the decoders above or a WHATWG encoding label. A
+ * UTF-16 file of an odd number of bytes ends in half a character, which
+ * Stata leaves out rather than reading as U+FFFD.
+ */
 const decodeWith = (label, bytes) =>
   stripBom(
-    OWN[label] ? OWN[label](bytes) : new TextDecoder(label).decode(bytes),
+    OWN[label]
+      ? OWN[label](bytes)
+      : new TextDecoder(label).decode(
+          /^utf-16/.test(label) && bytes.length % 2
+            ? bytes.subarray(0, -1)
+            : bytes,
+        ),
   );
 
 // encoding() takes the names Java gives its character sets, ignoring case:
@@ -275,8 +285,12 @@ export function decodeAuto(bytes) {
 export function decodeText(text) {
   const encoding = detectCharset(bytesOf(text.slice(0, SAMPLE)));
   text = stripBom(text);
-  // ASCII reads the same in every encoding the scan can name for it.
-  if (encoding === "UTF-8" || !/[^\x00-\x7f]/.test(text))
+  // ASCII reads the same in every encoding the scan can name for it but
+  // UTF-16 and UTF-32, which a short ASCII file can be named.
+  if (
+    encoding === "UTF-8" ||
+    (!/^UTF-(16|32)/.test(encoding) && !/[^\x00-\x7f]/.test(text))
+  )
     return { encoding, text };
   return {
     encoding,

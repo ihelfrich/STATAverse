@@ -20,7 +20,18 @@ export function commentGoesOn(line, first = true) {
  * on (`end`), so that the Console can echo it as typed.
  */
 export function splitCommands(source) {
-  const text = source.replace(/\r\n?/g, "\n"),
+  // A tab is blanks to the next stop of eight columns of its line, as
+  // Stata reads a do-file: in local t "a<tab>b" six blanks follow the a.
+  const text = source
+      .replace(/\r\n?/g, "\n")
+      .split("\n")
+      .map((line) =>
+        line.replace(/[^\t]*\t/g, (piece) => {
+          const before = piece.length - 1;
+          return piece.slice(0, -1) + " ".repeat(8 - (before % 8));
+        }),
+      )
+      .join("\n"),
     out = [];
   let delimiter = "\n",
     current = "",
@@ -35,14 +46,16 @@ export function splitCommands(source) {
     continuedAt = null;
     // Runs of blanks are kept as typed: a string literal such as "  a" keeps
     // its blanks, and commands that echo what was typed, such as tab1's
-    // heading, need them. Tabs and the line breaks of a continued command
-    // become single blanks.
+    // heading, need them. The line breaks of a continued command become
+    // single blanks.
     const command = current.replace(/\s/g, " ").trim();
     if (command && !/^\*/.test(command))
       out.push({
         text: command,
         line: startLine,
         end: Math.max(end, startLine),
+        // Read under #delimit ;, which a loop's echo needs to know.
+        ...(delimiter === ";" ? { semicolon: true } : {}),
       });
     current = "";
   };
@@ -147,7 +160,7 @@ export function parseBlocks(commands) {
   const block = (closing) => {
     const nodes = [];
     while (at < commands.length) {
-      const { text, line, end: last } = commands[at];
+      const { text, line, end: last, semicolon } = commands[at];
       // A } that closes nothing is a command of its own, as Stata reads it,
       // and fails when it is reached; so does an end outside a program.
       if (text.startsWith("}") && closing === "}") {
@@ -222,6 +235,7 @@ export function parseBlocks(commands) {
           end: unclosed ? lastLine : closed,
           ...(unclosed ? { unclosed } : {}),
           ...(more ? { trailing: true } : {}),
+          ...(semicolon ? { semicolon } : {}),
         });
       } else nodes.push({ kind: "command", text, line, end: last ?? line });
     }

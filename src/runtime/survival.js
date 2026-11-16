@@ -19,8 +19,9 @@
 import { StataError } from "./errors.js";
 import { evaluateAll } from "./expression.js";
 import { applyFormat } from "./format.js";
+import { renderSmcl } from "./smcl.js";
 import { chi2tail, invttail } from "./distributions.js";
-import { invnormal } from "./functions-normal.js";
+import { density, invnormal, normal } from "./functions-normal.js";
 import { defineCharacteristic } from "./store.js";
 import { splitAtComma } from "./syntax.js";
 import { parseNumlist } from "./numlist.js";
@@ -3273,6 +3274,258 @@ function phtest(session, text, ctx) {
 }
 
 /**
+ * estat concordance after stcox, as stcstat.ado computes Harrell's C:
+ * the subjects in order of their predicted hazard ratio, every pair whose
+ * order of failure is known (both failed at different times, or one failed
+ * no later than the other's time) is usable; it is as expected when the
+ * one that failed first has the higher hazard, and a tie in the hazards
+ * counts a half. Somers' D is 2C - 1. gheller gives Gönen and Heller's
+ * K instead, or with harrell as well, and se its smoothed version with an
+ * asymptotic standard error, as stcstat.ado's KnB() and KnBse() compute
+ * them.
+ */
+function concordance(session, text, ctx) {
+  const settings = stSettings(session),
+    parsed = session.parse(
+      "[if] [in] [, ALL noSHow Harrell USEADO GHeller SE]",
+      text,
+    ),
+    o = parsed.options,
+    model = estimates(session);
+  if (model.kind !== "stcox")
+    throw new StataError("last estimates not found", 301);
+  const data = session.data,
+    esample = data.esample,
+    rows = session.rows(parsed, null).filter((i) => {
+      if (!o.all && esample?.[i] !== 1) return false;
+      return !isMissing(linearAt(model, i, false));
+    });
+  if (data.chars?.get("_dta")?.get("st_w"))
+    throw new StataError(
+      "estat concordance may not be used with weighted data",
+      498,
+    );
+  const t0 = data.get("_t0").data;
+  if (rows.some((i) => t0[i] !== 0))
+    throw new StataError(
+      "estat concordance may not be used with late entry or time-varying data",
+      498,
+    );
+  if (o.se && !o.gheller)
+    throw new StataError("option se requires specifying option gheller", 198);
+  if (o.gheller && settings.id) {
+    const id = data.get(settings.id).data;
+    if (new Set(rows.map((i) => id[i])).size < rows.length)
+      throw new StataError(
+        "option gheller is not supported for multiple-record data",
+        498,
+      );
+  }
+  const harrell = !o.gheller || !!o.harrell,
+    results = harrell ? harrellC(session, model, rows, o, settings, ctx) : {};
+  if (o.gheller) gonenHeller(session, model, rows, o, settings, ctx, results);
+  else session.results.r = results;
+}
+
+/** Harrell's C, as concordance shows it; its r() results are returned. */
+function harrellC(session, model, rows, o, settings, ctx) {
+  const data = session.data,
+    esample = data.esample;
+  const h = new Map(rows.map((i) => [i, Math.exp(linearAt(model, i, false))])),
+    ordered = [...rows].sort((a, b) => h.get(a) - h.get(b) || a - b),
+    t = data.get("_t").data,
+    d = data.get("_d").data,
+    linesize = session.settings.linesize ?? 79;
+  // Observations of the fit left out, or others taken in.
+  const marked = esample
+    ? Array.from(esample).reduce((n, v) => n + (v === 1 ? 1 : 0), 0)
+    : 0;
+  if (rows.length !== marked || rows.some((i) => esample?.[i] !== 1))
+    renderSmcl(
+      "{p 0 6 2}note: different samples used to fit model and to calculate C statistic.{p_end}",
+      linesize,
+    )
+      .split("\n")
+      .forEach((line) => ctx.out(line));
+  stHeader(ctx, settings, o.show === false);
+  ctx.out("");
+  ctx.out("Harrell's C concordance statistic");
+  let D = 0,
+    T = 0,
+    E = 0;
+  const n = ordered.length;
+  for (let a = 0; a < n; a++) {
+    const i = ordered[a],
+      ti = t[i],
+      di = d[i] !== 0 && !isMissing(d[i]),
+      hi = h.get(i);
+    for (let b = a + 1; b < n; b++) {
+      const j = ordered[b],
+        tj = t[j],
+        dj = d[j] !== 0 && !isMissing(d[j]);
+      let kind = di && dj ? 1 : di && ti <= tj ? 2 : dj && ti >= tj ? 3 : 0;
+      // Two failures at the same time are not compared.
+      if (kind === 1 && Math.abs(tj - ti) < 1e-12) kind = 0;
+      if (!kind) continue;
+      const tied = hi === h.get(j);
+      D++;
+      if (tied) T++;
+      else if ((kind === 1 && ti > tj) || (kind === 3 && ti >= tj)) E++;
+    }
+  }
+  const C = (E + T / 2) / D,
+    somers = 2 * (C - 0.5),
+    wide = applyFormat(D, "%21.0f").trim(),
+    digits = applyFormat(D, "%8.0f").trim() === wide ? 8 : wide.length,
+    count = (v) => applyFormat(v, `%${digits}.0f`),
+    fixed = (v) => applyFormat(v, `%${digits}.4f`),
+    row = (label, value) => ctx.out(`${label.padEnd(37)} = ${value}`);
+  ctx.out("");
+  row("  Number of subjects (N)", count(n));
+  row("  Number of comparison pairs (P)", count(D));
+  row("  Number of orderings as expected (E)", count(E));
+  row("  Number of tied predictions (T)", count(T));
+  ctx.out("");
+  row("          Harrell's C = (E + T/2) / P", fixed(C));
+  row(
+    o.gheller
+      ? "                   Somers' D = 2C - 1"
+      : "                            Somers' D",
+    fixed(somers),
+  );
+  // As stcstat.ado returns them; return list shows the last first.
+  return { N: n, D: somers, C, n_P: D, n_E: E, n_T: T };
+}
+
+/**
+ * Gönen and Heller's K: over every pair of subjects, 1 / (1 + exp(-|xb_i -
+ * xb_j|)), averaged; with se, the version smoothed by the normal
+ * distribution function at bandwidth .5 n^(-1/3) sd(xb), and its
+ * asymptotic standard error, which counts the variance of the
+ * coefficients through e(V).
+ */
+function gonenHeller(session, model, rows, o, settings, ctx, harrell) {
+  const data = session.data,
+    esample = data.esample,
+    linesize = session.settings.linesize ?? 79,
+    xb = new Map(rows.map((i) => [i, linearAt(model, i, false)])),
+    ordered = [...rows].sort((a, b) => xb.get(a) - xb.get(b) || a - b),
+    x = ordered.map((i) => xb.get(i)),
+    N = x.length;
+  const marked = esample
+    ? Array.from(esample).reduce((n, v) => n + (v === 1 ? 1 : 0), 0)
+    : 0;
+  if (rows.length !== marked || rows.some((i) => esample?.[i] !== 1))
+    renderSmcl(
+      "{p 0 6 2}note: different samples used to fit model and to calculate K statistic.{p_end}",
+      linesize,
+    )
+      .split("\n")
+      .forEach((line) => ctx.out(line));
+  if (!o.harrell) stHeader(ctx, settings, o.show === false);
+  ctx.out("");
+  ctx.out("Gonen and Heller's K concordance statistic");
+  // Summed as KnB() sums: for each subject, the running sum over all of
+  // them, less its part up to that subject.
+  const after = (values, i) => {
+    let running = 0,
+      upTo = 0;
+    values.forEach((v, j) => {
+      running += v;
+      if (j === i) upTo = running;
+    });
+    return [running - upTo, running];
+  };
+  let sum = 0;
+  for (let i = 0; i < N - 1; i++)
+    sum += after(
+      x.map((v) => 1 / (1 + Math.exp(-Math.abs(v - x[i])))),
+      i,
+    )[0];
+  const pairs = N * (N - 1),
+    K = (2 * sum) / pairs,
+    extra = {};
+  if (o.se) {
+    // The covariates whose coefficients were estimated, and their V.
+    const kept = model.names
+        .map((name, j) => j)
+        .filter(
+          (j) =>
+            model.names[j] !== "_cons" &&
+            model.estimable[j] &&
+            !model.columns[j]?.base,
+        ),
+      X = ordered.map((i) => kept.map((j) => model.columns[j].value(i))),
+      V = kept.map((a) => kept.map((b) => model.V[a][b])),
+      mean = x.reduce((t, v) => t + v, 0) / N,
+      sd = Math.sqrt(x.reduce((t, v) => t + (v - mean) ** 2, 0) / (N - 1)),
+      bw = 0.5 * N ** (-1 / 3) * sd,
+      PD = new Array(kept.length).fill(0);
+    let smoothed = 0,
+      temp1 = 0,
+      temp2 = 0;
+    for (let i = 0; i < N; i++) {
+      const u = new Array(N),
+        term1 = new Array(N),
+        term2 = new Array(N);
+      for (let j = 0; j < N; j++) {
+        const hij = x[i] - x[j],
+          denij = 1 + Math.exp(hij),
+          denji = 1 + Math.exp(-hij),
+          F = normal(hij / bw),
+          uij = F / denji,
+          uji = (1 - F) / denij,
+          f = density(hij / bw);
+        u[j] = uij + uji;
+        term1[j] = f / denji / bw + (uij * Math.exp(-hij)) / denji;
+        term2[j] = f / denij / bw + (uji * Math.exp(hij)) / denij;
+      }
+      const [rest, total] = after(u, i);
+      if (i < N - 1) smoothed += rest;
+      for (let c = 0; c < kept.length; c++) {
+        let cross = 0;
+        for (let j = i + 1; j < N; j++)
+          cross += (X[i][c] - X[j][c]) * (term1[j] - term2[j]);
+        PD[c] += cross;
+      }
+      temp1 += total ** 2 - u.reduce((t, v) => t + v * v, 0);
+      temp2 += 2 * total;
+    }
+    const As = (2 * smoothed) / pairs,
+      quadratic = PD.reduce(
+        (t, a, r) => t + a * PD.reduce((q, b, c) => q + V[r][c] * b, 0),
+        0,
+      ),
+      se = Math.sqrt(
+        (4 * (temp1 + quadratic)) / (pairs * pairs) -
+          (4 * temp2 * As) / (pairs * N) +
+          (4 * As * As) / (N - 1),
+      );
+    extra.K_s = As;
+    extra.K_s_se = se;
+  }
+  const col = o.harrell ? 37 : 30,
+    line = (label, value) => ctx.out(`${label} = ${value}`);
+  ctx.out("");
+  line("  Number of subjects (N)".padEnd(col), applyFormat(N, "%8.0f"));
+  ctx.out("");
+  line("Gonen and Heller's K".padStart(col), applyFormat(K, "%8.4f"));
+  line(
+    `Somers' D${o.harrell ? " = 2K - 1" : ""}`.padStart(col),
+    applyFormat(2 * K - 1, "%8.4f"),
+  );
+  if (o.se) {
+    line("Gonen's smoothed K".padStart(col), applyFormat(extra.K_s, "%8.4f"));
+    line("Asymptotic SE".padStart(col), applyFormat(extra.K_s_se, "%8.4f"));
+  }
+  // As stcstat.ado returns them, after Harrell's; return list shows the
+  // last first.
+  const { N: _n, ...before } = harrell;
+  void _n;
+  session.results.r = { N, K, D_K: 2 * K - 1, ...extra, ...before };
+}
+
+/**
  * predict and estat after stcox and streg: the forms survival computes.
  * Returns true when it handled the command.
  */
@@ -3294,6 +3547,17 @@ export function survivalPostestimation(session, name, text, ctx) {
     if (model.kind !== "stcox")
       throw new StataError("last estimates not found", 301);
     phtest(session, text.trim().slice(what.length), ctx);
+    return true;
+  }
+  if (
+    name === "estat" &&
+    what &&
+    what.length >= 3 &&
+    "concordance".startsWith(what) &&
+    // After streg it is not valid, as estat says of what it lacks.
+    model.kind === "stcox"
+  ) {
+    concordance(session, text.trim().slice(what.length), ctx);
     return true;
   }
   return false;

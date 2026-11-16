@@ -12,9 +12,16 @@ const ROBUST = /^r(o(b(u(st?)?)?)?)?$/,
  * conventional variance (oim, unadjusted, conventional). Returns whether a
  * robust variance was asked for and the cluster variable, if any. multiway
  * false is for commands that, in Stata, refuse more than one cluster
- * variable; for the others it is a feature not yet here.
+ * variable; for the others it is a feature not yet here. hac is for the
+ * commands that have vce(hac ...) in Stata (glm); the others refuse it as
+ * Stata does.
  */
-export function readVce(session, options, plain, { multiway = true } = {}) {
+export function readVce(
+  session,
+  options,
+  plain,
+  { multiway = true, hac = false } = {},
+) {
   // cluster(id) is the older spelling of vce(cluster id).
   const text = (
     options.vce ?? (options.cluster ? `cluster ${options.cluster}` : "")
@@ -28,13 +35,13 @@ export function readVce(session, options, plain, { multiway = true } = {}) {
       cluster: session.data.get(session.varlist(match[1])[0]),
     };
   if (plain.test(text)) return { robust: !!options.robust, cluster: null };
-  refuseVce(text, plain, multiway);
+  refuseVce(text, plain, multiway, hac);
 }
 /**
  * Refuses vce(text): what is not a vce() at all with Stata's own messages,
  * and a variance Stata has but this command here lacks with a hint.
  */
-export function refuseVce(text, plain, multiway) {
+export function refuseVce(text, plain, multiway, hac = false) {
   // vce(bootstrap, reps(50)) names its type before a comma.
   const [type, ...more] = text.split(/[\s,]+/);
   if (CLUSTER.test(`${type} x`)) {
@@ -47,13 +54,13 @@ export function refuseVce(text, plain, multiway) {
       throw new StataError("multiway cluster VCE not allowed", 198);
   } else if (ROBUST.test(type) || plain.test(type))
     throw new StataError("option vce() incorrectly specified", 198);
-  else if (!VCETYPES.test(type))
+  else if (!VCETYPES.test(type) && !(hac && /^hac$/.test(type)))
     throw new StataError(`vcetype ${type} not allowed`, 198);
   throw new StataError(`vce(${text}) is not available yet`, 198);
 }
 /** Variance types Stata's estimation commands know but this one lacks. */
 const VCETYPES =
-  /^(opg|b(o(o(t(s(t(r(ap?)?)?)?)?)?)?)?|bs|j(a(c(k(k(n(i(fe?)?)?)?)?)?)?)?|jk|hac)$/;
+  /^(opg|b(o(o(t(s(t(r(ap?)?)?)?)?)?)?)?|bs|j(a(c(k(k(n(i(fe?)?)?)?)?)?)?)?|jk)$/;
 
 /** Whether observation `i` has no value of the cluster variable. */
 export const noCluster = (variable, i) =>

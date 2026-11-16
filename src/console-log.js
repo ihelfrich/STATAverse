@@ -12,6 +12,7 @@
 // each log begins and ends where its command stood, even inside a loop.
 import { ERROR_MARK, StataError } from "./runtime/errors.js";
 import { commandLines, wrapCharacters } from "./runtime/echo.js";
+import { errorText } from "./console-wrap.js";
 
 const MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" "),
   FOLDER = "/stataverse",
@@ -270,21 +271,10 @@ export function createLogs(files) {
   // before the command that closed them has been reached.
   const live = new Set();
   /** Writes one line of Results into each log that is being written. */
-  function put(line, skip, render, width = 0) {
+  function put(line, skip, render, cut = (line) => line) {
     for (const log of live)
       if (log.writing && !skip?.includes(log))
-        add(
-          log,
-          `${
-            log.type === "smcl"
-              ? render(log, line)
-              : // A text log cuts a line wider than the linesize, the rest
-                // after "> ", as Stata's does.
-                width
-                ? wrapCharacters(line, width).join("\n")
-                : line
-          }\n`,
-        );
+        add(log, `${log.type === "smcl" ? render(log, line) : cut(line)}\n`);
   }
 
   /** Applies what a log command did, where its lines end. */
@@ -418,11 +408,18 @@ export function createLogs(files) {
         const marked = line.startsWith(ERROR_MARK),
           text = marked ? line.slice(ERROR_MARK.length) : line,
           kind = shown++ >= plain - fault || marked ? "error" : "out";
+        // A text log cuts a line wider than the linesize, the rest after
+        // "> ", as Stata's does; an error message that is a paragraph in
+        // Stata is broken between words, as Results shows it.
         put(
           text,
           skip,
           (log, each) => render(log, each, kind),
-          record.width ?? 79,
+          (each) =>
+            (kind === "error"
+              ? errorText(each, record.width ?? 79, record.command)
+              : wrapCharacters(each, record.width ?? 79)
+            ).join("\n"),
         );
       }
       record.lines = lines.filter((line) => !isLogMark(line));

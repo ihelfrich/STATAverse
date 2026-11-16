@@ -131,13 +131,23 @@ test("common mistakes carry a plain hint: names, =, options, taken names", async
   await expect(lastRecord(page).locator(".console-hint")).toContainText(
     "case-sensitive: the variable is called score",
   );
+  // A number compared with a single =: the fix is offered.
+  await type(page, "count if hours = 10");
+  await expect(lastRecord(page).locator(".console-hint")).toContainText(
+    "To compare two values, write ==, as in hours == 10",
+  );
+  await expect(
+    lastRecord(page).getByRole("button", { name: /^Try count if hours == 10/ }),
+  ).toBeVisible();
+  // A text variable compared with a number: == would not mend it, and the
+  // hint shows the quoted form instead of offering a fix that fails.
   await type(page, "count if group = 1");
   await expect(lastRecord(page).locator(".console-hint")).toContainText(
-    "To compare two values, write ==",
+    "group holds text",
   );
   await expect(
     lastRecord(page).getByRole("button", { name: /^Try count if group == 1/ }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await type(page, "regress score hours, robsut");
   await expect(lastRecord(page).locator(".console-hint")).toContainText(
     "Did you mean robust?",

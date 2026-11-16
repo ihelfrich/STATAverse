@@ -16,7 +16,7 @@ import { evaluateAll } from "./expression.js";
 import { applyFormat, parseFormat } from "./format.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
-import { abbreviate, baseLevelsAsked } from "./estimation.js";
+import { abbreviate, baseLevelsAsked, hooks } from "./estimation.js";
 import {
   frame,
   layoutRows,
@@ -1928,6 +1928,13 @@ function heckman(session, text, ctx) {
     options = parsed.options;
   if (!options.select?.trim())
     throw new StataError("option select() required", 198);
+  // vce(bootstrap) and vce(jackknife), the two-step estimator's as much
+  // as the likelihood's, run the prefix over heckman.
+  if (
+    options.vce &&
+    hooks.resamplingVce?.(session, "heckman", text, options.vce, ctx)
+  )
+    return;
   const display = {
       formats: displayFormats(options, ctx),
       noheader: options.header === false,

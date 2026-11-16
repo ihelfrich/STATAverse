@@ -1119,7 +1119,7 @@ test("old names of estat's tests and official commands the browser lacks", () =>
     );
   for (const name of [
     "intreg",
-    "tsfill",
+    "xcorr",
     "ipolate",
     "truncreg",
     "xtivreg",

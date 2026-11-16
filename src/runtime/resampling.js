@@ -719,6 +719,25 @@ function prefixParts(session, text, stem, declaration) {
     comma < 0 ? "" : left.slice(comma),
   ).options;
   if (!command) throw new StataError("a command is required", 198);
+  // The command's own level() sets the prefix's, which may not set
+  // another.
+  const inner = /(?:^|\s)l(?:e(?:v(?:el?)?)?)?\s*\(([^()]*)\)/.exec(
+    splitAtComma(command)[1] ?? "",
+  );
+  if (inner && /Level\(cilevel\)/.test(declaration)) {
+    if (
+      comma >= 0 &&
+      /(?:^|[\s,])l(?:e(?:v(?:el?)?)?)?\s*\(/.test(left.slice(comma))
+    )
+      throw new StataError(
+        `option level() of ${stem === "_bs_" ? "bootstrap" : "jackknife"} conflicts with option level() of ${/^\s*(\w+)/.exec(command)?.[1] ?? ""}`,
+        198,
+      );
+    options.level = session.parse(
+      "[, Level(cilevel)]",
+      `, level(${inner[1]})`,
+    ).options.level;
+  }
   // A weight given to the prefix is the command's, as the prefix passes
   // it on.
   const weight = WEIGHT.exec(head);
@@ -1307,10 +1326,11 @@ function remember(fit, prefix, name, level, render, commands = []) {
         o = session.parse(
           "[, Level(cilevel) noHEader noLEGend noTABle noHR]",
           tail === null ? "" : `, ${tail}`,
-        ).options,
-        given = /(^|[\s,])l(e(v(el?)?)?)?\s*\(/i.test(tail ?? "");
+        ).options;
       ctx.out("");
-      const more = render(ctx, given ? o.level : level, {
+      // At the level asked, or the default: not the fit's, as Stata's
+      // replay shows it.
+      const more = render(ctx, o.level, {
         ...(o.header === false ? { header: false } : {}),
         ...(o.legend === false ? { legend: false } : {}),
         ...(o.table === false ? { table: false } : {}),
@@ -1705,8 +1725,13 @@ function statisticsModel(items, observed, V, props) {
   };
 }
 
-/** The Wald statistic that all slopes are zero. */
+/**
+ * The Wald statistic that all slopes are zero. mean, total, proportion and
+ * ratio, which show their own tables, have no such test, and a prefix
+ * posts none for them.
+ */
 function wald(model) {
+  if (model.resampledDisplay) return { df: 0, value: MISSING };
   const at = model.names
       .map((name, k) =>
         !/(^|:)_cons$/.test(name) && model.estimable[k] ? k : -1,
@@ -1853,6 +1878,14 @@ function bootstrap(session, text, ctx) {
     );
   if (idcluster && !isName(idcluster))
     throw new StataError(`${idcluster} invalid name`, 198);
+  // idcluster() naming the cluster variable itself loses that variable in
+  // bootstrap.ado; xtreg's vce(bootstrap) renumbers its panels so.
+  if (
+    idcluster &&
+    clusterNames.includes(idcluster) &&
+    session.renumberedPanels !== idcluster
+  )
+    throw new StataError(`variable ${idcluster} not found`, 111);
   // Stata resamples observations, which a weight would stand in for.
   if (clauses(splitAtComma(parts.command)[0]).some((c) => c.kind === "weight"))
     throw new StataError("weights not allowed with bootstrap estimation", 101);
@@ -1921,12 +1954,22 @@ function bootstrap(session, text, ctx) {
       );
     }
     saving?.note(ctx);
-    // An estimation command is resampled within its estimation sample.
-    if (model?.sample && !nodrop)
-      takeRows(
-        data,
-        [...new Set(model.sample)].sort((a, b) => a - b),
-      );
+    // An estimation command is resampled within its estimation sample;
+    // with the panels of xtset data, as bootstrap.ado does, every
+    // observation of a cluster with one in the sample is kept, so that
+    // the lags of the first times are there in each sample.
+    if (model?.sample && !nodrop) {
+      let rows = [...new Set(model.sample)].sort((a, b) => a - b);
+      if (panels) {
+        const columns = clusterNames.map((cname) => data.get(cname).data),
+          key = (i) => columns.map((column) => column[i]).join("\u0001"),
+          withSample = new Set(rows.map(key));
+        rows = Array.from({ length: data.n }, (_, i) => i).filter((i) =>
+          withSample.has(key(i)),
+        );
+      }
+      takeRows(data, rows);
+    }
     n = data.n;
     let layout = { strata: null, clusters: null };
     if (strataNames.length || clusterNames.length) {
@@ -2005,6 +2048,9 @@ function bootstrap(session, text, ctx) {
         ].join("\n");
         throw new StataError(quiet ? text : `${title}${text}`, 451);
       }
+      // ... and that tsset sorts the sample by panel and time, so that
+      // the command's operators find their lags.
+      if (panels) data.sort([session.panel.id, session.panel.time]);
       // A time-series command refuses the repeated times of a sample, and
       // an operator its data out of order. Without the dots each failure
       // shows its message.
@@ -2114,6 +2160,13 @@ function bootstrap(session, text, ctx) {
         vce: "bootstrap",
         vcetype,
         dist: "z",
+        // lincom heads mean's, total's and proportion's table with the
+        // command once bootstrap has fitted them.
+        ...(model.command === "mean" ||
+        model.command === "total" ||
+        model.command === "proportion"
+          ? { depvar: model.command }
+          : {}),
       }),
       own = model.resampled ?? (severalEquations(model) ? STRIPED : null),
       test = own ? waldAt(observed, V, own.tested(fit)) : wald(fit),
@@ -3031,11 +3084,20 @@ export function resamplingVce(session, command, text, vce, ctx) {
   let [head, rest] = splitAtComma(
     text.replace(/\bvce\s*\((?:[^()]|\([^()]*\))*\)/, ""),
   );
-  // nodots and dots() among the command's options are the prefix's.
+  // nodots, dots() and level() among the command's options are the
+  // prefix's.
   if (rest !== null)
     rest = rest.replace(
-      /(^|\s)(nodots|dots\s*\([^()]*\))(?=\s|$)/g,
+      /(^|\s)(nodots|dots\s*\([^()]*\)|l(?:e(?:v(?:el?)?)?)?\s*\([^()]*\))(?=\s|$)/g,
       (_, b, o) => {
+        // A level() inside vce() and another among the command's options
+        // conflict, as Stata says.
+        const isLevel = (option) => /^l(?:e(?:v(?:el?)?)?)?\s*\(/.test(option);
+        if (isLevel(o) && /(?:^|[\s,])l(?:e(?:v(?:el?)?)?)?\s*\(/.test(m[2]))
+          throw new StataError(
+            `option level() of ${prefix} conflicts with option level() of ${command}`,
+            198,
+          );
         prefixOptions.push(o);
         return b;
       },
@@ -3163,16 +3225,25 @@ export function resamplingEstat(session, text, ctx) {
         78,
       ),
     );
-  const depvar = e.k_exp > 0 ? "" : String(e.depvar ?? "").split(" ")[0];
+  const depvar = e.k_exp > 0 ? "" : String(e.depvar ?? "").split(" ")[0],
+    // mean, total, proportion and ratio head the column with their
+    // statistic and name the estimates as their tables do (0bn.h).
+    statistic = ["mean", "total", "proportion", "ratio"].includes(e.cmdname)
+      ? e.cmdname
+      : "coefficient",
+    shownNames =
+      statistic !== "coefficient" && model?.shownNames?.length === names.length
+        ? model.shownNames
+        : names;
   ctx.out(RULE);
   ctx.out(`${" ".repeat(13)}|    Observed               Bootstrap`);
   ctx.out(
-    `${abbreviate(depvar, 12).padStart(12)} | coefficient       Bias    std. err.  [${g(level)}% conf. interval]`,
+    `${abbreviate(depvar, 12).padStart(12)} | ${statistic.padStart(11)}       Bias    std. err.  [${g(level)}% conf. interval]`,
   );
   ctx.out(SPLIT);
   const equations = names.some((name) => /^[^:/]+:/.test(name));
   let current;
-  names.forEach((name, j) => {
+  shownNames.forEach((name, j) => {
     const m = /^([^:]+):(.+)$/.exec(name),
       equation = m ? m[1] : null,
       label = m && equation === "/" ? `/${m[2]}` : m ? m[2] : name;

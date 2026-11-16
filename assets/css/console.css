@@ -49,6 +49,20 @@
   gap: 26px 32px;
   align-items: start;
 }
+/* Between a tablet and a wide screen, Results takes more of the width and
+   the page less of a margin, so that its 79 columns still fit: never less
+   than 79 columns at the smallest text (10.5px), with its padding, borders
+   and a scroll bar, however narrow the window. Above 1420 pixels the wide
+   layout gives Results its full 13px text, so that its text never shrinks
+   as the window grows. */
+@media (min-width: 901px) and (max-width: 1420px) {
+  .console-layout {
+    grid-template-columns: minmax(0, 4fr) minmax(548px, 6fr);
+    column-gap: 24px;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
 .console-heading,
 .console-scope {
   grid-column: 1 / -1;
@@ -280,6 +294,8 @@
   border-color: #fff;
 }
 .console-window {
+  /* Results sizes its text by the window's width. */
+  container-type: inline-size;
   border: 1px solid var(--pane-edge);
   border-radius: 8px;
   overflow: hidden;
@@ -301,7 +317,13 @@
   overflow: auto;
   padding: 14px 16px;
   font-family: var(--mono);
-  font-size: 13px;
+  /* Stata's output is laid out for 79 columns (the linesize), and its
+     Results window shows them whole. The text is made smaller, to no less
+     than 10.5px, until 80 columns of it (a monospaced character is about
+     0.6 of its size) fit across the window, beside its padding, borders
+     and a scroll bar, so that the edge of a table never hides its last
+     digits. Narrower windows scroll sideways. */
+  font-size: clamp(10.5px, calc((100cqi - 52px) / 48.2), 13px);
   line-height: 1.45;
   white-space: pre;
   color: inherit;
@@ -2570,12 +2592,14 @@ th[aria-sort="descending"] .browse-sort::after {
   text-decoration: underline dotted;
 }
 /* The Results window stays in view as the page scrolls; the drawers under
-   it come over it, so that a table in a drawer is never hidden behind it. */
+   it come over it, so that a table in a drawer is never hidden behind it.
+   Nothing reaches above the drawers: a cover there cut off the bottom of
+   the window, its border and rounded corners, whenever the window ended
+   less than the cover's height above them. */
 .console-drawers {
   position: relative;
   z-index: 2;
   background: var(--paper);
-  box-shadow: 0 -26px 0 var(--paper);
 }
 /* At the narrowest phones the site's links wrap, so that the page does not
    scroll sideways. */
