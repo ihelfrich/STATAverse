@@ -1,8 +1,8 @@
 {
   "basis": "Each case in tools/wide-probe-cases.txt run in a fresh Console session. Pass means the command finished and every assertion on it held; it does not mean agreement with Stata, which the recorded fixtures establish. The cases are a judgement about what students type, not a sample of student work.",
   "cases": 519,
-  "pass": 449,
-  "refused": 70,
+  "pass": 453,
+  "refused": 66,
   "wrong": 0,
   "crash": 0,
   "groups": {
@@ -31,8 +31,8 @@
       "crash": 0
     },
     "post": {
-      "pass": 65,
-      "refused": 16,
+      "pass": 67,
+      "refused": 14,
       "wrong": 0,
       "crash": 0
     },
@@ -55,8 +55,8 @@
       "crash": 0
     },
     "ts": {
-      "pass": 21,
-      "refused": 7,
+      "pass": 23,
+      "refused": 5,
       "wrong": 0,
       "crash": 0
     }
@@ -1139,7 +1139,7 @@
     },
     {
       "group": "post",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor|quietly tobit hours wage education, ll(20)|predict ystar, ystar(20,.)"
     },
     {
@@ -1464,7 +1464,7 @@
     },
     {
       "group": "post",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "labor|quietly regress wage education experience female|regress, coeflegend"
     },
     {
@@ -2454,7 +2454,7 @@
     },
     {
       "group": "ts",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "macro||generate t = yq(year, quarter);;tsset t;;tsfill"
     },
     {
@@ -2489,7 +2489,7 @@
     },
     {
       "group": "ts",
-      "outcome": "refused",
+      "outcome": "pass",
       "key": "firms||xtset firm year;;xtline sales if firm <= 4"
     },
     {

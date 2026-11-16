@@ -249,6 +249,10 @@ test("the editor: Escape returns to the cell, a float reads as shown", async ({
     "Ran 4",
   );
   await type(page, "edit");
+  // The edit command's own record is in before the count is taken.
+  await expect(
+    page.locator("#console-output .console-record").last(),
+  ).toContainText(". edit");
   const cells = page.locator("#browse-table tbody tr").first().locator("td");
   const before = await page.locator("#console-output .console-record").count();
   await cells.first().getByRole("button").focus();
