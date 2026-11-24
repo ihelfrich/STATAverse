@@ -6,6 +6,7 @@
 // formats.xpf. Types, formats and messages follow Stata 19; see
 // tests/runtime-userdata-foreign.test.mjs.
 import { StataError } from "./errors.js";
+import { greatest } from "./extremes.js";
 import {
   bytesOf,
   findFile,
@@ -538,10 +539,11 @@ export function importSasxport(session, text, ctx, version) {
         data.get(v.name).format =
           (!v.width && !v.decimals && SAS8_FORMATS[format]) || "%10.0g";
       } else {
-        const width = Math.max(
-          1,
-          ...values.map((s) => new TextEncoder().encode(s).length),
-        );
+        const encoder = new TextEncoder(),
+          width = Math.max(
+            1,
+            greatest(values.map((s) => encoder.encode(s).length)),
+          );
         data.generate(v.name, values, { type: `str${width}`, string: true });
         // A string is stored as wide as its longest value. When that is
         // less than the length the file gives, it takes the format of its

@@ -413,6 +413,20 @@ export function numericVarlist(session, text) {
 }
 
 /**
+ * A word with an operator over a group of names, i.(g h), as the words it
+ * stands for: i.g i.h. A group inside an interaction is not read here.
+ */
+function ungrouped(word) {
+  const group = /^([A-Za-z]\w*)\.\(([^()#]+)\)$/.exec(word);
+  return group
+    ? group[2]
+        .trim()
+        .split(/\s+/)
+        .map((name) => `${group[1]}.${name}`)
+    : [word];
+}
+
+/**
  * Reads "y x1 i.g c.x1#c.x2 i.g##c.x1" into a dependent variable and design
  * columns. Each term is a product of components, a component being a
  * continuous variable or the levels of a factor. A bare name is continuous
@@ -424,10 +438,11 @@ export function design(session, text, rows, constant = true, levelRows) {
   // by(g) typed without its comma is the names by and g.
   session.varlistParentheses = "factor";
   // Words split at blanks outside parentheses, so that L(1 2).x is one.
-  const tokens =
+  const tokens = (
     rangesJoined(text)
       .trim()
-      .match(/(?:[^\s(]|\((?:[^()]|\([^()]*\))*\))+/g) ?? [];
+      .match(/(?:[^\s(]|\((?:[^()]|\([^()]*\))*\))+/g) ?? []
+  ).flatMap(ungrouped);
   if (!tokens.length) throw new StataError("varlist required", 100);
   // A string variable as a factor is an error as Stata's fvexpand makes
   // it; used as a number it is missing in every observation, so the
@@ -1397,7 +1412,12 @@ function tableBlocks(session, model) {
       !block.term.variable &&
       block.term.components.length === 1 &&
       block.term.components[0].factor &&
-      block.shown.length === 1;
+      block.shown.length === 1 &&
+      // A level of four digits or more (2011.year) keeps its factor's
+      // heading even alone, as Stata lays it out.
+      (model.columns[block.shown[0]]?.levels ?? []).every(
+        (level) => Math.abs(level) < 1000,
+      );
     // ratio and its kin head even one group of over() by its name, and a
     // factor under time-series operators is headed by its name (L.union)
     // even with one level shown.
@@ -2044,7 +2064,7 @@ function regress(session, text, ctx) {
   const header = display.header,
     clusterNote = model.clusters
       ? `(Std. err. adjusted for ${count(model.clusters)} clusters in ${model.clusterName})`.padStart(
-          78,
+          regressTableWidth(session, model, display),
         )
       : null;
   if (header) ctx.out("");
@@ -2138,6 +2158,29 @@ function regressDisplay(options, ctx) {
  * the formats given, exponentiated coefficients (eform), and rows left out
  * (vsquish, noomitted, noemptycells).
  */
+/** The width of the columns right of the bar in regress's table. */
+const regressColumns = (display) =>
+  display.legend ? 64 : display.noci ? 39 : display.nopvalues ? 48 : 64;
+
+/**
+ * The width of regress's coefficient table, which the note above a
+ * clustered fit's table ends at: 78, wider under a long name and narrower
+ * without the intervals.
+ */
+function regressTableWidth(session, model, display) {
+  const labels = session.data.valueLabels;
+  if (display.nofvlabel) session.data.valueLabels = new Map();
+  try {
+    return (
+      (display.nolstretch ? 12 : tableWidth(session, model)) +
+      2 +
+      regressColumns(display)
+    );
+  } finally {
+    session.data.valueLabels = labels;
+  }
+}
+
 function regressTable(session, model, level, display, noBeta) {
   const labels = session.data.valueLabels;
   // nofvlabel names levels by their values.
@@ -2164,13 +2207,7 @@ function regressTable(session, model, level, display, noBeta) {
         pformat
           ? (isMissing(v) ? "." : applyFormat(v, pformat).trim()).padStart(8)
           : applyFormat(v, "%8.3f"),
-      right = display.legend
-        ? 64
-        : display.noci
-          ? 39
-          : display.nopvalues
-            ? 48
-            : 64,
+      right = regressColumns(display),
       rule = "-".repeat(w + 2 + right),
       vcetype = robust
         ? [

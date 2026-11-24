@@ -8,7 +8,7 @@ test("regression lab connects original and residualized observations with actual
 }) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/Labs/");
+  await page.goto("/Labs/Regression/");
   await expect(page.locator("#coefficient-comparison tbody tr")).toHaveCount(2);
   const original = await page.locator("#coefficient-comparison").textContent();
   await page.locator("#parameter-rho").fill("0");
@@ -34,7 +34,7 @@ test("regression lab connects original and residualized observations with actual
 test("lab exposes sensitivity without deleting observations and exports modified data", async ({
   page,
 }) => {
-  await page.goto("/Labs/");
+  await page.goto("/Labs/Regression/");
   await page.locator("#lab-tab-influence").click();
   await page.locator("#influence-observation").fill("37");
   await page.locator("#influence-observation").press("Tab");
@@ -67,7 +67,7 @@ test("lab exposes sensitivity without deleting observations and exports modified
 test("lab invalid seeds are rejected and robust inference retains coefficients", async ({
   page,
 }) => {
-  await page.goto("/Labs/");
+  await page.goto("/Labs/Regression/");
   const coefficients = await page
     .locator("#coefficient-comparison tbody tr td:nth-child(2)")
     .allTextContents();
@@ -92,7 +92,7 @@ test("all analysis views are accessible, bounded on mobile and usable offline", 
   page,
   context,
 }) => {
-  await page.goto("/Labs/");
+  await page.goto("/Labs/Regression/");
   await page.locator("#scenario").selectOption("reversal");
   await expect(page.locator("#scenario-description")).toContainText(
     "negative unadjusted slope",

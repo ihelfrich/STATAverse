@@ -617,13 +617,13 @@ function summarizeSample(session, model, text, ctx) {
         `${at(ll)}Number of clusters   = ${applyFormat(sizes.length, "%10.0fc")}`,
       );
       ctx.out(
-        `${at(ll)}Obs per cluster: min = ${applyFormat(Math.min(...sizes), "%10.0fc")}`,
+        `${at(ll)}Obs per cluster: min = ${applyFormat(least(sizes), "%10.0fc")}`,
       );
       ctx.out(
         `${at(ll)}                 avg = ${applyFormat(observations / sizes.length, "%10.1fc")}`,
       );
       ctx.out(
-        `${at(ll)}                 max = ${applyFormat(Math.max(...sizes), "%10.0fc")}`,
+        `${at(ll)}                 max = ${applyFormat(greatest(sizes), "%10.0fc")}`,
       );
     }
   }

@@ -1,3 +1,4 @@
+import { initLabChrome } from "./labs/chrome.js";
 import { INVESTIGATION_CATALOG } from "./labs/investigation-catalog.js";
 import { zipSync, strToU8 } from "fflate";
 import {
@@ -580,3 +581,4 @@ window.addEventListener("hashchange", () => {
 });
 if (new URLSearchParams(location.hash.slice(1)).has("investigation"))
   loadGuides();
+initLabChrome();

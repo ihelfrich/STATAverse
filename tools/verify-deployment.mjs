@@ -85,6 +85,15 @@ try {
   });
   await page.locator("#import-dialog [data-close]").click();
   await page.goto(root + "Labs/");
+  assert.equal(await page.locator(".lab-card h2 a").count(), 5);
+  assert.deepEqual(
+    await page
+      .locator(".lab-card h2 a")
+      .evaluateAll((links) => links.map((a) => a.getAttribute("href"))),
+    ["Regression/", "Inference/", "Data/", "IV/", "Project/"],
+  );
+  await page.locator(".lab-card h2 a").first().click();
+  await page.waitForURL(root + "Labs/Regression/");
   await page.locator("#coefficient-comparison tbody tr").first().waitFor();
   await page.screenshot({
     path: screenshotPath("regression-lab-desktop.png"),
@@ -112,6 +121,24 @@ try {
     path: screenshotPath("inference-simulation-desktop.png"),
     fullPage: true,
   });
+  // The project lab: its session starts in a worker, a step runs and is
+  // checked, and what was fetched is there again without a connection.
+  await page.goto(root + "Labs/Project/");
+  await page
+    .locator('body[data-project-ready="true"]')
+    .waitFor({ timeout: 30000 });
+  await page.locator("#step-hint").click();
+  await page.locator("#step-hint").click();
+  await page.locator("#step-hint").click();
+  await page.locator("#step-worked-button").click();
+  await page.locator("#step-worked-use").click();
+  await page.locator("#step-run").click();
+  await page.locator("#step-verdict.is-done").waitFor({ timeout: 30000 });
+  await page.screenshot({
+    path: screenshotPath("project-lab-desktop.png"),
+    fullPage: false,
+  });
+  await page.goto(root + "Labs/Inference/");
   await context.setOffline(true);
   await page.reload();
   await page.locator("#inference-repetitions").selectOption("50");
@@ -121,6 +148,10 @@ try {
       exact: true,
     })
     .waitFor();
+  await page.goto(root + "Labs/Project/");
+  await page
+    .locator('body[data-project-ready="true"]')
+    .waitFor({ timeout: 30000 });
   await page.goto(root + "Labs/Data/");
   assert.equal(await page.locator("#output-table tbody tr").count(), 8);
   await page.locator("#mode-reshape").click();
@@ -172,6 +203,20 @@ try {
     .waitFor();
   for (const url of ["Workspace/", "CodeLibrary/", "MethodLab/"])
     assert.equal((await page.goto(root + url)).status(), 200);
+  // A first visit to the project lab without a connection, in a browser
+  // that has the precache but has never opened the lab: the page is there,
+  // its program is not, and the page says so with its controls disabled.
+  const unvisited = await browser.newContext();
+  const first = await unvisited.newPage();
+  await first.goto(root);
+  await first.evaluate(() => navigator.serviceWorker.ready);
+  await first.reload();
+  await unvisited.setOffline(true);
+  await first.goto(root + "Labs/Project/");
+  assert.ok(await first.locator("#project-loading").isVisible());
+  assert.ok(await first.locator("#step-run").isDisabled());
+  assert.ok(await first.locator("#project-command").isDisabled());
+  await unvisited.close();
   const mobile = await browser.newContext({
     ...devices["iPhone 13"],
     defaultBrowserType: undefined,
@@ -214,6 +259,13 @@ try {
   });
   await phone.locator("#import-dialog [data-close]").click();
   await phone.goto(root + "Labs/");
+  await phone.locator(".lab-card").first().waitFor();
+  assert.ok(
+    await phone.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await phone.goto(root + "Labs/Regression/");
   await phone.locator('[data-lab-jump="plots"]').click();
   assert.ok(
     await phone.evaluate(
@@ -252,6 +304,20 @@ try {
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   );
+  await phone.goto(root + "Labs/Project/");
+  await phone
+    .locator('body[data-project-ready="true"]')
+    .waitFor({ timeout: 30000 });
+  await phone.locator('[data-jump="project-results"]').click();
+  assert.ok(
+    await phone.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await phone.screenshot({
+    path: screenshotPath("project-lab-mobile.png"),
+    fullPage: false,
+  });
   await phone.goto(root + "Labs/Data/#reshape");
   await phone.locator('[data-jump="data-result"]').click();
   assert.equal(await phone.locator("#output-table tbody tr").count(), 6);
@@ -280,6 +346,7 @@ try {
     dataLabMobileNavigation: true,
     offlineDataInvestigation: true,
     offlineFirstIVInvestigationWithVaryOrigin: true,
+    projectLabFirstOpenOfflineExplained: true,
     foreignCachePreserved: true,
     foreignCacheNotRead: true,
     searchPracticeLinked: true,

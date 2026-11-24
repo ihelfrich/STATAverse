@@ -62,6 +62,8 @@ for (const c of fixture.cases)
     const session = createConsoleSession();
     // The record was made with set linesize 200.
     session.run("set linesize 200");
+    // and under version 17, which decides how regexm() reads a pattern.
+    session.run("version 17");
     const ours = session
         .run(c.source, { doFile: true })
         .output.filter((o) => o.command.trim())

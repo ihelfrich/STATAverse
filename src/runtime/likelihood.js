@@ -6,7 +6,7 @@
 // below, too.
 // vce(robust), vce(cluster) and sampling weights give the sandwich variance
 // from each model's scores.
-import { greatest } from "./extremes.js";
+import { greatest, least } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { applyFormat } from "./format.js";
 import { Ftail, chi2tail, invttail, lngamma, ttail } from "./distributions.js";
@@ -2051,8 +2051,8 @@ export function poissonStart(x, y, lnFact, constant, w = null) {
     if (constant) {
       // SolveC: the constant that makes the mean of exp(xb) the mean of y,
       // shifted where exp() would overflow.
-      const top = Math.max(...xb1),
-        bottom = Math.min(...xb1);
+      const top = greatest(xb1),
+        bottom = least(xb1);
       if (top - bottom <= 2 * 709) {
         const shift = top > 709 ? 709 - top : bottom < -709 ? -709 - bottom : 0,
           meanExp =

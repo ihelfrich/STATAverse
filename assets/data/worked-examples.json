@@ -12,7 +12,7 @@
     },
     "companion": {
       "label": "Explore regression and adjustment",
-      "href": "../Labs/"
+      "href": "../Labs/Regression/"
     },
     "sections": [
       "Preparation",
@@ -93,7 +93,7 @@
     },
     "companion": {
       "label": "Investigate regression adjustment",
-      "href": "../Labs/"
+      "href": "../Labs/Regression/"
     },
     "sections": [
       "Preparation",
@@ -142,7 +142,7 @@
     },
     "companion": {
       "label": "Explore regression and adjustment",
-      "href": "../Labs/"
+      "href": "../Labs/Regression/"
     },
     "sections": [
       "Preparation",

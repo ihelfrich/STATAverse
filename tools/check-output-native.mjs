@@ -48,13 +48,20 @@ export function randomReports(count) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const cases = [
+  // Every case is recorded, which takes Stata several minutes. With case
+  // ids as arguments (node tools/check-output-native.mjs id1 id2) only
+  // those are recorded, and they replace or join the cases on record.
+  const only = new Set(process.argv.slice(2)),
+    every = [
       ...(await readCases("tools/output-cases.txt")),
       ...randomReports(40),
     ],
+    cases = only.size ? every.filter((c) => only.has(c.id)) : every,
     folder = await fs.mkdtemp(
       path.join(os.tmpdir(), "stataverse-output-native-"),
     );
+  for (const id of only)
+    if (!cases.some((c) => c.id === id)) throw new Error(`no case ${id}`);
   const audit = [
     "version 17",
     "set processors 1",
@@ -118,13 +125,25 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     }
     results.push({ id: c.id, source: c.source, commands });
   }
+  // A partial recording keeps the other cases as they were recorded, in
+  // the order of the case file.
+  let recorded = results;
+  if (only.size) {
+    const kept = new Map(
+      JSON.parse(
+        await fs.readFile("tests/fixtures/stata-runtime-output.json", "utf8"),
+      ).cases.map((c) => [c.id, c]),
+    );
+    for (const c of results) kept.set(c.id, c);
+    recorded = every.map((c) => kept.get(c.id)).filter(Boolean);
+  }
   await fs.writeFile(
     "tests/fixtures/stata-runtime-output.json",
     await format(
       JSON.stringify({
         source:
           "Recorded from installed Stata's text log by tools/check-output-native.mjs under version 17, with linesize 200. Leading and trailing blank lines of each command's output are removed.",
-        cases: results,
+        cases: recorded,
       }),
       { parser: "json" },
     ),

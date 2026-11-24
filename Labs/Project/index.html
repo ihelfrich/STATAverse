@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script src="../../assets/js/legacy-location.js"></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Project lab: a firm-year panel · STATAverse</title>
+    <meta
+      name="description"
+      content="Build a firm-year panel analysis in Stata one step at a time, from a merged file to a results table: lags, sample rules, winsorizing, clustered regression, firm fixed effects and Poisson. Runs on a simulated panel or on your own file, in your browser."
+    />
+    <link rel="stylesheet" href="../../assets/css/project-lab.css" />
+  </head>
+  <body class="lab-app project-app">
+    <a class="skip-link" href="#project-main">Skip to project lab</a>
+    <header class="app-header">
+      <a href="../../" class="wordmark"
+        ><span class="brand-symbol" aria-hidden="true">s.</span>STATA<span
+          >verse</span
+        ></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="../../Learn/">Practice</a
+        ><a href="../../ScriptLibrary/builder.html">Do-file builder</a
+        ><a href="../" aria-current="page">Analysis labs</a
+        ><a href="../../ScriptLibrary/">Reference</a
+        ><a href="../../Workspace/">Saved work</a>
+      </nav>
+      <button type="button" id="export-project" class="quiet-button">
+        Download do-file
+      </button>
+    </header>
+    <main id="project-main" class="lab-page project-layout" tabindex="-1">
+      <nav class="lab-switcher" aria-label="Analysis labs">
+        <a href="../" class="lab-switcher-all">All labs</a
+        ><a href="../Regression/">01 Regression &amp; adjustment</a
+        ><a href="../Inference/">02 Uncertainty &amp; repeated samples</a
+        ><a href="../Data/">03 Merge &amp; reshape</a
+        ><a href="../IV/">04 Instrumental variables</a
+        ><a href="../Project/" aria-current="page">05 Panel project</a>
+      </nav>
+      <header class="lab-heading">
+        <div>
+          <h1>A firm-year panel, from merged file to results table</h1>
+          <p>
+            Work through a complete empirical project in Stata: whether firms
+            whose chief executive also chairs the board, firms that turn their
+            assets over faster, and firms with positive operating cash flow pay
+            their auditor more in non-audit fees. Twelve steps take a merged
+            file to a table of five models.
+          </p>
+        </div>
+        <a href="../../Learn/#do-files" class="lab-prerequisite"
+          >New to do-files? Begin with a reproducible do-file in guided practice
+          →</a
+        >
+      </header>
+
+      <section class="project-howto" aria-labelledby="project-howto-title">
+        <h2 id="project-howto-title">How to use this lab</h2>
+        <p>
+          Each step explains one decision and gives you Stata lines with blanks
+          (<code>____</code>) to complete. <strong>Run</strong> executes them in
+          a Stata session that carries over from step to step, prints the output
+          as Stata prints it, and checks the result in the data itself, not your
+          typing. Run starts its step afresh every time, so a line that failed
+          can be corrected and run again. The command line under the results is
+          for looking around at any point: <code>tab</code>,
+          <code>summarize</code>, <code>list in 1/10</code>,
+          <code>count if</code>.
+        </p>
+      </section>
+
+      <section
+        id="project-data-bar"
+        class="project-data-bar"
+        aria-labelledby="project-data-title"
+        tabindex="-1"
+      >
+        <div class="project-data-main">
+          <h2 id="project-data-title">Data</h2>
+          <p id="project-source">
+            Simulated firm-year panel: invented firms, fiscal years 2004 to
+            2023.
+          </p>
+          <div class="project-data-actions">
+            <button
+              type="button"
+              id="project-open"
+              class="quiet-button"
+              disabled
+            >
+              Open your own file
+            </button>
+            <input
+              type="file"
+              id="project-file"
+              accept=".dta,.csv,text/csv"
+              class="sr-only"
+              tabindex="-1"
+              aria-label="Open your own .dta or .csv file"
+            />
+            <button
+              type="button"
+              id="project-builtin"
+              class="quiet-button"
+              hidden
+            >
+              Go back to the simulated panel
+            </button>
+            <button
+              type="button"
+              id="project-csv"
+              class="quiet-button"
+              disabled
+            >
+              Download the simulated panel (CSV)
+            </button>
+          </div>
+          <p class="project-privacy">
+            A file you open is read by this page, on this computer. It is not
+            uploaded anywhere, and nothing of it is kept once you close the tab.
+            <code>.dta</code> and <code>.csv</code> files are accepted.
+          </p>
+          <p class="project-privacy">
+            In Stata, <code>import delimited</code> reads the downloaded CSV
+            with <code>fiscal_ye</code> as a number and <code>datadate</code> as
+            text. The do-file you take away from the lab lists the lines that
+            load it as the lab holds it.
+          </p>
+          <p
+            id="project-file-message"
+            class="project-message"
+            role="status"
+          ></p>
+        </div>
+        <details class="project-columns">
+          <summary>The columns this lab expects</summary>
+          <p>
+            The steps are written for a merged firm-year file with these column
+            names. If your file has them, the lab runs on it as it stands.
+            Columns marked optional can be absent; the step that reads them says
+            so.
+          </p>
+          <div class="project-table-wrap" tabindex="0">
+            <table id="project-expected">
+              <caption class="sr-only">
+                Expected columns
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Column</th>
+                  <th scope="col">Holds</th>
+                  <th scope="col">Kind</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </details>
+        <section
+          id="project-preflight"
+          class="project-preflight"
+          aria-labelledby="project-preflight-title"
+          hidden
+        >
+          <h3 id="project-preflight-title">Your file against these columns</h3>
+          <p id="project-preflight-summary"></p>
+          <div class="project-table-wrap" tabindex="0">
+            <table>
+              <caption class="sr-only">
+                Expected columns found in your file
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Column</th>
+                  <th scope="col">In your file</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody id="project-preflight-rows"></tbody>
+            </table>
+          </div>
+          <div id="project-preflight-prep"></div>
+        </section>
+      </section>
+
+      <nav class="project-stepper" aria-label="Steps of the project">
+        <ol id="project-steps"></ol>
+        <p id="project-step-count"></p>
+      </nav>
+
+      <div class="project-bench">
+        <section
+          id="project-step"
+          class="project-step"
+          aria-labelledby="step-title"
+          tabindex="-1"
+        >
+          <header class="project-step-head">
+            <p id="step-kicker" class="eyebrow"></p>
+            <h2 id="step-title"></h2>
+          </header>
+          <div id="step-idea" class="project-idea"></div>
+          <p id="step-decision" class="project-decision"></p>
+          <div id="step-notice" class="project-notice" hidden></div>
+          <p id="project-loading" class="project-notice">
+            The lab's program is loading. If the steps stay empty, this page
+            could not fetch it: the lab needs a network connection the first
+            time it is opened, and works offline after one visit.
+          </p>
+
+          <label for="step-editor" class="project-editor-label"
+            >Your lines for this step
+            <span>Fill in each <code>____</code>, then run.</span></label
+          >
+          <textarea
+            id="step-editor"
+            class="project-editor"
+            spellcheck="false"
+            autocapitalize="off"
+            autocomplete="off"
+            autocorrect="off"
+            wrap="soft"
+            rows="10"
+            aria-describedby="step-editor-help"
+          ></textarea>
+          <p id="step-editor-help" class="project-help">
+            Ctrl or Cmd with Enter runs the step.
+          </p>
+          <div class="project-actions">
+            <button type="button" id="step-run" class="primary-button" disabled>
+              Run this step
+            </button>
+            <button type="button" id="step-stop" class="quiet-button" hidden>
+              Stop
+            </button>
+            <button type="button" id="step-hint" class="quiet-button" disabled>
+              Show a hint
+            </button>
+            <button
+              type="button"
+              id="step-worked-button"
+              class="quiet-button"
+              disabled
+            >
+              Show a worked version
+            </button>
+            <button type="button" id="step-reset" class="quiet-button" disabled>
+              Start the step's lines again
+            </button>
+          </div>
+          <p id="project-status" class="project-status" role="status"></p>
+
+          <ol id="step-hints" class="project-hints" aria-label="Hints"></ol>
+          <div id="step-worked" class="project-worked" hidden>
+            <h3>A worked version</h3>
+            <p>
+              These lines were run in Stata 19 and in this page, and print the
+              same output in both on the simulated panel.
+            </p>
+            <pre id="step-worked-lines" tabindex="0"></pre>
+            <button type="button" id="step-worked-use" class="quiet-button">
+              Put these lines in the editor
+            </button>
+          </div>
+
+          <section
+            id="step-feedback"
+            class="project-feedback"
+            aria-labelledby="step-feedback-title"
+            hidden
+          >
+            <h3 id="step-feedback-title">Checks</h3>
+            <p id="step-verdict" role="status"></p>
+            <ul id="step-checks"></ul>
+            <div id="step-report"></div>
+            <div class="project-actions">
+              <button
+                type="button"
+                id="step-next"
+                class="primary-button"
+                hidden
+              >
+                Go to the next step
+              </button>
+              <a href="#project-results" class="project-see-output"
+                >See the output</a
+              >
+            </div>
+          </section>
+
+          <div class="project-restart">
+            <button
+              type="button"
+              id="project-restart"
+              class="quiet-button"
+              disabled
+            >
+              Restart from this step
+            </button>
+            <p id="project-restart-help"></p>
+          </div>
+        </section>
+
+        <section
+          id="project-results"
+          class="project-results"
+          aria-label="Stata session"
+          tabindex="-1"
+        >
+          <div class="lab-tabs" role="tablist" aria-label="Session views">
+            <button
+              type="button"
+              role="tab"
+              id="tab-results"
+              aria-controls="panel-results"
+              aria-selected="true"
+            >
+              Results</button
+            ><button
+              type="button"
+              role="tab"
+              id="tab-variables"
+              aria-controls="panel-variables"
+              aria-selected="false"
+              tabindex="-1"
+            >
+              Variables</button
+            ><button
+              type="button"
+              role="tab"
+              id="tab-browse"
+              aria-controls="panel-browse"
+              aria-selected="false"
+              tabindex="-1"
+            >
+              Browse the data
+            </button>
+          </div>
+
+          <div id="panel-results" role="tabpanel" aria-labelledby="tab-results">
+            <div
+              id="project-output"
+              class="project-output"
+              role="log"
+              aria-label="Stata output"
+              tabindex="0"
+            ></div>
+            <form id="project-command-form" class="project-command">
+              <label for="project-command">Command line</label>
+              <div>
+                <span aria-hidden="true">.</span>
+                <input
+                  id="project-command"
+                  type="text"
+                  spellcheck="false"
+                  autocapitalize="off"
+                  autocomplete="off"
+                  autocorrect="off"
+                  placeholder="tab fyear"
+                  aria-describedby="project-command-help"
+                  disabled
+                />
+                <button type="submit" class="quiet-button" disabled>Run</button>
+              </div>
+              <p id="project-command-help" class="project-help">
+                One command on the same session. Up and down arrows recall what
+                you typed.
+              </p>
+              <div class="project-quick" role="group" aria-label="Common looks">
+                <button
+                  type="button"
+                  class="quiet-button"
+                  data-command="describe"
+                >
+                  describe</button
+                ><button
+                  type="button"
+                  class="quiet-button"
+                  data-command="codebook, compact"
+                >
+                  codebook, compact</button
+                ><button
+                  type="button"
+                  class="quiet-button"
+                  data-command="summarize"
+                >
+                  summarize</button
+                ><button
+                  type="button"
+                  class="quiet-button"
+                  data-command="list in 21/30"
+                >
+                  list in 21/30</button
+                ><button
+                  type="button"
+                  class="quiet-button"
+                  data-command="count"
+                >
+                  count</button
+                ><button type="button" id="project-clear" class="quiet-button">
+                  Clear the output
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div
+            id="panel-variables"
+            role="tabpanel"
+            aria-labelledby="tab-variables"
+            hidden
+          >
+            <p id="project-memory" class="project-help"></p>
+            <div class="project-table-wrap project-tall" tabindex="0">
+              <table>
+                <caption class="sr-only">
+                  Variables in memory
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Format</th>
+                    <th scope="col">Label</th>
+                  </tr>
+                </thead>
+                <tbody id="project-variables"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div
+            id="panel-browse"
+            role="tabpanel"
+            aria-labelledby="tab-browse"
+            hidden
+          >
+            <form id="browse-form" class="project-browse-form">
+              <label for="browse-where"
+                >Show
+                <span
+                  >a list of variables, <code>if</code> and <code>in</code>, as
+                  after Stata's <code>browse</code></span
+                ></label
+              >
+              <div>
+                <input
+                  id="browse-where"
+                  type="text"
+                  spellcheck="false"
+                  autocapitalize="off"
+                  autocomplete="off"
+                  placeholder="firmid fyear at sale if fyear == 2010"
+                />
+                <button type="submit" class="quiet-button">Show</button>
+              </div>
+            </form>
+            <p id="browse-status" class="project-help" role="status"></p>
+            <div class="project-table-wrap project-tall" tabindex="0">
+              <table id="browse-grid">
+                <caption class="sr-only">
+                  Observations in memory
+                </caption>
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="project-pager">
+              <button type="button" id="browse-previous" class="quiet-button">
+                Previous rows
+              </button>
+              <button type="button" id="browse-next" class="quiet-button">
+                Next rows
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="project-take" aria-labelledby="project-take-title">
+        <h2 id="project-take-title">Take it with you</h2>
+        <p>
+          The do-file below holds the commands that have run without error in
+          this session, in order, under the header Stata needs to start from
+          nothing. Open it in Stata's Do-file Editor, put your file's name in
+          the <code>use</code> line, and it runs there.
+        </p>
+        <div class="project-actions">
+          <button type="button" id="project-download" class="primary-button">
+            Download the do-file
+          </button>
+          <button type="button" id="project-copy" class="quiet-button">
+            Copy it
+          </button>
+          <span id="project-copy-status" role="status"></span>
+        </div>
+        <details>
+          <summary>The do-file so far</summary>
+          <pre id="project-dofile" tabindex="0"></pre>
+        </details>
+      </section>
+
+      <section class="project-limits" aria-labelledby="project-limits-title">
+        <h2 id="project-limits-title">
+          What this lab does not cover, and where it differs from Stata
+        </h2>
+        <ul>
+          <li>
+            The commands run in an interpreter written for this site, not in
+            Stata. The worked version of every step was run in Stata 19 and here
+            on the simulated panel, and the printed output and the estimates
+            agree. Lines you write yourself have not been compared in that way.
+            After a logit in which some industries predict the outcome
+            perfectly, <code>margins, atmeans</code> can give an estimate where
+            Stata reports that it is not estimable.
+          </li>
+          <li>
+            Community commands that are not part of Stata are not available:
+            <code>winsor2</code>, <code>reghdfe</code>, <code>ppmlhdfe</code>,
+            <code>esttab</code>, <code>outreg2</code>. The steps use what Stata
+            ships with: a <code>_pctile</code> loop, <code>areg</code>,
+            <code>poisson</code> and <code>estimates table</code>.
+          </li>
+          <li>
+            <code>areg</code> absorbs one variable here.
+            <code>margins</code> has no <code>post</code> option, and
+            <code>estimates table</code> lacks a few of Stata's display options.
+            <code>regress</code> with a dummy for each of several thousand firms
+            takes minutes; absorb the firm instead.
+          </li>
+          <li>
+            <code>regexm()</code>, <code>regexr()</code> and
+            <code>regexs()</code> read a pattern as Stata 18 and 19 do when no
+            <code>version</code> is set: <code>\s</code>, <code>\d</code>,
+            <code>\b</code>, <code>{4}</code> and <code>[[:space:]]</code> work,
+            on the bytes of the text. After <code>version 17</code> they read it
+            as older Stata did. A few constructs that the browser cannot read
+            the same way (possessive or atomic groups, <code>\p{}</code>, a flag
+            set partway through a pattern) stop with a message rather than give
+            a different answer. A group such as
+            <code>i.(industry2 fyear)</code> works in a list of regressors, but
+            not inside an interaction.
+          </li>
+          <li>
+            Run puts the data back to the start of its step before it runs. In
+            Stata a second <code>generate</code> of a variable that exists stops
+            with <code>already defined</code>; there you would run the do-file
+            again from the top.
+          </li>
+          <li>
+            The checks read your session: which variables exist, where they are
+            missing, which rows a model used, how it was fitted. They do not
+            compare your numbers with stored answers, so they also work on your
+            own file, and a step that passes is built correctly without being
+            the right specification for every question.
+          </li>
+          <li>
+            A CSV file loses types, as it does in Stata's
+            <code>import delimited</code>: leading zeros go, and dates arrive as
+            text. The lab adds the lines that repair the year-end columns and
+            shows them to you. A <code>.dta</code> file keeps its types.
+          </li>
+          <li>
+            The simulated panel is built in this page from a fixed seed. Its
+            firms are invented and its results say nothing about real companies.
+            The lab does not cover the two merges that produce such a file (the
+            <a href="../Data/">merge and reshape lab</a> does), instrumental
+            variables, or the choice between fixed and random effects.
+          </li>
+        </ul>
+      </section>
+
+      <p
+        id="project-announcement"
+        class="sr-only"
+        role="status"
+        aria-live="polite"
+      ></p>
+      <footer class="lab-footer">
+        <nav aria-label="Other analysis labs">
+          <a href="../IV/" rel="prev"
+            ><span>Previous lab</span>04 Instrumental variables</a
+          ><a href="../" class="lab-footer-all"
+            ><span>Overview</span>All analysis labs</a
+          >
+        </nav>
+        <p>This lab runs in your browser. Nothing you do here is uploaded.</p>
+      </footer>
+    </main>
+    <nav class="lab-mobile-nav" aria-label="Project lab sections">
+      <button type="button" data-jump="project-step">Step</button
+      ><button type="button" data-jump="project-results">Results</button
+      ><button type="button" data-jump="project-data-bar">Data</button>
+    </nav>
+    <noscript
+      ><p class="notice">
+        This lab needs JavaScript. The
+        <a href="../../CodeLibrary/">Stata scripts</a> remain available to
+        download.
+      </p></noscript
+    >
+    <script type="module" src="../../assets/js/project-lab.js"></script>
+  </body>
+</html>

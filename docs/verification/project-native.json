@@ -1,0 +1,22 @@
+{
+  "checkedAt": "2026-11-24T02:29:45.055Z",
+  "source": "src/panel-project/analysis.js",
+  "sourceSha256": "62c260cf628717f20352f715168ce56fe262ad389887757bb4c8cf2d35b65d5b",
+  "panel": {
+    "seed": 2393,
+    "observations": 47173,
+    "csvSha256": "cf2f2cf673728ae325b8fcd437718de0b2c5bfb005938fb4a720b87ac1311b91"
+  },
+  "returnCode": "0",
+  "checks": [
+    "Stata reads the lab's .dta bytes, and cf finds the CSV export equal to them in every variable",
+    "the analysis do-file runs to the end (110 commands recorded)",
+    "507 reported numbers recorded in %21x: coefficients and standard errors of seven fits, sample counts, the joint test, marginal effects and percentile cut-offs"
+  ],
+  "limits": [
+    "One simulated panel from one seed. The numbers describe that panel and nothing outside it.",
+    "The comparison of cf is of values; the CSV route stores some variables in other storage types than the .dta.",
+    "Raw license-bearing logs remain outside the repository."
+  ],
+  "csvRouteMismatches": []
+}

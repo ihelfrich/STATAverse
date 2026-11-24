@@ -365,7 +365,7 @@ export function marginsTable(
             r.rule
               ? 0
               : r.heading
-                ? r.heading.length
+                ? r.heading.length + 1
                 : r.group
                   ? needs(r.group, 0)
                   : needs(r.label, r.plain || r.operated ? 0 : 1),
@@ -1566,13 +1566,20 @@ function margins(session, text, ctx) {
     ctx.out("");
     ctx.out(`Expression: ${expression}, ${chosen?.predict ?? "predict()"}`);
     if (overNames.length) ctx.out(`Over:       ${overNames.join(" ")}`);
-    if (dydx)
-      ctx.out(
-        `dy/dx wrt:  ${results
-          .filter((r) => r.wrt)
-          .map((r) => r.wrt)
-          .join(" ")}`,
-      );
+    if (dydx) {
+      // A long list goes on under its first name, each line two short of
+      // the line size.
+      const room = (session.settings?.linesize ?? 80) - 2,
+        lines = [];
+      let line = "dy/dx wrt: ";
+      for (const name of results.filter((r) => r.wrt).map((r) => r.wrt))
+        if (line.length > 12 && line.length + 1 + name.length > room) {
+          lines.push(line);
+          line = `${" ".repeat(12)}${name}`;
+        } else line += ` ${name}`;
+      lines.push(line);
+      lines.forEach(ctx.out);
+    }
     // vsquish changes nothing here: the legend has no blank lines to take
     // out. noatlegend leaves the legend out.
     if (options.atlegend === false) return;

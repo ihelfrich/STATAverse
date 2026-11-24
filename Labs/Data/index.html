@@ -30,15 +30,17 @@
         Export Stata project
       </button>
     </header>
-    <main id="data-main" class="data-layout" tabindex="-1">
+    <main id="data-main" class="lab-layout data-layout" tabindex="-1">
+      <nav class="lab-switcher" aria-label="Analysis labs">
+        <a href="../" class="lab-switcher-all">All labs</a
+        ><a href="../Regression/">01 Regression &amp; adjustment</a
+        ><a href="../Inference/">02 Uncertainty &amp; repeated samples</a
+        ><a href="../Data/" aria-current="page">03 Merge &amp; reshape</a
+        ><a href="../IV/">04 Instrumental variables</a
+        ><a href="../Project/">05 Panel project</a>
+      </nav>
       <header class="lab-heading">
         <div>
-          <nav class="lab-switcher" aria-label="Analysis labs">
-            <a href="../">01 Regression &amp; adjustment</a
-            ><a href="../Inference/">02 Uncertainty &amp; repeated samples</a
-            ><a href="./" aria-current="page">03 Merge &amp; reshape</a
-            ><a href="../IV/">04 Instrumental variables</a>
-          </nav>
           <h1>Merge and reshape</h1>
           <p>
             Follow each record from its source to the result. Change the keys,
@@ -49,7 +51,10 @@
           >Begin with keys and duplicate records in guided practice →</a
         >
       </header>
-      <section class="investigation-bar" aria-label="Guided investigations">
+      <section
+        class="lab-guide-bar investigation-bar"
+        aria-label="Guided investigations"
+      >
         <label for="investigation-select">Guided investigations</label>
         <select id="investigation-select"></select>
         <p id="investigation-summary"></p>
@@ -60,7 +65,11 @@
           hidden
         ></p>
       </section>
-      <div class="operation-switch" role="group" aria-label="Data operation">
+      <div
+        class="lab-tabs operation-switch"
+        role="group"
+        aria-label="Data operation"
+      >
         <button id="mode-merge" type="button" aria-pressed="true">
           Merge two tables</button
         ><button id="mode-reshape" type="button" aria-pressed="false">
@@ -333,8 +342,20 @@
         role="status"
         aria-live="polite"
       ></p>
+      <footer class="lab-footer">
+        <nav aria-label="Other analysis labs">
+          <a href="../Inference/" rel="prev"
+            ><span>Previous lab</span>02 Uncertainty &amp; repeated samples</a
+          ><a href="../" class="lab-footer-all"
+            ><span>Overview</span>All analysis labs</a
+          ><a href="../IV/" rel="next"
+            ><span>Next lab</span>04 Instrumental variables</a
+          >
+        </nav>
+        <p>This lab runs in your browser. Nothing you do here is uploaded.</p>
+      </footer>
     </main>
-    <nav class="data-mobile-nav" aria-label="Data lab sections">
+    <nav class="lab-mobile-nav data-mobile-nav" aria-label="Data lab sections">
       <button
         type="button"
         id="investigation-jump"

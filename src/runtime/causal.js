@@ -12,6 +12,7 @@
 // the regression areg fits with the group absorbed, xtdidregress the one
 // xtreg, fe fits, each with standard errors clustered by group.
 import { StataError } from "./errors.js";
+import { least, greatest } from "./extremes.js";
 import { evaluateAll } from "./expression.js";
 import { applyFormat, parseFormat } from "./format.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
@@ -799,10 +800,7 @@ function estimateTeffects(session, spec) {
       for (let a = 0; a < m; a++) {
         const ones = z.filter((_, i) => T[i]).map((r) => r[a]),
           zeros = z.filter((_, i) => !T[i]).map((r) => r[a]);
-        if (
-          Math.max(...zeros) < Math.min(...ones) ||
-          Math.max(...ones) < Math.min(...zeros)
-        )
+        if (greatest(zeros) < least(ones) || greatest(ones) < least(zeros))
           throw new StataError(
             "treatment model initial estimates failed",
             2000,
@@ -3330,7 +3328,7 @@ function didregress(xt) {
         `Either the treatment does not vary or it is never zero. ${treatmentText}`,
         2000,
       );
-    if (Math.min(...dValues) !== 0 || Math.max(...dValues) !== 1)
+    if (least(dValues) !== 0 || greatest(dValues) !== 1)
       throw paragraphError(
         session,
         "invalid treatment variable",
@@ -3431,7 +3429,7 @@ function didregress(xt) {
               values.reduce((t, v) => t + (v - mean) ** 2, 0) /
                 Math.max(1, values.length - 1),
             );
-          return [Math.max(...values), Math.min(...values), sd, mean].map((v) =>
+          return [greatest(values), least(values), sd, mean].map((v) =>
             Math.fround(v),
           );
         },
@@ -3452,10 +3450,10 @@ function didregress(xt) {
     }
     const treatedTimes = [...firstTreated.values()],
       controlTimes = [...firstControl.values()],
-      tmin = Math.min(...treatedTimes),
-      tmax = Math.max(...treatedTimes),
-      cmin = Math.min(...controlTimes),
-      cmax = Math.max(...controlTimes),
+      tmin = least(treatedTimes),
+      tmax = greatest(treatedTimes),
+      cmin = least(controlTimes),
+      cmax = greatest(controlTimes),
       staggered = tmin !== tmax || cmin !== cmax;
     // A unit that leaves treatment once in it switches.
     const unit = xt ? rows.map((i) => pVariable.data[i]) : group,

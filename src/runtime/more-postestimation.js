@@ -1,6 +1,7 @@
 // newey, and the tests that work on any fitted model: nlcom, testnl and
 // hausman.
 import { StataError } from "./errors.js";
+import { least, greatest } from "./extremes.js";
 import { applyFormat } from "./format.js";
 import { Ftail, chi2tail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
@@ -71,8 +72,8 @@ function newey(session, text, ctx) {
   // or uneven.
   const steps = rows.slice(1).map((i, r) => (time[i] - time[rows[r]]) / delta);
   if (steps.length) {
-    const low = Math.min(...steps),
-      high = Math.max(...steps),
+    const low = least(steps),
+      high = greatest(steps),
       mean = steps.reduce((a, b) => a + b, 0) / steps.length;
     if (low === high && mean > 1)
       throw new StataError(

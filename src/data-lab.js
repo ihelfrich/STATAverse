@@ -1,3 +1,4 @@
+import { initLabChrome } from "./labs/chrome.js";
 import { initializeInvestigations } from "./data-investigation-ui.js";
 import { zipSync, strToU8 } from "fflate";
 import { escapeHTML as h } from "./render.js";
@@ -515,3 +516,4 @@ investigations = initializeInvestigations({
 });
 if ("serviceWorker" in navigator)
   navigator.serviceWorker.register("../../service-worker.js").catch(() => {});
+initLabChrome();

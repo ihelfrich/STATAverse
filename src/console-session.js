@@ -221,6 +221,21 @@ export function createConsoleSession() {
       };
     },
     /**
+     * Runs `fn` (which may run commands) and then puts back the r() results
+     * and the return code the student's own commands left, so that a
+     * question asked of the session does not show in return list.
+     */
+    holding(fn) {
+      const r = session.results.r,
+        rc = session.rc;
+      try {
+        return fn();
+      } finally {
+        session.results.r = r;
+        session.rc = rc;
+      }
+    },
+    /**
      * A page of the data in memory for the data browser. `where` is what
      * followed browse or edit: a varlist, if and in. The rows can be put in
      * the order of one column (the data stay as they are) and limited to

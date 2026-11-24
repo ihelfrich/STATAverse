@@ -32,7 +32,8 @@ if inlist("`topic'", "all", "ols") {
     display as text `"Residual plots cannot establish exogeneity."'
     display as text `"Stata template (printed, not executed):"'
     display as result `"regress y x1 x2, vce(robust)"'
-    display as text `"Explore regression and adjustment: https://ihelfrich.github.io/learn/stata/Labs/"'
+    display as text `"Explore regression and adjustment:"'
+    display as text `"https://ihelfrich.github.io/learn/stata/Labs/Regression/"'
     display as text `"Read the OLS lesson:"'
     display as text `"https://ihelfrich.github.io/learn/stata/ZeroToHero/modules/02-ols-intuition.html"'
 }

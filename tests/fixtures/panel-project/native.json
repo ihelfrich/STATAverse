@@ -1,0 +1,2222 @@
+{
+  "source": "Recorded from installed Stata's text log by tools/check-project-native.mjs under version 17, with linesize 200. Stata read the panel from the .dta bytes the lab loads, after checking with cf that the CSV export holds the same values. Leading and trailing blank lines of each command's output are removed. Numbers under values were printed with %21x.",
+  "seed": 2393,
+  "observations": 47173,
+  "fingerprint": "d2df056a0afa0962",
+  "csvSha256": "cf2f2cf673728ae325b8fcd437718de0b2c5bfb005938fb4a720b87ac1311b91",
+  "analysisSource": "clear all\nset more off\nset type double\n\n*** 1. Meet the file\nuse \"panel.dta\", clear\ndescribe\n\n* one row is one firm in one fiscal year\nxtset firmid fyear\ncount\n\n* 3 means the firm-year was found in the other file, 1 means it was not\ntab match_exec match_audit\n\n*** 2. Last year's assets\n* average assets needs the year before, so take the lag while 2004 is still here\ngen lag_at = L.at\n\n*** 3. The years studied\nkeep if fyear >= 2005 & fyear <= 2023\ncount\n\n*** 4. The dependent variable\n* a fee cannot be negative. zero is a real answer, but it has no log\ncount if non_audit_fees < 0\ngen nas = non_audit_fees if non_audit_fees >= 0 & non_audit_fees < .\ngen lnnas = ln(nas) if nas > 0 & nas < .\ncount if nas == 0\n\n*** 5. Reading the titles\n* the title is typed by hand: mixed case, stray spaces\ngen title = lower(strtrim(titleann))\ngen dual_proxy = strpos(title, \"chair\") > 0 if title != \"\"\n\n* a vice chair is not the chair. left missing, along with the blank titles\nreplace dual_proxy = . if regexm(title, \"vice[ -]*chair\")\ntab dual_proxy, missing\n\n*** 6. Turnover and cash flow\ngen turnover = sale / ((at + lag_at)/2) if at > 0 & at < . & lag_at > 0 & lag_at < .\ngen positive_cfo = oancf > 0 if oancf < .\nsummarize turnover, detail\n\n*** 7. Controls, industry and auditor\ngen size = ln(at) if at > 0 & at < .\ngen lev  = dltt/at if at > 0 & at < .\ngen roa  = ni/at if at > 0 & at < .\ngen loss = ni < 0 if ni < .\n\ngen auditor = lower(strtrim(auditor_name))\ngen big4 = regexm(auditor, \"deloitte|ernst|young|kpmg|pricewaterhouse|pwc\") if auditor != \"\"\n\n* two-digit SIC. utilities (49xx) and financial firms (6xxx) are set aside\ngen industry2 = floor(sich/100) if sich >= 100 & sich <= 9999\ngen fin_util = (sich >= 6000 & sich <= 6999) | (sich >= 4900 & sich <= 4999)\ntab big4\ntab fin_util\n\n*** 8. The sample\negen nmiss = rowmiss(dual_proxy turnover positive_cfo size lev roa loss big4 industry2)\ngen eligible = nmiss == 0 & fin_util == 0 & match_exec == 3 & match_audit == 3 & nas < .\ngen baseline_sample = eligible & nas > 0\n\n* where the rows go. the two counts above are the whole file and the year window\ncount if match_exec == 3 & match_audit == 3\ncount if match_exec == 3 & match_audit == 3 & fin_util == 0\ncount if eligible\ncount if eligible & nas == 0\ncount if baseline_sample\ntab fyear if baseline_sample\n\n*** 9. Capping the ratios\n* cap the three ratios at the 1st and 99th percentiles of the baseline sample.\n* the untouched values stay in _raw\nforeach v in turnover lev roa {\n    gen `v'_raw = `v'\n    _pctile `v' if baseline_sample, p(1 99)\n    local lo = r(r1)\n    local hi = r(r2)\n    replace `v' = `lo' if `v' < `lo' & eligible\n    replace `v' = `hi' if `v' > `hi' & `v' < . & eligible\n}\n\nlabel var lnnas \"Log non-audit fees\"\nlabel var dual_proxy \"CEO title mentions chair\"\nlabel var turnover \"Asset turnover\"\nlabel var positive_cfo \"Positive operating cash flow\"\nlabel var size \"Log total assets\"\nlabel var lev \"Long-term debt / assets\"\nlabel var roa \"Net income / assets\"\nlabel var loss \"Loss\"\nlabel var big4 \"Big 4 auditor\"\n\ngen nas_m = nas/1000000\ntabstat nas_m lnnas dual_proxy turnover positive_cfo size lev roa loss big4 if baseline_sample, ///\n    stat(n mean sd p25 p50 p75) col(stat) format(%9.3f)\ncorr lnnas dual_proxy turnover positive_cfo size lev roa loss big4 if baseline_sample\n\n*** 10. The baseline regression\nglobal controls size lev roa loss big4\n\n* industry and year dummies, standard errors clustered by firm\nreg lnnas dual_proxy turnover positive_cfo $controls i.industry2 i.fyear if baseline_sample, vce(cluster firmid)\nest store baseline\n\n* with a log outcome, 100*(exp(b)-1) is the percent difference\ndi 100*(exp(_b[dual_proxy]) - 1)\ndi 100*(exp(_b[turnover]) - 1)\n\n* are the two coefficients both zero? this says nothing about their signs\ntest turnover positive_cfo\n\n*** 11. Firm effects, zeros and other checks\n* firm fixed effects. industry drops out because a firm stays in its industry\nareg lnnas dual_proxy turnover positive_cfo $controls i.fyear if baseline_sample, absorb(firmid) vce(cluster firmid)\nest store firm_fe\n\n* poisson on fees in $ millions, so the firm-years with no fee are in\npoisson nas_m dual_proxy turnover positive_cfo $controls i.industry2 i.fyear if eligible, vce(cluster firmid)\nest store all_fees\n\n* keep only the rows where the two files agree on the fiscal year-end\ngen fee_mmdd = string(real(strtrim(fiscal_ye)), \"%04.0f\") if regexm(strtrim(fiscal_ye), \"^[0-9][0-9][0-9][0-9]?$\")\ngen comp_mmdd = string(month(datadate), \"%02.0f\") + string(day(datadate), \"%02.0f\") if datadate < .\ngen date_ok = fee_mmdd == comp_mmdd if fee_mmdd != \"\" & comp_mmdd != \"\"\ntab date_ok if baseline_sample\nreg lnnas dual_proxy turnover positive_cfo $controls i.industry2 i.fyear if baseline_sample & date_ok == 1, vce(cluster firmid)\nest store date_screen\n\n* the baseline again with the ratios as they came\nreg lnnas dual_proxy turnover_raw positive_cfo size lev_raw roa_raw loss big4 i.industry2 i.fyear if baseline_sample, vce(cluster firmid)\nest store uncapped\n\nest table baseline firm_fe all_fees date_screen uncapped, ///\n    keep(dual_proxy turnover turnover_raw positive_cfo size lev lev_raw roa roa_raw loss big4) ///\n    b(%7.3f) se(%7.3f) stats(N N_clust) equations(1)\n\n*** 12. Whether a firm buys, and how much\ngen any_fee = nas > 0 if eligible\n\n* buy or not. margins turns the logit into changes in probability\nlogit any_fee i.dual_proxy turnover i.positive_cfo $controls i.industry2 i.fyear if eligible, vce(cluster firmid)\nest store buys\nmargins, dydx(dual_proxy turnover positive_cfo)\n\n* the amount, among the firm-years that bought\npoisson nas_m dual_proxy turnover positive_cfo $controls i.industry2 i.fyear if baseline_sample, vce(cluster firmid)\nest store amount\n",
+  "commands": [
+    { "command": "clear all", "lines": [] },
+    { "command": "set more off", "lines": [] },
+    { "command": "set type double", "lines": [] },
+    { "command": "*** 1. Meet the file", "lines": [] },
+    {
+      "command": "use \"panel.dta\", clear",
+      "lines": ["(Simulated firm-year panel, fiscal years 2004-2023)"]
+    },
+    {
+      "command": "describe",
+      "lines": [
+        "Contains data from panel.dta",
+        " Observations:        47,173                  Simulated firm-year panel, fiscal years 2004-2023",
+        "    Variables:            19                  01 Jan 2026 12:00",
+        "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+        "Variable      Storage   Display    Value",
+        "    name         type    format    label      Variable label",
+        "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+        "firmid          long    %12.0g                Firm number (panel identifier)",
+        "gvkey           str6    %9s                   Firm key in the accounting file",
+        "conm            str39   %39s                  Company name",
+        "fyear           int     %8.0g                 Fiscal year",
+        "datadate        int     %td                   Fiscal year-end date",
+        "at              double  %10.0g                Total assets ($ millions)",
+        "dltt            double  %10.0g                Long-term debt ($ millions)",
+        "ni              double  %10.0g                Net income ($ millions)",
+        "sale            double  %10.0g                Net sales ($ millions)",
+        "oancf           double  %10.0g                Operating cash flow ($ millions)",
+        "sich            int     %8.0g                 Four-digit SIC industry code",
+        "titleann        str63   %63s                  Chief executive's title for the year",
+        "non_audit_fees  double  %10.0g                Non-audit fees ($)",
+        "audit_fees      double  %10.0g                Audit fees ($)",
+        "total_fees      double  %10.0g                Total fees paid to the auditor ($)",
+        "auditor_name    str29   %29s                  Auditor name",
+        "fiscal_ye       str4    %9s                   Fiscal year-end in the fee file (MMDD)",
+        "match_exec      byte    %8.0g                 Merge with executive file (3 = matched)",
+        "match_audit     byte    %8.0g                 Merge with audit-fee file (3 = matched)",
+        "--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------",
+        "Sorted by:"
+      ]
+    },
+    { "command": "* one row is one firm in one fiscal year", "lines": [] },
+    {
+      "command": "xtset firmid fyear",
+      "lines": [
+        "Panel variable: firmid (unbalanced)",
+        " Time variable: fyear, 2004 to 2023, but with gaps",
+        "         Delta: 1 unit"
+      ]
+    },
+    { "command": "count", "lines": ["  47,173"] },
+    {
+      "command": "* 3 means the firm-year was found in the other file, 1 means it was not",
+      "lines": []
+    },
+    {
+      "command": "tab match_exec match_audit",
+      "lines": [
+        "Merge with |",
+        " executive | Merge with audit-fee",
+        " file (3 = |  file (3 = matched)",
+        "  matched) |         1          3 |     Total",
+        "-----------+----------------------+----------",
+        "         1 |    14,528     21,845 |    36,373",
+        "         3 |     2,014      8,786 |    10,800",
+        "-----------+----------------------+----------",
+        "     Total |    16,542     30,631 |    47,173"
+      ]
+    },
+    { "command": "*** 2. Last year's assets", "lines": [] },
+    {
+      "command": "* average assets needs the year before, so take the lag while 2004 is still here",
+      "lines": []
+    },
+    {
+      "command": "gen lag_at = L.at",
+      "lines": ["(14,717 missing values generated)"]
+    },
+    { "command": "*** 3. The years studied", "lines": [] },
+    {
+      "command": "keep if fyear >= 2005 & fyear <= 2023",
+      "lines": ["(2,122 observations deleted)"]
+    },
+    { "command": "count", "lines": ["  45,051"] },
+    { "command": "*** 4. The dependent variable", "lines": [] },
+    {
+      "command": "* a fee cannot be negative. zero is a real answer, but it has no log",
+      "lines": []
+    },
+    { "command": "count if non_audit_fees < 0", "lines": ["  26"] },
+    {
+      "command": "gen nas = non_audit_fees if non_audit_fees >= 0 & non_audit_fees < .",
+      "lines": ["(16,027 missing values generated)"]
+    },
+    {
+      "command": "gen lnnas = ln(nas) if nas > 0 & nas < .",
+      "lines": ["(21,935 missing values generated)"]
+    },
+    { "command": "count if nas == 0", "lines": ["  5,908"] },
+    { "command": "*** 5. Reading the titles", "lines": [] },
+    {
+      "command": "* the title is typed by hand: mixed case, stray spaces",
+      "lines": []
+    },
+    {
+      "command": "gen title = lower(strtrim(titleann))",
+      "lines": ["(34,695 missing values generated)"]
+    },
+    {
+      "command": "gen dual_proxy = strpos(title, \"chair\") > 0 if title != \"\"",
+      "lines": ["(34,695 missing values generated)"]
+    },
+    {
+      "command": "* a vice chair is not the chair. left missing, along with the blank titles",
+      "lines": []
+    },
+    {
+      "command": "replace dual_proxy = . if regexm(title, \"vice[ -]*chair\")",
+      "lines": ["(113 real changes made, 113 to missing)"]
+    },
+    {
+      "command": "tab dual_proxy, missing",
+      "lines": [
+        " dual_proxy |      Freq.     Percent        Cum.",
+        "------------+-----------------------------------",
+        "          0 |      5,855       13.00       13.00",
+        "          1 |      4,388        9.74       22.74",
+        "          . |     34,808       77.26      100.00",
+        "------------+-----------------------------------",
+        "      Total |     45,051      100.00"
+      ]
+    },
+    { "command": "*** 6. Turnover and cash flow", "lines": [] },
+    {
+      "command": "gen turnover = sale / ((at + lag_at)/2) if at > 0 & at < . & lag_at > 0 & lag_at < .",
+      "lines": ["(14,849 missing values generated)"]
+    },
+    {
+      "command": "gen positive_cfo = oancf > 0 if oancf < .",
+      "lines": ["(10,558 missing values generated)"]
+    },
+    {
+      "command": "summarize turnover, detail",
+      "lines": [
+        "                          turnover",
+        "-------------------------------------------------------------",
+        "      Percentiles      Smallest",
+        " 1%     .0301986       .0053427",
+        " 5%     .0607569         .00593",
+        "10%     .1029453       .0060737       Obs              30,202",
+        "25%     .3180141       .0063321       Sum of wgt.      30,202",
+        "",
+        "50%     .6641268                      Mean           1.004175",
+        "                        Largest       Std. dev.      1.707856",
+        "75%     1.237628       55.24412",
+        "90%     2.125176       57.16088       Variance       2.916772",
+        "95%     2.959721       61.57272       Skewness        37.8216",
+        "99%         5.52       166.8036       Kurtosis        3129.48"
+      ]
+    },
+    { "command": "*** 7. Controls, industry and auditor", "lines": [] },
+    {
+      "command": "gen size = ln(at) if at > 0 & at < .",
+      "lines": ["(10,048 missing values generated)"]
+    },
+    {
+      "command": "gen lev  = dltt/at if at > 0 & at < .",
+      "lines": ["(10,179 missing values generated)"]
+    },
+    {
+      "command": "gen roa  = ni/at if at > 0 & at < .",
+      "lines": ["(10,312 missing values generated)"]
+    },
+    {
+      "command": "gen loss = ni < 0 if ni < .",
+      "lines": ["(10,300 missing values generated)"]
+    },
+    {
+      "command": "gen auditor = lower(strtrim(auditor_name))",
+      "lines": ["(16,001 missing values generated)"]
+    },
+    {
+      "command": "gen big4 = regexm(auditor, \"deloitte|ernst|young|kpmg|pricewaterhouse|pwc\") if auditor != \"\"",
+      "lines": ["(16,001 missing values generated)"]
+    },
+    {
+      "command": "* two-digit SIC. utilities (49xx) and financial firms (6xxx) are set aside",
+      "lines": []
+    },
+    {
+      "command": "gen industry2 = floor(sich/100) if sich >= 100 & sich <= 9999",
+      "lines": ["(10,498 missing values generated)"]
+    },
+    {
+      "command": "gen fin_util = (sich >= 6000 & sich <= 6999) | (sich >= 4900 & sich <= 4999)",
+      "lines": []
+    },
+    {
+      "command": "tab big4",
+      "lines": [
+        "       big4 |      Freq.     Percent        Cum.",
+        "------------+-----------------------------------",
+        "          0 |     11,188       38.51       38.51",
+        "          1 |     17,862       61.49      100.00",
+        "------------+-----------------------------------",
+        "      Total |     29,050      100.00"
+      ]
+    },
+    {
+      "command": "tab fin_util",
+      "lines": [
+        "   fin_util |      Freq.     Percent        Cum.",
+        "------------+-----------------------------------",
+        "          0 |     36,366       80.72       80.72",
+        "          1 |      8,685       19.28      100.00",
+        "------------+-----------------------------------",
+        "      Total |     45,051      100.00"
+      ]
+    },
+    { "command": "*** 8. The sample", "lines": [] },
+    {
+      "command": "egen nmiss = rowmiss(dual_proxy turnover positive_cfo size lev roa loss big4 industry2)",
+      "lines": []
+    },
+    {
+      "command": "gen eligible = nmiss == 0 & fin_util == 0 & match_exec == 3 & match_audit == 3 & nas < .",
+      "lines": []
+    },
+    { "command": "gen baseline_sample = eligible & nas > 0", "lines": [] },
+    {
+      "command": "* where the rows go. the two counts above are the whole file and the year window",
+      "lines": []
+    },
+    {
+      "command": "count if match_exec == 3 & match_audit == 3",
+      "lines": ["  8,786"]
+    },
+    {
+      "command": "count if match_exec == 3 & match_audit == 3 & fin_util == 0",
+      "lines": ["  7,111"]
+    },
+    { "command": "count if eligible", "lines": ["  6,322"] },
+    { "command": "count if eligible & nas == 0", "lines": ["  518"] },
+    { "command": "count if baseline_sample", "lines": ["  5,804"] },
+    {
+      "command": "tab fyear if baseline_sample",
+      "lines": [
+        "Fiscal year |      Freq.     Percent        Cum.",
+        "------------+-----------------------------------",
+        "       2005 |        213        3.67        3.67",
+        "       2006 |        237        4.08        7.75",
+        "       2007 |        244        4.20       11.96",
+        "       2008 |        274        4.72       16.68",
+        "       2009 |        308        5.31       21.98",
+        "       2010 |        346        5.96       27.95",
+        "       2011 |        351        6.05       33.99",
+        "       2012 |        373        6.43       40.42",
+        "       2013 |        358        6.17       46.59",
+        "       2014 |        370        6.37       52.96",
+        "       2015 |        363        6.25       59.22",
+        "       2016 |        340        5.86       65.08",
+        "       2017 |        336        5.79       70.86",
+        "       2018 |        327        5.63       76.50",
+        "       2019 |        317        5.46       81.96",
+        "       2020 |        296        5.10       87.06",
+        "       2021 |        270        4.65       91.71",
+        "       2022 |        249        4.29       96.00",
+        "       2023 |        232        4.00      100.00",
+        "------------+-----------------------------------",
+        "      Total |      5,804      100.00"
+      ]
+    },
+    { "command": "*** 9. Capping the ratios", "lines": [] },
+    {
+      "command": "* cap the three ratios at the 1st and 99th percentiles of the baseline sample.",
+      "lines": []
+    },
+    { "command": "* the untouched values stay in _raw", "lines": [] },
+    {
+      "command": "foreach v in turnover lev roa {",
+      "lines": [
+        "  2.     gen `v'_raw = `v'",
+        "  3.     _pctile `v' if baseline_sample, p(1 99)",
+        "  4.     local lo = r(r1)",
+        "  5.     local hi = r(r2)",
+        "  6.     replace `v' = `lo' if `v' < `lo' & eligible",
+        "  7.     replace `v' = `hi' if `v' > `hi' & `v' < . & eligible",
+        "  8. }",
+        "(14,849 missing values generated)",
+        "(58 real changes made)",
+        "(60 real changes made)",
+        "(10,179 missing values generated)",
+        "(0 real changes made)",
+        "(63 real changes made)",
+        "(10,312 missing values generated)",
+        "(64 real changes made)",
+        "(62 real changes made)"
+      ]
+    },
+    { "command": "label var lnnas \"Log non-audit fees\"", "lines": [] },
+    {
+      "command": "label var dual_proxy \"CEO title mentions chair\"",
+      "lines": []
+    },
+    { "command": "label var turnover \"Asset turnover\"", "lines": [] },
+    {
+      "command": "label var positive_cfo \"Positive operating cash flow\"",
+      "lines": []
+    },
+    { "command": "label var size \"Log total assets\"", "lines": [] },
+    { "command": "label var lev \"Long-term debt / assets\"", "lines": [] },
+    { "command": "label var roa \"Net income / assets\"", "lines": [] },
+    { "command": "label var loss \"Loss\"", "lines": [] },
+    { "command": "label var big4 \"Big 4 auditor\"", "lines": [] },
+    {
+      "command": "gen nas_m = nas/1000000",
+      "lines": ["(16,027 missing values generated)"]
+    },
+    {
+      "command": "tabstat nas_m lnnas dual_proxy turnover positive_cfo size lev roa loss big4 if baseline_sample, ///    stat(n mean sd p25 p50 p75) col(stat) format(%9.3f)",
+      "lines": [
+        "    Variable |         N      Mean        SD       p25       p50       p75",
+        "-------------+------------------------------------------------------------",
+        "       nas_m |  5804.000     0.804     1.948     0.085     0.234     0.706",
+        "       lnnas |  5804.000    12.399     1.561    11.350    12.363    13.467",
+        "  dual_proxy |  5804.000     0.420     0.494     0.000     0.000     1.000",
+        "    turnover |  5804.000     1.136     0.973     0.524     0.822     1.393",
+        "positive_cfo |  5804.000     0.899     0.302     1.000     1.000     1.000",
+        "        size |  5804.000     8.108     1.758     6.883     8.046     9.258",
+        "         lev |  5804.000     0.231     0.195     0.064     0.203     0.355",
+        "         roa |  5804.000     0.026     0.102    -0.005     0.041     0.082",
+        "        loss |  5804.000     0.274     0.446     0.000     0.000     1.000",
+        "        big4 |  5804.000     0.865     0.342     1.000     1.000     1.000",
+        "--------------------------------------------------------------------------"
+      ]
+    },
+    {
+      "command": "corr lnnas dual_proxy turnover positive_cfo size lev roa loss big4 if baseline_sample",
+      "lines": [
+        "(obs=5,804)",
+        "",
+        "             |    lnnas dual_p~y turnover positi~o     size      lev      roa     loss     big4",
+        "-------------+---------------------------------------------------------------------------------",
+        "       lnnas |   1.0000",
+        "  dual_proxy |   0.1485   1.0000",
+        "    turnover |  -0.0750  -0.0115   1.0000",
+        "positive_cfo |   0.0644   0.0136  -0.0353   1.0000",
+        "        size |   0.7900   0.1275  -0.1884   0.1053   1.0000",
+        "         lev |   0.1726   0.0923  -0.0345   0.0058   0.1573   1.0000",
+        "         roa |  -0.0102   0.0039  -0.0339   0.6340   0.0296  -0.0222   1.0000",
+        "        loss |   0.0087  -0.0114   0.0177  -0.4691  -0.0338   0.0376  -0.6784   1.0000",
+        "        big4 |   0.3357   0.0417  -0.1053   0.0590   0.3535   0.0173   0.0277  -0.0172   1.0000"
+      ]
+    },
+    { "command": "*** 10. The baseline regression", "lines": [] },
+    { "command": "global controls size lev roa loss big4", "lines": [] },
+    {
+      "command": "* industry and year dummies, standard errors clustered by firm",
+      "lines": []
+    },
+    {
+      "command": "reg lnnas dual_proxy turnover positive_cfo $controls i.industry2 i.fyear if baseline_sample, vce(cluster firmid)",
+      "lines": [
+        "Linear regression                               Number of obs     =      5,804",
+        "                                                F(66, 674)        =      54.94",
+        "                                                Prob > F          =     0.0000",
+        "                                                R-squared         =     0.6723",
+        "                                                Root MSE          =     .89888",
+        "",
+        "                               (Std. err. adjusted for 675 clusters in firmid)",
+        "------------------------------------------------------------------------------",
+        "             |               Robust",
+        "       lnnas | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+        "-------------+----------------------------------------------------------------",
+        "  dual_proxy |   .1245285   .0454347     2.74   0.006      .035318    .2137391",
+        "    turnover |   .1035044   .0366038     2.83   0.005     .0316331    .1753756",
+        "positive_cfo |   .0067169   .0549988     0.12   0.903    -.1012727    .1147066",
+        "        size |   .6720548   .0175434    38.31   0.000     .6376085    .7065011",
+        "         lev |   .3682763   .1196921     3.08   0.002     .1332622    .6032905",
+        "         roa |   -.320377   .2107379    -1.52   0.129    -.7341588    .0934047",
+        "        loss |   .0766204   .0428583     1.79   0.074    -.0075315    .1607723",
+        "        big4 |    .300462   .0823505     3.65   0.000     .1387676    .4621565",
+        "             |",
+        "   industry2 |",
+        "         13  |  -.3862857    .419546    -0.92   0.358     -1.21006    .4374887",
+        "         15  |  -.4609138   .4352075    -1.06   0.290    -1.315439    .3936118",
+        "         16  |    .062804   .4365729     0.14   0.886    -.7944024    .9200104",
+        "         20  |  -.7396001   .4376696    -1.69   0.092     -1.59896    .1197597",
+        "         22  |  -.6056093   .4137904    -1.46   0.144    -1.418083     .206864",
+        "         23  |  -1.135158   .4764587    -2.38   0.017     -2.07068    -.199636",
+        "         24  |  -.1978478   .4726834    -0.42   0.676    -1.125957    .7302612",
+        "         25  |  -.6450541   .5460012    -1.18   0.238    -1.717122    .4270137",
+        "         26  |  -.8390612    .439134    -1.91   0.056    -1.701296    .0231739",
+        "         27  |   .1968859   .4788911     0.41   0.681    -.7434119    1.137184",
+        "         28  |  -.5857121   .4188025    -1.40   0.162    -1.408026    .2366023",
+        "         29  |  -1.103092   .4395662    -2.51   0.012    -1.966176   -.2400088",
+        "         30  |   -.315902   .4211152    -0.75   0.453    -1.142757    .5109534",
+        "         32  |  -.6958665   .4850021    -1.43   0.152    -1.648163    .2564301",
+        "         33  |  -.5203303   .5934858    -0.88   0.381    -1.685634    .6449731",
+        "         34  |  -.6461889   .4336173    -1.49   0.137    -1.497592    .2052143",
+        "         35  |  -.3921995   .4269884    -0.92   0.359    -1.230587    .4461879",
+        "         36  |  -.5510635   .4167083    -1.32   0.186    -1.369266     .267139",
+        "         37  |  -.3993842   .4651333    -0.86   0.391    -1.312669    .5139002",
+        "         38  |   -1.00842   .4332312    -2.33   0.020    -1.859066   -.1577752",
+        "         39  |  -.0236404   .5239595    -0.05   0.964     -1.05243    1.005149",
+        "         40  |  -.4739317   .4760997    -1.00   0.320    -1.408749    .4608853",
+        "         42  |  -.4469358   .5180152    -0.86   0.389    -1.464054    .5701819",
+        "         44  |  -1.186731   .5270241    -2.25   0.025    -2.221538   -.1519247",
+        "         45  |   .0163122    .432888     0.04   0.970    -.8336591    .8662835",
+        "         48  |  -.3303329   .4521118    -0.73   0.465     -1.21805     .557384",
+        "         50  |  -.6238348   .4364571    -1.43   0.153    -1.480814    .2331443",
+        "         51  |   .1265002   .4809958     0.26   0.793    -.8179302     1.07093",
+        "         53  |  -.2405824   .4335988    -0.55   0.579    -1.091949    .6107845",
+        "         54  |  -.4310501   .4640276    -0.93   0.353    -1.342164    .4800634",
+        "         56  |   -1.11852   .4258876    -2.63   0.009    -1.954746   -.2822942",
+        "         57  |  -.6676496   .4843221    -1.38   0.168    -1.618611    .2833119",
+        "         58  |  -.8228858   .4182411    -1.97   0.050    -1.644098   -.0016735",
+        "         59  |  -.5393125   .4729268    -1.14   0.255    -1.467899    .3892744",
+        "         70  |  -.6187198   .4503758    -1.37   0.170    -1.503028    .2655886",
+        "         73  |   -.654079   .4161583    -1.57   0.116    -1.471202    .1630435",
+        "         79  |   .0528297   .4829095     0.11   0.913    -.8953583    1.001018",
+        "         80  |  -.5957179   .4292215    -1.39   0.166     -1.43849    .2470541",
+        "         82  |  -.5854173   .4702567    -1.24   0.214    -1.508762     .337927",
+        "         87  |  -.6848409   .4212318    -1.63   0.104    -1.511925    .1422434",
+        "             |",
+        "       fyear |",
+        "       2006  |  -.0484569   .0650709    -0.74   0.457     -.176223    .0793093",
+        "       2007  |    .117315   .0740116     1.59   0.113    -.0280059    .2626359",
+        "       2008  |  -.1281063   .0685412    -1.87   0.062    -.2626863    .0064737",
+        "       2009  |   -.199325   .0734375    -2.71   0.007    -.3435187   -.0551312",
+        "       2010  |  -.1004425   .0712478    -1.41   0.159    -.2403369    .0394519",
+        "       2011  |  -.0797517   .0716797    -1.11   0.266     -.220494    .0609906",
+        "       2012  |   -.141916   .0714629    -1.99   0.047    -.2822328   -.0015993",
+        "       2013  |  -.1481181   .0738831    -2.00   0.045    -.2931869   -.0030494",
+        "       2014  |    -.15999   .0740062    -2.16   0.031    -.3053004   -.0146796",
+        "       2015  |  -.1170145   .0723715    -1.62   0.106    -.2591152    .0250862",
+        "       2016  |  -.0599645   .0746533    -0.80   0.422    -.2065456    .0866165",
+        "       2017  |   .0173545   .0737684     0.24   0.814    -.1274891    .1621981",
+        "       2018  |   .0028829   .0759092     0.04   0.970     -.146164    .1519299",
+        "       2019  |  -.1485561    .078607    -1.89   0.059    -.3029001     .005788",
+        "       2020  |  -.0927474   .0746743    -1.24   0.215    -.2393698    .0538749",
+        "       2021  |   .1275241   .0769251     1.66   0.098    -.0235176    .2785658",
+        "       2022  |  -.0242297   .0831967    -0.29   0.771    -.1875856    .1391261",
+        "       2023  |   .1772508   .0848332     2.09   0.037     .0106817    .3438199",
+        "             |",
+        "       _cons |   7.064645   .4373142    16.15   0.000     6.205983    7.923307",
+        "------------------------------------------------------------------------------"
+      ]
+    },
+    { "command": "est store baseline", "lines": [] },
+    {
+      "command": "* with a log outcome, 100*(exp(b)-1) is the percent difference",
+      "lines": []
+    },
+    { "command": "di 100*(exp(_b[dual_proxy]) - 1)", "lines": ["13.261434"] },
+    { "command": "di 100*(exp(_b[turnover]) - 1)", "lines": ["10.905065"] },
+    {
+      "command": "* are the two coefficients both zero? this says nothing about their signs",
+      "lines": []
+    },
+    {
+      "command": "test turnover positive_cfo",
+      "lines": [
+        " ( 1)  turnover = 0",
+        " ( 2)  positive_cfo = 0",
+        "",
+        "       F(  2,   674) =    4.00",
+        "            Prob > F =    0.0188"
+      ]
+    },
+    { "command": "*** 11. Firm effects, zeros and other checks", "lines": [] },
+    {
+      "command": "* firm fixed effects. industry drops out because a firm stays in its industry",
+      "lines": []
+    },
+    {
+      "command": "areg lnnas dual_proxy turnover positive_cfo $controls i.fyear if baseline_sample, absorb(firmid) vce(cluster firmid)",
+      "lines": [
+        "Linear regression, absorbing indicators             Number of obs     =  5,804",
+        "Absorbed variable: firmid                           No. of categories =    675",
+        "                                                    F(26, 674)        =  33.01",
+        "                                                    Prob > F          = 0.0000",
+        "                                                    R-squared         = 0.8325",
+        "                                                    Adj R-squared     = 0.8095",
+        "                                                    Root MSE          = 0.6814",
+        "",
+        "                               (Std. err. adjusted for 675 clusters in firmid)",
+        "------------------------------------------------------------------------------",
+        "             |               Robust",
+        "       lnnas | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+        "-------------+----------------------------------------------------------------",
+        "  dual_proxy |  -.0036766   .0342608    -0.11   0.915    -.0709472    .0635941",
+        "    turnover |   .0776963   .0306346     2.54   0.011     .0175456     .137847",
+        "positive_cfo |   .0396784   .0473557     0.84   0.402     -.053304    .1326607",
+        "        size |   .6400507   .0272934    23.45   0.000     .5864604     .693641",
+        "         lev |   .3424318   .1492717     2.29   0.022     .0493384    .6355253",
+        "         roa |  -.3816269    .156947    -2.43   0.015    -.6897908    -.073463",
+        "        loss |   .0327264   .0341945     0.96   0.339    -.0344141    .0998669",
+        "        big4 |   .2092466   .1008949     2.07   0.038     .0111406    .4073526",
+        "             |",
+        "       fyear |",
+        "       2006  |  -.0797975   .0646509    -1.23   0.218    -.2067388    .0471438",
+        "       2007  |    .102125   .0738556     1.38   0.167    -.0428898    .2471397",
+        "       2008  |  -.1527646   .0692485    -2.21   0.028    -.2887333   -.0167959",
+        "       2009  |  -.2439538   .0750056    -3.25   0.001    -.3912265   -.0966811",
+        "       2010  |  -.1306094    .074328    -1.76   0.079    -.2765516    .0153328",
+        "       2011  |  -.1224464   .0728342    -1.68   0.093    -.2654557    .0205628",
+        "       2012  |  -.1826566   .0718547    -2.54   0.011    -.3237425   -.0415707",
+        "       2013  |  -.1754865   .0745866    -2.35   0.019    -.3219365   -.0290365",
+        "       2014  |  -.1878042   .0753527    -2.49   0.013    -.3357584     -.03985",
+        "       2015  |  -.1352303    .073991    -1.83   0.068    -.2805108    .0100503",
+        "       2016  |  -.0764806   .0773478    -0.99   0.323    -.2283522     .075391",
+        "       2017  |   -.009043   .0755919    -0.12   0.905     -.157467    .1393809",
+        "       2018  |  -.0497284   .0772389    -0.64   0.520    -.2013861    .1019294",
+        "       2019  |  -.1959122   .0790967    -2.48   0.013    -.3512178   -.0406067",
+        "       2020  |  -.1659075   .0765653    -2.17   0.031    -.3162426   -.0155724",
+        "       2021  |    .068394    .075573     0.91   0.366    -.0799929    .2167809",
+        "       2022  |  -.0648025   .0834363    -0.78   0.438    -.2286287    .0990238",
+        "       2023  |   .1005856   .0873401     1.15   0.250    -.0709059    .2720771",
+        "             |",
+        "       _cons |    6.92825   .2419677    28.63   0.000     6.453149    7.403351",
+        "------------------------------------------------------------------------------"
+      ]
+    },
+    { "command": "est store firm_fe", "lines": [] },
+    {
+      "command": "* poisson on fees in $ millions, so the firm-years with no fee are in",
+      "lines": []
+    },
+    {
+      "command": "poisson nas_m dual_proxy turnover positive_cfo $controls i.industry2 i.fyear if eligible, vce(cluster firmid)",
+      "lines": [
+        "note: noncount dependent variable encountered; results correspond to an exponential-mean model rather than a poisson model.",
+        "",
+        "Iteration 0:  Log pseudolikelihood = -6050.6074",
+        "Iteration 1:  Log pseudolikelihood = -5258.7483",
+        "Iteration 2:  Log pseudolikelihood = -5247.9532",
+        "Iteration 3:  Log pseudolikelihood = -5247.8556",
+        "Iteration 4:  Log pseudolikelihood = -5247.8556",
+        "",
+        "Poisson regression                                    Number of obs =    6,322",
+        "                                                      Wald chi2(66) = 10421.74",
+        "                                                      Prob > chi2   =   0.0000",
+        "Log pseudolikelihood = -5247.8556                     Pseudo R2     =   0.4257",
+        "",
+        "                               (Std. err. adjusted for 690 clusters in firmid)",
+        "------------------------------------------------------------------------------",
+        "             |               Robust",
+        "       nas_m | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+        "-------------+----------------------------------------------------------------",
+        "  dual_proxy |    .150058   .0676543     2.22   0.027     .0174581    .2826579",
+        "    turnover |   .1387827   .0473024     2.93   0.003     .0460717    .2314936",
+        "positive_cfo |   .1229236   .1005354     1.22   0.221    -.0741222    .3199694",
+        "        size |   .6863685   .0219585    31.26   0.000     .6433307    .7294062",
+        "         lev |   .1712207   .1713051     1.00   0.318    -.1645311    .5069725",
+        "         roa |  -.3856116   .2982384    -1.29   0.196    -.9701482     .198925",
+        "        loss |   -.049204   .0609924    -0.81   0.420    -.1687469    .0703388",
+        "        big4 |   .4355511     .15689     2.78   0.006     .1280524    .7430499",
+        "             |",
+        "   industry2 |",
+        "         13  |  -.6428335   .1745534    -3.68   0.000    -.9849518   -.3007151",
+        "         15  |  -.7319826   .2541351    -2.88   0.004    -1.230078   -.2338869",
+        "         16  |  -.5049088   .2739999    -1.84   0.065    -1.041939    .0321212",
+        "         20  |  -1.324129   .1273729   -10.40   0.000    -1.573775   -1.074482",
+        "         22  |  -1.015523   .1159725    -8.76   0.000    -1.242824   -.7882206",
+        "         23  |  -1.366318   .3635587    -3.76   0.000     -2.07888   -.6537563",
+        "         24  |  -.1586019   .3005566    -0.53   0.598    -.7476819    .4304781",
+        "         25  |  -1.527371   .2426372    -6.29   0.000    -2.002931   -1.051811",
+        "         26  |  -1.078957   .2795418    -3.86   0.000    -1.626849   -.5310654",
+        "         27  |  -.5686853    .137098    -4.15   0.000    -.8373924   -.2999782",
+        "         28  |  -.7349162   .1526563    -4.81   0.000    -1.034117   -.4357152",
+        "         29  |  -1.815491   .2701833    -6.72   0.000    -2.345041   -1.285942",
+        "         30  |   -.887677   .1466332    -6.05   0.000    -1.175073   -.6002811",
+        "         32  |  -.5860423    .135543    -4.32   0.000    -.8517018   -.3203829",
+        "         33  |  -.7522457   .3249171    -2.32   0.021    -1.389071   -.1154199",
+        "         34  |  -1.263696   .1398037    -9.04   0.000    -1.537706   -.9896856",
+        "         35  |  -.9133033   .2240285    -4.08   0.000    -1.352391   -.4742155",
+        "         36  |  -.9725952   .1301326    -7.47   0.000    -1.227651     -.71754",
+        "         37  |  -.8793361   .1819796    -4.83   0.000     -1.23601   -.5226627",
+        "         38  |  -1.260701    .219027    -5.76   0.000    -1.689986   -.8314158",
+        "         39  |  -.8945355    .317788    -2.81   0.005    -1.517388   -.2716825",
+        "         40  |  -.5254433   .3293356    -1.60   0.111    -1.170929    .1200427",
+        "         42  |  -.1391153   .1857625    -0.75   0.454     -.503203    .2249725",
+        "         44  |  -.6110351   .4076646    -1.50   0.134    -1.410043    .1879729",
+        "         45  |  -.6055669   .2149281    -2.82   0.005    -1.026818   -.1843155",
+        "         48  |  -.7271674   .4316778    -1.68   0.092     -1.57324    .1189055",
+        "         50  |  -1.138816   .2871251    -3.97   0.000    -1.701571   -.5760614",
+        "         51  |   .0422112   .1757328     0.24   0.810    -.3022188    .3866412",
+        "         53  |  -.8290332   .2148138    -3.86   0.000    -1.250061   -.4080058",
+        "         54  |   -.883167   .2951011    -2.99   0.003    -1.461555   -.3047796",
+        "         56  |  -1.685605   .1874877    -8.99   0.000    -2.053075   -1.318136",
+        "         57  |  -.9860734   .1996059    -4.94   0.000    -1.377294    -.594853",
+        "         58  |  -1.369201   .1897341    -7.22   0.000    -1.741073   -.9973286",
+        "         59  |  -1.226614   .1780132    -6.89   0.000    -1.575514   -.8777148",
+        "         70  |  -1.231217   .1009256   -12.20   0.000    -1.429027   -1.033406",
+        "         73  |  -1.036658   .1352961    -7.66   0.000    -1.301834   -.7714827",
+        "         79  |  -.6441183   .1779478    -3.62   0.000    -.9928896    -.295347",
+        "         80  |  -.9470861   .1814891    -5.22   0.000    -1.302798    -.591374",
+        "         82  |  -.8074372   .2957245    -2.73   0.006    -1.387047   -.2278279",
+        "         87  |  -.9876285   .2426997    -4.07   0.000    -1.463311   -.5119459",
+        "             |",
+        "       fyear |",
+        "       2006  |  -.1044877   .1545689    -0.68   0.499    -.4074371    .1984617",
+        "       2007  |   -.060572   .1717095    -0.35   0.724    -.3971165    .2759725",
+        "       2008  |  -.3589069   .1500727    -2.39   0.017     -.653044   -.0647698",
+        "       2009  |  -.4729055   .1876792    -2.52   0.012      -.84075   -.1050611",
+        "       2010  |  -.3179505   .1676929    -1.90   0.058    -.6466226    .0107217",
+        "       2011  |  -.2664965   .1596079    -1.67   0.095    -.5793222    .0463292",
+        "       2012  |  -.3247316   .1535567    -2.11   0.034    -.6256973   -.0237659",
+        "       2013  |  -.4081545   .1704043    -2.40   0.017    -.7421407   -.0741683",
+        "       2014  |  -.1918634   .1828264    -1.05   0.294    -.5501965    .1664698",
+        "       2015  |  -.2585063   .1829022    -1.41   0.158    -.6169881    .0999755",
+        "       2016  |   -.280818   .1817668    -1.54   0.122    -.6370744    .0754384",
+        "       2017  |  -.3425881   .1689001    -2.03   0.043    -.6736263     -.01155",
+        "       2018  |  -.1246752    .172785    -0.72   0.471    -.4633276    .2139773",
+        "       2019  |   -.253178   .1873617    -1.35   0.177    -.6204001    .1140441",
+        "       2020  |    -.42483   .1752337    -2.42   0.015    -.7682818   -.0813782",
+        "       2021  |  -.0935442   .1877598    -0.50   0.618    -.4615466    .2744581",
+        "       2022  |  -.0753338     .23393    -0.32   0.747    -.5338281    .3831605",
+        "       2023  |  -.0579828   .1719052    -0.34   0.736    -.3949108    .2789451",
+        "             |",
+        "       _cons |  -6.199074   .2751235   -22.53   0.000    -6.738306   -5.659842",
+        "------------------------------------------------------------------------------"
+      ]
+    },
+    { "command": "est store all_fees", "lines": [] },
+    {
+      "command": "* keep only the rows where the two files agree on the fiscal year-end",
+      "lines": []
+    },
+    {
+      "command": "gen fee_mmdd = string(real(strtrim(fiscal_ye)), \"%04.0f\") if regexm(strtrim(fiscal_ye), \"^[0-9][0-9][0-9][0-9]?$\")",
+      "lines": ["(16,001 missing values generated)"]
+    },
+    {
+      "command": "gen comp_mmdd = string(month(datadate), \"%02.0f\") + string(day(datadate), \"%02.0f\") if datadate < .",
+      "lines": []
+    },
+    {
+      "command": "gen date_ok = fee_mmdd == comp_mmdd if fee_mmdd != \"\" & comp_mmdd != \"\"",
+      "lines": ["(16,001 missing values generated)"]
+    },
+    {
+      "command": "tab date_ok if baseline_sample",
+      "lines": [
+        "    date_ok |      Freq.     Percent        Cum.",
+        "------------+-----------------------------------",
+        "          0 |        247        4.26        4.26",
+        "          1 |      5,557       95.74      100.00",
+        "------------+-----------------------------------",
+        "      Total |      5,804      100.00"
+      ]
+    },
+    {
+      "command": "reg lnnas dual_proxy turnover positive_cfo $controls i.industry2 i.fyear if baseline_sample & date_ok == 1, vce(cluster firmid)",
+      "lines": [
+        "Linear regression                               Number of obs     =      5,557",
+        "                                                F(66, 668)        =      57.24",
+        "                                                Prob > F          =     0.0000",
+        "                                                R-squared         =     0.6771",
+        "                                                Root MSE          =       .896",
+        "",
+        "                               (Std. err. adjusted for 669 clusters in firmid)",
+        "------------------------------------------------------------------------------",
+        "             |               Robust",
+        "       lnnas | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+        "-------------+----------------------------------------------------------------",
+        "  dual_proxy |   .1084548   .0452954     2.39   0.017     .0195163    .1973934",
+        "    turnover |   .1224173    .035103     3.49   0.001     .0534918    .1913428",
+        "positive_cfo |   .0075582   .0565449     0.13   0.894     -.103469    .1185854",
+        "        size |   .6746456   .0177701    37.97   0.000     .6397536    .7095375",
+        "         lev |   .3483218   .1178656     2.96   0.003     .1168901    .5797535",
+        "         roa |  -.3512156   .2133495    -1.65   0.100     -.770132    .0677008",
+        "        loss |   .0854322   .0444048     1.92   0.055    -.0017575     .172622",
+        "        big4 |   .3050779   .0832358     3.67   0.000     .1416426    .4685133",
+        "             |",
+        "   industry2 |",
+        "         13  |  -.3799403   .4246776    -0.89   0.371    -1.213804    .4539234",
+        "         15  |   -.473877   .4396166    -1.08   0.281    -1.337074    .3893196",
+        "         16  |   .0399595   .4412471     0.09   0.928    -.8264386    .9063577",
+        "         20  |  -.7114707   .4427665    -1.61   0.109    -1.580852     .157911",
+        "         22  |  -.5965222   .4185614    -1.43   0.155    -1.418377    .2253321",
+        "         23  |  -1.147983   .4798478    -2.39   0.017    -2.090174    -.205791",
+        "         24  |  -.2253226   .4763213    -0.47   0.636     -1.16059    .7099447",
+        "         25  |  -.6742055   .5475497    -1.23   0.219    -1.749331    .4009203",
+        "         26  |  -.8377531   .4498687    -1.86   0.063     -1.72108    .0455739",
+        "         27  |   .1917812   .4858657     0.39   0.693    -.7622266    1.145789",
+        "         28  |  -.5917335   .4236246    -1.40   0.163     -1.42353    .2400626",
+        "         29  |  -1.201695   .4447037    -2.70   0.007     -2.07488   -.3285092",
+        "         30  |  -.3148575   .4260173    -0.74   0.460    -1.151352    .5216368",
+        "         32  |  -.7175805   .4907931    -1.46   0.144    -1.681263    .2461023",
+        "         33  |  -.7170722      .5823    -1.23   0.219    -1.860431    .4262865",
+        "         34  |  -.6700816   .4371101    -1.53   0.126    -1.528357    .1881936",
+        "         35  |  -.4383867   .4304595    -1.02   0.309    -1.283603    .4068298",
+        "         36  |  -.5592231   .4214005    -1.33   0.185    -1.386652    .2682058",
+        "         37  |  -.4125114   .4739511    -0.87   0.384    -1.343125    .5181018",
+        "         38  |  -1.083802   .4373326    -2.48   0.013    -1.942514   -.2250898",
+        "         39  |  -.1191536   .5455398    -0.22   0.827    -1.190333    .9520257",
+        "         40  |  -.4728004   .4805838    -0.98   0.326    -1.416437    .4708364",
+        "         42  |  -.4680371   .5232822    -0.89   0.371    -1.495513    .5594389",
+        "         44  |  -1.180468   .5286653    -2.23   0.026    -2.218514   -.1424225",
+        "         45  |   .0096161   .4371313     0.02   0.982    -.8487006    .8679328",
+        "         48  |  -.3450368   .4728699    -0.73   0.466    -1.273527    .5834536",
+        "         50  |  -.6459849   .4404127    -1.47   0.143    -1.510745     .218775",
+        "         51  |   .1684761   .4889811     0.34   0.731    -.7916488    1.128601",
+        "         53  |  -.2480099   .4358988    -0.57   0.570    -1.103907    .6078869",
+        "         54  |  -.5606361   .4600284    -1.22   0.223    -1.463912    .3426397",
+        "         56  |  -1.151612   .4308007    -2.67   0.008    -1.997498    -.305725",
+        "         57  |  -.7056324   .4879504    -1.45   0.149    -1.663734    .2524689",
+        "         58  |  -.8270698    .423458    -1.95   0.051    -1.658539    .0043991",
+        "         59  |  -.5675214   .4773259    -1.19   0.235    -1.504761    .3697183",
+        "         70  |  -.6210561   .4542498    -1.37   0.172    -1.512985    .2708732",
+        "         73  |  -.6548666   .4211157    -1.56   0.120    -1.481736    .1720032",
+        "         79  |   .0324229   .4808162     0.07   0.946    -.9116702    .9765159",
+        "         80  |   -.608916   .4337468    -1.40   0.161    -1.460587    .2427552",
+        "         82  |   -.564056   .4945939    -1.14   0.255    -1.535202    .4070899",
+        "         87  |  -.6649655   .4271068    -1.56   0.120    -1.503599    .1736679",
+        "             |",
+        "       fyear |",
+        "       2006  |  -.0469947   .0679223    -0.69   0.489    -.1803615    .0863722",
+        "       2007  |   .1282203   .0767757     1.67   0.095    -.0225304     .278971",
+        "       2008  |  -.1253619   .0713756    -1.76   0.079    -.2655094    .0147856",
+        "       2009  |  -.2200095   .0749066    -2.94   0.003    -.3670902   -.0729288",
+        "       2010  |  -.0911581   .0739885    -1.23   0.218    -.2364362      .05412",
+        "       2011  |   -.077033   .0740936    -1.04   0.299    -.2225174    .0684513",
+        "       2012  |  -.1324095   .0732851    -1.81   0.071    -.2763064    .0114874",
+        "       2013  |  -.1563802   .0753663    -2.07   0.038    -.3043635   -.0083969",
+        "       2014  |  -.1462277     .07563    -1.93   0.054    -.2947288    .0022735",
+        "       2015  |  -.1116909   .0744239    -1.50   0.134    -.2578238     .034442",
+        "       2016  |  -.0709733   .0779919    -0.91   0.363    -.2241122    .0821656",
+        "       2017  |   .0012536   .0761555     0.02   0.987    -.1482793    .1507865",
+        "       2018  |  -.0052674   .0787203    -0.07   0.947    -.1598365    .1493017",
+        "       2019  |   -.151068   .0822559    -1.84   0.067    -.3125793    .0104433",
+        "       2020  |  -.0912895     .07783    -1.17   0.241    -.2441104    .0615314",
+        "       2021  |   .1112582   .0797098     1.40   0.163    -.0452538    .2677701",
+        "       2022  |  -.0178135    .085926    -0.21   0.836     -.186531     .150904",
+        "       2023  |   .1549745   .0877165     1.77   0.078    -.0172588    .3272078",
+        "             |",
+        "       _cons |   7.038488   .4415918    15.94   0.000     6.171413    7.905563",
+        "------------------------------------------------------------------------------"
+      ]
+    },
+    { "command": "est store date_screen", "lines": [] },
+    {
+      "command": "* the baseline again with the ratios as they came",
+      "lines": []
+    },
+    {
+      "command": "reg lnnas dual_proxy turnover_raw positive_cfo size lev_raw roa_raw loss big4 i.industry2 i.fyear if baseline_sample, vce(cluster firmid)",
+      "lines": [
+        "Linear regression                               Number of obs     =      5,804",
+        "                                                F(66, 674)        =      53.65",
+        "                                                Prob > F          =     0.0000",
+        "                                                R-squared         =     0.6703",
+        "                                                Root MSE          =      .9016",
+        "",
+        "                               (Std. err. adjusted for 675 clusters in firmid)",
+        "------------------------------------------------------------------------------",
+        "             |               Robust",
+        "       lnnas | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+        "-------------+----------------------------------------------------------------",
+        "  dual_proxy |   .1213259   .0454533     2.67   0.008     .0320787     .210573",
+        "turnover_raw |   .0152582   .0118259     1.29   0.197    -.0079618    .0384781",
+        "positive_cfo |  -.0422176   .0478459    -0.88   0.378    -.1361624    .0517273",
+        "        size |   .6645857   .0171595    38.73   0.000     .6308933    .6982781",
+        "     lev_raw |   .3346101   .1096885     3.05   0.002     .1192378    .5499823",
+        "     roa_raw |   .0343338   .0708578     0.48   0.628    -.1047947    .1734624",
+        "        loss |   .1147113   .0413088     2.78   0.006     .0336018    .1958207",
+        "        big4 |   .2873134   .0833442     3.45   0.001     .1236678    .4509589",
+        "             |",
+        "   industry2 |",
+        "         13  |  -.4028135   .4183019    -0.96   0.336    -1.224145     .418518",
+        "         15  |  -.4019305   .4340896    -0.93   0.355    -1.254261    .4504001",
+        "         16  |   .1148882    .437031     0.26   0.793    -.7432178    .9729942",
+        "         20  |  -.6712835   .4371795    -1.54   0.125    -1.529681     .187114",
+        "         22  |  -.5231689     .41185    -1.27   0.204    -1.331832    .2854944",
+        "         23  |   -1.08837   .4818028    -2.26   0.024    -2.034384   -.1423547",
+        "         24  |   -.128327   .4748457    -0.27   0.787    -1.060682    .8040278",
+        "         25  |  -.5802699   .5332399    -1.09   0.277    -1.627281    .4667413",
+        "         26  |  -.8080422   .4358376    -1.85   0.064    -1.663805    .0477204",
+        "         27  |   .2354489   .4777054     0.49   0.622    -.7025209    1.173419",
+        "         28  |  -.5945119   .4176115    -1.42   0.155    -1.414488     .225464",
+        "         29  |  -1.029688   .4415852    -2.33   0.020    -1.896736   -.1626394",
+        "         30  |  -.2896596   .4200796    -0.69   0.491    -1.114482    .5351624",
+        "         32  |  -.6779966   .4875994    -1.39   0.165    -1.635393    .2793998",
+        "         33  |  -.4780838    .577397    -0.83   0.408    -1.611797    .6556294",
+        "         34  |  -.5871856   .4317334    -1.36   0.174     -1.43489    .2605185",
+        "         35  |  -.3560384   .4249375    -0.84   0.402    -1.190399    .4783222",
+        "         36  |   -.529266   .4154117    -1.27   0.203    -1.344923    .2863908",
+        "         37  |  -.3624704   .4650208    -0.78   0.436    -1.275534    .5505933",
+        "         38  |  -.9973165   .4318675    -2.31   0.021    -1.845284    -.149349",
+        "         39  |   .0316526   .5216047     0.06   0.952    -.9925128    1.055818",
+        "         40  |  -.4953448   .4756592    -1.04   0.298    -1.429297    .4386072",
+        "         42  |  -.3541675   .5134714    -0.69   0.491    -1.362363    .6540284",
+        "         44  |  -1.207753   .5299916    -2.28   0.023    -2.248386   -.1671199",
+        "         45  |   .0650187   .4341736     0.15   0.881    -.7874768    .9175142",
+        "         48  |  -.3377871    .451553    -0.75   0.455    -1.224407    .5488327",
+        "         50  |   -.516554   .4365225    -1.18   0.237    -1.373662    .3405534",
+        "         51  |   .3916023   .4778962     0.82   0.413     -.546742    1.329947",
+        "         53  |  -.0887299   .4324299    -0.21   0.837    -.9378017    .7603418",
+        "         54  |  -.1849458   .4482134    -0.41   0.680    -1.065008    .6951167",
+        "         56  |  -.9771962   .4216321    -2.32   0.021    -1.805067   -.1493258",
+        "         57  |  -.4807109   .4840999    -0.99   0.321    -1.431236    .4698144",
+        "         58  |  -.7985681   .4165273    -1.92   0.056    -1.616415    .0192791",
+        "         59  |  -.4353717   .4673422    -0.93   0.352    -1.352993    .4822499",
+        "         70  |  -.6077073   .4515349    -1.35   0.179    -1.494291    .2788769",
+        "         73  |  -.6470016   .4148623    -1.56   0.119     -1.46158    .1675764",
+        "         79  |   .0451709   .4766137     0.09   0.925    -.8906552    .9809971",
+        "         80  |  -.5413128    .425772    -1.27   0.204    -1.377312    .2946862",
+        "         82  |  -.5231936   .4689157    -1.12   0.265    -1.443905    .3975177",
+        "         87  |  -.6112649   .4185571    -1.46   0.145    -1.433098    .2105677",
+        "             |",
+        "       fyear |",
+        "       2006  |  -.0514514   .0650245    -0.79   0.429    -.1791262    .0762235",
+        "       2007  |   .1207455   .0744329     1.62   0.105    -.0254027    .2668937",
+        "       2008  |  -.1268658   .0686273    -1.85   0.065    -.2616148    .0078833",
+        "       2009  |  -.1985012   .0736231    -2.70   0.007    -.3430593   -.0539431",
+        "       2010  |  -.1031436   .0713576    -1.45   0.149    -.2432536    .0369663",
+        "       2011  |  -.0780828   .0720152    -1.08   0.279     -.219484    .0633183",
+        "       2012  |  -.1417246     .07174    -1.98   0.049    -.2825853   -.0008638",
+        "       2013  |  -.1507226   .0741562    -2.03   0.042    -.2963275   -.0051176",
+        "       2014  |  -.1597913   .0745415    -2.14   0.032    -.3061528   -.0134298",
+        "       2015  |  -.1133055   .0727427    -1.56   0.120    -.2561351    .0295241",
+        "       2016  |   -.060099   .0748768    -0.80   0.422    -.2071188    .0869208",
+        "       2017  |   .0162127   .0738201     0.22   0.826    -.1287323    .1611578",
+        "       2018  |  -.0010452     .07621    -0.01   0.989    -.1506829    .1485924",
+        "       2019  |   -.147897   .0789513    -1.87   0.061    -.3029171    .0071232",
+        "       2020  |  -.0928994   .0751755    -1.24   0.217    -.2405057    .0547069",
+        "       2021  |   .1281782   .0772506     1.66   0.098    -.0235026    .2798589",
+        "       2022  |  -.0271324   .0835728    -0.32   0.746    -.1912268     .136962",
+        "       2023  |   .1778894   .0850439     2.09   0.037     .0109065    .3448723",
+        "             |",
+        "       _cons |   7.226268   .4311768    16.76   0.000     6.379657    8.072879",
+        "------------------------------------------------------------------------------"
+      ]
+    },
+    { "command": "est store uncapped", "lines": [] },
+    {
+      "command": "est table baseline firm_fe all_fees date_screen uncapped, ///    keep(dual_proxy turnover turnover_raw positive_cfo size lev lev_raw roa roa_raw loss big4) ///    b(%7.3f) se(%7.3f) stats(N N_clust) equations(1)",
+      "lines": [
+        "----------------------------------------------------------------",
+        "    Variable | basel~e   firm_fe   all_f~s   date_~n   uncap~d",
+        "-------------+--------------------------------------------------",
+        "  dual_proxy |   0.125    -0.004     0.150     0.108     0.121",
+        "             |   0.045     0.034     0.068     0.045     0.045",
+        "    turnover |   0.104     0.078     0.139     0.122",
+        "             |   0.037     0.031     0.047     0.035",
+        "turnover_raw |                                           0.015",
+        "             |                                           0.012",
+        "positive_cfo |   0.007     0.040     0.123     0.008    -0.042",
+        "             |   0.055     0.047     0.101     0.057     0.048",
+        "        size |   0.672     0.640     0.686     0.675     0.665",
+        "             |   0.018     0.027     0.022     0.018     0.017",
+        "         lev |   0.368     0.342     0.171     0.348",
+        "             |   0.120     0.149     0.171     0.118",
+        "     lev_raw |                                           0.335",
+        "             |                                           0.110",
+        "         roa |  -0.320    -0.382    -0.386    -0.351",
+        "             |   0.211     0.157     0.298     0.213",
+        "     roa_raw |                                           0.034",
+        "             |                                           0.071",
+        "        loss |   0.077     0.033    -0.049     0.085     0.115",
+        "             |   0.043     0.034     0.061     0.044     0.041",
+        "        big4 |   0.300     0.209     0.436     0.305     0.287",
+        "             |   0.082     0.101     0.157     0.083     0.083",
+        "-------------+--------------------------------------------------",
+        "           N |    5804      5804      6322      5557      5804",
+        "     N_clust | 675.000   675.000   690.000   669.000   675.000",
+        "----------------------------------------------------------------",
+        "                                                    Legend: b/se"
+      ]
+    },
+    { "command": "*** 12. Whether a firm buys, and how much", "lines": [] },
+    {
+      "command": "gen any_fee = nas > 0 if eligible",
+      "lines": ["(38,729 missing values generated)"]
+    },
+    {
+      "command": "* buy or not. margins turns the logit into changes in probability",
+      "lines": []
+    },
+    {
+      "command": "logit any_fee i.dual_proxy turnover i.positive_cfo $controls i.industry2 i.fyear if eligible, vce(cluster firmid)",
+      "lines": [
+        "note: 26.industry2 != 0 predicts success perfectly;",
+        "      26.industry2 omitted and 59 obs not used.",
+        "",
+        "note: 33.industry2 != 0 predicts success perfectly;",
+        "      33.industry2 omitted and 69 obs not used.",
+        "",
+        "note: 39.industry2 != 0 predicts success perfectly;",
+        "      39.industry2 omitted and 63 obs not used.",
+        "",
+        "note: 40.industry2 != 0 predicts success perfectly;",
+        "      40.industry2 omitted and 88 obs not used.",
+        "",
+        "note: 44.industry2 != 0 predicts success perfectly;",
+        "      44.industry2 omitted and 55 obs not used.",
+        "",
+        "Iteration 0:  Log pseudolikelihood = -1762.7437",
+        "Iteration 1:  Log pseudolikelihood = -1566.2757",
+        "Iteration 2:  Log pseudolikelihood = -1487.6642",
+        "Iteration 3:  Log pseudolikelihood = -1485.3075",
+        "Iteration 4:  Log pseudolikelihood = -1485.2717",
+        "Iteration 5:  Log pseudolikelihood = -1485.2716",
+        "Iteration 6:  Log pseudolikelihood = -1485.2716",
+        "",
+        "Logistic regression                                     Number of obs =  5,988",
+        "                                                        Wald chi2(61) = 171.92",
+        "                                                        Prob > chi2   = 0.0000",
+        "Log pseudolikelihood = -1485.2716                       Pseudo R2     = 0.1574",
+        "",
+        "                                 (Std. err. adjusted for 653 clusters in firmid)",
+        "--------------------------------------------------------------------------------",
+        "               |               Robust",
+        "       any_fee | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+        "---------------+----------------------------------------------------------------",
+        "  1.dual_proxy |  -.2023929   .1830752    -1.11   0.269    -.5612137    .1564278",
+        "      turnover |   .1899144   .1448688     1.31   0.190    -.0940232     .473852",
+        "1.positive_cfo |    .281369    .194674     1.45   0.148    -.1001851    .6629231",
+        "          size |   .4651875   .0731764     6.36   0.000     .3217645    .6086106",
+        "           lev |  -.6910556   .5270576    -1.31   0.190     -1.72407    .3419584",
+        "           roa |  -.1145865   .7569005    -0.15   0.880    -1.598084    1.368911",
+        "          loss |   .1633095   .2115422     0.77   0.440    -.2513057    .5779246",
+        "          big4 |    .711573   .2695742     2.64   0.008     .1832174    1.239929",
+        "               |",
+        "     industry2 |",
+        "           13  |    1.67038    .812991     2.05   0.040     .0769473    3.263814",
+        "           15  |   2.834703   .8710701     3.25   0.001     1.127437    4.541969",
+        "           16  |   1.679379   1.434225     1.17   0.242    -1.131651    4.490409",
+        "           20  |   3.325964   1.253451     2.65   0.008      .869246    5.782682",
+        "           22  |   1.743693   1.436251     1.21   0.225    -1.071306    4.558693",
+        "           23  |   .3263606   1.067343     0.31   0.760    -1.765594    2.418315",
+        "           24  |   1.301064   1.080469     1.20   0.229    -.8166151    3.418744",
+        "           25  |   1.310826   1.327294     0.99   0.323    -1.290623    3.912275",
+        "           26  |          0  (empty)",
+        "           27  |   2.404092   .7883466     3.05   0.002     .8589606    3.949223",
+        "           28  |   1.460207   .8268367     1.77   0.077    -.1603629    3.080777",
+        "           29  |   2.291501   1.089649     2.10   0.035     .1558275    4.427174",
+        "           30  |   1.435431    1.51373     0.95   0.343    -1.531426    4.402288",
+        "           32  |   .9867832    .964727     1.02   0.306     -.904047    2.877613",
+        "           33  |          0  (empty)",
+        "           34  |   2.597978   1.257265     2.07   0.039     .1337846    5.062171",
+        "           35  |   1.155453   .8819851     1.31   0.190    -.5732064    2.884112",
+        "           36  |   .8847284   .8346984     1.06   0.289    -.7512505    2.520707",
+        "           37  |    .562608   1.077714     0.52   0.602    -1.549672    2.674888",
+        "           38  |   2.198867   .8652965     2.54   0.011     .5029175    3.894817",
+        "           39  |          0  (empty)",
+        "           40  |          0  (empty)",
+        "           42  |   1.091545   .9737175     1.12   0.262     -.816906    2.999996",
+        "           44  |          0  (empty)",
+        "           45  |  -.3811449   1.027432    -0.37   0.711    -2.394875    1.632585",
+        "           48  |   2.564114   .8510539     3.01   0.003     .8960791    4.232149",
+        "           50  |   .0478113    1.09257     0.04   0.965    -2.093586    2.189208",
+        "           51  |   2.152978   1.527939     1.41   0.159    -.8417261    5.147683",
+        "           53  |    .715855   1.052819     0.68   0.497    -1.347632    2.779342",
+        "           54  |   1.398038   .9886811     1.41   0.157     -.539741    3.335818",
+        "           56  |   .3392872   .8525741     0.40   0.691    -1.331727    2.010302",
+        "           57  |  -.1031507   1.363908    -0.08   0.940    -2.776362     2.57006",
+        "           58  |    1.70598   1.063228     1.60   0.109    -.3779085    3.789868",
+        "           59  |   .3042216    1.47185     0.21   0.836    -2.580551    3.188995",
+        "           70  |    2.05029   1.077798     1.90   0.057     -.062155    4.162735",
+        "           73  |   1.201363     .79934     1.50   0.133    -.3653145    2.768041",
+        "           79  |  -.1903085   .9386047    -0.20   0.839     -2.02994    1.649323",
+        "           80  |   1.551987   .9850729     1.58   0.115    -.3787206    3.482694",
+        "           82  |   2.192048   1.082533     2.02   0.043     .0703223    4.313775",
+        "           87  |  -.3094959   1.081181    -0.29   0.775    -2.428572     1.80958",
+        "               |",
+        "         fyear |",
+        "         2006  |  -.0693359   .2466963    -0.28   0.779    -.5528517    .4141799",
+        "         2007  |  -.0764246   .2951002    -0.26   0.796    -.6548103    .5019612",
+        "         2008  |  -.0221202   .3338222    -0.07   0.947    -.6763997    .6321593",
+        "         2009  |  -.1368799   .3253655    -0.42   0.674    -.7745845    .5008247",
+        "         2010  |  -.3418315   .2942672    -1.16   0.245    -.9185846    .2349216",
+        "         2011  |  -.0112111   .3054392    -0.04   0.971    -.6098609    .5874387",
+        "         2012  |  -.1851318   .2870195    -0.65   0.519    -.7476797    .3774161",
+        "         2013  |  -.2650042   .2668181    -0.99   0.321     -.787958    .2579496",
+        "         2014  |  -.2722966   .2966986    -0.92   0.359    -.8538151     .309222",
+        "         2015  |  -.3024039   .2936742    -1.03   0.303    -.8779947    .2731868",
+        "         2016  |  -.4460886   .2911117    -1.53   0.125    -1.016657      .12448",
+        "         2017  |  -.5184042   .2890157    -1.79   0.073    -1.084865    .0480561",
+        "         2018  |  -.4790259   .2993214    -1.60   0.110    -1.065685    .1076332",
+        "         2019  |  -.4780206   .2962265    -1.61   0.107    -1.058614    .1025727",
+        "         2020  |  -.3574161   .3136978    -1.14   0.255    -.9722524    .2574202",
+        "         2021  |  -.4729196   .3073107    -1.54   0.124    -1.075238    .1293983",
+        "         2022  |  -.7676459   .3178161    -2.42   0.016    -1.390554   -.1447377",
+        "         2023  |  -.6897463   .3416004    -2.02   0.043    -1.359271   -.0202219",
+        "               |",
+        "         _cons |  -2.686375   .9569844    -2.81   0.005     -4.56203   -.8107201",
+        "--------------------------------------------------------------------------------"
+      ]
+    },
+    { "command": "est store buys", "lines": [] },
+    {
+      "command": "margins, dydx(dual_proxy turnover positive_cfo)",
+      "lines": [
+        "Average marginal effects                                 Number of obs = 5,988",
+        "Model VCE: Robust",
+        "",
+        "Expression: Pr(any_fee), predict()",
+        "dy/dx wrt:  1.dual_proxy turnover 1.positive_cfo",
+        "",
+        "--------------------------------------------------------------------------------",
+        "               |            Delta-method",
+        "               |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+        "---------------+----------------------------------------------------------------",
+        "  1.dual_proxy |  -.0143105   .0132128    -1.08   0.279    -.0402071     .011586",
+        "      turnover |   .0132662   .0103177     1.29   0.199    -.0069562    .0334885",
+        "1.positive_cfo |   .0211148   .0158294     1.33   0.182    -.0099103    .0521398",
+        "--------------------------------------------------------------------------------",
+        "Note: dy/dx for factor levels is the discrete change from the base level."
+      ]
+    },
+    {
+      "command": "* the amount, among the firm-years that bought",
+      "lines": []
+    },
+    {
+      "command": "poisson nas_m dual_proxy turnover positive_cfo $controls i.industry2 i.fyear if baseline_sample, vce(cluster firmid)",
+      "lines": [
+        "note: noncount dependent variable encountered; results correspond to an exponential-mean model rather than a poisson model.",
+        "",
+        "Iteration 0:  Log pseudolikelihood = -5557.8962",
+        "Iteration 1:  Log pseudolikelihood = -5095.5558",
+        "Iteration 2:  Log pseudolikelihood = -5090.4541",
+        "Iteration 3:  Log pseudolikelihood =  -5090.448",
+        "Iteration 4:  Log pseudolikelihood =  -5090.448",
+        "",
+        "Poisson regression                                     Number of obs =   5,804",
+        "                                                       Wald chi2(66) = 9880.44",
+        "                                                       Prob > chi2   =  0.0000",
+        "Log pseudolikelihood = -5090.448                       Pseudo R2     =  0.4175",
+        "",
+        "                               (Std. err. adjusted for 675 clusters in firmid)",
+        "------------------------------------------------------------------------------",
+        "             |               Robust",
+        "       nas_m | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+        "-------------+----------------------------------------------------------------",
+        "  dual_proxy |   .1650485   .0650327     2.54   0.011     .0375866    .2925103",
+        "    turnover |   .1360262   .0459814     2.96   0.003     .0459044     .226148",
+        "positive_cfo |   .0793142   .0969924     0.82   0.414    -.1107873    .2694157",
+        "        size |   .6689056   .0219687    30.45   0.000     .6258478    .7119634",
+        "         lev |   .1900347   .1683863     1.13   0.259    -.1399964    .5200657",
+        "         roa |  -.3261708   .2836862    -1.15   0.250    -.8821856    .2298439",
+        "        loss |  -.0412649   .0600835    -0.69   0.492    -.1590265    .0764967",
+        "        big4 |   .3669336    .149952     2.45   0.014     .0730331    .6608341",
+        "             |",
+        "   industry2 |",
+        "         13  |  -.7534687   .1709573    -4.41   0.000    -1.088539   -.4183986",
+        "         15  |  -.8386868   .2592495    -3.24   0.001    -1.346806   -.3305672",
+        "         16  |   -.608265   .2663112    -2.28   0.022    -1.130225   -.0863047",
+        "         20  |  -1.448179   .1160363   -12.48   0.000    -1.675606   -1.220752",
+        "         22  |  -1.118797   .1041498   -10.74   0.000    -1.322927   -.9146676",
+        "         23  |  -1.351276   .3198905    -4.22   0.000     -1.97825   -.7243024",
+        "         24  |  -.2213321   .2952327    -0.75   0.453    -.7999776    .3573135",
+        "         25  |  -1.653442   .2317782    -7.13   0.000    -2.107719   -1.199165",
+        "         26  |  -1.249671   .2754996    -4.54   0.000    -1.789641   -.7097022",
+        "         27  |  -.6953651    .124998    -5.56   0.000    -.9403567   -.4503736",
+        "         28  |  -.8497478   .1464965    -5.80   0.000    -1.136876   -.5626199",
+        "         29  |  -1.958804   .2507343    -7.81   0.000    -2.450234   -1.467374",
+        "         30  |  -.8452806   .2267901    -3.73   0.000    -1.289781   -.4007802",
+        "         32  |  -.6962802   .1258265    -5.53   0.000    -.9428955   -.4496648",
+        "         33  |  -.8859382   .3199024    -2.77   0.006    -1.512935   -.2589409",
+        "         34  |  -1.381408   .1355267   -10.19   0.000    -1.647036   -1.115781",
+        "         35  |  -.9699154   .1983921    -4.89   0.000    -1.358757   -.5810739",
+        "         36  |  -1.055153   .1190951    -8.86   0.000    -1.288575   -.8217311",
+        "         37  |  -.9581684   .1729115    -5.54   0.000    -1.297069    -.619268",
+        "         38  |  -1.374881   .2098893    -6.55   0.000    -1.786256   -.9635053",
+        "         39  |  -1.017879   .3115682    -3.27   0.001    -1.628541   -.4072166",
+        "         40  |  -.6487849   .3310485    -1.96   0.050    -1.297628    .0000582",
+        "         42  |  -.2515418   .1782366    -1.41   0.158    -.6008792    .0977956",
+        "         44  |  -.7591498   .4203587    -1.81   0.071    -1.583038    .0647381",
+        "         45  |  -.4239007   .1762562    -2.41   0.016    -.7693566   -.0784449",
+        "         48  |  -.8433628   .4215123    -2.00   0.045    -1.669512   -.0172138",
+        "         50  |  -1.238164   .2851214    -4.34   0.000    -1.796992   -.6793366",
+        "         51  |  -.0434722   .1683101    -0.26   0.796    -.3733539    .2864094",
+        "         53  |  -.9217451   .2023963    -4.55   0.000    -1.318435   -.5250556",
+        "         54  |  -.9928127   .2918762    -3.40   0.001    -1.564879   -.4207458",
+        "         56  |  -1.755987    .170586   -10.29   0.000    -2.090329   -1.421644",
+        "         57  |  -1.078823   .1915963    -5.63   0.000    -1.454345    -.703301",
+        "         58  |  -1.508954   .1800599    -8.38   0.000    -1.861865   -1.156043",
+        "         59  |  -1.221404   .1458067    -8.38   0.000     -1.50718   -.9356281",
+        "         70  |  -1.304191   .0922868   -14.13   0.000     -1.48507   -1.123312",
+        "         73  |  -1.136698   .1295562    -8.77   0.000    -1.390623   -.8827721",
+        "         79  |  -.7189316   .1754175    -4.10   0.000    -1.062744   -.3751197",
+        "         80  |  -1.057138   .1879888    -5.62   0.000    -1.425589   -.6886867",
+        "         82  |    -.93923   .2903349    -3.23   0.001    -1.508276    -.370184",
+        "         87  |  -1.066071   .2354827    -4.53   0.000    -1.527609   -.6045334",
+        "             |",
+        "       fyear |",
+        "       2006  |  -.0878117   .1561541    -0.56   0.574    -.3938682    .2182447",
+        "       2007  |  -.0451658   .1717708    -0.26   0.793    -.3818303    .2914988",
+        "       2008  |  -.3404946   .1513408    -2.25   0.024    -.6371172    -.043872",
+        "       2009  |  -.4094584   .1879791    -2.18   0.029    -.7778906   -.0410263",
+        "       2010  |  -.2937035   .1693693    -1.73   0.083    -.6256612    .0382542",
+        "       2011  |  -.2358535   .1603099    -1.47   0.141    -.5500551    .0783481",
+        "       2012  |  -.2964571    .153781    -1.93   0.054    -.5978624    .0049482",
+        "       2013  |  -.3861847   .1710436    -2.26   0.024     -.721424   -.0509454",
+        "       2014  |  -.1731269   .1841528    -0.94   0.347    -.5340597    .1878058",
+        "       2015  |  -.2296301    .183743    -1.25   0.211    -.5897598    .1304996",
+        "       2016  |  -.2430979   .1824885    -1.33   0.183    -.6007687    .1145729",
+        "       2017  |   -.305013   .1699983    -1.79   0.073    -.6382035    .0281776",
+        "       2018  |  -.0969153   .1729279    -0.56   0.575    -.4358477    .2420171",
+        "       2019  |  -.2261834   .1892479    -1.20   0.232    -.5971026    .1447357",
+        "       2020  |  -.3752448   .1744535    -2.15   0.031    -.7171674   -.0333222",
+        "       2021  |  -.0724903    .188813    -0.38   0.701     -.442557    .2975764",
+        "       2022  |  -.0066963   .2272731    -0.03   0.976    -.4521433    .4387507",
+        "       2023  |   .0158977    .172015     0.09   0.926    -.3212455    .3530409",
+        "             |",
+        "       _cons |  -5.837767   .2684992   -21.74   0.000    -6.364015   -5.311518",
+        "------------------------------------------------------------------------------"
+      ]
+    },
+    { "command": "est store amount", "lines": [] }
+  ],
+  "valuesSource": "foreach m in baseline firm_fe all_fees date_screen uncapped buys amount {\n    quietly estimates restore `m'\n    display \"@ `m' N \" %21x e(N)\n    display \"@ `m' N_clust \" %21x e(N_clust)\n    local names : colnames e(b)\n    foreach n of local names {\n        display \"@ `m' b `n' \" %21x _b[`n'] \" \" %21x _se[`n']\n    }\n}\nforeach m in baseline firm_fe date_screen uncapped {\n    quietly estimates restore `m'\n    display \"@ `m' r2 \" %21x e(r2)\n    display \"@ `m' rmse \" %21x e(rmse)\n    display \"@ `m' F \" %21x e(F)\n    display \"@ `m' df_r \" %21x e(df_r)\n}\nforeach m in all_fees buys amount {\n    quietly estimates restore `m'\n    display \"@ `m' ll \" %21x e(ll)\n    display \"@ `m' chi2 \" %21x e(chi2)\n}\nquietly estimates restore baseline\nquietly test turnover positive_cfo\ndisplay \"@ test F \" %21x r(F)\ndisplay \"@ test p \" %21x r(p)\ndisplay \"@ test df \" %21x r(df)\ndisplay \"@ test df_r \" %21x r(df_r)\nquietly estimates restore buys\nquietly margins, dydx(dual_proxy turnover positive_cfo)\nmatrix T = r(table)\nforvalues j = 1/3 {\n    display \"@ margins `j' \" %21x T[1,`j'] \" \" %21x T[2,`j']\n}\ndisplay \"@ margins N \" %21x r(N)\nforeach v in turnover lev roa {\n    quietly _pctile `v'_raw if baseline_sample, p(1 99)\n    display \"@ pctile `v' \" %21x r(r1) \" \" %21x r(r2)\n}\nquietly count\ndisplay \"@ count window \" %21x r(N)\nquietly count if match_exec == 3 & match_audit == 3\ndisplay \"@ count matched \" %21x r(N)\nquietly count if match_exec == 3 & match_audit == 3 & fin_util == 0\ndisplay \"@ count nonfinancial \" %21x r(N)\nquietly count if eligible\ndisplay \"@ count eligible \" %21x r(N)\nquietly count if eligible & nas == 0\ndisplay \"@ count zero \" %21x r(N)\nquietly count if baseline_sample\ndisplay \"@ count baseline \" %21x r(N)\nforeach v in lnnas dual_proxy turnover positive_cfo size lev roa loss big4 nas_m {\n    quietly summarize `v' if baseline_sample\n    display \"@ mean `v' \" %21x r(mean) \" \" %21x r(sd)\n}\n",
+  "values": {
+    "baseline N": ["+1.6ac0000000000X+00c"],
+    "baseline N_clust": ["+1.5180000000000X+009"],
+    "baseline b dual_proxy": ["+1.fe11a2eafa93cX-004", "+1.74337a60a602aX-005"],
+    "baseline b turnover": ["+1.a7f4356716bcdX-004", "+1.2bdbc850a6975X-005"],
+    "baseline b positive_cfo": [
+      "+1.b8336e7c543c8X-008",
+      "+1.c28ceb0a4dd7dX-005"
+    ],
+    "baseline b size": ["+1.581790a214dd3X-001", "+1.1f6e6c1de5d3fX-006"],
+    "baseline b lev": ["+1.791d6d3c3694dX-002", "+1.ea423667cc944X-004"],
+    "baseline b roa": ["-1.4810eb0892c9eX-002", "+1.af975d64fbee6X-003"],
+    "baseline b loss": ["+1.39d650a658b76X-004", "+1.5f186908bf24cX-005"],
+    "baseline b big4": ["+1.33ac50eaefdc6X-002", "+1.514ec9a896170X-004"],
+    "baseline b 10b.industry2": [
+      "+0.0000000000000X-3ff",
+      "+0.0000000000000X-3ff"
+    ],
+    "baseline b 13.industry2": [
+      "-1.8b8e78b2a4d5fX-002",
+      "+1.ad9d7a7f5aedfX-002"
+    ],
+    "baseline b 15.industry2": [
+      "-1.d7f9caf657167X-002",
+      "+1.bda70aa29954fX-002"
+    ],
+    "baseline b 16.industry2": [
+      "+1.013ec3b590c70X-004",
+      "+1.bf0cf57e41e96X-002"
+    ],
+    "baseline b 20.industry2": [
+      "-1.7aacded67f7edX-001",
+      "+1.c02c76ce80581X-002"
+    ],
+    "baseline b 22.industry2": [
+      "-1.36126cc8f8c40X-001",
+      "+1.a7b8abeccb7edX-002"
+    ],
+    "baseline b 23.industry2": [
+      "-1.2299b2dfb466fX+000",
+      "+1.e7e4c801d6670X-002"
+    ],
+    "baseline b 24.industry2": [
+      "-1.95313934f0fc7X-003",
+      "+1.e4071b6a1a43bX-002"
+    ],
+    "baseline b 25.industry2": [
+      "-1.4a4486fce51f4X-001",
+      "+1.178d76e969a47X-001"
+    ],
+    "baseline b 26.industry2": [
+      "-1.ad996f87838d6X-001",
+      "+1.c1ac55c23dd79X-002"
+    ],
+    "baseline b 27.industry2": [
+      "+1.9338f0d4cdb84X-003",
+      "+1.ea626d199cf9bX-002"
+    ],
+    "baseline b 28.industry2": [
+      "-1.2be2738a9d51cX-001",
+      "+1.acda8cb65413bX-002"
+    ],
+    "baseline b 29.industry2": [
+      "-1.1a6445043b92eX+000",
+      "+1.c21da292ee11bX-002"
+    ],
+    "baseline b 30.industry2": [
+      "-1.437bd3040ab54X-002",
+      "+1.af38d133d0017X-002"
+    ],
+    "baseline b 32.industry2": [
+      "-1.64489d24b849aX-001",
+      "+1.f0a4610c12a91X-002"
+    ],
+    "baseline b 33.industry2": [
+      "-1.0a68bb2426b70X-001",
+      "+1.2fdd5fd0e96aaX-001"
+    ],
+    "baseline b 34.industry2": [
+      "-1.4ad94632adee9X-001",
+      "+1.bc062c347a883X-002"
+    ],
+    "baseline b 35.industry2": [
+      "-1.919cbfd40f5b3X-002",
+      "+1.b53c73b72617dX-002"
+    ],
+    "baseline b 36.industry2": [
+      "-1.1a24fe915da5bX-001",
+      "+1.aab59243a9995X-002"
+    ],
+    "baseline b 37.industry2": [
+      "-1.98f82e8a36143X-002",
+      "+1.dc4be4fc943b4X-002"
+    ],
+    "baseline b 38.industry2": [
+      "-1.0227d6aea3ee5X+000",
+      "+1.bba0f8e8e4d99X-002"
+    ],
+    "baseline b 39.industry2": [
+      "-1.83532c994b78cX-006",
+      "+1.0c446d0903157X-001"
+    ],
+    "baseline b 40.industry2": [
+      "-1.e54e5935142cbX-002",
+      "+1.e786af3c41f9fX-002"
+    ],
+    "baseline b 42.industry2": [
+      "-1.c9a98cd5bbe7dX-002",
+      "+1.09394b57c9cfbX-001"
+    ],
+    "baseline b 44.industry2": [
+      "-1.2fcd9d70005f9X+000",
+      "+1.0dd61a1740c67X-001"
+    ],
+    "baseline b 45.industry2": [
+      "+1.0b425af5dd737X-006",
+      "+1.bb47007c4fa9bX-002"
+    ],
+    "baseline b 48.industry2": [
+      "-1.5242c6dcfffa6X-002",
+      "+1.cef66385ed244X-002"
+    ],
+    "baseline b 50.industry2": [
+      "-1.3f6744e83ebbeX-001",
+      "+1.beee9b239dc7fX-002"
+    ],
+    "baseline b 51.industry2": [
+      "+1.03128498f5950X-003",
+      "+1.ec8a279a41001X-002"
+    ],
+    "baseline b 53.industry2": [
+      "-1.ecb6706cd4189X-003",
+      "+1.bc0151bb63f12X-002"
+    ],
+    "baseline b 54.industry2": [
+      "-1.b9653135e5c0aX-002",
+      "+1.db2a0dc5f1021X-002"
+    ],
+    "baseline b 56.industry2": [
+      "-1.1e5757f4353b7X+000",
+      "+1.b41be24d38abcX-002"
+    ],
+    "baseline b 57.industry2": [
+      "-1.55d62c6fa7722X-001",
+      "+1.eff222b3355efX-002"
+    ],
+    "baseline b 58.industry2": [
+      "-1.a5514842ba39eX-001",
+      "+1.ac47686fbe515X-002"
+    ],
+    "baseline b 59.industry2": [
+      "-1.1420c3b99d929X-001",
+      "+1.e446e9c45f496X-002"
+    ],
+    "baseline b 70.industry2": [
+      "-1.3cc8d62ab5c81X-001",
+      "+1.cd2f4ff3bb626X-002"
+    ],
+    "baseline b 73.industry2": [
+      "-1.4ee371ed03bfbX-001",
+      "+1.aa2564c7b7815X-002"
+    ],
+    "baseline b 79.industry2": [
+      "+1.b0c7d11564095X-005",
+      "+1.ee7fd54af8773X-002"
+    ],
+    "baseline b 80.industry2": [
+      "-1.3101ee46f6630X-001",
+      "+1.b785d4571d4b7X-002"
+    ],
+    "baseline b 82.industry2": [
+      "-1.2bbbcf820b93fX-001",
+      "+1.e18af9336e67eX-002"
+    ],
+    "baseline b 87.industry2": [
+      "-1.5ea3777844e76X-001",
+      "+1.af57625f7d9ecX-002"
+    ],
+    "baseline b 2005b.fyear": [
+      "+0.0000000000000X-3ff",
+      "+0.0000000000000X-3ff"
+    ],
+    "baseline b 2006.fyear": ["-1.8cf56bc0021a0X-005", "+1.0a87d4cfda2d0X-004"],
+    "baseline b 2007.fyear": ["+1.e085afd7253bfX-004", "+1.2f26bd2296328X-004"],
+    "baseline b 2008.fyear": ["-1.065c9b1148ddfX-003", "+1.18beaa743a82eX-004"],
+    "baseline b 2009.fyear": ["-1.9837af2fe13a2X-003", "+1.2cccc963382deX-004"],
+    "baseline b 2010.fyear": ["-1.9b6993a4a2c37X-004", "+1.23d4c039bcfc3X-004"],
+    "baseline b 2011.fyear": ["-1.46a9b6707fd26X-004", "+1.259993c2d5943X-004"],
+    "baseline b 2012.fyear": ["-1.22a4e14a8c158X-003", "+1.24b654fefe63aX-004"],
+    "baseline b 2013.fyear": ["-1.2f588f493bf2cX-003", "+1.2ea00e6e9e1efX-004"],
+    "baseline b 2014.fyear": ["-1.47a8d8d8f1f7cX-003", "+1.2f211a13ed9a3X-004"],
+    "baseline b 2015.fyear": ["-1.df4a9829dae50X-004", "+1.286f07bf877c0X-004"],
+    "baseline b 2016.fyear": ["-1.eb3ab01aa390aX-005", "+1.31c7afc75d688X-004"],
+    "baseline b 2017.fyear": ["+1.1c5609131c31cX-006", "+1.2e27cf38afdfdX-004"],
+    "baseline b 2018.fyear": ["+1.79dfbc601d66dX-009", "+1.36ec967b1eed9X-004"],
+    "baseline b 2019.fyear": ["-1.303e27c3ba2c6X-003", "+1.41f96e066e363X-004"],
+    "baseline b 2020.fyear": ["-1.7be4bf533efdfX-004", "+1.31ddb95706e7eX-004"],
+    "baseline b 2021.fyear": ["+1.052b54725782bX-003", "+1.3b15d615ab24bX-004"],
+    "baseline b 2022.fyear": ["-1.8cfad0c5795d8X-006", "+1.54c60c96d2e41X-004"],
+    "baseline b 2023.fyear": ["+1.6b0273be665fbX-003", "+1.5b7a08e6be4ffX-004"],
+    "baseline b _cons": ["+1.c42325f436b9eX+002", "+1.bfcf49e58cb31X-002"],
+    "firm_fe N": ["+1.6ac0000000000X+00c"],
+    "firm_fe N_clust": ["+1.5180000000000X+009"],
+    "firm_fe b dual_proxy": ["-1.e1e51f9326034X-009", "+1.18aa003098bd0X-005"],
+    "firm_fe b turnover": ["+1.3e3e78c288e42X-004", "+1.f5eab615e2885X-006"],
+    "firm_fe b positive_cfo": [
+      "+1.450b8d5998a77X-005",
+      "+1.83f004f92948dX-005"
+    ],
+    "firm_fe b size": ["+1.47b4ba1394fc4X-001", "+1.bf2ccc7a0ac66X-006"],
+    "firm_fe b lev": ["+1.5ea6724c948f9X-002", "+1.31b55bd44f244X-003"],
+    "firm_fe b roa": ["-1.86c9338310c2cX-002", "+1.416d721ebcd5cX-003"],
+    "firm_fe b loss": ["+1.0c182d337db34X-005", "+1.181efbe9fa9b5X-005"],
+    "firm_fe b big4": ["+1.ac897a78a785cX-003", "+1.9d43eb9c96748X-004"],
+    "firm_fe b 2005b.fyear": ["+0.0000000000000X-3ff", "+0.0000000000000X-3ff"],
+    "firm_fe b 2006.fyear": ["-1.46d9be72f1facX-004", "+1.08cf5ba2bdbe7X-004"],
+    "firm_fe b 2007.fyear": ["+1.a24dca57b25bbX-004", "+1.2e83370b65f8fX-004"],
+    "firm_fe b 2008.fyear": ["-1.38dc9f8dc81c2X-003", "+1.1ba44cfbacb8bX-004"],
+    "firm_fe b 2009.fyear": ["-1.f39e0a126715dX-003", "+1.33390b0593a72X-004"],
+    "firm_fe b 2010.fyear": ["-1.0b7cedb7cc5f8X-003", "+1.3072836e96df9X-004"],
+    "firm_fe b 2011.fyear": ["-1.f58a6896f8d54X-004", "+1.2a543cdcc7beeX-004"],
+    "firm_fe b 2012.fyear": ["-1.7614ab9b9312fX-003", "+1.26511280d1562X-004"],
+    "firm_fe b 2013.fyear": ["-1.676571edb4c1cX-003", "+1.3181b21da9f0aX-004"],
+    "firm_fe b 2014.fyear": ["-1.809f8256e8d07X-003", "+1.34a4ffba952d1X-004"],
+    "firm_fe b 2015.fyear": ["-1.14f39a1028d3aX-003", "+1.2f1127ae4ad39X-004"],
+    "firm_fe b 2016.fyear": ["-1.3943b9ca8ab53X-004", "+1.3cd10cdb06459X-004"],
+    "firm_fe b 2017.fyear": ["-1.285269a811463X-007", "+1.359fd961da563X-004"],
+    "firm_fe b 2018.fyear": ["-1.975ffcc29d98fX-005", "+1.3c5ed5f86bd7cX-004"],
+    "firm_fe b 2019.fyear": ["-1.913a6e1454848X-003", "+1.43fae4184311fX-004"],
+    "firm_fe b 2020.fyear": ["-1.53c75378a10fbX-003", "+1.399c7d826b498X-004"],
+    "firm_fe b 2021.fyear": ["+1.1824515c3ce41X-004", "+1.358c15ddca6ceX-004"],
+    "firm_fe b 2022.fyear": ["-1.096e54adf1974X-004", "+1.55c140be4f7faX-004"],
+    "firm_fe b 2023.fyear": ["+1.9bffa0189fb3bX-004", "+1.65bec50e94d06X-004"],
+    "firm_fe b _cons": ["+1.bb6873f1e2e52X+002", "+1.ef8cbfcf993bfX-003"],
+    "all_fees N": ["+1.8b20000000000X+00c"],
+    "all_fees N_clust": ["+1.5900000000000X+009"],
+    "all_fees b dual_proxy": ["+1.33519a6b1b7b8X-003", "+1.151ca55bf5118X-004"],
+    "all_fees b turnover": ["+1.1c3a162a3506dX-003", "+1.8380421a4d6fbX-005"],
+    "all_fees b positive_cfo": [
+      "+1.f77ec3317ecaeX-004",
+      "+1.9bcb06ff60fdfX-004"
+    ],
+    "all_fees b size": ["+1.5f6bafba1b7ccX-001", "+1.67c4758fbb1a5X-006"],
+    "all_fees b lev": ["+1.5ea8f6465f756X-003", "+1.5ed530f03f6f8X-003"],
+    "all_fees b roa": ["-1.8addc3bea3a3aX-002", "+1.31656a6db9dddX-002"],
+    "all_fees b loss": ["-1.93145eeb06b27X-005", "+1.f3a6493784928X-005"],
+    "all_fees b big4": ["+1.be011cc7adc6dX-002", "+1.414f8b44d2295X-003"],
+    "all_fees b 10b.industry2": [
+      "+0.0000000000000X-3ff",
+      "+0.0000000000000X-3ff"
+    ],
+    "all_fees b 13.industry2": [
+      "-1.49217801364f1X-001",
+      "+1.657c40caf5345X-003"
+    ],
+    "all_fees b 15.industry2": [
+      "-1.76c66b3842ca4X-001",
+      "+1.043bfff7fea61X-002"
+    ],
+    "all_fees b 16.industry2": [
+      "-1.028368f449d5eX-001",
+      "+1.189370438b4bdX-002"
+    ],
+    "all_fees b 20.industry2": [
+      "-1.52fa161de45feX+000",
+      "+1.04dc0e9b0ff73X-003"
+    ],
+    "all_fees b 22.industry2": [
+      "-1.03f9494e1818aX+000",
+      "+1.db05fac76d677X-004"
+    ],
+    "all_fees b 23.industry2": [
+      "-1.5dc70a41f4097X+000",
+      "+1.7448be5d63d9eX-002"
+    ],
+    "all_fees b 24.industry2": [
+      "-1.44d11101ce4e0X-003",
+      "+1.33c518fcab824X-002"
+    ],
+    "all_fees b 25.industry2": [
+      "-1.8701cb58f3970X+000",
+      "+1.f0ebc0c787bc5X-003"
+    ],
+    "all_fees b 26.industry2": [
+      "-1.14368b51ec368X+000",
+      "+1.1e40368643269X-002"
+    ],
+    "all_fees b 27.industry2": [
+      "-1.232ab86d23933X-001",
+      "+1.18c6d17fcf0c3X-003"
+    ],
+    "all_fees b 28.industry2": [
+      "-1.7846eeb7c5b33X-001",
+      "+1.38a3e2beff326X-003"
+    ],
+    "all_fees b 29.industry2": [
+      "-1.d0c407a99b2e8X+000",
+      "+1.14aaee6e8be01X-002"
+    ],
+    "all_fees b 30.industry2": [
+      "-1.c67d9849c548dX-001",
+      "+1.2c4e09c42ee80X-003"
+    ],
+    "all_fees b 32.industry2": [
+      "-1.2c0dbe2b22ab8X-001",
+      "+1.159794b9f61caX-003"
+    ],
+    "all_fees b 33.industry2": [
+      "-1.812659ba8ef00X-001",
+      "+1.4cb70fdd3dec3X-002"
+    ],
+    "all_fees b 34.industry2": [
+      "-1.4381914af511dX+000",
+      "+1.1e51687137d9eX-003"
+    ],
+    "all_fees b 35.industry2": [
+      "-1.d39c7e30b2137X-001",
+      "+1.cacf739a969a1X-003"
+    ],
+    "all_fees b 36.industry2": [
+      "-1.f1f8010079290X-001",
+      "+1.0a82fa07f0d8fX-003"
+    ],
+    "all_fees b 37.industry2": [
+      "-1.c23856b05c1f8X-001",
+      "+1.74b1b5bbe2b14X-003"
+    ],
+    "all_fees b 38.industry2": [
+      "-1.42bd4986f795fX+000",
+      "+1.c09134f326300X-003"
+    ],
+    "all_fees b 39.industry2": [
+      "-1.ca008dbd3c785X-001",
+      "+1.456a34b8623cdX-002"
+    ],
+    "all_fees b 40.industry2": [
+      "-1.0d06e67b0ccb2X-001",
+      "+1.513d5ce797622X-002"
+    ],
+    "all_fees b 42.industry2": [
+      "-1.1ce878d3f47a5X-003",
+      "+1.7c7107b474b9dX-003"
+    ],
+    "all_fees b 44.industry2": [
+      "-1.38d99674f4555X-001",
+      "+1.a172d5329d2f4X-002"
+    ],
+    "all_fees b 45.industry2": [
+      "-1.360cdc2b58989X-001",
+      "+1.b82c39c587d69X-003"
+    ],
+    "all_fees b 48.industry2": [
+      "-1.744f49ad86111X-001",
+      "+1.ba09bd3db8adaX-002"
+    ],
+    "all_fees b 50.industry2": [
+      "-1.2389779d84240X+000",
+      "+1.2604204ea19dcX-002"
+    ],
+    "all_fees b 51.industry2": [
+      "+1.59cb47431822dX-005",
+      "+1.67e699be855e1X-003"
+    ],
+    "all_fees b 53.industry2": [
+      "-1.a8770afce965cX-001",
+      "+1.b7f0524f064c8X-003"
+    ],
+    "all_fees b 54.industry2": [
+      "-1.c42e78258846eX-001",
+      "+1.2e2ef9a8931b1X-002"
+    ],
+    "all_fees b 56.industry2": [
+      "-1.af83d48878463X+000",
+      "+1.7ff9920f1129dX-003"
+    ],
+    "all_fees b 57.industry2": [
+      "-1.f8de9b476e05dX-001",
+      "+1.98cafc37fce65X-003"
+    ],
+    "all_fees b 58.industry2": [
+      "-1.5e83edf208ab9X+000",
+      "+1.84934dd33dad3X-003"
+    ],
+    "all_fees b 59.industry2": [
+      "-1.3a0364f46d61aX+000",
+      "+1.6c9234d238091X-003"
+    ],
+    "all_fees b 70.industry2": [
+      "-1.3b310151919a5X+000",
+      "+1.9d6427998ec79X-004"
+    ],
+    "all_fees b 73.industry2": [
+      "-1.09626e9d71be5X+000",
+      "+1.15161e5801d22X-003"
+    ],
+    "all_fees b 79.industry2": [
+      "-1.49c9df54cf2c8X-001",
+      "+1.6c6fe43dfb15dX-003"
+    ],
+    "all_fees b 80.industry2": [
+      "-1.e4e87906bd58dX-001",
+      "+1.73b08f88994d6X-003"
+    ],
+    "all_fees b 82.industry2": [
+      "-1.9d6868dd2bc8aX-001",
+      "+1.2ed2655106152X-002"
+    ],
+    "all_fees b 87.industry2": [
+      "-1.f9aa7298b2fe5X-001",
+      "+1.f10c89412b4fbX-003"
+    ],
+    "all_fees b 2005b.fyear": [
+      "+0.0000000000000X-3ff",
+      "+0.0000000000000X-3ff"
+    ],
+    "all_fees b 2006.fyear": ["-1.abfb543090fb6X-004", "+1.3c8e981d76fc7X-003"],
+    "all_fees b 2007.fyear": ["-1.f034c32a6b7fbX-005", "+1.5fa93ffe25cbcX-003"],
+    "all_fees b 2008.fyear": ["-1.6f85494f725b5X-002", "+1.3359531c680ccX-003"],
+    "all_fees b 2009.fyear": ["-1.e4415a30d11a0X-002", "+1.805df0209b984X-003"],
+    "all_fees b 2010.fyear": ["-1.4594cdc7d5b20X-002", "+1.576f642622c69X-003"],
+    "all_fees b 2011.fyear": ["-1.10e473ae0dfe3X-002", "+1.46e080249bbfcX-003"],
+    "all_fees b 2012.fyear": ["-1.4c86708ff7b13X-002", "+1.3a7bf38e839c3X-003"],
+    "all_fees b 2013.fyear": ["-1.a1f343847b071X-002", "+1.5cfce799fdc06X-003"],
+    "all_fees b 2014.fyear": ["-1.88efa7c1eaeffX-003", "+1.766daddb07785X-003"],
+    "all_fees b 2015.fyear": ["-1.08b5e19d433bbX-002", "+1.76957123aa587X-003"],
+    "all_fees b 2016.fyear": ["-1.1f8ec25e3b4c9X-002", "+1.744229a706989X-003"],
+    "all_fees b 2017.fyear": ["-1.5ecf6bf0383f7X-002", "+1.59e84f11355f2X-003"],
+    "all_fees b 2018.fyear": ["-1.feab65eca1852X-004", "+1.61dd1ef35e523X-003"],
+    "all_fees b 2019.fyear": ["-1.034119a3cfa76X-002", "+1.7fb77834cdd1eX-003"],
+    "all_fees b 2020.fyear": ["-1.b306a427ddf68X-002", "+1.66e0f0ed3f0e4X-003"],
+    "all_fees b 2021.fyear": ["-1.7f283bb3f74f8X-004", "+1.80882fd8c1bc0X-003"],
+    "all_fees b 2022.fyear": ["-1.3491341b10b2aX-004", "+1.df16aabf9cc1fX-003"],
+    "all_fees b 2023.fyear": ["-1.dafed39ff90aeX-005", "+1.600fd297c25d6X-003"],
+    "all_fees b _cons": ["-1.8cbda0b2e68acX+002", "+1.19b9f8781708fX-002"],
+    "date_screen N": ["+1.5b50000000000X+00c"],
+    "date_screen N_clust": ["+1.4e80000000000X+009"],
+    "date_screen b dual_proxy": [
+      "+1.bc3b244796123X-004",
+      "+1.730f63ef54d5dX-005"
+    ],
+    "date_screen b turnover": [
+      "+1.f56bdd2b738e2X-004",
+      "+1.1f9059de78429X-005"
+    ],
+    "date_screen b positive_cfo": [
+      "+1.ef5564733513eX-008",
+      "+1.cf374ab7a752bX-005"
+    ],
+    "date_screen b size": ["+1.596b24f0ff408X-001", "+1.2325288f250a4X-006"],
+    "date_screen b lev": ["+1.64ae7b790fb45X-002", "+1.e2c7109663aa2X-004"],
+    "date_screen b roa": ["-1.67a50fabe82c7X-002", "+1.b4f0961f524daX-003"],
+    "date_screen b loss": ["+1.5dee33c183a0fX-004", "+1.6bc3999da8378X-005"],
+    "date_screen b big4": ["+1.38665a868a982X-002", "+1.54ef1568e62efX-004"],
+    "date_screen b 10b.industry2": [
+      "+0.0000000000000X-3ff",
+      "+0.0000000000000X-3ff"
+    ],
+    "date_screen b 13.industry2": [
+      "-1.850f120b8c6e7X-002",
+      "+1.b2deb180528beX-002"
+    ],
+    "date_screen b 15.industry2": [
+      "-1.e54004c577b7fX-002",
+      "+1.c22ad7508b13dX-002"
+    ],
+    "date_screen b 16.industry2": [
+      "+1.4759315cc717fX-005",
+      "+1.c3d64494d1308X-002"
+    ],
+    "date_screen b 20.industry2": [
+      "-1.6c45e1a6d077fX-001",
+      "+1.c5649674896e9X-002"
+    ],
+    "date_screen b 22.industry2": [
+      "-1.316b5be8f24f6X-001",
+      "+1.ac9b5afa1b132X-002"
+    ],
+    "date_screen b 23.industry2": [
+      "-1.25e22fbff1662X+000",
+      "+1.eb5d3ad4fe586X-002"
+    ],
+    "date_screen b 24.industry2": [
+      "-1.cd75ed5a82830X-003",
+      "+1.e7c0c7bbee472X-002"
+    ],
+    "date_screen b 25.industry2": [
+      "-1.59317733da207X-001",
+      "+1.185870c9f7650X-001"
+    ],
+    "date_screen b 26.industry2": [
+      "-1.acedf812595c7X-001",
+      "+1.ccaa617e0bdd1X-002"
+    ],
+    "date_screen b 27.industry2": [
+      "+1.88c49868ec06aX-003",
+      "+1.f186c90333f87X-002"
+    ],
+    "date_screen b 28.industry2": [
+      "-1.2ef7b2fbdd096X-001",
+      "+1.b1caa8685ca42X-002"
+    ],
+    "date_screen b 29.industry2": [
+      "-1.33a2412054459X+000",
+      "+1.c76067ec19914X-002"
+    ],
+    "date_screen b 30.industry2": [
+      "-1.426a002aa138aX-002",
+      "+1.b43de3d9e91e4X-002"
+    ],
+    "date_screen b 32.industry2": [
+      "-1.6f66b710d4f4eX-001",
+      "+1.f69275ead3094X-002"
+    ],
+    "date_screen b 33.industry2": [
+      "-1.6f2417b92e8d5X-001",
+      "+1.2a233b2d28075X-001"
+    ],
+    "date_screen b 34.industry2": [
+      "-1.5714f0a454873X-001",
+      "+1.bf99ccb9da3adX-002"
+    ],
+    "date_screen b 35.industry2": [
+      "-1.c0e8713f06145X-002",
+      "+1.b8ca5f8c48d22X-002"
+    ],
+    "date_screen b 36.industry2": [
+      "-1.1e527ebe3cdaeX-001",
+      "+1.af839997f4581X-002"
+    ],
+    "date_screen b 37.industry2": [
+      "-1.a66963b877e15X-002",
+      "+1.e5536e79b6fa2X-002"
+    ],
+    "date_screen b 38.industry2": [
+      "-1.157407061ee72X+000",
+      "+1.bfd41b11b689aX-002"
+    ],
+    "date_screen b 39.industry2": [
+      "-1.e80d8ed4c0ab6X-004",
+      "+1.1750ff8a779f9X-001"
+    ],
+    "date_screen b 40.industry2": [
+      "-1.e425c84867c90X-002",
+      "+1.ec1e2b2139854X-002"
+    ],
+    "date_screen b 42.industry2": [
+      "-1.df451d4d626edX-002",
+      "+1.0beba570e69fdX-001"
+    ],
+    "date_screen b 44.industry2": [
+      "-1.2e332c04574a0X+000",
+      "+1.0ead3968a780fX-001"
+    ],
+    "date_screen b 45.industry2": [
+      "+1.3b19d123f6b7eX-007",
+      "+1.bf9f56511dd10X-002"
+    ],
+    "date_screen b 48.industry2": [
+      "-1.615150901ae92X-002",
+      "+1.e438047be5b20X-002"
+    ],
+    "date_screen b 50.industry2": [
+      "-1.4abe88cec48d9X-001",
+      "+1.c2fb8d38113a6X-002"
+    ],
+    "date_screen b 51.industry2": [
+      "+1.590a02f33c7a2X-003",
+      "+1.f4b774f1a0fedX-002"
+    ],
+    "date_screen b 53.industry2": [
+      "-1.fbec9dc38aa8cX-003",
+      "+1.be5c441a455beX-002"
+    ],
+    "date_screen b 54.industry2": [
+      "-1.1f0bb0e9068b1X-001",
+      "+1.d711b256554b8X-002"
+    ],
+    "date_screen b 56.industry2": [
+      "-1.26d004074d893X+000",
+      "+1.b923d304f3dfeX-002"
+    ],
+    "date_screen b 57.industry2": [
+      "-1.6948a4ccd61f1X-001",
+      "+1.f3a94799230f5X-002"
+    ],
+    "date_screen b 58.industry2": [
+      "-1.a775b0652036eX-001",
+      "+1.b19ef7e40f0ddX-002"
+    ],
+    "date_screen b 59.industry2": [
+      "-1.2292289496857X-001",
+      "+1.e8c81bf4a6064X-002"
+    ],
+    "date_screen b 70.industry2": [
+      "-1.3dfb1175bea11X-001",
+      "+1.d126db8677b0cX-002"
+    ],
+    "date_screen b 73.industry2": [
+      "-1.4f4aabec7da8eX-001",
+      "+1.af38f2c6737acX-002"
+    ],
+    "date_screen b 79.industry2": [
+      "+1.099bacf664127X-005",
+      "+1.ec5b174034142X-002"
+    ],
+    "date_screen b 80.industry2": [
+      "-1.37c3d7224f906X-001",
+      "+1.bc2820934b3c0X-002"
+    ],
+    "date_screen b 82.industry2": [
+      "-1.20cbf318b6b6aX-001",
+      "+1.fa76d5bd44f53X-002"
+    ],
+    "date_screen b 87.industry2": [
+      "-1.54765d283ac05X-001",
+      "+1.b55b7be0e39c9X-002"
+    ],
+    "date_screen b 2005b.fyear": [
+      "+0.0000000000000X-3ff",
+      "+0.0000000000000X-3ff"
+    ],
+    "date_screen b 2006.fyear": [
+      "-1.80faede17534bX-005",
+      "+1.1635a6642e2d7X-004"
+    ],
+    "date_screen b 2007.fyear": [
+      "+1.06985f32b6ff5X-003",
+      "+1.3a791e003307fX-004"
+    ],
+    "date_screen b 2008.fyear": [
+      "-1.00bdbdeb24829X-003",
+      "+1.245ab6d2bcc80X-004"
+    ],
+    "date_screen b 2009.fyear": [
+      "-1.c29452e460f10X-003",
+      "+1.32d13ec125116X-004"
+    ],
+    "date_screen b 2010.fyear": [
+      "-1.756235865e041X-004",
+      "+1.2f0e9daaea8faX-004"
+    ],
+    "date_screen b 2011.fyear": [
+      "-1.3b87011c46929X-004",
+      "+1.2f7cbdf7047baX-004"
+    ],
+    "date_screen b 2012.fyear": [
+      "-1.0f2cb93641128X-003",
+      "+1.2c2d041a03944X-004"
+    ],
+    "date_screen b 2013.fyear": [
+      "-1.40444164287c7X-003",
+      "+1.34b3466e49e9eX-004"
+    ],
+    "date_screen b 2014.fyear": [
+      "-1.2b7967ed43202X-003",
+      "+1.35c7c9ec01cc6X-004"
+    ],
+    "date_screen b 2015.fyear": [
+      "-1.c97c5d2135b50X-004",
+      "+1.30d7179184d5bX-004"
+    ],
+    "date_screen b 2016.fyear": [
+      "-1.22b4ec4bc5871X-004",
+      "+1.3f747c4f575a6X-004"
+    ],
+    "date_screen b 2017.fyear": [
+      "+1.489e31d1184e1X-00a",
+      "+1.37eec8a3e59d1X-004"
+    ],
+    "date_screen b 2018.fyear": [
+      "-1.5934a5b097ea4X-008",
+      "+1.427044b5e4c63X-004"
+    ],
+    "date_screen b 2019.fyear": [
+      "-1.356324307efc3X-003",
+      "+1.50eb9cafd30a9X-004"
+    ],
+    "date_screen b 2020.fyear": [
+      "-1.75ebf57303c73X-004",
+      "+1.3ecaae82f0545X-004"
+    ],
+    "date_screen b 2021.fyear": [
+      "+1.c7b6a3481b73dX-004",
+      "+1.467dcfa7e86bbX-004"
+    ],
+    "date_screen b 2022.fyear": [
+      "-1.23db59c967c0eX-006",
+      "+1.5ff3eb34a4417X-004"
+    ],
+    "date_screen b 2023.fyear": [
+      "+1.3d634408420bbX-003",
+      "+1.674971fccac31X-004"
+    ],
+    "date_screen b _cons": ["+1.c27695ea0046eX+002", "+1.c430a66b2930fX-002"],
+    "uncapped N": ["+1.6ac0000000000X+00c"],
+    "uncapped N_clust": ["+1.5180000000000X+009"],
+    "uncapped b dual_proxy": ["+1.f0f360437dd9aX-004", "+1.745a9242b4222X-005"],
+    "uncapped b turnover_raw": [
+      "+1.f3fb0475f7360X-007",
+      "+1.83827c9c81b8eX-007"
+    ],
+    "uncapped b positive_cfo": [
+      "-1.59d8a05ad4279X-005",
+      "+1.87f41085de9beX-005"
+    ],
+    "uncapped b size": ["+1.54449399119f3X-001", "+1.1923f8bf15404X-006"],
+    "uncapped b lev_raw": ["+1.56a4070b39fc8X-002", "+1.c148b7c3b7248X-004"],
+    "uncapped b roa_raw": ["+1.19434bd2b30d0X-005", "+1.223bc40317a32X-004"],
+    "uncapped b loss": ["+1.d5db77ba5e26eX-004", "+1.5266d76347c8bX-005"],
+    "uncapped b big4": ["+1.26357a60001f9X-002", "+1.5560bf3ae315dX-004"],
+    "uncapped b 10b.industry2": [
+      "+0.0000000000000X-3ff",
+      "+0.0000000000000X-3ff"
+    ],
+    "uncapped b 13.industry2": [
+      "-1.9c7b278444de8X-002",
+      "+1.ac5755f575ed8X-002"
+    ],
+    "uncapped b 15.industry2": [
+      "-1.9b93aca3401a4X-002",
+      "+1.bc81fded00a88X-002"
+    ],
+    "uncapped b 16.industry2": [
+      "+1.d69500f06cc00X-004",
+      "+1.bf850ead1481eX-002"
+    ],
+    "uncapped b 20.industry2": [
+      "-1.57b279004e4d0X-001",
+      "+1.bfabfa334d0cfX-002"
+    ],
+    "uncapped b 22.industry2": [
+      "-1.0bdccb2928ffeX-001",
+      "+1.a5bc024aaed32X-002"
+    ],
+    "uncapped b 23.industry2": [
+      "-1.169f62c551446X+000",
+      "+1.ed5db3f5cb281X-002"
+    ],
+    "uncapped b 24.industry2": [
+      "-1.06d0493b86a75X-003",
+      "+1.e63df5aafc859X-002"
+    ],
+    "uncapped b 25.industry2": [
+      "-1.2919227899a4eX-001",
+      "+1.1104d201d9168X-001"
+    ],
+    "uncapped b 26.industry2": [
+      "-1.9db7b63528701X-001",
+      "+1.be4c334c47617X-002"
+    ],
+    "uncapped b 27.industry2": [
+      "+1.e2330c2e27ad7X-003",
+      "+1.e92b9d87abfceX-002"
+    ],
+    "uncapped b 28.industry2": [
+      "-1.3063dca5a3d0aX-001",
+      "+1.aba2564122ff9X-002"
+    ],
+    "uncapped b 29.industry2": [
+      "-1.079999e62fbfcX+000",
+      "+1.c42eeb2421311X-002"
+    ],
+    "uncapped b 30.industry2": [
+      "-1.289c84579d62cX-002",
+      "+1.ae29556b0f9ddX-002"
+    ],
+    "uncapped b 32.industry2": [
+      "-1.5b226012e31ddX-001",
+      "+1.f34d3fce360e9X-002"
+    ],
+    "uncapped b 33.industry2": [
+      "-1.e98ecc898c688X-002",
+      "+1.27a09534a2a55X-001"
+    ],
+    "uncapped b 34.industry2": [
+      "-1.2ca398d51c43eX-001",
+      "+1.ba1852805e2edX-002"
+    ],
+    "uncapped b 35.industry2": [
+      "-1.6c95533051d47X-002",
+      "+1.b322d28fcf5f1X-002"
+    ],
+    "uncapped b 36.industry2": [
+      "-1.0efbf3aa85023X-001",
+      "+1.a961b19e680d1X-002"
+    ],
+    "uncapped b 37.industry2": [
+      "-1.732b70fff5862X-002",
+      "+1.dc2e6cc082d7dX-002"
+    ],
+    "uncapped b 38.industry2": [
+      "-1.fea04358b9471X-001",
+      "+1.ba3b79447b495X-002"
+    ],
+    "uncapped b 39.industry2": [
+      "+1.034c6a3492886X-005",
+      "+1.0b0fc45377c1eX-001"
+    ],
+    "uncapped b 40.industry2": [
+      "-1.fb3ba90960be6X-002",
+      "+1.e71333a9f8f06X-002"
+    ],
+    "uncapped b 42.industry2": [
+      "-1.6aaae4ac3ab33X-002",
+      "+1.06e5b9a5eef54X-001"
+    ],
+    "uncapped b 44.industry2": [
+      "-1.352f4dfcf113fX+000",
+      "+1.0f5b0fdc29449X-001"
+    ],
+    "uncapped b 45.industry2": [
+      "+1.0a510875be159X-004",
+      "+1.bc98019979552X-002"
+    ],
+    "uncapped b 48.industry2": [
+      "-1.59e4dcaaebee2X-002",
+      "+1.ce63eaef3eed5X-002"
+    ],
+    "uncapped b 50.industry2": [
+      "-1.0879c5856b562X-001",
+      "+1.beffbf78c8c56X-002"
+    ],
+    "uncapped b 51.industry2": [
+      "+1.9100338460271X-002",
+      "+1.e95d9f1c3c9f0X-002"
+    ],
+    "uncapped b 53.industry2": [
+      "-1.6b7016f432e41X-004",
+      "+1.bacee7fb52474X-002"
+    ],
+    "uncapped b 54.industry2": [
+      "-1.7ac4dd8664bc9X-003",
+      "+1.caf873f27d23bX-002"
+    ],
+    "uncapped b 56.industry2": [
+      "-1.f4531112fcc00X-001",
+      "+1.afc055f4b25d8X-002"
+    ],
+    "uncapped b 57.industry2": [
+      "-1.ec3f789d5b6efX-002",
+      "+1.efb7e17a27a0bX-002"
+    ],
+    "uncapped b 58.industry2": [
+      "-1.98ddeb59737c5X-001",
+      "+1.aa862462d300aX-002"
+    ],
+    "uncapped b 59.industry2": [
+      "-1.bdd2131c87d5dX-002",
+      "+1.de8ef20a895b5X-002"
+    ],
+    "uncapped b 70.industry2": [
+      "-1.372569092b1a5X-001",
+      "+1.ce5f294d3097fX-002"
+    ],
+    "uncapped b 73.industry2": [
+      "-1.4b43cc223f91fX-001",
+      "+1.a8d1ab5dddaedX-002"
+    ],
+    "uncapped b 79.industry2": [
+      "+1.720a54e05c296X-005",
+      "+1.e80d69c4dfc21X-002"
+    ],
+    "uncapped b 80.industry2": [
+      "-1.1526f4a803ee1X-001",
+      "+1.b3fd92b933d7bX-002"
+    ],
+    "uncapped b 82.industry2": [
+      "-1.0be0070b30954X-001",
+      "+1.e02b70d2c5c5cX-002"
+    ],
+    "uncapped b 87.industry2": [
+      "-1.38f7b7ed1f7a7X-001",
+      "+1.ac9a39f68ad93X-002"
+    ],
+    "uncapped b 2005b.fyear": [
+      "+0.0000000000000X-3ff",
+      "+0.0000000000000X-3ff"
+    ],
+    "uncapped b 2006.fyear": ["-1.a57d501af103bX-005", "+1.0a5714fd2d5f7X-004"],
+    "uncapped b 2007.fyear": ["+1.ee92d542f0ec4X-004", "+1.30e0839510206X-004"],
+    "uncapped b 2008.fyear": ["-1.03d231fd98306X-003", "+1.1918f0d5fb8bcX-004"],
+    "uncapped b 2009.fyear": ["-1.9687cdc1ccbbbX-003", "+1.2d8f5e3ca79c5X-004"],
+    "uncapped b 2010.fyear": ["-1.a679f0eef7561X-004", "+1.2447e391f5a7eX-004"],
+    "uncapped b 2011.fyear": ["-1.3fd3c9c5cffa3X-004", "+1.26f96e69a2a46X-004"],
+    "uncapped b 2012.fyear": ["-1.224080fe36f01X-003", "+1.25d8d5bb8ce70X-004"],
+    "uncapped b 2013.fyear": ["-1.34ae076e3a8b6X-003", "+1.2fbe6db299a65X-004"],
+    "uncapped b 2014.fyear": ["-1.4740ac3d99498X-003", "+1.3152716522580X-004"],
+    "uncapped b 2015.fyear": ["-1.d01972639bbdbX-004", "+1.29f4423d3e9d2X-004"],
+    "uncapped b 2016.fyear": ["-1.ec54c962c468aX-005", "+1.32b1fadb5e771X-004"],
+    "uncapped b 2017.fyear": ["+1.09a128b1fd704X-006", "+1.2e5e013baf989X-004"],
+    "uncapped b 2018.fyear": ["-1.120111c7b94e9X-00a", "+1.38280455c9f50X-004"],
+    "uncapped b 2019.fyear": ["-1.2ee49c6bfb7e0X-003", "+1.4362785f94bbcX-004"],
+    "uncapped b 2020.fyear": ["-1.7c8420fb5d1f5X-004", "+1.33eb34550f37fX-004"],
+    "uncapped b 2021.fyear": ["+1.068244e5d30f1X-003", "+1.3c6b1c818152fX-004"],
+    "uncapped b 2022.fyear": ["-1.bc8984c5664d6X-006", "+1.565079154861eX-004"],
+    "uncapped b 2023.fyear": ["+1.6c514850b635aX-003", "+1.5c57091968e5eX-004"],
+    "uncapped b _cons": ["+1.ce7b2cbdac572X+002", "+1.b9866b50a4ab2X-002"],
+    "buys N": ["+1.7640000000000X+00c"],
+    "buys N_clust": ["+1.4680000000000X+009"],
+    "buys b 0b.dual_proxy": ["+0.0000000000000X-3ff", "+0.0000000000000X-3ff"],
+    "buys b 1.dual_proxy": ["-1.9e8031d1f5c04X-003", "+1.76f01d692e929X-003"],
+    "buys b turnover": ["+1.84f1d5997b732X-003", "+1.28b0f513f47baX-003"],
+    "buys b 0b.positive_cfo": [
+      "+0.0000000000000X-3ff",
+      "+0.0000000000000X-3ff"
+    ],
+    "buys b 1.positive_cfo": ["+1.201f31c544320X-002", "+1.8eb140b7836ebX-003"],
+    "buys b size": ["+1.dc5a1f929b539X-002", "+1.2bbafa1625196X-004"],
+    "buys b lev": ["-1.61d20b2298012X-001", "+1.0dda7f9f2e5d8X-001"],
+    "buys b roa": ["-1.d5589e2c95ea5X-004", "+1.8388761f10de5X-001"],
+    "buys b loss": ["+1.4e753189c25cdX-003", "+1.b13d0c01ab75aX-003"],
+    "buys b big4": ["+1.6c534b2a172c7X-001", "+1.140b3f1090a4cX-002"],
+    "buys b 10b.industry2": ["+0.0000000000000X-3ff", "+0.0000000000000X-3ff"],
+    "buys b 13.industry2": ["+1.ab9e0d5418a59X+000", "+1.a0405ca6f61dcX-001"],
+    "buys b 15.industry2": ["+1.6ad789fc3cbe4X+001", "+1.bdfce793a4886X-001"],
+    "buys b 16.industry2": ["+1.adebccc7f8c6aX+000", "+1.6f296243ed690X+000"],
+    "buys b 20.industry2": ["+1.a9b92fcdd80ffX+001", "+1.40e222b3b903fX+000"],
+    "buys b 22.industry2": ["+1.be62b1ab9dd7cX+000", "+1.6fae1fbd98521X+000"],
+    "buys b 23.industry2": ["+1.4e3179d8140d2X-002", "+1.113d6750bb603X+000"],
+    "buys b 24.industry2": ["+1.4d1290194feddX+000", "+1.14999783763a8X+000"],
+    "buys b 25.industry2": ["+1.4f9248c2cacdfX+000", "+1.53c98efbd473dX+000"],
+    "buys b 26o.industry2": ["+0.0000000000000X-3ff", "+0.0000000000000X-3ff"],
+    "buys b 27.industry2": ["+1.33b945f8306a0X+001", "+1.93a22bc8acca9X-001"],
+    "buys b 28.industry2": ["+1.75d0247ff3b1aX+000", "+1.a757240a6d513X-001"],
+    "buys b 29.industry2": ["+1.254fe4cb76502X+001", "+1.16f33fb47c4b0X+000"],
+    "buys b 30.industry2": ["+1.6f786a2910855X+000", "+1.8383d449ad523X+000"],
+    "buys b 32.industry2": ["+1.f93ba6616efceX-001", "+1.edf0b3a648fe2X-001"],
+    "buys b 33o.industry2": ["+0.0000000000000X-3ff", "+0.0000000000000X-3ff"],
+    "buys b 34.industry2": ["+1.4c8a8a6d3d4f9X+001", "+1.41dc1810cffe0X+000"],
+    "buys b 35.industry2": ["+1.27cbbeef8e336X+000", "+1.c3938e319eb54X-001"],
+    "buys b 36.industry2": ["+1.c4fb1dc88cab0X-001", "+1.ab5d9841adf71X-001"],
+    "buys b 37.industry2": ["+1.200e266e9d874X-001", "+1.13e509b0fac10X+000"],
+    "buys b 38.industry2": ["+1.19747d0e2240aX+001", "+1.bb0824d70ecf0X-001"],
+    "buys b 39o.industry2": ["+0.0000000000000X-3ff", "+0.0000000000000X-3ff"],
+    "buys b 40o.industry2": ["+0.0000000000000X-3ff", "+0.0000000000000X-3ff"],
+    "buys b 42.industry2": ["+1.176f819d538f4X+000", "+1.f28b18eb86ac3X-001"],
+    "buys b 44o.industry2": ["+0.0000000000000X-3ff", "+0.0000000000000X-3ff"],
+    "buys b 45.industry2": ["-1.864adbde9eca2X-002", "+1.0705c951c5dddX+000"],
+    "buys b 48.industry2": ["+1.4834e37104c24X+001", "+1.b3bd5576c51b4X-001"],
+    "buys b 50.industry2": ["+1.87ab8ffdd926bX-005", "+1.17b2a30f6ee49X+000"],
+    "buys b 51.industry2": ["+1.1394cb4971509X+001", "+1.8726fa81f0ca0X+000"],
+    "buys b 53.industry2": ["+1.6e848c3146112X-001", "+1.0d8589ba761caX+000"],
+    "buys b 54.industry2": ["+1.65e5d6487593bX+000", "+1.fa3467c704a92X-001"],
+    "buys b 56.industry2": ["+1.5b6e1bd49800dX-002", "+1.b48496ee548c8X-001"],
+    "buys b 57.industry2": ["-1.a681565465e8bX-004", "+1.5d291569766fcX+000"],
+    "buys b 58.industry2": ["+1.b4bb1414ee73eX+000", "+1.102fb176b0c68X+000"],
+    "buys b 59.industry2": ["+1.3785dfef40851X-002", "+1.78cb2a26ad983X+000"],
+    "buys b 70.industry2": ["+1.066fe644869d3X+001", "+1.13ea8f1fb447dX+000"],
+    "buys b 73.industry2": ["+1.338c8848d343dX+000", "+1.994317ff25c34X-001"],
+    "buys b 79.industry2": ["-1.85c072a887d5cX-003", "+1.e090cc11b05b0X-001"],
+    "buys b 80.industry2": ["+1.8d4f017a79769X+000", "+1.f85b789c43b5dX-001"],
+    "buys b 82.industry2": ["+1.18950b57279e1X+001", "+1.1520e6083bdc0X+000"],
+    "buys b 87.industry2": ["-1.3cec7c9dfc6d0X-002", "+1.14c8474aa300aX+000"],
+    "buys b 2005b.fyear": ["+0.0000000000000X-3ff", "+0.0000000000000X-3ff"],
+    "buys b 2006.fyear": ["-1.1bfff6d4622feX-004", "+1.f93be424a7cf4X-003"],
+    "buys b 2007.fyear": ["-1.3908f8a15849cX-004", "+1.2e2ebf3d3aab2X-002"],
+    "buys b 2008.fyear": ["-1.6a6abd7eea3acX-006", "+1.55d57d9c2e932X-002"],
+    "buys b 2009.fyear": ["-1.18547bf8179c2X-003", "+1.4d2c9c1da780dX-002"],
+    "buys b 2010.fyear": ["-1.5e0912deb97f7X-002", "+1.2d5461d36d387X-002"],
+    "buys b 2011.fyear": ["-1.6f5d91a98bf33X-007", "+1.38c50bf60d63dX-002"],
+    "buys b 2012.fyear": ["-1.7b26613ba889cX-003", "+1.25e870e6ad586X-002"],
+    "buys b 2013.fyear": ["-1.0f5d40c4a53bcX-002", "+1.1138c1db57ae6X-002"],
+    "buys b 2014.fyear": ["-1.16d4e8e1035cdX-002", "+1.2fd1c0cf0c4dbX-002"],
+    "buys b 2015.fyear": ["-1.35a96063ff8fbX-002", "+1.2cb8eb6c85f11X-002"],
+    "buys b 2016.fyear": ["-1.c8cb6feb4cd38X-002", "+1.2a19316a906dbX-002"],
+    "buys b 2017.fyear": ["-1.096c474de0e2dX-001", "+1.27f3b98dcceaeX-002"],
+    "buys b 2018.fyear": ["-1.ea85c68411c51X-002", "+1.32814cf85c40eX-002"],
+    "buys b 2019.fyear": ["-1.e97e3cc6fa5acX-002", "+1.2f5601c0f843bX-002"],
+    "buys b 2020.fyear": ["-1.6dfe7c47d43a5X-002", "+1.4139fd8101b5eX-002"],
+    "buys b 2021.fyear": ["-1.e4450c18a321cX-002", "+1.3aafa8dd71867X-002"],
+    "buys b 2022.fyear": ["-1.8908e084f6abbX-001", "+1.4571968937610X-002"],
+    "buys b 2023.fyear": ["-1.61266ebfc73c3X-001", "+1.5dcc7c5873148X-002"],
+    "buys b _cons": ["-1.57db228753fc7X+001", "+1.e9f9dab33441eX-001"],
+    "amount N": ["+1.6ac0000000000X+00c"],
+    "amount N_clust": ["+1.5180000000000X+009"],
+    "amount b dual_proxy": ["+1.5204f1faffb62X-003", "+1.0a5fc78d48676X-004"],
+    "amount b turnover": ["+1.1694e4c5e0f67X-003", "+1.78ade4f729e87X-005"],
+    "amount b positive_cfo": ["+1.44defdada6516X-004", "+1.8d47dac37e78fX-004"],
+    "amount b size": ["+1.567acb32b4dbaX-001", "+1.67ef5751bec81X-006"],
+    "amount b lev": ["+1.8530e6952a29eX-003", "+1.58dae7f211e9bX-003"],
+    "amount b roa": ["-1.4dffb921f3547X-002", "+1.227ea36cf83d7X-002"],
+    "amount b loss": ["-1.520ac828b62b8X-005", "+1.ec345541ab7a7X-005"],
+    "amount b big4": ["+1.77bd70c76a4c2X-002", "+1.331a0a85b0c28X-003"],
+    "amount b 10b.industry2": [
+      "+0.0000000000000X-3ff",
+      "+0.0000000000000X-3ff"
+    ],
+    "amount b 13.industry2": ["-1.81c6a7b6ebfe3X-001", "+1.5e1ed8b8f8786X-003"],
+    "amount b 15.industry2": ["-1.ad6859e694ae5X-001", "+1.0978b0b744dfeX-002"],
+    "amount b 16.industry2": ["-1.376e83c46594fX-001", "+1.10b3dfec22787X-002"],
+    "amount b 20.industry2": ["-1.72bbd630ca7c1X+000", "+1.db48dc349e24bX-004"],
+    "amount b 22.industry2": ["-1.1e6982895288eX+000", "+1.aa98f97446a80X-004"],
+    "amount b 23.industry2": ["-1.59ed3ccc8b118X+000", "+1.47915db4d1543X-002"],
+    "amount b 24.industry2": ["-1.c549beec000d4X-003", "+1.2e517e36db54bX-002"],
+    "amount b 25.industry2": ["-1.a747ffc205836X+000", "+1.daae898743797X-003"],
+    "amount b 26.industry2": ["-1.3fea771461bb7X+000", "+1.1a1c8ea422050X-002"],
+    "amount b 27.industry2": ["-1.6406e66bdf4e3X-001", "+1.fffde7305d554X-004"],
+    "amount b 28.industry2": ["-1.b3122575132e7X-001", "+1.2c065eb7b2c07X-003"],
+    "amount b 29.industry2": ["-1.f5742aab5c44dX+000", "+1.00c07f4cab403X-002"],
+    "amount b 30.industry2": ["-1.b0c89fc2b3196X-001", "+1.d077546ee4e2dX-003"],
+    "amount b 32.industry2": ["-1.647ed54915585X-001", "+1.01b14eb45cc6dX-003"],
+    "amount b 33.industry2": ["-1.c599afd9270c4X-001", "+1.479481e26cfe3X-002"],
+    "amount b 34.industry2": ["-1.61a3fafacb77bX+000", "+1.158f0bb2ac2daX-003"],
+    "amount b 35.industry2": ["-1.f098bfd520fd4X-001", "+1.964e9f4b8a3e3X-003"],
+    "amount b 36.industry2": ["-1.0e1e8660bdd1cX+000", "+1.e7d0464d77a39X-004"],
+    "amount b 37.industry2": ["-1.ea950b91aa17fX-001", "+1.621f6f0400a1eX-003"],
+    "amount b 38.industry2": ["-1.5ff82e7afbbcdX+000", "+1.adda6f9677dd2X-003"],
+    "amount b 39.industry2": ["-1.0493b8d237ee8X+000", "+1.3f0bbb3ce19e3X-002"],
+    "amount b 40.industry2": ["-1.4c2d8870a2d45X-001", "+1.52fe5dc13871cX-002"],
+    "amount b 42.industry2": ["-1.01942d4dc17c4X-002", "+1.6d075547ec546X-003"],
+    "amount b 44.industry2": ["-1.84af47aaafb58X-001", "+1.ae7282f62fd38X-002"],
+    "amount b 45.industry2": ["-1.b21309beb0341X-002", "+1.68f90502750dcX-003"],
+    "amount b 48.industry2": ["-1.afcd409b80ec6X-001", "+1.afa0ed9a271d1X-002"],
+    "amount b 50.industry2": ["-1.3cf8554b98e48X+000", "+1.23f6db9caa6eeX-002"],
+    "amount b 51.industry2": ["-1.641fd8c3f2fc3X-005", "+1.58b2f112c4e86X-003"],
+    "amount b 53.industry2": ["-1.d7eef7e17196aX-001", "+1.9e81f2daa5fe2X-003"],
+    "amount b 54.industry2": ["-1.fc51f1333a412X-001", "+1.2ae197cdcfb6eX-002"],
+    "amount b 56.industry2": ["-1.c1885aa0706e4X+000", "+1.5d5c2e95b893dX-003"],
+    "amount b 57.industry2": ["-1.142dbd0f0c90eX+000", "+1.8863a74b3a20eX-003"],
+    "amount b 58.industry2": ["-1.824accd37a1f5X+000", "+1.70c33ae66cc4dX-003"],
+    "amount b 59.industry2": ["-1.38adef2189e7aX+000", "+1.2a9cb5acb15e1X-003"],
+    "amount b 70.industry2": ["-1.4ddf71725e0c1X+000", "+1.7a01c0e4dbcf6X-004"],
+    "amount b 73.industry2": ["-1.22fe9e4384e7bX+000", "+1.0954c611c37ccX-003"],
+    "amount b 79.industry2": ["-1.7017ce400aed4X-001", "+1.674143ebc028bX-003"],
+    "amount b 80.industry2": ["-1.0ea0976202823X+000", "+1.810042952de8aX-003"],
+    "amount b 82.industry2": ["-1.e0e2c18dde7f4X-001", "+1.294d8fb285a95X-002"],
+    "amount b 87.industry2": ["-1.10ea0817d9e50X+000", "+1.e244c31b3b73cX-003"],
+    "amount b 2005b.fyear": ["+0.0000000000000X-3ff", "+0.0000000000000X-3ff"],
+    "amount b 2006.fyear": ["-1.67ad3f4cc777aX-004", "+1.3fcdbb20676f1X-003"],
+    "amount b 2007.fyear": ["-1.71ff75080feebX-005", "+1.5fc95f2b4c276X-003"],
+    "amount b 2008.fyear": ["-1.5caa9b6739fd8X-002", "+1.35f2302ffe92eX-003"],
+    "amount b 2009.fyear": ["-1.a349124b8be9dX-002", "+1.80fb2905068cbX-003"],
+    "amount b 2010.fyear": ["-1.2cc09b6c3d4b0X-002", "+1.5ade4817ecb9cX-003"],
+    "amount b 2011.fyear": ["-1.e30723fadb969X-003", "+1.48508d124a844X-003"],
+    "amount b 2012.fyear": ["-1.2f9271d916cbeX-002", "+1.3af18bf5fad0bX-003"],
+    "amount b 2013.fyear": ["-1.8b7401f286757X-002", "+1.5e4c1bfb7cc5cX-003"],
+    "amount b 2014.fyear": ["-1.629060492fd74X-003", "+1.792513fb04093X-003"],
+    "amount b 2015.fyear": ["-1.d6484e0749493X-003", "+1.784e40cefdff4X-003"],
+    "amount b 2016.fyear": ["-1.f1dd5087ee0ceX-003", "+1.75bc82125a41eX-003"],
+    "amount b 2017.fyear": ["-1.38555103af9faX-002", "+1.5c280fe1cb7acX-003"],
+    "amount b 2018.fyear": ["-1.8cf70dc8001d9X-004", "+1.622802f3f34ffX-003"],
+    "amount b 2019.fyear": ["-1.cf3943c62f648X-003", "+1.83946bba4f58aX-003"],
+    "amount b 2020.fyear": ["-1.80402a1d3d021X-002", "+1.6547e1afa3e67X-003"],
+    "amount b 2021.fyear": ["-1.28eb95de8b51dX-004", "+1.82b063e06f828X-003"],
+    "amount b 2022.fyear": ["-1.b6d891b66cd54X-008", "+1.d174887889546X-003"],
+    "amount b 2023.fyear": ["+1.0477db2de842fX-006", "+1.604966ac18b67X-003"],
+    "amount b _cons": ["-1.759df7fe17f86X+002", "+1.12f17413d2e38X-002"],
+    "baseline r2": ["+1.5833e3c3649adX-001"],
+    "baseline rmse": ["+1.cc39dfebf627cX-001"],
+    "baseline F": ["+1.b77f7a915de20X+005"],
+    "baseline df_r": ["+1.5100000000000X+009"],
+    "firm_fe r2": ["+1.aa3aa59e2063bX-001"],
+    "firm_fe rmse": ["+1.5ce1c0fc91209X-001"],
+    "firm_fe F": ["+1.08104fcae6866X+005"],
+    "firm_fe df_r": ["+1.5100000000000X+009"],
+    "date_screen r2": ["+1.5ab1515f2aae3X-001"],
+    "date_screen rmse": ["+1.cac03e4325bf1X-001"],
+    "date_screen F": ["+1.c9f518d39da4fX+005"],
+    "date_screen df_r": ["+1.4e00000000000X+009"],
+    "uncapped r2": ["+1.572f7d8c1eadbX-001"],
+    "uncapped rmse": ["+1.cd9e70b1a2525X-001"],
+    "uncapped F": ["+1.ad34f6fa24c62X+005"],
+    "uncapped df_r": ["+1.5100000000000X+009"],
+    "all_fees ll": ["-1.47fdb08d0c5e7X+00c"],
+    "all_fees chi2": ["+1.45ade6e544d59X+00d"],
+    "buys ll": ["-1.7351614b3f6d5X+00a"],
+    "buys chi2": ["+1.57d4debadc055X+007"],
+    "amount ll": ["-1.3e272acecebe3X+00c"],
+    "amount chi2": ["+1.34c38e15a562eX+00d"],
+    "test F": ["+1.ffccf9d6e60afX+001"],
+    "test p": ["+1.33b54f9cff0d7X-006"],
+    "test df": ["+1.0000000000000X+001"],
+    "test df_r": ["+1.5100000000000X+009"],
+    "margins 1": ["+0.0000000000000X-3ff", "+1.0000000000000X+3ff"],
+    "margins 2": ["-1.d4ed7fe9f8e40X-007", "+1.b0f49d63194b9X-007"],
+    "margins 3": ["+1.b2b4b961bb8e4X-007", "+1.521729add1cf9X-007"],
+    "margins N": ["+1.7640000000000X+00c"],
+    "pctile turnover": ["+1.5db8d9a6c1cc0X-003", "+1.624399e2fd249X+002"],
+    "pctile lev": ["+0.0000000000000X-3ff", "+1.a235da2737490X-001"],
+    "pctile roa": ["-1.f0b2b4188ccacX-002", "+1.a6a34be2e3deeX-003"],
+    "count window": ["+1.5ff6000000000X+00f"],
+    "count matched": ["+1.1290000000000X+00d"],
+    "count nonfinancial": ["+1.bc70000000000X+00c"],
+    "count eligible": ["+1.8b20000000000X+00c"],
+    "count zero": ["+1.0300000000000X+009"],
+    "count baseline": ["+1.6ac0000000000X+00c"],
+    "mean lnnas": ["+1.8cc6c3cc2bca6X+003", "+1.8fab1ea96563aX+000"],
+    "mean dual_proxy": ["+1.adc899d8d520aX-002", "+1.f96639ce611daX-002"],
+    "mean turnover": ["+1.22dfc98d401cbX+000", "+1.f20c6351a87bdX-001"],
+    "mean positive_cfo": ["+1.cc212b39b14ffX-001", "+1.3501a112b841fX-002"],
+    "mean size": ["+1.0373581c458faX+003", "+1.c1f90b85d6e65X+000"],
+    "mean lev": ["+1.d9fb00531afc2X-003", "+1.8f702595ba61bX-003"],
+    "mean roa": ["+1.b1797a9f649acX-006", "+1.a277a63a27477X-004"],
+    "mean loss": ["+1.190d95ca032d0X-002", "+1.c8fe7566bcaddX-002"],
+    "mean big4": ["+1.baa9b9c7e52ecX-001", "+1.5e6b0abdf091fX-002"],
+    "mean nas_m": ["+1.9b8f56f2bcdc2X-001", "+1.f2abe7ee8296fX+000"]
+  }
+}

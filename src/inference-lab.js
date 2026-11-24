@@ -1,3 +1,4 @@
+import { initLabChrome } from "./labs/chrome.js";
 import { zipSync, strToU8 } from "fflate";
 import {
   INFERENCE_DEFAULTS,
@@ -568,3 +569,4 @@ syncControls();
 renderSample();
 if ("serviceWorker" in navigator)
   navigator.serviceWorker.register("../../service-worker.js").catch(() => {});
+initLabChrome();

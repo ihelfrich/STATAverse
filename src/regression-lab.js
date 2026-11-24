@@ -1,3 +1,4 @@
+import { initLabChrome } from "./labs/chrome.js";
 import {
   REGRESSION_DEFAULTS,
   REGRESSION_PRESETS,
@@ -425,3 +426,4 @@ document.querySelectorAll("[data-lab-jump]").forEach((button) =>
 writeControls();
 update();
 registerOffline();
+initLabChrome();
