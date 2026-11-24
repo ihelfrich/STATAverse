@@ -457,6 +457,23 @@ try {
     "programming lesson, local substitution, integer loops and saved replay execute entirely offline at the canonical mount",
   );
   await context.setOffline(false);
+  // The project lab's interpreter is fetched when the page is opened, not
+  // precached: it starts, builds its panel and runs a step at the mount.
+  await page.goto(root + "Labs/Project/");
+  await page
+    .locator('body[data-project-ready="true"]')
+    .waitFor({ timeout: 30000 });
+  assert.match(await page.locator("#project-output").innerText(), /firm-years/);
+  await page.locator("#step-hint").click();
+  await page.locator("#step-hint").click();
+  await page.locator("#step-hint").click();
+  await page.locator("#step-worked-button").click();
+  await page.locator("#step-worked-use").click();
+  await page.locator("#step-run").click();
+  await page.locator("#step-verdict.is-done").waitFor({ timeout: 30000 });
+  receipt.checks.push(
+    "project lab starts its worker-backed session and completes a checked step at the canonical mount",
+  );
   await page.goto(root + "Labs/IV/");
   assert.equal(
     await page.locator('link[rel="canonical"]').getAttribute("href"),
@@ -689,6 +706,15 @@ try {
     path: screenshotPath("site-integration-mobile.png"),
     fullPage: false,
   });
+  await mobile.goto(root + "Labs/Project/");
+  await mobile
+    .locator('body[data-project-ready="true"]')
+    .waitFor({ timeout: 30000 });
+  assert.ok(
+    await mobile.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
   await mobile.goto(root + "Labs/IV/");
   await mobile.locator("#iv-tab-uncertainty").click();
   await mobile.locator(".iv-confidence-summary").scrollIntoViewIfNeeded();
@@ -728,6 +754,7 @@ try {
     "inference-worker",
     "iv-lab",
     "iv-investigation-ui",
+    "project-lab",
     "method-lab",
     "worked-reader",
   ]) {

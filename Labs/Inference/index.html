@@ -31,15 +31,17 @@
       </button>
     </header>
     <main id="inference-main" class="lab-layout" tabindex="-1">
+      <nav class="lab-switcher" aria-label="Analysis labs">
+        <a href="../" class="lab-switcher-all">All labs</a
+        ><a href="../Regression/">01 Regression &amp; adjustment</a
+        ><a href="../Inference/" aria-current="page"
+          >02 Uncertainty &amp; repeated samples</a
+        ><a href="../Data/">03 Merge &amp; reshape</a
+        ><a href="../IV/">04 Instrumental variables</a
+        ><a href="../Project/">05 Panel project</a>
+      </nav>
       <header class="lab-heading">
         <div>
-          <nav class="lab-switcher" aria-label="Analysis labs">
-            <a href="../">01 Regression &amp; adjustment</a
-            ><a href="./" aria-current="page"
-              >02 Uncertainty &amp; repeated samples</a
-            ><a href="../Data/">03 Merge &amp; reshape</a
-            ><a href="../IV/">04 Instrumental variables</a>
-          </nav>
           <h1>Uncertainty and repeated samples</h1>
           <p>
             Fit the same regression three ways. Then draw new samples to see how
@@ -172,7 +174,11 @@
       </aside>
       <section class="inference-work" aria-label="Inference results">
         <div class="inference-metrics" id="inference-metrics"></div>
-        <div class="inference-tabs" role="tablist" aria-label="Analysis view">
+        <div
+          class="lab-tabs inference-tabs"
+          role="tablist"
+          aria-label="Analysis view"
+        >
           <button
             type="button"
             id="inference-tab-sample"
@@ -463,6 +469,18 @@
           available.
         </p></noscript
       >
+      <footer class="lab-footer">
+        <nav aria-label="Other analysis labs">
+          <a href="../Regression/" rel="prev"
+            ><span>Previous lab</span>01 Regression &amp; adjustment</a
+          ><a href="../" class="lab-footer-all"
+            ><span>Overview</span>All analysis labs</a
+          ><a href="../Data/" rel="next"
+            ><span>Next lab</span>03 Merge &amp; reshape</a
+          >
+        </nav>
+        <p>This lab runs in your browser. Nothing you do here is uploaded.</p>
+      </footer>
     </main>
     <nav class="lab-mobile-nav" aria-label="Lab shortcuts">
       <button type="button" data-inference-jump="inference-parameters">

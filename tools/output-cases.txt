@@ -28136,6 +28136,123 @@ display strlen(a) " " strlen(c) " " (c == "é") " " ustrlen(c)
 display regexr("naïve", "a.", "A") + "|"
 display strtoname("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀")
 display substr("é", 1, 1) + substr("é", 2, 1) == "é"
+=== expr-regex-modern-syntax
+version 19
+display regexm("x", "*") " [" regexs(0) "]"
+display regexm("GA 30303", "[0-9]{5}") " " regexm("a{2}", "a{2}")
+display regexm("GA 30303", "\d+") " " regexm("ad", "\d") " " regexm("a b", "a\sb") " " regexm("abc", "\w+")
+display regexm("a1b22", "[[:digit:]]+") " " regexm("a]", "[[:alpha:]]") " [" regexs(0) "]"
+display regexm("aaa", "a+?") " [" regexs(0) "]"
+display regexm("x(y)", "\(y\)") " " regexm("a.b", "a.b") " " regexm("axb", "a\.b")
+display regexr("2020-01-02", "([0-9]+)-([0-9]+)", "\2/\1")
+display regexr("abc", "x*", "Q") " " regexr("hello", "(l+)", "[$1]") " " regexr("abc", "b", "&")
+display regexm("ab", "^(a|b)+" + char(36)) " " regexm("ab", "(a|ab)") " [" regexs(1) "]"
+display regexm("abcd", "a|ab") " [" regexs(0) "] " regexm("ab", "(x)?ab") " [" regexs(1) "]"
+display regexm("café", "^caf.$") " " regexm("café", "^caf..") " " regexm("über", "^.ber")
+display regexm("Vice Chair", "(?i)vice\s*-?\s*chair") " " regexm("vice-chair", "vice\W*chair") " " regexm("the chair", "\bchair") " " regexm("vicechair", "\bchair")
+display regexm("ab", "a(?=b)") " " regexm("ab", "(?<=a)b") " " regexm("aa", "(a)\1") " " regexm("a+b", "\Qa+\E")
+display regexm("1231", "^[0-9]{4}" + char(36)) " " regexm(" 1231", "^\d\d\d\d" + char(36)) " " regexm("x y", "[[:space:]]") " " regexm("a.b", "[[:punct:]]")
+display regexm("ab12cd", "([a-z]+)([0-9]+)") " [" regexs(0) "][" regexs(1) "][" regexs(2) "][" regexs(3) "]"
+version 17
+display regexm("GA 30303", "\d+") " " regexm("ad", "\d") " " c(version)
+version 19: display regexm("GA 30303", "\d+")
+display regexm("GA 30303", "\d+")
+=== expr-regex-modern-data
+version 19
+clear
+set obs 4
+gen s = "a" + string(_n)
+replace s = "Vice-Chairman & CEO" in 3
+replace s = "x é y" in 4
+gen y = regexm(s, "a(")
+gen z = regexr(s, "\d", "#")
+gen v = regexm(lower(s), "vice[\s-]*chair")
+gen w = regexm(s, "^.") 
+gen t = regexs(0)
+list
+count if regexm(s, "(?i)VICE")
+count if regexm(s, "\s")
+=== egen-rowmiss-strings
+clear
+input str5 s x double y
+"a" 1 2
+"" . 3
+"" 2 .
+"b" . .
+end
+egen m = rowmiss(s x y)
+capture noisily egen n1 = rownonmiss(s x)
+egen n2 = rownonmiss(s x y), strok
+capture noisily egen t = rowtotal(s x)
+list
+summarize m n2
+=== estimates-table-lone-levels
+clear
+set seed 4711
+set obs 320
+generate long firm = ceil(_n / 8)
+generate int year = 2010 + mod(_n - 1, 8)
+generate byte g = 1 + mod(firm, 3)
+generate double x1 = runiform() + firm / 80
+generate double x2 = runiform() * 2
+generate byte d = runiform() > .6
+generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()
+generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())
+generate byte any = c > 1
+quietly regress y x1 x2 d i.g i.year, vce(cluster firm)
+estimates store ols
+quietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)
+estimates store fe
+quietly poisson c x1 x2 d i.g i.year, vce(cluster firm)
+estimates store pois
+quietly regress y x1 d
+estimates store small
+quietly logit any x1 i.d
+estimates store lg
+generate byte k = 10 + g
+generate int a3 = 100 + g
+generate int a4 = 1000 + g
+generate long a6 = 99990 + g
+foreach v in k a3 a4 a6 {
+    quietly regress y x1 i.`v'
+    estimates store e_`v'
+}
+estimates table e_k, keep(x1 12.k)
+estimates table e_a3, keep(x1 102.a3)
+estimates table e_a4, keep(x1 1002.a4)
+estimates table e_a6, keep(x1 99992.a6)
+estimates table ols fe small, keep(x1 2011.year _cons) star
+estimates table ols, keep(x1 2011.year 2.g)
+estimates table ols, keep(x1 2011.year) se
+estimates table ols small, keep(x1 2.g) b(%9.3f)
+capture noisily estimates table ols fe, drop(*.g *.year)
+capture noisily estimates table ols fe, keep(x1 *.g)
+capture noisily estimates table ols fe, drop(2.*)
+estimates table ols fe, keep(x*)
+estimates table ols fe, drop(i.g i.year)
+generate int b4 = 1000 + d
+quietly regress y x1 i.b4
+estimates store e_b4
+estimates table lg
+estimates table e_b4
+estimates table e_b4 small
+regress y x1 i.b4
+=== factor-group-form
+clear
+set seed 4711
+set obs 320
+generate long firm = ceil(_n / 8)
+generate int year = 2010 + mod(_n - 1, 8)
+generate byte g = 1 + mod(firm, 3)
+generate double x1 = runiform() + firm / 80
+generate double x2 = runiform() * 2
+generate byte d = runiform() > .6
+generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()
+generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())
+generate byte any = c > 1
+regress y x1 i.(g year), vce(cluster firm)
+areg y x1 i.(d year), absorb(firm) vce(cluster firm)
+poisson c x1 i.(g year)
 === expr-gammap-derivatives-eprop
 display dgammapda(2, 1.5) " " dgammapdada(2, 1.5)
 display dgammapda(1, 1) " " dgammapdada(1, 1)
@@ -31867,3 +31984,300 @@ xtreg y x z, re vce(jackknife, nodots)
 xtreg y x z, be vce(bootstrap, nodots reps(5) seed(1))
 regress y x, vce(bootstrap, reps(5) seed(2) nodots) level(90)
 capture noisily bootstrap, reps(10) cluster(id) idcluster(id) nodots: xtreg y x, be
+=== estimates-table-keep-drop
+clear
+set seed 4711
+set obs 320
+generate long firm = ceil(_n / 8)
+generate int year = 2010 + mod(_n - 1, 8)
+generate byte g = 1 + mod(firm, 3)
+generate double x1 = runiform() + firm / 80
+generate double x2 = runiform() * 2
+generate byte d = runiform() > .6
+generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()
+generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())
+generate byte any = c > 1
+quietly regress y x1 x2 d i.g i.year, vce(cluster firm)
+estimates store ols
+quietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)
+estimates store fe
+quietly poisson c x1 x2 d i.g i.year, vce(cluster firm)
+estimates store pois
+quietly regress y x1 d
+estimates store small
+quietly logit any x1 i.d
+estimates store lg
+estimates table ols fe small, keep(x1 x2 d)
+estimates table ols fe small, keep(d x1)
+estimates table ols fe small, drop(x1 _cons)
+estimates table ols fe small, keep(x1 i.g)
+estimates table ols fe small, keep(x1 2.g _cons)
+estimates table ols fe small, drop(i.year i.g)
+estimates table ols fe small, drop(i.year) star
+estimates table ols small, keep(2.g 3.g)
+estimates table ols small, keep(1.g 2.g)
+estimates table ols small, keep(1b.g 2.g)
+estimates table ols small, keep(3.g x1)
+estimates table ols small, keep(1.g x1)
+estimates table ols fe, keep(i.year)
+estimates table ols fe, keep(2011.year 2012.year)
+estimates table ols small, drop(2.g)
+estimates table ols small, drop(1.g)
+estimates table ols small, drop(i.g x2) keep(i.g x1 x2 d)
+estimates table ols small, keep(x*)
+estimates table ols small, keep(x1-d)
+estimates table ols small, keep(x1 x1)
+estimates table ols small, keep()
+estimates table ols small, keep(x1 d) se stats(N r2 N_clust)
+matrix list r(coef)
+matrix list r(stats)
+estimates table ols, keep(x1 2.g) se
+estimates table ols pois, keep(x1 d)
+estimates table ols pois, drop(x1)
+estimates table ols pois, keep(c:x1 _:x1)
+estimates table ols pois, keep(_:x1 c:x1 c:d)
+estimates table ols pois, drop(c:)
+estimates table ols pois, keep(c:)
+estimates table ols pois, keep(_cons)
+estimates table pois lg, keep(x1 d)
+estimates table pois lg, keep(1.d)
+estimates table pois, keep(x1 d)
+estimates table pois, keep(c:x1 c:d)
+capture noisily estimates table ols small, keep(zzz)
+display _rc
+capture noisily estimates table ols small, keep(x1 zzz)
+capture noisily estimates table ols small, drop(zzz)
+capture noisily estimates table ols small, keep(x1) drop(d)
+display _rc
+capture noisily estimates table ols small, keep(X1)
+capture noisily estimates table ols small, keep(g)
+capture noisily estimates table ols small, keep(i.d)
+capture noisily estimates table ols small, keep(year)
+capture noisily estimates table ols small, keep(c:x1)
+capture noisily estimates table ols small, drop(x1 x2 d i.g i.year _cons)
+display _rc
+capture noisily estimates table ols small, keep(d) drop(d)
+display _rc
+=== estimates-table-equations
+clear
+set seed 4711
+set obs 320
+generate long firm = ceil(_n / 8)
+generate int year = 2010 + mod(_n - 1, 8)
+generate byte g = 1 + mod(firm, 3)
+generate double x1 = runiform() + firm / 80
+generate double x2 = runiform() * 2
+generate byte d = runiform() > .6
+generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()
+generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())
+generate byte any = c > 1
+quietly regress y x1 x2 d i.g i.year, vce(cluster firm)
+estimates store ols
+quietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)
+estimates store fe
+quietly poisson c x1 x2 d i.g i.year, vce(cluster firm)
+estimates store pois
+quietly regress y x1 d
+estimates store small
+quietly logit any x1 i.d
+estimates store lg
+quietly nbreg c x1 d
+estimates store nb
+estimates table ols fe pois
+estimates table ols fe pois, equations(1)
+estimates table ols fe pois, keep(x1 x2 d) b(%7.3f) se(%7.3f) stats(N N_clust) equations(1)
+estimates table ols fe pois small, keep(x1 x2 d) b(%7.3f) se(%7.3f) stats(N N_clust r2 ll) equations(1)
+estimates table ols pois, keep(x1 d) equations(1)
+estimates table ols pois, keep(x1 d) equations(1) star
+estimates table ols pois, equations(1:1)
+estimates table ols pois, equations(main=1:1)
+estimates table pois lg, equations(1) keep(x1 d 1.d)
+estimates table ols small, equations(1)
+estimates table ols small, equations(main=1)
+estimates table nb pois
+estimates table nb pois, equations(1)
+estimates table nb pois, equations(mean=1)
+estimates table nb pois, equations(1) keep(x1 d)
+estimates table nb pois, keep(x1 d)
+estimates table nb pois, equations(1:1, 2:.)
+estimates table nb pois lg, equations(1)
+estimates table ols pois, equations(1) drop(i.year)
+matrix list r(coef)
+capture noisily estimates table ols pois, equations(2)
+display _rc
+capture noisily estimates table ols small, equations(x)
+capture noisily estimates table ols small, equations(1:1:1)
+capture noisily estimates table ols small, equations(0)
+capture noisily estimates table ols pois, keep(#1:x1) equations(1)
+=== estimates-table-t-p-eform
+clear
+set seed 4711
+set obs 320
+generate long firm = ceil(_n / 8)
+generate int year = 2010 + mod(_n - 1, 8)
+generate byte g = 1 + mod(firm, 3)
+generate double x1 = runiform() + firm / 80
+generate double x2 = runiform() * 2
+generate byte d = runiform() > .6
+generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()
+generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())
+generate byte any = c > 1
+quietly regress y x1 x2 d i.g i.year, vce(cluster firm)
+estimates store ols
+quietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)
+estimates store fe
+quietly poisson c x1 x2 d i.g i.year, vce(cluster firm)
+estimates store pois
+quietly regress y x1 d
+estimates store small
+quietly logit any x1 i.d
+estimates store lg
+estimates table ols small, keep(x1 d) t
+estimates table ols small, keep(x1 d) p
+estimates table ols small, keep(x1 d) se t p
+estimates table ols small, keep(x1 d) b(%7.3f) t(%6.2f) p(%5.3f)
+estimates table ols small, keep(x1 d) t(%8.3f) modelwidth(12)
+estimates table ols small, keep(x1 d) b(%7.3f) p
+estimates table ols small, keep(x1 d) b(%12.5f) t p(%5.3f)
+estimates table ols fe pois lg, equations(1) keep(x1 d) t p
+estimates table ols small, drop(i.year) se t
+estimates table ols small, keep(x1 d) eform
+estimates table ols small, keep(x1 d _cons) eform se
+estimates table ols small, keep(x1 d) eform t p
+estimates table pois, eform star drop(i.year)
+estimates table ols small, keep(x1 d) title(Two models)
+estimates table ols small, keep(x1 d) title("Quoted title") stats(N)
+estimates table ols small, keep(x1 d) varwidth(20)
+estimates table ols small, keep(x1 d) varwidth(8)
+estimates table ols small, varwidth(8) drop(i.year)
+estimates table ols small, varwidth(16) drop(i.year) se stats(N r2)
+estimates table ols pois, varwidth(16) drop(i.year)
+estimates table ols small, keep(x1 d) stats(N r2) stfmt(%9.2f)
+capture noisily estimates table ols small, keep(x1 d) label
+display _rc
+capture noisily estimates table ols small, keep(x1 d) se star
+capture noisily estimates table ols small, keep(x1 d) t star
+capture noisily estimates table ols small, keep(x1 d) varwidth(5)
+capture noisily estimates table ols small, keep(x1 d) varwidth(7)
+capture noisily estimates table ols small, keep(x1 d) varwidth(32)
+capture noisily estimates table ols small, keep(x1 d) varwidth(33)
+capture noisily estimates table ols small, keep(x1 d) t(%9.2g) p(abc)
+=== estimates-table-long-names
+clear
+set seed 4711
+set obs 320
+generate long firm = ceil(_n / 8)
+generate int year = 2010 + mod(_n - 1, 8)
+generate byte g = 1 + mod(firm, 3)
+generate double x1 = runiform() + firm / 80
+generate double x2 = runiform() * 2
+generate byte d = runiform() > .6
+generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()
+generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())
+generate byte any = c > 1
+quietly regress y x1 x2 d i.g i.year, vce(cluster firm)
+estimates store ols
+quietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)
+estimates store fe
+quietly poisson c x1 x2 d i.g i.year, vce(cluster firm)
+estimates store pois
+quietly regress y x1 d
+estimates store small
+quietly logit any x1 i.d
+estimates store lg
+estimates restore ols
+estimates store baseline
+estimates store date_screen
+estimates store a_very_long_model_name
+generate double turnover_winsorized = x1
+quietly regress y turnover_winsorized d
+estimates store uncapped
+estimates table baseline date_screen uncapped, keep(x1 turnover_winsorized d) b(%7.3f) se(%7.3f)
+estimates table baseline date_screen a_very_long_model_name, keep(x1 d)
+estimates table baseline date_screen a_very_long_model_name, keep(x1 d) star
+estimates table baseline date_screen a_very_long_model_name, keep(x1 d) modelwidth(14)
+estimates table baseline date_screen a_very_long_model_name, keep(x1 d) b(%5.2f)
+estimates table baseline date_screen a_very_long_model_name, keep(x1 d) b(%7.3f) star
+estimates table baseline date_screen uncapped, keep(x1 turnover_winsorized d) varwidth(24)
+estimates table baseline date_screen uncapped small pois fe lg a_very_long_model_name, keep(x1 d) equations(1) title(Wraps)
+=== cluster-note-wide-stub
+clear
+set seed 4711
+set obs 320
+generate long firm = ceil(_n / 8)
+generate int year = 2010 + mod(_n - 1, 8)
+generate byte g = 1 + mod(firm, 3)
+generate double x1 = runiform() + firm / 80
+generate double x2 = runiform() * 2
+generate byte d = runiform() > .6
+generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()
+generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())
+generate byte any = c > 1
+generate double turnover_winsorized = x1
+generate byte dual_proxy = d
+regress y i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm)
+regress y i.dual_proxy##c.x1 x2, vce(cluster firm)
+regress y i.dual_proxy#i.g x2, vce(cluster firm)
+regress y i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm) noheader
+regress y i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm) noci
+regress y i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm) nolstretch
+areg y i.dual_proxy##c.turnover_winsorized x2, absorb(firm) vce(cluster firm)
+xtset firm year
+xtreg y i.dual_proxy##c.turnover_winsorized x2, fe vce(cluster firm)
+poisson c i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm)
+logit any i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm)
+=== margins-dydx-wrap
+clear
+set seed 4711
+set obs 320
+generate long firm = ceil(_n / 8)
+generate int year = 2010 + mod(_n - 1, 8)
+generate byte g = 1 + mod(firm, 3)
+generate double x1 = runiform() + firm / 80
+generate double x2 = runiform() * 2
+generate byte d = runiform() > .6
+generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()
+generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())
+generate byte any = c > 1
+generate double turnover_winsorized = x1
+generate double leverage_winsorized = x2 + runiform()
+generate double return_on_assets = runiform()
+generate double log_total_assets = runiform()
+generate byte dual_proxy = d
+quietly logit any i.dual_proxy turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2 i.g i.year
+set linesize 80
+margins, dydx(*)
+margins, dydx(turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2 g)
+margins, dydx(turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2 dual_proxy)
+margins, dydx(turnover_winsorized leverage_winsorized return_on_assets log_total_assets dual_proxy)
+margins, dydx(turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2)
+set linesize 100
+margins, dydx(*)
+set linesize 120
+margins, dydx(*)
+quietly regress y i.dual_proxy turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2 i.g i.year
+set linesize 80
+margins, dydx(*)
+=== margins-dydx-factor-at
+clear
+set seed 4711
+set obs 320
+generate long firm = ceil(_n / 8)
+generate int year = 2010 + mod(_n - 1, 8)
+generate byte g = 1 + mod(firm, 3)
+generate double x1 = runiform() + firm / 80
+generate double x2 = runiform() * 2
+generate byte d = runiform() > .6
+generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()
+generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())
+generate byte any = c > 1
+generate byte dual_proxy = d
+quietly logit any i.dual_proxy x1 x2 i.g
+margins, dydx(dual_proxy) at(x1 = (0 1))
+margins, dydx(dual_proxy x1) at(x1 = (0 1))
+margins, dydx(g) at(x1 = (0 1))
+margins, dydx(dual_proxy g) at(x1 = (0 1))
+quietly logit any i.d x1 x2 i.g
+margins, dydx(d) at(x1 = (0 1))
+margins, dydx(g d) at(x1 = (0 1) x2 = 1)
+margins d, at(x1 = (0 1))

@@ -11,6 +11,7 @@
 // bootstrap, sdr), poststratification and later sampling stages are
 // refused.
 import { StataError } from "./errors.js";
+import { least, greatest } from "./extremes.js";
 import { applyFormat } from "./format.js";
 import { renderSmcl } from "./smcl.js";
 import { defineCharacteristic } from "./store.js";
@@ -3352,7 +3353,7 @@ function svydescribe(session, text, ctx) {
     everyCount = everyCount.concat(counts);
     const star = withData === 1 ? "*" : " ",
       tail = withData
-        ? `${fc(Math.min(...counts), 10)}${applyFormat(done / withData, "%10.1fc")}${fc(Math.max(...counts), 10)}`
+        ? `${fc(least(counts), 10)}${applyFormat(done / withData, "%10.1fc")}${fc(greatest(counts), 10)}`
         : `${applyFormat(0, "%10.0f")}${applyFormat(0, "%8.0f")}${applyFormat(0, "%12.0f")}`;
     ctx.out(
       `${stratumText(key)}${fc(withData, 10)}${star}${wide ? `${fc(without, 9)} ` : ""}${fc(done, 9)}${wide ? fc(lacking, 10) : ""}${tail}`,
@@ -3360,7 +3361,7 @@ function svydescribe(session, text, ctx) {
   }
   ctx.out(hline);
   ctx.out(
-    `${fc(keys.length, 8)}${fc(included, 10)}${wide ? fc(omittedUnits, 10) : ""}${fc(completeObs, 10)}${wide ? fc(missingObs, 10) : ""}${fc(Math.min(...everyCount), 10)}${applyFormat(completeObs / included, "%10.1fc")}${fc(Math.max(...everyCount), 10)}`,
+    `${fc(keys.length, 8)}${fc(included, 10)}${wide ? fc(omittedUnits, 10) : ""}${fc(completeObs, 10)}${wide ? fc(missingObs, 10) : ""}${fc(least(everyCount), 10)}${applyFormat(completeObs / included, "%10.1fc")}${fc(greatest(everyCount), 10)}`,
   );
   const col = wide ? 33 : 18;
   if (wide) {

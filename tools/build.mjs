@@ -169,6 +169,8 @@ const bundleResult = await build({
     "src/method-lab.js",
     "src/console.js",
     "src/console-worker.js",
+    "src/project-lab.js",
+    "src/project-lab-worker.js",
     "src/do-builder.js",
     "src/worked-reader.js",
   ],

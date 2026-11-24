@@ -873,7 +873,7 @@ export class Session {
           current_date: currentDate(),
           current_time: new Date().toTimeString().slice(0, 8),
           stata_version: 19,
-          version: 17,
+          version: this.state.version ?? 17,
           os: "Browser",
           machine_type: "STATAverse",
           pwd: this.cwd ? `/stataverse/${this.cwd}` : "/stataverse",
@@ -1123,6 +1123,8 @@ export class Session {
   /** A do-file or program begins: what it preserves is its own. */
   enterScope() {
     this.scopeDepth = (this.scopeDepth ?? 0) + 1;
+    // A version statement inside it holds until it ends, as in Stata.
+    (this.versions ??= []).push(this.state.version);
     // Its tempfile names are numbered on from the caller's, and the numbers
     // are used again once it ends, as Stata's are.
     (this.fileCounts ??= []).push(this.temporaryFiles ?? 0);
@@ -1131,6 +1133,7 @@ export class Session {
   leaveScope() {
     const depth = this.scopeDepth ?? 0;
     this.scopeDepth = Math.max(0, depth - 1);
+    if (this.versions?.length) this.state.version = this.versions.pop();
     // Its tempfiles are erased, and their numbers are free again.
     if (this.fileCounts?.length) {
       const back = this.fileCounts.pop();
@@ -1740,6 +1743,8 @@ export class Session {
       if (flags.leadAt !== undefined && flags.leadAt < output.length - 1)
         output.splice(flags.leadAt, 0, output.pop());
     };
+    // version #: as a prefix holds for its command only.
+    const heldVersion = this.state.version;
     try {
       this.dispatch(text, frame, flags, lines, output);
     } catch (error) {
@@ -1796,6 +1801,8 @@ export class Session {
         );
       error.recorded = true;
       throw error;
+    } finally {
+      if (flags.versionPrefix) this.state.version = heldVersion;
     }
     this.quietDepth = quietDepth;
     if (flags.capture) this.rc = 0;
@@ -1854,6 +1861,15 @@ export class Session {
         /^\s+[\d.]+\s*:/.test(after)
       ) {
         notAfterBy("version");
+        const release = Number(/^\s+([\d.]+)/.exec(after)[1]);
+        if (!(release >= 1)) throw new StataError("invalid syntax", 198);
+        if (release > 19)
+          throw new StataError(
+            `this is version 19 of Stata; it cannot run version ${release} programs`,
+            9,
+          );
+        flags.versionPrefix = true;
+        this.state.version = release;
         rest = after.replace(/^\s+[\d.]+\s*:/, "").trim();
       } else break;
       rest = rest.replace(/^:\s*/, "");

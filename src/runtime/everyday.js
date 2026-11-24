@@ -2,6 +2,7 @@
 // clonevar, and the ones that have no meaning in a browser (help, browse,
 // ssc install) but should say so plainly rather than stop a do-file.
 import { StataError } from "./errors.js";
+import { least, greatest } from "./extremes.js";
 import { splitAtComma } from "./syntax.js";
 import {
   abbreviateAmong,
@@ -1916,7 +1917,7 @@ function labelbook(session, text, ctx) {
     ctx.out(at("      Values", 49) + "Labels");
     ctx.out(
       at(`       Range:  [${g(low)},${g(high)}]`, 42) +
-        `String length:  [${Math.min(...lengths)},${Math.max(...lengths)}]`,
+        `String length:  [${least(lengths)},${greatest(lengths)}]`,
     );
     ctx.out(
       at(`           N:  ${mine.length}`, 34) +

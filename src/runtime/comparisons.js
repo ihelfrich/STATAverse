@@ -386,6 +386,145 @@ function nameTerm(session, name, terms, labelled, seriesBases = null) {
   };
 }
 
+/**
+ * equations(): which equation of the table each of a model's own equations
+ * joins. Each term, [name =] # or #:#:...:# with a number for every model,
+ * puts the numbered equations side by side in one equation of the table,
+ * named name or #1, #2, ...; equations(1) lines up the first equation of
+ * every model, so that a poisson column sits beside regress's. A model's
+ * unmatched equations keep their names. own[m] lists model m's equations.
+ */
+function matchedEquations(text, own) {
+  const maps = own.map(() => new Map());
+  if (text === undefined || !text.trim()) return maps;
+  const invalid = (message) =>
+    new StataError(`option equations() invalid\n${message}`, 198);
+  text.split(",").forEach((typed, t) => {
+    const named = /^\s*([A-Za-z_]\w*)\s*=(.*)$/.exec(typed),
+      target = named ? named[1] : `#${t + 1}`,
+      numbers = (named ? named[2] : typed).trim().split(/\s*:\s*/);
+    for (const number of numbers)
+      if (!/^(\d+|\.)$/.test(number))
+        throw invalid(
+          `${number || "nothing"} was found, while an integer equation number was expected`,
+        );
+    if (numbers.length !== 1 && numbers.length !== own.length)
+      throw invalid(
+        `a term should consist of either 1 or ${own.length} equation numbers`,
+      );
+    own.forEach((equations, m) => {
+      const number = numbers.length === 1 ? numbers[0] : numbers[m];
+      if (number === ".") return;
+      if (Number(number) < 1 || Number(number) > equations.length)
+        throw invalid(
+          `equation number ${Number(number)} for model ${m + 1} out of range`,
+        );
+      maps[m].set(equations[Number(number) - 1], target);
+    });
+  });
+  return maps;
+}
+
+/**
+ * The rows keep() and drop() leave. A coefficient is named as the table
+ * names it (x, 2.g, 1.d#c.x, _cons), with i.g for every level of g, * and ?
+ * for any characters, a-b for a through b, and eq:name for one equation's.
+ * keep() lists the rows in its order, a name without an equation meaning
+ * the first equation that has it; drop() then removes names from every
+ * equation. list holds each equation's rows.
+ */
+function selectedRows(list, keep, drop) {
+  const nameOf = (row) => row.display ?? row.key,
+    // 1b.g, 2bn.g and o.x name the rows 1.g, 2.g and x.
+    plain = (name) =>
+      name.replace(/(^|#)(\d+)[bno]+\./g, "$1$2.").replace(/(^|#)o\./g, "$1"),
+    matcher = (spec) => {
+      const factor = /^i\.([A-Za-z_]\w*)$/.exec(spec);
+      if (factor) {
+        const levels = new RegExp(`^\\d+\\.${factor[1]}$`);
+        return (name) => levels.test(name);
+      }
+      if (/[*?]/.test(spec)) {
+        const pattern = new RegExp(
+          `^${spec
+            .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+            .replace(/\*/g, ".*")
+            .replace(/\?/g, ".")}$`,
+        );
+        // A wildcard does not reach a factor's levels: Stata finds no
+        // coefficient for *.g or 2.*, and i.g names them all.
+        return (name) => !/(^|#)\d+[a-z]*\./.test(name) && pattern.test(name);
+      }
+      const exact = plain(spec);
+      return (name) => name === exact;
+    },
+    // The places in rows that spec names.
+    places = (rows, spec) => {
+      if (!spec) return rows.map((_, k) => k);
+      const names = rows.map(nameOf),
+        range = /^([^-]+)-([^-]+)$/.exec(spec);
+      if (range) {
+        const first = names.findIndex(matcher(range[1])),
+          last = names.findIndex(matcher(range[2]));
+        return first >= 0 && last >= first
+          ? names.map((_, k) => k).filter((k) => k >= first && k <= last)
+          : [];
+      }
+      const matches = matcher(spec);
+      return names.map((_, k) => k).filter((k) => matches(names[k]));
+    },
+    read = (token) => {
+      const parts = /^(?:"([^"]*)"|([^:]*)):(.*)$/.exec(token);
+      return parts
+        ? { equation: parts[1] ?? parts[2], spec: parts[3] }
+        : { equation: null, spec: token };
+    },
+    absent = (token) =>
+      new StataError(
+        `coefficient ${token.replace(/^([^":]+):/, '"$1":')} does not occur in any of the models`,
+        198,
+      ),
+    tokens = (text) => (text ?? "").trim().split(/\s+/).filter(Boolean);
+  let out = list;
+  if (tokens(keep).length) {
+    const kept = [];
+    for (const token of tokens(keep)) {
+      const { equation, spec } = read(token);
+      let found = null;
+      for (const part of out) {
+        if (equation !== null && part.equation !== equation) continue;
+        const at = places(part.rows, spec);
+        if (at.length) {
+          found = {
+            equation: part.equation,
+            rows: at.map((k) => part.rows[k]),
+          };
+          break;
+        }
+      }
+      if (!found) throw absent(token);
+      if (kept.at(-1)?.equation === found.equation)
+        kept.at(-1).rows.push(...found.rows);
+      else kept.push(found);
+    }
+    out = kept;
+  }
+  for (const token of tokens(drop)) {
+    const { equation, spec } = read(token);
+    let any = false;
+    out = out.map((part) => {
+      if (equation !== null && part.equation !== equation) return part;
+      const at = new Set(places(part.rows, spec));
+      any ||= at.size > 0;
+      return { ...part, rows: part.rows.filter((_, k) => !at.has(k)) };
+    });
+    if (!any) throw absent(token);
+  }
+  out = out.filter((part) => part.rows.length);
+  if (!out.length) throw new StataError("conformability error", 503);
+  return out;
+}
+
 export function estimatesTable(session, text, ctx) {
   const [head, typedOptions] = splitAtComma(text),
     // nobaselevels hides the base levels, as the table does anyway.
@@ -397,7 +536,7 @@ export function estimatesTable(session, text, ctx) {
             " ",
           ),
     parsed = session.parse(
-      "[, B B2(string) SE SE2(string) STAR STAR2(string) STats(string) STFmt(string) Modelwidth(integer 0) | T P KEEP(string) DROP(string) EForm Label Varwidth(integer 12) Title(string) Equations(string) NEWpanel STYle(string) VSquish ALLbaselevels BASElevels noOMITted noEMPTYcells COEFLegend SELegend FVLabel FVWRAP(integer 1)]",
+      "[, B B2(string) SE SE2(string) T T2(string) P P2(string) STAR STAR2(string) STats(string) STFmt(string) Modelwidth(integer 0) KEEP(string) DROP(string) EForm Varwidth(integer 12) Title(string) Equations(string) | NEWpanel STYle(string) VSquish ALLbaselevels BASElevels noOMITted noEMPTYcells COEFLegend SELegend FVLabel FVWRAP(integer 1)]",
       optionText === null ? "" : "," + normalise(optionText),
     ),
     options = parsed.options,
@@ -428,6 +567,14 @@ export function estimatesTable(session, text, ctx) {
     format = options.b2 || "%10.0g",
     seFormat = options.se2 || format,
     withSe = !!options.se || !!options.se2,
+    withT = !!options.t || !!options.t2,
+    withP = !!options.p || !!options.p2,
+    tFormat = options.t2 || "%7.2f",
+    pFormat = options.p2 || "%7.4f",
+    eform = !!options.eform,
+    // The column of names is twelve wide unless varwidth() says otherwise,
+    // and never narrower than its heading.
+    stub = Math.max(8, options.varwidth),
     stars = options.star || options.star2,
     levels = options.star2
       ? options.star2.trim().split(/\s+/)
@@ -438,16 +585,27 @@ export function estimatesTable(session, text, ctx) {
     // least, or modelwidth() and a blank when that is wider.
     field = Math.max(
       8,
-      Math.max(widthOf(format), withSe ? widthOf(seFormat) : 0) + 1,
+      Math.max(
+        widthOf(format),
+        withSe ? widthOf(seFormat) : 0,
+        withT ? widthOf(tFormat) : 0,
+        withP ? widthOf(pFormat) : 0,
+      ) + 1,
       options.modelwidth > 0 ? options.modelwidth + 1 : 0,
     ),
     cell = field + (stars ? 3 : 0) + 2;
   // A format that is not one stops the table before it starts.
-  for (const f of [format, seFormat, ...(statFormat ? [statFormat] : [])])
+  for (const f of [
+    format,
+    seFormat,
+    tFormat,
+    pFormat,
+    ...(statFormat ? [statFormat] : []),
+  ])
     if (!isFormat(f)) throw new StataError(`invalid display format ${f}`, 120);
   if (stars && levels.length !== 3)
     throw new StataError("star() takes three significance levels", 198);
-  if (stars && (withSe || options.t || options.p))
+  if (stars && (withSe || withT || withP))
     throw new StataError(
       "option star may not be combined with se, t, or p",
       198,
@@ -480,13 +638,21 @@ export function estimatesTable(session, text, ctx) {
         .filter(Boolean),
     ),
   );
+  const spaces = entries.map(({ model }) => coefficientSpace(model)),
+    matched = matchedEquations(
+      options.equations,
+      spaces.map((space) => [
+        ...new Set(space.entries.map((e) => e.equation ?? "_")),
+      ]),
+    );
   entries.forEach(({ model }, m) => {
-    const space = coefficientSpace(model);
+    const space = spaces[m];
     space.entries.forEach((e, i) => {
-      const equation = e.equation ?? "_",
+      const own = e.equation ?? "_",
+        equation = matched[m].get(own) ?? own,
         rows = panel(equation).rows,
         read =
-          equation === "/"
+          own === "/"
             ? { key: e.name, levels: [], base: false }
             : nameTerm(session, e.name, terms, labelled, seriesBases),
         column =
@@ -543,13 +709,34 @@ export function estimatesTable(session, text, ctx) {
         marks = stars
           ? "*".repeat(levels.filter((level) => p < Number(level)).length)
           : "";
-      return value(g(c.b, format)) + marks;
+      return value(g(eform ? Math.exp(c.b) : c.b, format)) + marks;
     },
-    seCell = (c) => (c?.status === "value" ? value(g(c.se, seFormat)) : ""),
+    // eform shows exp(b), and its standard error by the delta method; the
+    // t statistics and p-values stay those of b.
+    seCell = (c) =>
+      c?.status === "value"
+        ? value(g(eform ? Math.exp(c.b) * c.se : c.se, seFormat))
+        : "",
+    tCell = (c) => (c?.status === "value" ? value(g(c.b / c.se, tFormat)) : ""),
+    pCell = (c) =>
+      c?.status === "value"
+        ? value(g(pValue(c.model, c.b, c.se), pFormat))
+        : "",
+    // The rows under each coefficient, in the order Stata shows them.
+    under = [
+      ...(withSe ? [seCell] : []),
+      ...(withT ? [tCell] : []),
+      ...(withP ? [pCell] : []),
+    ],
+    below = (row) =>
+      under.map((make) => `${" ".repeat(stub + 1)}|${joined(row, make)}`),
     joined = (row, make) =>
       columns.map((m) => `${make(row.cells[m]).padEnd(cell - 2)}  `).join(""),
-    title = (name) => {
+    // A model's name is centred over its column, shortened to leave a
+    // blank before it (basel~e over a column of eight).
+    title = (stored) => {
       const inner = field + (stars ? 3 : 0),
+        name = abbreviate(stored, inner - 1),
         left = Math.ceil((inner - name.length) / 2);
       return " ".repeat(Math.max(0, left)) + name;
     },
@@ -562,38 +749,50 @@ export function estimatesTable(session, text, ctx) {
   // The models go in panels as wide as the line allows, each a table of
   // its own with every row.
   const linesize = session.settings?.linesize ?? 79,
-    perPanel = Math.max(1, Math.floor((linesize - 14) / cell)),
-    list = [...panels.values()],
+    perPanel = Math.max(1, Math.floor((linesize - stub - 2) / cell)),
+    selecting = options.keep !== undefined || options.drop !== undefined,
+    list = selectedRows(
+      [...panels.values()].map(({ equation, rows }) => ({
+        equation,
+        rows: [...rows.values()],
+      })),
+      options.keep,
+      options.drop,
+    ),
     headed = list.length > 1;
+  if (options.title !== undefined) {
+    ctx.out("");
+    ctx.out(options.title.trim().replace(/^"(.*)"$/, "$1"));
+  }
   let columns = [];
   for (let first = 0; first < entries.length; first += perPanel) {
     columns = entries.map((_, m) => m).slice(first, first + perPanel);
     showPanel();
   }
   function showPanel() {
-    const rule = "-".repeat(14 + cell * columns.length),
-      split = `-------------+${"-".repeat(cell * columns.length)}`;
+    const rule = "-".repeat(stub + 2 + cell * columns.length),
+      split = `${"-".repeat(stub + 1)}+${"-".repeat(cell * columns.length)}`;
     ctx.out("");
     ctx.out(rule);
     ctx.out(
-      `    Variable |${columns.map((m) => title(shown(names[m])).padEnd(cell)).join("")}`,
+      `${"Variable".padStart(stub)} |${columns.map((m) => title(shown(names[m])).padEnd(cell)).join("")}`,
     );
     ctx.out(split);
     list.forEach(({ equation, rows }, p) => {
       if (p) ctx.out(split);
-      const ordered = [...rows.values()];
+      const ordered = [...rows];
       if (equation === "/") {
         // Ancillary parameters: /cut1, or var(e.y) as it is, ending at the bar.
         for (const row of ordered) {
           const label = /\(/.test(row.key)
-            ? `${row.key.padStart(13)}|`
-            : `${`/${row.key}`.padStart(12)} |`;
+            ? `${row.key.padStart(stub + 1)}|`
+            : `${`/${row.key}`.padStart(stub)} |`;
           ctx.out(`${label}${joined(row, coefficientCell)}`);
-          if (withSe) ctx.out(`${" ".repeat(13)}|${joined(row, seCell)}`);
+          for (const line of below(row)) ctx.out(line);
         }
         return;
       }
-      if (headed) ctx.out(`${equation.padEnd(13)}|`);
+      if (headed) ctx.out(`${equation.padEnd(stub + 1)}|`);
       // A contrast of a treatment's levels (r1vs0.t, from teffects and
       // didregress) is shown under its variable's name as (1 vs 0), in
       // its labels, broken at its blanks onto lines two short of the
@@ -609,21 +808,23 @@ export function estimatesTable(session, text, ctx) {
             String(v ? labelledValue(session, v, Number(level)) : level),
           lines = [];
         if (variable !== headedBy)
-          ctx.out(`${abbreviate(variable, 12).padStart(12)} |`);
+          ctx.out(`${abbreviate(variable, stub).padStart(stub)} |`);
         headedBy = variable;
         for (const word of `(${label(a)} vs ${label(b)})`.split(/\s+/))
-          if (lines.length && `${lines.at(-1)} ${word}`.length <= 10)
+          if (lines.length && `${lines.at(-1)} ${word}`.length <= stub - 2)
             lines[lines.length - 1] += ` ${word}`;
           else lines.push(word);
         const cut = (text) =>
-          text.length <= 11 ? text : `${text.slice(0, 9)}..`;
+          text.length <= stub - 1 ? text : `${text.slice(0, stub - 3)}..`;
         lines
           .slice(0, -1)
-          .forEach((line) => ctx.out(`${`${cut(line)}  `.padStart(13)}|`));
+          .forEach((line) =>
+            ctx.out(`${`${cut(line)}  `.padStart(stub + 1)}|`),
+          );
         ctx.out(
-          `${`${cut(lines.at(-1))}  `.padStart(13)}|${joined(row, coefficientCell)}`,
+          `${`${cut(lines.at(-1))}  `.padStart(stub + 1)}|${joined(row, coefficientCell)}`,
         );
-        if (withSe) ctx.out(`${" ".repeat(13)}|${joined(row, seCell)}`);
+        for (const line of below(row)) ctx.out(line);
       }
       if (contrastRows.length === ordered.length) return;
       if (contrastRows.length)
@@ -636,17 +837,60 @@ export function estimatesTable(session, text, ctx) {
       // characters wide: factors under their name, labelled levels, blank
       // rows between groups. A base level that every model has as its base
       // is not shown.
+      // After keep() or drop(), a factor level left without a neighbour
+      // of its factor is a row of its own, named in full (3.g).
+      // Its base level alone is not shown at all. A name listed twice is
+      // shown twice.
+      // A level of four digits or more (2011.year) is shown under its
+      // factor's name even alone, as Stata shows it.
+      const isLone = (k) =>
+          selecting &&
+          ordered[k].levels?.length > 0 &&
+          ordered[k].levels.every((level) => Math.abs(level) < 1000) &&
+          ordered[k].term &&
+          ordered[k - 1]?.term !== ordered[k].term &&
+          ordered[k + 1]?.term !== ordered[k].term,
+        loneAt = ordered.map((_, k) => isLone(k)),
+        hidden = ordered.map(
+          (row, k) =>
+            loneAt[k] && row.cells.every((c) => !c || c.status === "base"),
+        ),
+        lone = new Set(ordered.filter((_, k) => loneAt[k] && !hidden[k]));
+      if (hidden.some(Boolean))
+        ordered.splice(
+          0,
+          ordered.length,
+          ...ordered.filter((_, k) => !hidden[k]),
+        );
+      const named = (name) => {
+        const variable = { name, format: "%9.0g" };
+        return {
+          components: [{ variable, factor: false }],
+          variables: [variable],
+          variable,
+          header: name,
+        };
+      };
       const table = {
         names: ordered.map((row) => row.display ?? row.key),
-        columns: ordered.map((row) =>
-          row.term
-            ? {
-                term: row.term,
-                levels: row.levels,
-                tsLabel: row.tsLabel,
-                base: row.cells.every((c) => !c || c.status === "base"),
-              }
-            : undefined,
+        columns: ordered.map((row, k) =>
+          lone.has(row)
+            ? { term: named(row.display ?? row.key), levels: [], base: false }
+            : row.term && ordered[k - 1] === row
+              ? {
+                  term: { ...row.term },
+                  levels: row.levels,
+                  tsLabel: row.tsLabel,
+                  base: false,
+                }
+              : row.term
+                ? {
+                    term: row.term,
+                    levels: row.levels,
+                    tsLabel: row.tsLabel,
+                    base: row.cells.every((c) => !c || c.status === "base"),
+                  }
+                : undefined,
         ),
         estimable: ordered.map(() => true),
         factorBlocks: entries.length > 1,
@@ -656,9 +900,10 @@ export function estimatesTable(session, text, ctx) {
         session,
         table,
         (k) =>
-          joined(ordered[k], coefficientCell) +
-          (withSe ? `\n${" ".repeat(13)}|${joined(ordered[k], seCell)}` : ""),
-        12,
+          [joined(ordered[k], coefficientCell), ...below(ordered[k])].join(
+            "\n",
+          ),
+        stub,
       );
       for (const line of lines)
         for (const one of line.split("\n")) ctx.out(one);
@@ -666,10 +911,10 @@ export function estimatesTable(session, text, ctx) {
     if (options.stats) {
       ctx.out(split);
       // With equations headed, the statistics are headed too.
-      if (headed) ctx.out(`${"Statistics".padEnd(13)}|`);
+      if (headed) ctx.out(`${"Statistics".padEnd(stub + 1)}|`);
       for (const name of options.stats.trim().split(/\s+/))
         ctx.out(
-          `${name.padStart(12)} |${columns
+          `${name.padStart(stub)} |${columns
             .map((m) => entries[m])
             .map(({ model, e }) => {
               const v = statistic(model, e, name);
@@ -685,7 +930,12 @@ export function estimatesTable(session, text, ctx) {
         );
     }
     ctx.out(rule);
-    if (withSe) ctx.out("Legend: b/se".padStart(rule.length));
+    if (under.length)
+      ctx.out(
+        `Legend: b${withSe ? "/se" : ""}${withT ? "/t" : ""}${withP ? "/p" : ""}`.padStart(
+          rule.length,
+        ),
+      );
     if (stars)
       ctx.out(
         `Legend: * p<${levels[0]}; ** p<${levels[1]}; *** p<${levels[2]}`.padStart(
@@ -708,7 +958,7 @@ export function estimatesTable(session, text, ctx) {
               { base: "b", omitted: "o", empty: "e" }[c.status] ?? "",
             ),
     every = list.flatMap(({ equation, rows }) =>
-      [...rows.values()].map((row) => ({ equation, row })),
+      rows.map((row) => ({ equation, row })),
     ),
     rowName = ({ equation, row }) => {
       const name =
@@ -725,7 +975,11 @@ export function estimatesTable(session, text, ctx) {
         rowNames: statNames,
         colNames: names.map(shown),
         values: statNames.map((stat) =>
-          entries.map(({ model, e }) => statistic(model, e, stat)),
+          entries.map(({ model, e }) => {
+            // A statistic a model does not have is .z, as in r(coef).
+            const v = statistic(model, e, stat);
+            return isMissing(v) ? missingValue("z") : v;
+          }),
         ),
       },
     }),
@@ -750,6 +1004,8 @@ const normalise = (text) =>
   text
     .replace(/\bstar\s*\(/, "star2(")
     .replace(/\bse\s*\(/, "se2(")
+    .replace(/\bt\s*\(/, "t2(")
+    .replace(/\bp\s*\(/, "p2(")
     .replace(/\bb\s*\(/, "b2(");
 
 /** The names an estimates command lists, _all and * standing for all. */

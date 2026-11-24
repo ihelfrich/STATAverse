@@ -190228,6 +190228,577 @@
       ]
     },
     {
+      "id": "expr-regex-modern-syntax",
+      "source": "version 19\ndisplay regexm(\"x\", \"*\") \" [\" regexs(0) \"]\"\ndisplay regexm(\"GA 30303\", \"[0-9]{5}\") \" \" regexm(\"a{2}\", \"a{2}\")\ndisplay regexm(\"GA 30303\", \"\\d+\") \" \" regexm(\"ad\", \"\\d\") \" \" regexm(\"a b\", \"a\\sb\") \" \" regexm(\"abc\", \"\\w+\")\ndisplay regexm(\"a1b22\", \"[[:digit:]]+\") \" \" regexm(\"a]\", \"[[:alpha:]]\") \" [\" regexs(0) \"]\"\ndisplay regexm(\"aaa\", \"a+?\") \" [\" regexs(0) \"]\"\ndisplay regexm(\"x(y)\", \"\\(y\\)\") \" \" regexm(\"a.b\", \"a.b\") \" \" regexm(\"axb\", \"a\\.b\")\ndisplay regexr(\"2020-01-02\", \"([0-9]+)-([0-9]+)\", \"\\2/\\1\")\ndisplay regexr(\"abc\", \"x*\", \"Q\") \" \" regexr(\"hello\", \"(l+)\", \"[$1]\") \" \" regexr(\"abc\", \"b\", \"&\")\ndisplay regexm(\"ab\", \"^(a|b)+\" + char(36)) \" \" regexm(\"ab\", \"(a|ab)\") \" [\" regexs(1) \"]\"\ndisplay regexm(\"abcd\", \"a|ab\") \" [\" regexs(0) \"] \" regexm(\"ab\", \"(x)?ab\") \" [\" regexs(1) \"]\"\ndisplay regexm(\"café\", \"^caf.$\") \" \" regexm(\"café\", \"^caf..\") \" \" regexm(\"über\", \"^.ber\")\ndisplay regexm(\"Vice Chair\", \"(?i)vice\\s*-?\\s*chair\") \" \" regexm(\"vice-chair\", \"vice\\W*chair\") \" \" regexm(\"the chair\", \"\\bchair\") \" \" regexm(\"vicechair\", \"\\bchair\")\ndisplay regexm(\"ab\", \"a(?=b)\") \" \" regexm(\"ab\", \"(?<=a)b\") \" \" regexm(\"aa\", \"(a)\\1\") \" \" regexm(\"a+b\", \"\\Qa+\\E\")\ndisplay regexm(\"1231\", \"^[0-9]{4}\" + char(36)) \" \" regexm(\" 1231\", \"^\\d\\d\\d\\d\" + char(36)) \" \" regexm(\"x y\", \"[[:space:]]\") \" \" regexm(\"a.b\", \"[[:punct:]]\")\ndisplay regexm(\"ab12cd\", \"([a-z]+)([0-9]+)\") \" [\" regexs(0) \"][\" regexs(1) \"][\" regexs(2) \"][\" regexs(3) \"]\"\nversion 17\ndisplay regexm(\"GA 30303\", \"\\d+\") \" \" regexm(\"ad\", \"\\d\") \" \" c(version)\nversion 19: display regexm(\"GA 30303\", \"\\d+\")\ndisplay regexm(\"GA 30303\", \"\\d+\")\n",
+      "commands": [
+        { "command": "version 19", "lines": [] },
+        {
+          "command": "display regexm(\"x\", \"*\") \" [\" regexs(0) \"]\"",
+          "lines": ["0 []"]
+        },
+        {
+          "command": "display regexm(\"GA 30303\", \"[0-9]{5}\") \" \" regexm(\"a{2}\", \"a{2}\")",
+          "lines": ["1 0"]
+        },
+        {
+          "command": "display regexm(\"GA 30303\", \"\\d+\") \" \" regexm(\"ad\", \"\\d\") \" \" regexm(\"a b\", \"a\\sb\") \" \" regexm(\"abc\", \"\\w+\")",
+          "lines": ["1 0 1 1"]
+        },
+        {
+          "command": "display regexm(\"a1b22\", \"[[:digit:]]+\") \" \" regexm(\"a]\", \"[[:alpha:]]\") \" [\" regexs(0) \"]\"",
+          "lines": ["1 1 [a]"]
+        },
+        {
+          "command": "display regexm(\"aaa\", \"a+?\") \" [\" regexs(0) \"]\"",
+          "lines": ["1 [a]"]
+        },
+        {
+          "command": "display regexm(\"x(y)\", \"\\(y\\)\") \" \" regexm(\"a.b\", \"a.b\") \" \" regexm(\"axb\", \"a\\.b\")",
+          "lines": ["1 1 0"]
+        },
+        {
+          "command": "display regexr(\"2020-01-02\", \"([0-9]+)-([0-9]+)\", \"\\2/\\1\")",
+          "lines": ["\\2/\\1-02"]
+        },
+        {
+          "command": "display regexr(\"abc\", \"x*\", \"Q\") \" \" regexr(\"hello\", \"(l+)\", \"[$1]\") \" \" regexr(\"abc\", \"b\", \"&\")",
+          "lines": ["Qabc he[$1]o a&c"]
+        },
+        {
+          "command": "display regexm(\"ab\", \"^(a|b)+\" + char(36)) \" \" regexm(\"ab\", \"(a|ab)\") \" [\" regexs(1) \"]\"",
+          "lines": ["1 1 [a]"]
+        },
+        {
+          "command": "display regexm(\"abcd\", \"a|ab\") \" [\" regexs(0) \"] \" regexm(\"ab\", \"(x)?ab\") \" [\" regexs(1) \"]\"",
+          "lines": ["1 [a] 1 []"]
+        },
+        {
+          "command": "display regexm(\"café\", \"^caf.$\") \" \" regexm(\"café\", \"^caf..\") \" \" regexm(\"über\", \"^.ber\")",
+          "lines": ["0 1 0"]
+        },
+        {
+          "command": "display regexm(\"Vice Chair\", \"(?i)vice\\s*-?\\s*chair\") \" \" regexm(\"vice-chair\", \"vice\\W*chair\") \" \" regexm(\"the chair\", \"\\bchair\") \" \" regexm(\"vicechair\", \"\\bchair\")",
+          "lines": ["1 1 1 0"]
+        },
+        {
+          "command": "display regexm(\"ab\", \"a(?=b)\") \" \" regexm(\"ab\", \"(?<=a)b\") \" \" regexm(\"aa\", \"(a)\\1\") \" \" regexm(\"a+b\", \"\\Qa+\\E\")",
+          "lines": ["1 1 1 1"]
+        },
+        {
+          "command": "display regexm(\"1231\", \"^[0-9]{4}\" + char(36)) \" \" regexm(\" 1231\", \"^\\d\\d\\d\\d\" + char(36)) \" \" regexm(\"x y\", \"[[:space:]]\") \" \" regexm(\"a.b\", \"[[:punct:]]\")",
+          "lines": ["1 0 1 1"]
+        },
+        {
+          "command": "display regexm(\"ab12cd\", \"([a-z]+)([0-9]+)\") \" [\" regexs(0) \"][\" regexs(1) \"][\" regexs(2) \"][\" regexs(3) \"]\"",
+          "lines": ["1 [ab12][ab][12][]"]
+        },
+        { "command": "version 17", "lines": [] },
+        {
+          "command": "display regexm(\"GA 30303\", \"\\d+\") \" \" regexm(\"ad\", \"\\d\") \" \" c(version)",
+          "lines": ["0 1 17"]
+        },
+        {
+          "command": "version 19: display regexm(\"GA 30303\", \"\\d+\")",
+          "lines": ["1"]
+        },
+        { "command": "display regexm(\"GA 30303\", \"\\d+\")", "lines": ["0"] }
+      ]
+    },
+    {
+      "id": "expr-regex-modern-data",
+      "source": "version 19\nclear\nset obs 4\ngen s = \"a\" + string(_n)\nreplace s = \"Vice-Chairman & CEO\" in 3\nreplace s = \"x é y\" in 4\ngen y = regexm(s, \"a(\")\ngen z = regexr(s, \"\\d\", \"#\")\ngen v = regexm(lower(s), \"vice[\\s-]*chair\")\ngen w = regexm(s, \"^.\") \ngen t = regexs(0)\nlist\ncount if regexm(s, \"(?i)VICE\")\ncount if regexm(s, \"\\s\")\n",
+      "commands": [
+        { "command": "version 19", "lines": [] },
+        { "command": "clear", "lines": [] },
+        {
+          "command": "set obs 4",
+          "lines": ["Number of observations (_N) was 0, now 4."]
+        },
+        { "command": "gen s = \"a\" + string(_n)", "lines": [] },
+        {
+          "command": "replace s = \"Vice-Chairman & CEO\" in 3",
+          "lines": ["variable s was str2 now str19", "(1 real change made)"]
+        },
+        {
+          "command": "replace s = \"x é y\" in 4",
+          "lines": ["(1 real change made)"]
+        },
+        { "command": "gen y = regexm(s, \"a(\")", "lines": [] },
+        { "command": "gen z = regexr(s, \"\\d\", \"#\")", "lines": [] },
+        {
+          "command": "gen v = regexm(lower(s), \"vice[\\s-]*chair\")",
+          "lines": []
+        },
+        { "command": "gen w = regexm(s, \"^.\")", "lines": [] },
+        { "command": "gen t = regexs(0)", "lines": [] },
+        {
+          "command": "list",
+          "lines": [
+            "     +-----------------------------------------------------------+",
+            "     |                   s   y                     z   v   w   t |",
+            "     |-----------------------------------------------------------|",
+            "  1. |                  a1   0                    a#   0   1   x |",
+            "  2. |                  a2   0                    a#   0   1   x |",
+            "  3. | Vice-Chairman & CEO   0   Vice-Chairman & CEO   1   1   x |",
+            "  4. |               x é y   0                 x é y   0   1   x |",
+            "     +-----------------------------------------------------------+"
+          ]
+        },
+        { "command": "count if regexm(s, \"(?i)VICE\")", "lines": ["  1"] },
+        { "command": "count if regexm(s, \"\\s\")", "lines": ["  2"] }
+      ]
+    },
+    {
+      "id": "egen-rowmiss-strings",
+      "source": "clear\ninput str5 s x double y\n\"a\" 1 2\n\"\" . 3\n\"\" 2 .\n\"b\" . .\nend\negen m = rowmiss(s x y)\ncapture noisily egen n1 = rownonmiss(s x)\negen n2 = rownonmiss(s x y), strok\ncapture noisily egen t = rowtotal(s x)\nlist\nsummarize m n2\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        {
+          "command": "input str5 s x double y",
+          "lines": [
+            "             s          x           y",
+            "  1. \"a\" 1 2",
+            "  2. \"\" . 3",
+            "  3. \"\" 2 .",
+            "  4. \"b\" . .",
+            "  5. end"
+          ]
+        },
+        { "command": "egen m = rowmiss(s x y)", "lines": [] },
+        {
+          "command": "capture noisily egen n1 = rownonmiss(s x)",
+          "lines": ["type mismatch"]
+        },
+        { "command": "egen n2 = rownonmiss(s x y), strok", "lines": [] },
+        {
+          "command": "capture noisily egen t = rowtotal(s x)",
+          "lines": ["type mismatch"]
+        },
+        {
+          "command": "list",
+          "lines": [
+            "     +--------------------+",
+            "     | s   x   y   m   n2 |",
+            "     |--------------------|",
+            "  1. | a   1   2   0    3 |",
+            "  2. |     .   3   2    1 |",
+            "  3. |     2   .   2    1 |",
+            "  4. | b   .   .   2    1 |",
+            "     +--------------------+"
+          ]
+        },
+        {
+          "command": "summarize m n2",
+          "lines": [
+            "    Variable |        Obs        Mean    Std. dev.       Min        Max",
+            "-------------+---------------------------------------------------------",
+            "           m |          4         1.5           1          0          2",
+            "          n2 |          4         1.5           1          1          3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "estimates-table-lone-levels",
+      "source": "clear\nset seed 4711\nset obs 320\ngenerate long firm = ceil(_n / 8)\ngenerate int year = 2010 + mod(_n - 1, 8)\ngenerate byte g = 1 + mod(firm, 3)\ngenerate double x1 = runiform() + firm / 80\ngenerate double x2 = runiform() * 2\ngenerate byte d = runiform() > .6\ngenerate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()\ngenerate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())\ngenerate byte any = c > 1\nquietly regress y x1 x2 d i.g i.year, vce(cluster firm)\nestimates store ols\nquietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)\nestimates store fe\nquietly poisson c x1 x2 d i.g i.year, vce(cluster firm)\nestimates store pois\nquietly regress y x1 d\nestimates store small\nquietly logit any x1 i.d\nestimates store lg\ngenerate byte k = 10 + g\ngenerate int a3 = 100 + g\ngenerate int a4 = 1000 + g\ngenerate long a6 = 99990 + g\nforeach v in k a3 a4 a6 {\n    quietly regress y x1 i.`v'\n    estimates store e_`v'\n}\nestimates table e_k, keep(x1 12.k)\nestimates table e_a3, keep(x1 102.a3)\nestimates table e_a4, keep(x1 1002.a4)\nestimates table e_a6, keep(x1 99992.a6)\nestimates table ols fe small, keep(x1 2011.year _cons) star\nestimates table ols, keep(x1 2011.year 2.g)\nestimates table ols, keep(x1 2011.year) se\nestimates table ols small, keep(x1 2.g) b(%9.3f)\ncapture noisily estimates table ols fe, drop(*.g *.year)\ncapture noisily estimates table ols fe, keep(x1 *.g)\ncapture noisily estimates table ols fe, drop(2.*)\nestimates table ols fe, keep(x*)\nestimates table ols fe, drop(i.g i.year)\ngenerate int b4 = 1000 + d\nquietly regress y x1 i.b4\nestimates store e_b4\nestimates table lg\nestimates table e_b4\nestimates table e_b4 small\nregress y x1 i.b4\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4711", "lines": [] },
+        {
+          "command": "set obs 320",
+          "lines": ["Number of observations (_N) was 0, now 320."]
+        },
+        { "command": "generate long firm = ceil(_n / 8)", "lines": [] },
+        { "command": "generate int year = 2010 + mod(_n - 1, 8)", "lines": [] },
+        { "command": "generate byte g = 1 + mod(firm, 3)", "lines": [] },
+        {
+          "command": "generate double x1 = runiform() + firm / 80",
+          "lines": []
+        },
+        { "command": "generate double x2 = runiform() * 2", "lines": [] },
+        { "command": "generate byte d = runiform() > .6", "lines": [] },
+        {
+          "command": "generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())",
+          "lines": []
+        },
+        { "command": "generate byte any = c > 1", "lines": [] },
+        {
+          "command": "quietly regress y x1 x2 d i.g i.year, vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store ols", "lines": [] },
+        {
+          "command": "quietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store fe", "lines": [] },
+        {
+          "command": "quietly poisson c x1 x2 d i.g i.year, vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store pois", "lines": [] },
+        { "command": "quietly regress y x1 d", "lines": [] },
+        { "command": "estimates store small", "lines": [] },
+        { "command": "quietly logit any x1 i.d", "lines": [] },
+        { "command": "estimates store lg", "lines": [] },
+        { "command": "generate byte k = 10 + g", "lines": [] },
+        { "command": "generate int a3 = 100 + g", "lines": [] },
+        { "command": "generate int a4 = 1000 + g", "lines": [] },
+        { "command": "generate long a6 = 99990 + g", "lines": [] },
+        {
+          "command": "foreach v in k a3 a4 a6 {",
+          "lines": [
+            "  2.     quietly regress y x1 i.`v'",
+            "  3.     estimates store e_`v'",
+            "  4. }"
+          ]
+        },
+        {
+          "command": "estimates table e_k, keep(x1 12.k)",
+          "lines": [
+            "---------------------------",
+            "    Variable |    e_k",
+            "-------------+-------------",
+            "          x1 |  .44989834",
+            "        12.k |  .12195431",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table e_a3, keep(x1 102.a3)",
+          "lines": [
+            "---------------------------",
+            "    Variable |    e_a3",
+            "-------------+-------------",
+            "          x1 |  .44989834",
+            "      102.a3 |  .12195431",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table e_a4, keep(x1 1002.a4)",
+          "lines": [
+            "---------------------------",
+            "    Variable |    e_a4",
+            "-------------+-------------",
+            "          x1 |  .44989834",
+            "             |",
+            "          a4 |",
+            "       1002  |  .12195431",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table e_a6, keep(x1 99992.a6)",
+          "lines": [
+            "---------------------------",
+            "    Variable |    e_a6",
+            "-------------+-------------",
+            "          x1 |  .44989834",
+            "             |",
+            "          a6 |",
+            "      99992  |  .12195431",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols fe small, keep(x1 2011.year _cons) star",
+          "lines": [
+            "--------------------------------------------------------------",
+            "    Variable |      ols             fe             small",
+            "-------------+------------------------------------------------",
+            "          x1 |  .52463299***    .56234156***    .43728957***",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599       .04141242",
+            "             |",
+            "       _cons |  1.5595676***    1.6261637***    1.4771389***",
+            "--------------------------------------------------------------",
+            "                      Legend: * p<0.05; ** p<0.01; *** p<0.001"
+          ]
+        },
+        {
+          "command": "estimates table ols, keep(x1 2011.year 2.g)",
+          "lines": [
+            "---------------------------",
+            "    Variable |    ols",
+            "-------------+-------------",
+            "          x1 |  .52463299",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599",
+            "             |",
+            "         2.g |  .13265703",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols, keep(x1 2011.year) se",
+          "lines": [
+            "---------------------------",
+            "    Variable |    ols",
+            "-------------+-------------",
+            "          x1 |  .52463299",
+            "             |  .05595169",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599",
+            "             |  .06092045",
+            "---------------------------",
+            "               Legend: b/se"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 2.g) b(%9.3f)",
+          "lines": [
+            "--------------------------------------",
+            "    Variable |    ols        small",
+            "-------------+------------------------",
+            "          x1 |     0.525       0.437",
+            "         2.g |     0.133",
+            "--------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily estimates table ols fe, drop(*.g *.year)",
+          "lines": ["coefficient *.g does not occur in any of the models"]
+        },
+        {
+          "command": "capture noisily estimates table ols fe, keep(x1 *.g)",
+          "lines": ["coefficient *.g does not occur in any of the models"]
+        },
+        {
+          "command": "capture noisily estimates table ols fe, drop(2.*)",
+          "lines": ["coefficient 2.* does not occur in any of the models"]
+        },
+        {
+          "command": "estimates table ols fe, keep(x*)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols           fe",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .56234156",
+            "          x2 | -.25024907   -.24789597",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols fe, drop(i.g i.year)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols           fe",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .56234156",
+            "          x2 | -.25024907   -.24789597",
+            "           d |  .12572133    .14689667",
+            "       _cons |  1.5595676    1.6261637",
+            "----------------------------------------"
+          ]
+        },
+        { "command": "generate int b4 = 1000 + d", "lines": [] },
+        { "command": "quietly regress y x1 i.b4", "lines": [] },
+        { "command": "estimates store e_b4", "lines": [] },
+        {
+          "command": "estimates table lg",
+          "lines": [
+            "---------------------------",
+            "    Variable |     lg",
+            "-------------+-------------",
+            "          x1 |  .60693239",
+            "             |",
+            "         1.d |  .70168895",
+            "       _cons |  .17263815",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table e_b4",
+          "lines": [
+            "---------------------------",
+            "    Variable |    e_b4",
+            "-------------+-------------",
+            "          x1 |  .43728957",
+            "             |",
+            "          b4 |",
+            "       1001  |  .12106235",
+            "             |",
+            "       _cons |  1.4771389",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table e_b4 small",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    e_b4        small",
+            "-------------+--------------------------",
+            "          x1 |  .43728957    .43728957",
+            "             |",
+            "          b4 |",
+            "       1001  |  .12106235",
+            "             |",
+            "           d |               .12106235",
+            "       _cons |  1.4771389    1.4771389",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y x1 i.b4",
+          "lines": [
+            "      Source |       SS           df       MS      Number of obs   =       320",
+            "-------------+----------------------------------   F(2, 317)       =     32.54",
+            "       Model |  7.35838066         2  3.67919033   Prob > F        =    0.0000",
+            "    Residual |  35.8371877       317  .113051065   R-squared       =    0.1704",
+            "-------------+----------------------------------   Adj R-squared   =    0.1651",
+            "       Total |  43.1955684       319  .135409305   Root MSE        =    .33623",
+            "",
+            "------------------------------------------------------------------------------",
+            "           y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .4372896   .0588406     7.43   0.000     .3215222    .5530569",
+            "             |",
+            "          b4 |",
+            "       1001  |   .1210624   .0388905     3.11   0.002     .0445462    .1975785",
+            "             |",
+            "       _cons |   1.477139   .0504805    29.26   0.000      1.37782    1.576458",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "factor-group-form",
+      "source": "clear\nset seed 4711\nset obs 320\ngenerate long firm = ceil(_n / 8)\ngenerate int year = 2010 + mod(_n - 1, 8)\ngenerate byte g = 1 + mod(firm, 3)\ngenerate double x1 = runiform() + firm / 80\ngenerate double x2 = runiform() * 2\ngenerate byte d = runiform() > .6\ngenerate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()\ngenerate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())\ngenerate byte any = c > 1\nregress y x1 i.(g year), vce(cluster firm)\nareg y x1 i.(d year), absorb(firm) vce(cluster firm)\npoisson c x1 i.(g year)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4711", "lines": [] },
+        {
+          "command": "set obs 320",
+          "lines": ["Number of observations (_N) was 0, now 320."]
+        },
+        { "command": "generate long firm = ceil(_n / 8)", "lines": [] },
+        { "command": "generate int year = 2010 + mod(_n - 1, 8)", "lines": [] },
+        { "command": "generate byte g = 1 + mod(firm, 3)", "lines": [] },
+        {
+          "command": "generate double x1 = runiform() + firm / 80",
+          "lines": []
+        },
+        { "command": "generate double x2 = runiform() * 2", "lines": [] },
+        { "command": "generate byte d = runiform() > .6", "lines": [] },
+        {
+          "command": "generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())",
+          "lines": []
+        },
+        { "command": "generate byte any = c > 1", "lines": [] },
+        {
+          "command": "regress y x1 i.(g year), vce(cluster firm)",
+          "lines": [
+            "Linear regression                               Number of obs     =        320",
+            "                                                F(10, 39)         =      10.94",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.1998",
+            "                                                Root MSE          =     .33446",
+            "",
+            "                                  (Std. err. adjusted for 40 clusters in firm)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .4591187   .0649311     7.07   0.000     .3277832    .5904543",
+            "             |",
+            "           g |",
+            "          2  |   .1220927   .0433488     2.82   0.008     .0344116    .2097739",
+            "          3  |   .1447458   .0390745     3.70   0.001     .0657101    .2237815",
+            "             |",
+            "        year |",
+            "       2011  |   .0602374   .0801084     0.75   0.457    -.1017972    .2222719",
+            "       2012  |    .035067   .0724702     0.48   0.631    -.1115179    .1816519",
+            "       2013  |   .0763228   .0736233     1.04   0.306    -.0725944    .2252399",
+            "       2014  |  -.0924275   .0672882    -1.37   0.177    -.2285306    .0436757",
+            "       2015  |    .037782   .0781483     0.48   0.631    -.1202878    .1958518",
+            "       2016  |  -.0015423   .0767533    -0.02   0.984    -.1567905    .1537059",
+            "       2017  |  -.0852363   .0721432    -1.18   0.245    -.2311597    .0606872",
+            "             |",
+            "       _cons |   1.412057   .0857426    16.47   0.000     1.238626    1.585488",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "areg y x1 i.(d year), absorb(firm) vce(cluster firm)",
+          "lines": [
+            "Linear regression, absorbing indicators             Number of obs     =    320",
+            "Absorbed variable: firm                             No. of categories =     40",
+            "                                                    F(9, 39)          =   8.48",
+            "                                                    Prob > F          = 0.0000",
+            "                                                    R-squared         = 0.3223",
+            "                                                    Adj R-squared     = 0.2023",
+            "                                                    Root MSE          = 0.3287",
+            "",
+            "                                  (Std. err. adjusted for 40 clusters in firm)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .5128416   .0893634     5.74   0.000     .3320871     .693596",
+            "         1.d |   .1399553   .0406005     3.45   0.001      .057833    .2220775",
+            "             |",
+            "        year |",
+            "       2011  |   .0618298   .0822527     0.75   0.457     -.104542    .2282016",
+            "       2012  |   .0460125   .0781719     0.59   0.560    -.1121051    .2041302",
+            "       2013  |   .0460151   .0750766     0.61   0.543    -.1058417     .197872",
+            "       2014  |  -.0861609   .0692836    -1.24   0.221    -.2263003    .0539785",
+            "       2015  |   .0147336   .0779778     0.19   0.851    -.1429915    .1724587",
+            "       2016  |  -.0124258   .0795934    -0.16   0.877    -.1734186    .1485671",
+            "       2017  |  -.0937368   .0766378    -1.22   0.229    -.2487514    .0612777",
+            "             |",
+            "       _cons |   1.415794   .0980947    14.43   0.000     1.217378    1.614209",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "poisson c x1 i.(g year)",
+          "lines": [
+            "Iteration 0:  Log likelihood = -664.93099",
+            "Iteration 1:  Log likelihood = -664.93097",
+            "",
+            "Poisson regression                                      Number of obs =    320",
+            "                                                        LR chi2(10)   =  60.00",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log likelihood = -664.93097                             Pseudo R2     = 0.0432",
+            "",
+            "------------------------------------------------------------------------------",
+            "           c | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "          x1 |   .6874632   .1046459     6.57   0.000     .4823609    .8925655",
+            "             |",
+            "           g |",
+            "          2  |   .0161243   .0804159     0.20   0.841    -.1414879    .1737365",
+            "          3  |   .0790633   .0814089     0.97   0.331    -.0804953    .2386219",
+            "             |",
+            "        year |",
+            "       2011  |   .0884249   .1389363     0.64   0.524    -.1838854    .3607351",
+            "       2012  |   .2301559   .1317672     1.75   0.081    -.0281031    .4884148",
+            "       2013  |   .1911311    .131857     1.45   0.147    -.0673038    .4495661",
+            "       2014  |  -.0412683    .140267    -0.29   0.769    -.3161866      .23365",
+            "       2015  |   .1062247   .1365825     0.78   0.437    -.1614721    .3739215",
+            "       2016  |   .3764165   .1271619     2.96   0.003     .1271837    .6256493",
+            "       2017  |   .0611936    .136154     0.45   0.653    -.2056633    .3280505",
+            "             |",
+            "       _cons |   .3557413   .1442589     2.47   0.014      .072999    .6384835",
+            "------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
       "id": "expr-gammap-derivatives-eprop",
       "source": "display dgammapda(2, 1.5) \" \" dgammapdada(2, 1.5)\ndisplay dgammapda(1, 1) \" \" dgammapdada(1, 1)\ndisplay dgammapda(10, 9) \" \" dgammapdada(10, 9)\ndisplay dgammapda(50, 45) \" \" dgammapdada(50, 45)\ndisplay dgammapda(3, .5) \" \" dgammapdada(3, .5)\ndisplay dgammapda(.01, 20) \" \" dgammapdada(.01, 20)\ndisplay dgammapda(200, 210) \" \" dgammapdada(200, 210)\ndisplay dgammapda(5, 0) \" \" dgammapdada(5, -1) \" \" dgammapda(0, 2) \" \" dgammapdada(-1, 2)\ncapture noisily display dgammapda(2)\ncapture noisily display dgammapda(\"a\", 1)\nclear\nset seed 1\nset obs 20\ngen x = runiform()\ngen y = x + runiform()\nquietly regress y x\ndisplay has_eprop(b) has_eprop(\"V\") has_eprop() has_eprop(1) has_eprop(1+2) has_eprop(b V) has_eprop(.a) has_eprop(nosuch)\n",
       "commands": [
@@ -212511,6 +213082,2690 @@
         {
           "command": "capture noisily bootstrap, reps(10) cluster(id) idcluster(id) nodots: xtreg y x, be",
           "lines": ["variable id not found"]
+        }
+      ]
+    },
+    {
+      "id": "estimates-table-keep-drop",
+      "source": "clear\nset seed 4711\nset obs 320\ngenerate long firm = ceil(_n / 8)\ngenerate int year = 2010 + mod(_n - 1, 8)\ngenerate byte g = 1 + mod(firm, 3)\ngenerate double x1 = runiform() + firm / 80\ngenerate double x2 = runiform() * 2\ngenerate byte d = runiform() > .6\ngenerate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()\ngenerate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())\ngenerate byte any = c > 1\nquietly regress y x1 x2 d i.g i.year, vce(cluster firm)\nestimates store ols\nquietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)\nestimates store fe\nquietly poisson c x1 x2 d i.g i.year, vce(cluster firm)\nestimates store pois\nquietly regress y x1 d\nestimates store small\nquietly logit any x1 i.d\nestimates store lg\nestimates table ols fe small, keep(x1 x2 d)\nestimates table ols fe small, keep(d x1)\nestimates table ols fe small, drop(x1 _cons)\nestimates table ols fe small, keep(x1 i.g)\nestimates table ols fe small, keep(x1 2.g _cons)\nestimates table ols fe small, drop(i.year i.g)\nestimates table ols fe small, drop(i.year) star\nestimates table ols small, keep(2.g 3.g)\nestimates table ols small, keep(1.g 2.g)\nestimates table ols small, keep(1b.g 2.g)\nestimates table ols small, keep(3.g x1)\nestimates table ols small, keep(1.g x1)\nestimates table ols fe, keep(i.year)\nestimates table ols fe, keep(2011.year 2012.year)\nestimates table ols small, drop(2.g)\nestimates table ols small, drop(1.g)\nestimates table ols small, drop(i.g x2) keep(i.g x1 x2 d)\nestimates table ols small, keep(x*)\nestimates table ols small, keep(x1-d)\nestimates table ols small, keep(x1 x1)\nestimates table ols small, keep()\nestimates table ols small, keep(x1 d) se stats(N r2 N_clust)\nmatrix list r(coef)\nmatrix list r(stats)\nestimates table ols, keep(x1 2.g) se\nestimates table ols pois, keep(x1 d)\nestimates table ols pois, drop(x1)\nestimates table ols pois, keep(c:x1 _:x1)\nestimates table ols pois, keep(_:x1 c:x1 c:d)\nestimates table ols pois, drop(c:)\nestimates table ols pois, keep(c:)\nestimates table ols pois, keep(_cons)\nestimates table pois lg, keep(x1 d)\nestimates table pois lg, keep(1.d)\nestimates table pois, keep(x1 d)\nestimates table pois, keep(c:x1 c:d)\ncapture noisily estimates table ols small, keep(zzz)\ndisplay _rc\ncapture noisily estimates table ols small, keep(x1 zzz)\ncapture noisily estimates table ols small, drop(zzz)\ncapture noisily estimates table ols small, keep(x1) drop(d)\ndisplay _rc\ncapture noisily estimates table ols small, keep(X1)\ncapture noisily estimates table ols small, keep(g)\ncapture noisily estimates table ols small, keep(i.d)\ncapture noisily estimates table ols small, keep(year)\ncapture noisily estimates table ols small, keep(c:x1)\ncapture noisily estimates table ols small, drop(x1 x2 d i.g i.year _cons)\ndisplay _rc\ncapture noisily estimates table ols small, keep(d) drop(d)\ndisplay _rc\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4711", "lines": [] },
+        {
+          "command": "set obs 320",
+          "lines": ["Number of observations (_N) was 0, now 320."]
+        },
+        { "command": "generate long firm = ceil(_n / 8)", "lines": [] },
+        { "command": "generate int year = 2010 + mod(_n - 1, 8)", "lines": [] },
+        { "command": "generate byte g = 1 + mod(firm, 3)", "lines": [] },
+        {
+          "command": "generate double x1 = runiform() + firm / 80",
+          "lines": []
+        },
+        { "command": "generate double x2 = runiform() * 2", "lines": [] },
+        { "command": "generate byte d = runiform() > .6", "lines": [] },
+        {
+          "command": "generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())",
+          "lines": []
+        },
+        { "command": "generate byte any = c > 1", "lines": [] },
+        {
+          "command": "quietly regress y x1 x2 d i.g i.year, vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store ols", "lines": [] },
+        {
+          "command": "quietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store fe", "lines": [] },
+        {
+          "command": "quietly poisson c x1 x2 d i.g i.year, vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store pois", "lines": [] },
+        { "command": "quietly regress y x1 d", "lines": [] },
+        { "command": "estimates store small", "lines": [] },
+        { "command": "quietly logit any x1 i.d", "lines": [] },
+        { "command": "estimates store lg", "lines": [] },
+        {
+          "command": "estimates table ols fe small, keep(x1 x2 d)",
+          "lines": [
+            "-----------------------------------------------------",
+            "    Variable |    ols           fe         small",
+            "-------------+---------------------------------------",
+            "          x1 |  .52463299    .56234156    .43728957",
+            "          x2 | -.25024907   -.24789597",
+            "           d |  .12572133    .14689667    .12106235",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols fe small, keep(d x1)",
+          "lines": [
+            "-----------------------------------------------------",
+            "    Variable |    ols           fe         small",
+            "-------------+---------------------------------------",
+            "           d |  .12572133    .14689667    .12106235",
+            "          x1 |  .52463299    .56234156    .43728957",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols fe small, drop(x1 _cons)",
+          "lines": [
+            "-----------------------------------------------------",
+            "    Variable |    ols           fe         small",
+            "-------------+---------------------------------------",
+            "          x2 | -.25024907   -.24789597",
+            "           d |  .12572133    .14689667    .12106235",
+            "             |",
+            "           g |",
+            "          2  |  .13265703",
+            "          3  |  .18412638",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599    .04141242",
+            "       2012  |  .02431388    .02834912",
+            "       2013  |   .0016032    -.0018812",
+            "       2014  | -.05790808   -.05569934",
+            "       2015  | -.00851544   -.00902561",
+            "       2016  |  -.0320893   -.03181772",
+            "       2017  | -.04076228   -.04143332",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols fe small, keep(x1 i.g)",
+          "lines": [
+            "-----------------------------------------------------",
+            "    Variable |    ols           fe         small",
+            "-------------+---------------------------------------",
+            "          x1 |  .52463299    .56234156    .43728957",
+            "             |",
+            "           g |",
+            "          2  |  .13265703",
+            "          3  |  .18412638",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols fe small, keep(x1 2.g _cons)",
+          "lines": [
+            "-----------------------------------------------------",
+            "    Variable |    ols           fe         small",
+            "-------------+---------------------------------------",
+            "          x1 |  .52463299    .56234156    .43728957",
+            "         2.g |  .13265703",
+            "       _cons |  1.5595676    1.6261637    1.4771389",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols fe small, drop(i.year i.g)",
+          "lines": [
+            "-----------------------------------------------------",
+            "    Variable |    ols           fe         small",
+            "-------------+---------------------------------------",
+            "          x1 |  .52463299    .56234156    .43728957",
+            "          x2 | -.25024907   -.24789597",
+            "           d |  .12572133    .14689667    .12106235",
+            "       _cons |  1.5595676    1.6261637    1.4771389",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols fe small, drop(i.year) star",
+          "lines": [
+            "--------------------------------------------------------------",
+            "    Variable |      ols             fe             small",
+            "-------------+------------------------------------------------",
+            "          x1 |  .52463299***    .56234156***    .43728957***",
+            "          x2 | -.25024907***   -.24789597***",
+            "           d |  .12572133***    .14689667***    .12106235**",
+            "             |",
+            "           g |",
+            "          2  |  .13265703**",
+            "          3  |  .18412638***",
+            "             |",
+            "       _cons |  1.5595676***    1.6261637***    1.4771389***",
+            "--------------------------------------------------------------",
+            "                      Legend: * p<0.05; ** p<0.01; *** p<0.001"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(2.g 3.g)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "           g |",
+            "          2  |  .13265703",
+            "          3  |  .18412638",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(1.g 2.g)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "           g |",
+            "          2  |  .13265703",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(1b.g 2.g)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "           g |",
+            "          2  |  .13265703",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(3.g x1)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "         3.g |  .18412638",
+            "          x1 |  .52463299    .43728957",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(1.g x1)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols fe, keep(i.year)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols           fe",
+            "-------------+--------------------------",
+            "        year |",
+            "       2011  |  .03617599    .04141242",
+            "       2012  |  .02431388    .02834912",
+            "       2013  |   .0016032    -.0018812",
+            "       2014  | -.05790808   -.05569934",
+            "       2015  | -.00851544   -.00902561",
+            "       2016  |  -.0320893   -.03181772",
+            "       2017  | -.04076228   -.04143332",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols fe, keep(2011.year 2012.year)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols           fe",
+            "-------------+--------------------------",
+            "        year |",
+            "       2011  |  .03617599    .04141242",
+            "       2012  |  .02431388    .02834912",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, drop(2.g)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "          x2 | -.25024907",
+            "           d |  .12572133    .12106235",
+            "             |",
+            "           g |",
+            "          3  |  .18412638",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599",
+            "       2012  |  .02431388",
+            "       2013  |   .0016032",
+            "       2014  | -.05790808",
+            "       2015  | -.00851544",
+            "       2016  |  -.0320893",
+            "       2017  | -.04076228",
+            "             |",
+            "       _cons |  1.5595676    1.4771389",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, drop(1.g)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "          x2 | -.25024907",
+            "           d |  .12572133    .12106235",
+            "             |",
+            "           g |",
+            "          2  |  .13265703",
+            "          3  |  .18412638",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599",
+            "       2012  |  .02431388",
+            "       2013  |   .0016032",
+            "       2014  | -.05790808",
+            "       2015  | -.00851544",
+            "       2016  |  -.0320893",
+            "       2017  | -.04076228",
+            "             |",
+            "       _cons |  1.5595676    1.4771389",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, drop(i.g x2) keep(i.g x1 x2 d)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "           d |  .12572133    .12106235",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x*)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "          x2 | -.25024907",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1-d)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "          x2 | -.25024907",
+            "           d |  .12572133    .12106235",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 x1)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "          x1 |  .52463299    .43728957",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep()",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "          x2 | -.25024907",
+            "           d |  .12572133    .12106235",
+            "             |",
+            "           g |",
+            "          2  |  .13265703",
+            "          3  |  .18412638",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599",
+            "       2012  |  .02431388",
+            "       2013  |   .0016032",
+            "       2014  | -.05790808",
+            "       2015  | -.00851544",
+            "       2016  |  -.0320893",
+            "       2017  | -.04076228",
+            "             |",
+            "       _cons |  1.5595676    1.4771389",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d) se stats(N r2 N_clust)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "             |  .05595169    .05884056",
+            "           d |  .12572133    .12106235",
+            "             |  .03355762    .03889051",
+            "-------------+--------------------------",
+            "           N |        320          320",
+            "          r2 |  .38124993    .17035036",
+            "     N_clust |         40",
+            "----------------------------------------",
+            "                            Legend: b/se"
+          ]
+        },
+        {
+          "command": "matrix list r(coef)",
+          "lines": [
+            "r(coef)[2,4]",
+            "          ols:       ols:     small:     small:",
+            "            b        var          b        var",
+            "x1  .52463299  .00313059  .43728957  .00346221",
+            " d  .12572133  .00112611  .12106235  .00151247"
+          ]
+        },
+        {
+          "command": "matrix list r(stats)",
+          "lines": [
+            "r(stats)[3,2]",
+            "               ols      small",
+            "      N        320        320",
+            "     r2  .38124993  .17035036",
+            "N_clust         40         .z"
+          ]
+        },
+        {
+          "command": "estimates table ols, keep(x1 2.g) se",
+          "lines": [
+            "---------------------------",
+            "    Variable |    ols",
+            "-------------+-------------",
+            "          x1 |  .52463299",
+            "             |  .05595169",
+            "         2.g |  .13265703",
+            "             |  .03833424",
+            "---------------------------",
+            "               Legend: b/se"
+          ]
+        },
+        {
+          "command": "estimates table ols pois, keep(x1 d)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols          pois",
+            "-------------+--------------------------",
+            "          x1 |  .52463299",
+            "           d |  .12572133",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols pois, drop(x1)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols          pois",
+            "-------------+--------------------------",
+            "_            |",
+            "          x2 | -.25024907",
+            "           d |  .12572133",
+            "             |",
+            "           g |",
+            "          2  |  .13265703",
+            "          3  |  .18412638",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599",
+            "       2012  |  .02431388",
+            "       2013  |   .0016032",
+            "       2014  | -.05790808",
+            "       2015  | -.00851544",
+            "       2016  |  -.0320893",
+            "       2017  | -.04076228",
+            "             |",
+            "       _cons |  1.5595676",
+            "-------------+--------------------------",
+            "c            |",
+            "          x2 |               .00547952",
+            "           d |               .37794761",
+            "             |",
+            "           g |",
+            "          2  |              -.00064548",
+            "          3  |               .09622328",
+            "             |",
+            "        year |",
+            "       2011  |               .06961352",
+            "       2012  |               .24543979",
+            "       2013  |               .09851574",
+            "       2014  |              -.04189264",
+            "       2015  |               .02410214",
+            "       2016  |               .32795027",
+            "       2017  |               .01419394",
+            "             |",
+            "       _cons |               .23222324",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols pois, keep(c:x1 _:x1)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols          pois",
+            "-------------+--------------------------",
+            "c            |",
+            "          x1 |               .68231011",
+            "-------------+--------------------------",
+            "_            |",
+            "          x1 |  .52463299",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols pois, keep(_:x1 c:x1 c:d)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols          pois",
+            "-------------+--------------------------",
+            "_            |",
+            "          x1 |  .52463299",
+            "-------------+--------------------------",
+            "c            |",
+            "          x1 |               .68231011",
+            "           d |               .37794761",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols pois, drop(c:)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols          pois",
+            "-------------+--------------------------",
+            "          x1 |  .52463299",
+            "          x2 | -.25024907",
+            "           d |  .12572133",
+            "             |",
+            "           g |",
+            "          2  |  .13265703",
+            "          3  |  .18412638",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599",
+            "       2012  |  .02431388",
+            "       2013  |   .0016032",
+            "       2014  | -.05790808",
+            "       2015  | -.00851544",
+            "       2016  |  -.0320893",
+            "       2017  | -.04076228",
+            "             |",
+            "       _cons |  1.5595676",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols pois, keep(c:)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols          pois",
+            "-------------+--------------------------",
+            "          x1 |               .68231011",
+            "          x2 |               .00547952",
+            "           d |               .37794761",
+            "             |",
+            "           g |",
+            "          2  |              -.00064548",
+            "          3  |               .09622328",
+            "             |",
+            "        year |",
+            "       2011  |               .06961352",
+            "       2012  |               .24543979",
+            "       2013  |               .09851574",
+            "       2014  |              -.04189264",
+            "       2015  |               .02410214",
+            "       2016  |               .32795027",
+            "       2017  |               .01419394",
+            "             |",
+            "       _cons |               .23222324",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols pois, keep(_cons)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols          pois",
+            "-------------+--------------------------",
+            "       _cons |  1.5595676",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table pois lg, keep(x1 d)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    pois          lg",
+            "-------------+--------------------------",
+            "          x1 |  .68231011",
+            "           d |  .37794761",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table pois lg, keep(1.d)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    pois          lg",
+            "-------------+--------------------------",
+            "         1.d |               .70168895",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table pois, keep(x1 d)",
+          "lines": [
+            "---------------------------",
+            "    Variable |    pois",
+            "-------------+-------------",
+            "          x1 |  .68231011",
+            "           d |  .37794761",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "estimates table pois, keep(c:x1 c:d)",
+          "lines": [
+            "---------------------------",
+            "    Variable |    pois",
+            "-------------+-------------",
+            "          x1 |  .68231011",
+            "           d |  .37794761",
+            "---------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily estimates table ols small, keep(zzz)",
+          "lines": ["coefficient zzz does not occur in any of the models"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily estimates table ols small, keep(x1 zzz)",
+          "lines": ["coefficient zzz does not occur in any of the models"]
+        },
+        {
+          "command": "capture noisily estimates table ols small, drop(zzz)",
+          "lines": ["coefficient zzz does not occur in any of the models"]
+        },
+        {
+          "command": "capture noisily estimates table ols small, keep(x1) drop(d)",
+          "lines": ["coefficient d does not occur in any of the models"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily estimates table ols small, keep(X1)",
+          "lines": ["coefficient X1 does not occur in any of the models"]
+        },
+        {
+          "command": "capture noisily estimates table ols small, keep(g)",
+          "lines": ["coefficient g does not occur in any of the models"]
+        },
+        {
+          "command": "capture noisily estimates table ols small, keep(i.d)",
+          "lines": ["coefficient i.d does not occur in any of the models"]
+        },
+        {
+          "command": "capture noisily estimates table ols small, keep(year)",
+          "lines": ["coefficient year does not occur in any of the models"]
+        },
+        {
+          "command": "capture noisily estimates table ols small, keep(c:x1)",
+          "lines": ["coefficient \"c\":x1 does not occur in any of the models"]
+        },
+        {
+          "command": "capture noisily estimates table ols small, drop(x1 x2 d i.g i.year _cons)",
+          "lines": ["conformability error"]
+        },
+        { "command": "display _rc", "lines": ["503"] },
+        {
+          "command": "capture noisily estimates table ols small, keep(d) drop(d)",
+          "lines": ["conformability error"]
+        },
+        { "command": "display _rc", "lines": ["503"] }
+      ]
+    },
+    {
+      "id": "estimates-table-equations",
+      "source": "clear\nset seed 4711\nset obs 320\ngenerate long firm = ceil(_n / 8)\ngenerate int year = 2010 + mod(_n - 1, 8)\ngenerate byte g = 1 + mod(firm, 3)\ngenerate double x1 = runiform() + firm / 80\ngenerate double x2 = runiform() * 2\ngenerate byte d = runiform() > .6\ngenerate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()\ngenerate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())\ngenerate byte any = c > 1\nquietly regress y x1 x2 d i.g i.year, vce(cluster firm)\nestimates store ols\nquietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)\nestimates store fe\nquietly poisson c x1 x2 d i.g i.year, vce(cluster firm)\nestimates store pois\nquietly regress y x1 d\nestimates store small\nquietly logit any x1 i.d\nestimates store lg\nquietly nbreg c x1 d\nestimates store nb\nestimates table ols fe pois\nestimates table ols fe pois, equations(1)\nestimates table ols fe pois, keep(x1 x2 d) b(%7.3f) se(%7.3f) stats(N N_clust) equations(1)\nestimates table ols fe pois small, keep(x1 x2 d) b(%7.3f) se(%7.3f) stats(N N_clust r2 ll) equations(1)\nestimates table ols pois, keep(x1 d) equations(1)\nestimates table ols pois, keep(x1 d) equations(1) star\nestimates table ols pois, equations(1:1)\nestimates table ols pois, equations(main=1:1)\nestimates table pois lg, equations(1) keep(x1 d 1.d)\nestimates table ols small, equations(1)\nestimates table ols small, equations(main=1)\nestimates table nb pois\nestimates table nb pois, equations(1)\nestimates table nb pois, equations(mean=1)\nestimates table nb pois, equations(1) keep(x1 d)\nestimates table nb pois, keep(x1 d)\nestimates table nb pois, equations(1:1, 2:.)\nestimates table nb pois lg, equations(1)\nestimates table ols pois, equations(1) drop(i.year)\nmatrix list r(coef)\ncapture noisily estimates table ols pois, equations(2)\ndisplay _rc\ncapture noisily estimates table ols small, equations(x)\ncapture noisily estimates table ols small, equations(1:1:1)\ncapture noisily estimates table ols small, equations(0)\ncapture noisily estimates table ols pois, keep(#1:x1) equations(1)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4711", "lines": [] },
+        {
+          "command": "set obs 320",
+          "lines": ["Number of observations (_N) was 0, now 320."]
+        },
+        { "command": "generate long firm = ceil(_n / 8)", "lines": [] },
+        { "command": "generate int year = 2010 + mod(_n - 1, 8)", "lines": [] },
+        { "command": "generate byte g = 1 + mod(firm, 3)", "lines": [] },
+        {
+          "command": "generate double x1 = runiform() + firm / 80",
+          "lines": []
+        },
+        { "command": "generate double x2 = runiform() * 2", "lines": [] },
+        { "command": "generate byte d = runiform() > .6", "lines": [] },
+        {
+          "command": "generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())",
+          "lines": []
+        },
+        { "command": "generate byte any = c > 1", "lines": [] },
+        {
+          "command": "quietly regress y x1 x2 d i.g i.year, vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store ols", "lines": [] },
+        {
+          "command": "quietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store fe", "lines": [] },
+        {
+          "command": "quietly poisson c x1 x2 d i.g i.year, vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store pois", "lines": [] },
+        { "command": "quietly regress y x1 d", "lines": [] },
+        { "command": "estimates store small", "lines": [] },
+        { "command": "quietly logit any x1 i.d", "lines": [] },
+        { "command": "estimates store lg", "lines": [] },
+        { "command": "quietly nbreg c x1 d", "lines": [] },
+        { "command": "estimates store nb", "lines": [] },
+        {
+          "command": "estimates table ols fe pois",
+          "lines": [
+            "-----------------------------------------------------",
+            "    Variable |    ols           fe          pois",
+            "-------------+---------------------------------------",
+            "_            |",
+            "          x1 |  .52463299    .56234156",
+            "          x2 | -.25024907   -.24789597",
+            "           d |  .12572133    .14689667",
+            "             |",
+            "           g |",
+            "          2  |  .13265703",
+            "          3  |  .18412638",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599    .04141242",
+            "       2012  |  .02431388    .02834912",
+            "       2013  |   .0016032    -.0018812",
+            "       2014  | -.05790808   -.05569934",
+            "       2015  | -.00851544   -.00902561",
+            "       2016  |  -.0320893   -.03181772",
+            "       2017  | -.04076228   -.04143332",
+            "             |",
+            "       _cons |  1.5595676    1.6261637",
+            "-------------+---------------------------------------",
+            "c            |",
+            "          x1 |                            .68231011",
+            "          x2 |                            .00547952",
+            "           d |                            .37794761",
+            "             |",
+            "           g |",
+            "          2  |                           -.00064548",
+            "          3  |                            .09622328",
+            "             |",
+            "        year |",
+            "       2011  |                            .06961352",
+            "       2012  |                            .24543979",
+            "       2013  |                            .09851574",
+            "       2014  |                           -.04189264",
+            "       2015  |                            .02410214",
+            "       2016  |                            .32795027",
+            "       2017  |                            .01419394",
+            "             |",
+            "       _cons |                            .23222324",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols fe pois, equations(1)",
+          "lines": [
+            "-----------------------------------------------------",
+            "    Variable |    ols           fe          pois",
+            "-------------+---------------------------------------",
+            "          x1 |  .52463299    .56234156    .68231011",
+            "          x2 | -.25024907   -.24789597    .00547952",
+            "           d |  .12572133    .14689667    .37794761",
+            "             |",
+            "           g |",
+            "          2  |  .13265703                -.00064548",
+            "          3  |  .18412638                 .09622328",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599    .04141242    .06961352",
+            "       2012  |  .02431388    .02834912    .24543979",
+            "       2013  |   .0016032    -.0018812    .09851574",
+            "       2014  | -.05790808   -.05569934   -.04189264",
+            "       2015  | -.00851544   -.00902561    .02410214",
+            "       2016  |  -.0320893   -.03181772    .32795027",
+            "       2017  | -.04076228   -.04143332    .01419394",
+            "             |",
+            "       _cons |  1.5595676    1.6261637    .23222324",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols fe pois, keep(x1 x2 d) b(%7.3f) se(%7.3f) stats(N N_clust) equations(1)",
+          "lines": [
+            "--------------------------------------------",
+            "    Variable |   ols       fe       pois",
+            "-------------+------------------------------",
+            "          x1 |   0.525     0.562     0.682",
+            "             |   0.056     0.082     0.112",
+            "          x2 |  -0.250    -0.248     0.005",
+            "             |   0.022     0.027     0.064",
+            "           d |   0.126     0.147     0.378",
+            "             |   0.034     0.038     0.072",
+            "-------------+------------------------------",
+            "           N |     320       320       320",
+            "     N_clust |  40.000    40.000    40.000",
+            "--------------------------------------------",
+            "                                Legend: b/se"
+          ]
+        },
+        {
+          "command": "estimates table ols fe pois small, keep(x1 x2 d) b(%7.3f) se(%7.3f) stats(N N_clust r2 ll) equations(1)",
+          "lines": [
+            "------------------------------------------------------",
+            "    Variable |   ols       fe       pois      small",
+            "-------------+----------------------------------------",
+            "          x1 |   0.525     0.562     0.682     0.437",
+            "             |   0.056     0.082     0.112     0.059",
+            "          x2 |  -0.250    -0.248     0.005",
+            "             |   0.022     0.027     0.064",
+            "           d |   0.126     0.147     0.378     0.121",
+            "             |   0.034     0.038     0.072     0.039",
+            "-------------+----------------------------------------",
+            "           N |     320       320       320       320",
+            "     N_clust |  40.000    40.000    40.000",
+            "          r2 |   0.381     0.458               0.170",
+            "          ll | -56.838   -35.764   -649.411   -103.767",
+            "------------------------------------------------------",
+            "                                          Legend: b/se"
+          ]
+        },
+        {
+          "command": "estimates table ols pois, keep(x1 d) equations(1)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols          pois",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .68231011",
+            "           d |  .12572133    .37794761",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols pois, keep(x1 d) equations(1) star",
+          "lines": [
+            "----------------------------------------------",
+            "    Variable |      ols            pois",
+            "-------------+--------------------------------",
+            "          x1 |  .52463299***    .68231011***",
+            "           d |  .12572133***    .37794761***",
+            "----------------------------------------------",
+            "      Legend: * p<0.05; ** p<0.01; *** p<0.001"
+          ]
+        },
+        {
+          "command": "estimates table ols pois, equations(1:1)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols          pois",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .68231011",
+            "          x2 | -.25024907    .00547952",
+            "           d |  .12572133    .37794761",
+            "             |",
+            "           g |",
+            "          2  |  .13265703   -.00064548",
+            "          3  |  .18412638    .09622328",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599    .06961352",
+            "       2012  |  .02431388    .24543979",
+            "       2013  |   .0016032    .09851574",
+            "       2014  | -.05790808   -.04189264",
+            "       2015  | -.00851544    .02410214",
+            "       2016  |  -.0320893    .32795027",
+            "       2017  | -.04076228    .01419394",
+            "             |",
+            "       _cons |  1.5595676    .23222324",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols pois, equations(main=1:1)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols          pois",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .68231011",
+            "          x2 | -.25024907    .00547952",
+            "           d |  .12572133    .37794761",
+            "             |",
+            "           g |",
+            "          2  |  .13265703   -.00064548",
+            "          3  |  .18412638    .09622328",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599    .06961352",
+            "       2012  |  .02431388    .24543979",
+            "       2013  |   .0016032    .09851574",
+            "       2014  | -.05790808   -.04189264",
+            "       2015  | -.00851544    .02410214",
+            "       2016  |  -.0320893    .32795027",
+            "       2017  | -.04076228    .01419394",
+            "             |",
+            "       _cons |  1.5595676    .23222324",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table pois lg, equations(1) keep(x1 d 1.d)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    pois          lg",
+            "-------------+--------------------------",
+            "          x1 |  .68231011    .60693239",
+            "           d |  .37794761",
+            "         1.d |               .70168895",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, equations(1)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "          x2 | -.25024907",
+            "           d |  .12572133    .12106235",
+            "             |",
+            "           g |",
+            "          2  |  .13265703",
+            "          3  |  .18412638",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599",
+            "       2012  |  .02431388",
+            "       2013  |   .0016032",
+            "       2014  | -.05790808",
+            "       2015  | -.00851544",
+            "       2016  |  -.0320893",
+            "       2017  | -.04076228",
+            "             |",
+            "       _cons |  1.5595676    1.4771389",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, equations(main=1)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "          x2 | -.25024907",
+            "           d |  .12572133    .12106235",
+            "             |",
+            "           g |",
+            "          2  |  .13265703",
+            "          3  |  .18412638",
+            "             |",
+            "        year |",
+            "       2011  |  .03617599",
+            "       2012  |  .02431388",
+            "       2013  |   .0016032",
+            "       2014  | -.05790808",
+            "       2015  | -.00851544",
+            "       2016  |  -.0320893",
+            "       2017  | -.04076228",
+            "             |",
+            "       _cons |  1.5595676    1.4771389",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table nb pois",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     nb          pois",
+            "-------------+--------------------------",
+            "c            |",
+            "          x1 |  .67388476    .68231011",
+            "           d |  .38069713    .37794761",
+            "          x2 |               .00547952",
+            "             |",
+            "           g |",
+            "          2  |              -.00064548",
+            "          3  |               .09622328",
+            "             |",
+            "        year |",
+            "       2011  |               .06961352",
+            "       2012  |               .24543979",
+            "       2013  |               .09851574",
+            "       2014  |              -.04189264",
+            "       2015  |               .02410214",
+            "       2016  |               .32795027",
+            "       2017  |               .01419394",
+            "             |",
+            "       _cons |    .374118    .23222324",
+            "-------------+--------------------------",
+            "    /lnalpha | -2.0108551",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table nb pois, equations(1)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     nb          pois",
+            "-------------+--------------------------",
+            "#1           |",
+            "          x1 |  .67388476    .68231011",
+            "           d |  .38069713    .37794761",
+            "          x2 |               .00547952",
+            "             |",
+            "           g |",
+            "          2  |              -.00064548",
+            "          3  |               .09622328",
+            "             |",
+            "        year |",
+            "       2011  |               .06961352",
+            "       2012  |               .24543979",
+            "       2013  |               .09851574",
+            "       2014  |              -.04189264",
+            "       2015  |               .02410214",
+            "       2016  |               .32795027",
+            "       2017  |               .01419394",
+            "             |",
+            "       _cons |    .374118    .23222324",
+            "-------------+--------------------------",
+            "    /lnalpha | -2.0108551",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table nb pois, equations(mean=1)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     nb          pois",
+            "-------------+--------------------------",
+            "mean         |",
+            "          x1 |  .67388476    .68231011",
+            "           d |  .38069713    .37794761",
+            "          x2 |               .00547952",
+            "             |",
+            "           g |",
+            "          2  |              -.00064548",
+            "          3  |               .09622328",
+            "             |",
+            "        year |",
+            "       2011  |               .06961352",
+            "       2012  |               .24543979",
+            "       2013  |               .09851574",
+            "       2014  |              -.04189264",
+            "       2015  |               .02410214",
+            "       2016  |               .32795027",
+            "       2017  |               .01419394",
+            "             |",
+            "       _cons |    .374118    .23222324",
+            "-------------+--------------------------",
+            "    /lnalpha | -2.0108551",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table nb pois, equations(1) keep(x1 d)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     nb          pois",
+            "-------------+--------------------------",
+            "          x1 |  .67388476    .68231011",
+            "           d |  .38069713    .37794761",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table nb pois, keep(x1 d)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     nb          pois",
+            "-------------+--------------------------",
+            "          x1 |  .67388476    .68231011",
+            "           d |  .38069713    .37794761",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table nb pois, equations(1:1, 2:.)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |     nb          pois",
+            "-------------+--------------------------",
+            "#1           |",
+            "          x1 |  .67388476    .68231011",
+            "           d |  .38069713    .37794761",
+            "          x2 |               .00547952",
+            "             |",
+            "           g |",
+            "          2  |              -.00064548",
+            "          3  |               .09622328",
+            "             |",
+            "        year |",
+            "       2011  |               .06961352",
+            "       2012  |               .24543979",
+            "       2013  |               .09851574",
+            "       2014  |              -.04189264",
+            "       2015  |               .02410214",
+            "       2016  |               .32795027",
+            "       2017  |               .01419394",
+            "             |",
+            "       _cons |    .374118    .23222324",
+            "-------------+--------------------------",
+            "#2           |",
+            "     lnalpha | -2.0108551",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table nb pois lg, equations(1)",
+          "lines": [
+            "-----------------------------------------------------",
+            "    Variable |     nb          pois          lg",
+            "-------------+---------------------------------------",
+            "#1           |",
+            "          x1 |  .67388476    .68231011    .60693239",
+            "           d |  .38069713    .37794761",
+            "          x2 |               .00547952",
+            "             |",
+            "           g |",
+            "          2  |              -.00064548",
+            "          3  |               .09622328",
+            "             |",
+            "        year |",
+            "       2011  |               .06961352",
+            "       2012  |               .24543979",
+            "       2013  |               .09851574",
+            "       2014  |              -.04189264",
+            "       2015  |               .02410214",
+            "       2016  |               .32795027",
+            "       2017  |               .01419394",
+            "             |",
+            "           d |",
+            "          1  |                            .70168895",
+            "             |",
+            "       _cons |    .374118    .23222324    .17263815",
+            "-------------+---------------------------------------",
+            "    /lnalpha | -2.0108551",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols pois, equations(1) drop(i.year)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols          pois",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .68231011",
+            "          x2 | -.25024907    .00547952",
+            "           d |  .12572133    .37794761",
+            "             |",
+            "           g |",
+            "          2  |  .13265703   -.00064548",
+            "          3  |  .18412638    .09622328",
+            "             |",
+            "       _cons |  1.5595676    .23222324",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "matrix list r(coef)",
+          "lines": [
+            "r(coef)[7,4]",
+            "                 ols:        ols:       pois:       pois:",
+            "                   b         var           b         var",
+            "   #1:x1   .52463299   .00313059   .68231011   .01243716",
+            "   #1:x2  -.25024907   .00050489   .00547952   .00415376",
+            "    #1:d   .12572133   .00112611   .37794761   .00522274",
+            "  #1:1.g          .b          .b          .b          .b",
+            "  #1:2.g   .13265703   .00146951  -.00064548   .01041482",
+            "  #1:3.g   .18412638   .00139063   .09622328   .00954177",
+            "#1:_cons   1.5595676   .00635869   .23222324   .03164299"
+          ]
+        },
+        {
+          "command": "capture noisily estimates table ols pois, equations(2)",
+          "lines": [
+            "option equations() invalid",
+            "equation number 2 for model 1 out of range"
+          ]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily estimates table ols small, equations(x)",
+          "lines": [
+            "option equations() invalid",
+            "x was found, while an integer equation number was expected"
+          ]
+        },
+        {
+          "command": "capture noisily estimates table ols small, equations(1:1:1)",
+          "lines": [
+            "option equations() invalid",
+            "a term should consist of either 1 or 2 equation numbers"
+          ]
+        },
+        {
+          "command": "capture noisily estimates table ols small, equations(0)",
+          "lines": [
+            "option equations() invalid",
+            "equation number 0 for model 1 out of range"
+          ]
+        },
+        {
+          "command": "capture noisily estimates table ols pois, keep(#1:x1) equations(1)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols          pois",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .68231011",
+            "----------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "estimates-table-t-p-eform",
+      "source": "clear\nset seed 4711\nset obs 320\ngenerate long firm = ceil(_n / 8)\ngenerate int year = 2010 + mod(_n - 1, 8)\ngenerate byte g = 1 + mod(firm, 3)\ngenerate double x1 = runiform() + firm / 80\ngenerate double x2 = runiform() * 2\ngenerate byte d = runiform() > .6\ngenerate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()\ngenerate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())\ngenerate byte any = c > 1\nquietly regress y x1 x2 d i.g i.year, vce(cluster firm)\nestimates store ols\nquietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)\nestimates store fe\nquietly poisson c x1 x2 d i.g i.year, vce(cluster firm)\nestimates store pois\nquietly regress y x1 d\nestimates store small\nquietly logit any x1 i.d\nestimates store lg\nestimates table ols small, keep(x1 d) t\nestimates table ols small, keep(x1 d) p\nestimates table ols small, keep(x1 d) se t p\nestimates table ols small, keep(x1 d) b(%7.3f) t(%6.2f) p(%5.3f)\nestimates table ols small, keep(x1 d) t(%8.3f) modelwidth(12)\nestimates table ols small, keep(x1 d) b(%7.3f) p\nestimates table ols small, keep(x1 d) b(%12.5f) t p(%5.3f)\nestimates table ols fe pois lg, equations(1) keep(x1 d) t p\nestimates table ols small, drop(i.year) se t\nestimates table ols small, keep(x1 d) eform\nestimates table ols small, keep(x1 d _cons) eform se\nestimates table ols small, keep(x1 d) eform t p\nestimates table pois, eform star drop(i.year)\nestimates table ols small, keep(x1 d) title(Two models)\nestimates table ols small, keep(x1 d) title(\"Quoted title\") stats(N)\nestimates table ols small, keep(x1 d) varwidth(20)\nestimates table ols small, keep(x1 d) varwidth(8)\nestimates table ols small, varwidth(8) drop(i.year)\nestimates table ols small, varwidth(16) drop(i.year) se stats(N r2)\nestimates table ols pois, varwidth(16) drop(i.year)\nestimates table ols small, keep(x1 d) stats(N r2) stfmt(%9.2f)\ncapture noisily estimates table ols small, keep(x1 d) label\ndisplay _rc\ncapture noisily estimates table ols small, keep(x1 d) se star\ncapture noisily estimates table ols small, keep(x1 d) t star\ncapture noisily estimates table ols small, keep(x1 d) varwidth(5)\ncapture noisily estimates table ols small, keep(x1 d) varwidth(7)\ncapture noisily estimates table ols small, keep(x1 d) varwidth(32)\ncapture noisily estimates table ols small, keep(x1 d) varwidth(33)\ncapture noisily estimates table ols small, keep(x1 d) t(%9.2g) p(abc)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4711", "lines": [] },
+        {
+          "command": "set obs 320",
+          "lines": ["Number of observations (_N) was 0, now 320."]
+        },
+        { "command": "generate long firm = ceil(_n / 8)", "lines": [] },
+        { "command": "generate int year = 2010 + mod(_n - 1, 8)", "lines": [] },
+        { "command": "generate byte g = 1 + mod(firm, 3)", "lines": [] },
+        {
+          "command": "generate double x1 = runiform() + firm / 80",
+          "lines": []
+        },
+        { "command": "generate double x2 = runiform() * 2", "lines": [] },
+        { "command": "generate byte d = runiform() > .6", "lines": [] },
+        {
+          "command": "generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())",
+          "lines": []
+        },
+        { "command": "generate byte any = c > 1", "lines": [] },
+        {
+          "command": "quietly regress y x1 x2 d i.g i.year, vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store ols", "lines": [] },
+        {
+          "command": "quietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store fe", "lines": [] },
+        {
+          "command": "quietly poisson c x1 x2 d i.g i.year, vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store pois", "lines": [] },
+        { "command": "quietly regress y x1 d", "lines": [] },
+        { "command": "estimates store small", "lines": [] },
+        { "command": "quietly logit any x1 i.d", "lines": [] },
+        { "command": "estimates store lg", "lines": [] },
+        {
+          "command": "estimates table ols small, keep(x1 d) t",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "             |       9.38         7.43",
+            "           d |  .12572133    .12106235",
+            "             |       3.75         3.11",
+            "----------------------------------------",
+            "                             Legend: b/t"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d) p",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "             |     0.0000       0.0000",
+            "           d |  .12572133    .12106235",
+            "             |     0.0006       0.0020",
+            "----------------------------------------",
+            "                             Legend: b/p"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d) se t p",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "             |  .05595169    .05884056",
+            "             |       9.38         7.43",
+            "             |     0.0000       0.0000",
+            "           d |  .12572133    .12106235",
+            "             |  .03355762    .03889051",
+            "             |       3.75         3.11",
+            "             |     0.0006       0.0020",
+            "----------------------------------------",
+            "                        Legend: b/se/t/p"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d) b(%7.3f) t(%6.2f) p(%5.3f)",
+          "lines": [
+            "----------------------------------",
+            "    Variable |   ols      small",
+            "-------------+--------------------",
+            "          x1 |   0.525     0.437",
+            "             |    9.38      7.43",
+            "             |   0.000     0.000",
+            "           d |   0.126     0.121",
+            "             |    3.75      3.11",
+            "             |   0.001     0.002",
+            "----------------------------------",
+            "                     Legend: b/t/p"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d) t(%8.3f) modelwidth(12)",
+          "lines": [
+            "--------------------------------------------",
+            "    Variable |     ols           small",
+            "-------------+------------------------------",
+            "          x1 |    .52463299      .43728957",
+            "             |        9.377          7.432",
+            "           d |    .12572133      .12106235",
+            "             |        3.746          3.113",
+            "--------------------------------------------",
+            "                                 Legend: b/t"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d) b(%7.3f) p",
+          "lines": [
+            "----------------------------------",
+            "    Variable |   ols      small",
+            "-------------+--------------------",
+            "          x1 |   0.525     0.437",
+            "             |  0.0000    0.0000",
+            "           d |   0.126     0.121",
+            "             |  0.0006    0.0020",
+            "----------------------------------",
+            "                       Legend: b/p"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d) b(%12.5f) t p(%5.3f)",
+          "lines": [
+            "--------------------------------------------",
+            "    Variable |     ols           small",
+            "-------------+------------------------------",
+            "          x1 |      0.52463        0.43729",
+            "             |         9.38           7.43",
+            "             |        0.000          0.000",
+            "           d |      0.12572        0.12106",
+            "             |         3.75           3.11",
+            "             |        0.001          0.002",
+            "--------------------------------------------",
+            "                               Legend: b/t/p"
+          ]
+        },
+        {
+          "command": "estimates table ols fe pois lg, equations(1) keep(x1 d) t p",
+          "lines": [
+            "------------------------------------------------------------------",
+            "    Variable |    ols           fe          pois          lg",
+            "-------------+----------------------------------------------------",
+            "          x1 |  .52463299    .56234156    .68231011    .60693239",
+            "             |       9.38         6.89         6.12         1.55",
+            "             |     0.0000       0.0000       0.0000       0.1210",
+            "           d |  .12572133    .14689667    .37794761",
+            "             |       3.75         3.88         5.23",
+            "             |     0.0006       0.0004       0.0000",
+            "------------------------------------------------------------------",
+            "                                                     Legend: b/t/p"
+          ]
+        },
+        {
+          "command": "estimates table ols small, drop(i.year) se t",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "             |  .05595169    .05884056",
+            "             |       9.38         7.43",
+            "          x2 | -.25024907",
+            "             |  .02246983",
+            "             |     -11.14",
+            "           d |  .12572133    .12106235",
+            "             |  .03355762    .03889051",
+            "             |       3.75         3.11",
+            "             |",
+            "           g |",
+            "          2  |  .13265703",
+            "             |  .03833424",
+            "             |       3.46",
+            "          3  |  .18412638",
+            "             |  .03729114",
+            "             |       4.94",
+            "             |",
+            "       _cons |  1.5595676    1.4771389",
+            "             |  .07974139    .05048053",
+            "             |      19.56        29.26",
+            "----------------------------------------",
+            "                          Legend: b/se/t"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d) eform",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  1.6898385    1.5485044",
+            "           d |  1.1339661    1.1286953",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d _cons) eform se",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  1.6898385    1.5485044",
+            "             |  .09454933    .09111487",
+            "           d |  1.1339661    1.1286953",
+            "             |   .0380532    .04389553",
+            "       _cons |  4.7567641    4.3803949",
+            "             |    .379311    .22112467",
+            "----------------------------------------",
+            "                            Legend: b/se"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d) eform t p",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  1.6898385    1.5485044",
+            "             |       9.38         7.43",
+            "             |     0.0000       0.0000",
+            "           d |  1.1339661    1.1286953",
+            "             |       3.75         3.11",
+            "             |     0.0006       0.0020",
+            "----------------------------------------",
+            "                           Legend: b/t/p"
+          ]
+        },
+        {
+          "command": "estimates table pois, eform star drop(i.year)",
+          "lines": [
+            "------------------------------",
+            "    Variable |     pois",
+            "-------------+----------------",
+            "          x1 |  1.9784429***",
+            "          x2 |  1.0054946",
+            "           d |  1.4592865***",
+            "             |",
+            "           g |",
+            "          2  |  .99935473",
+            "          3  |  1.1010049",
+            "             |",
+            "       _cons |  1.2614013",
+            "------------------------------",
+            "Legend: * p<0.05; ** p<0.01; *** p<0.001"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d) title(Two models)",
+          "lines": [
+            "Two models",
+            "",
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "           d |  .12572133    .12106235",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d) title(\"Quoted title\") stats(N)",
+          "lines": [
+            "Quoted title",
+            "",
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "           d |  .12572133    .12106235",
+            "-------------+--------------------------",
+            "           N |        320          320",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d) varwidth(20)",
+          "lines": [
+            "------------------------------------------------",
+            "            Variable |    ols         small",
+            "---------------------+--------------------------",
+            "                  x1 |  .52463299    .43728957",
+            "                   d |  .12572133    .12106235",
+            "------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d) varwidth(8)",
+          "lines": [
+            "------------------------------------",
+            "Variable |    ols         small",
+            "---------+--------------------------",
+            "      x1 |  .52463299    .43728957",
+            "       d |  .12572133    .12106235",
+            "------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, varwidth(8) drop(i.year)",
+          "lines": [
+            "------------------------------------",
+            "Variable |    ols         small",
+            "---------+--------------------------",
+            "      x1 |  .52463299    .43728957",
+            "      x2 | -.25024907",
+            "       d |  .12572133    .12106235",
+            "         |",
+            "       g |",
+            "      2  |  .13265703",
+            "      3  |  .18412638",
+            "         |",
+            "   _cons |  1.5595676    1.4771389",
+            "------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, varwidth(16) drop(i.year) se stats(N r2)",
+          "lines": [
+            "--------------------------------------------",
+            "        Variable |    ols         small",
+            "-----------------+--------------------------",
+            "              x1 |  .52463299    .43728957",
+            "                 |  .05595169    .05884056",
+            "              x2 | -.25024907",
+            "                 |  .02246983",
+            "               d |  .12572133    .12106235",
+            "                 |  .03355762    .03889051",
+            "                 |",
+            "               g |",
+            "              2  |  .13265703",
+            "                 |  .03833424",
+            "              3  |  .18412638",
+            "                 |  .03729114",
+            "                 |",
+            "           _cons |  1.5595676    1.4771389",
+            "                 |  .07974139    .05048053",
+            "-----------------+--------------------------",
+            "               N |        320          320",
+            "              r2 |  .38124993    .17035036",
+            "--------------------------------------------",
+            "                                Legend: b/se"
+          ]
+        },
+        {
+          "command": "estimates table ols pois, varwidth(16) drop(i.year)",
+          "lines": [
+            "--------------------------------------------",
+            "        Variable |    ols          pois",
+            "-----------------+--------------------------",
+            "_                |",
+            "              x1 |  .52463299",
+            "              x2 | -.25024907",
+            "               d |  .12572133",
+            "                 |",
+            "               g |",
+            "              2  |  .13265703",
+            "              3  |  .18412638",
+            "                 |",
+            "           _cons |  1.5595676",
+            "-----------------+--------------------------",
+            "c                |",
+            "              x1 |               .68231011",
+            "              x2 |               .00547952",
+            "               d |               .37794761",
+            "                 |",
+            "               g |",
+            "              2  |              -.00064548",
+            "              3  |               .09622328",
+            "                 |",
+            "           _cons |               .23222324",
+            "--------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table ols small, keep(x1 d) stats(N r2) stfmt(%9.2f)",
+          "lines": [
+            "----------------------------------------",
+            "    Variable |    ols         small",
+            "-------------+--------------------------",
+            "          x1 |  .52463299    .43728957",
+            "           d |  .12572133    .12106235",
+            "-------------+--------------------------",
+            "           N |        320          320",
+            "          r2 |       0.38         0.17",
+            "----------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily estimates table ols small, keep(x1 d) label",
+          "lines": ["option label not allowed"]
+        },
+        { "command": "display _rc", "lines": ["198"] },
+        {
+          "command": "capture noisily estimates table ols small, keep(x1 d) se star",
+          "lines": ["option star may not be combined with se, t, or p"]
+        },
+        {
+          "command": "capture noisily estimates table ols small, keep(x1 d) t star",
+          "lines": ["option star may not be combined with se, t, or p"]
+        },
+        {
+          "command": "capture noisily estimates table ols small, keep(x1 d) varwidth(5)",
+          "lines": [
+            "------------------------------------",
+            "Variable |    ols         small",
+            "---------+--------------------------",
+            "      x1 |  .52463299    .43728957",
+            "       d |  .12572133    .12106235",
+            "------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily estimates table ols small, keep(x1 d) varwidth(7)",
+          "lines": [
+            "------------------------------------",
+            "Variable |    ols         small",
+            "---------+--------------------------",
+            "      x1 |  .52463299    .43728957",
+            "       d |  .12572133    .12106235",
+            "------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily estimates table ols small, keep(x1 d) varwidth(32)",
+          "lines": [
+            "------------------------------------------------------------",
+            "                        Variable |    ols         small",
+            "---------------------------------+--------------------------",
+            "                              x1 |  .52463299    .43728957",
+            "                               d |  .12572133    .12106235",
+            "------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily estimates table ols small, keep(x1 d) varwidth(33)",
+          "lines": [
+            "-------------------------------------------------------------",
+            "                         Variable |    ols         small",
+            "----------------------------------+--------------------------",
+            "                               x1 |  .52463299    .43728957",
+            "                                d |  .12572133    .12106235",
+            "-------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "capture noisily estimates table ols small, keep(x1 d) t(%9.2g) p(abc)",
+          "lines": ["invalid display format abc"]
+        }
+      ]
+    },
+    {
+      "id": "estimates-table-long-names",
+      "source": "clear\nset seed 4711\nset obs 320\ngenerate long firm = ceil(_n / 8)\ngenerate int year = 2010 + mod(_n - 1, 8)\ngenerate byte g = 1 + mod(firm, 3)\ngenerate double x1 = runiform() + firm / 80\ngenerate double x2 = runiform() * 2\ngenerate byte d = runiform() > .6\ngenerate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()\ngenerate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())\ngenerate byte any = c > 1\nquietly regress y x1 x2 d i.g i.year, vce(cluster firm)\nestimates store ols\nquietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)\nestimates store fe\nquietly poisson c x1 x2 d i.g i.year, vce(cluster firm)\nestimates store pois\nquietly regress y x1 d\nestimates store small\nquietly logit any x1 i.d\nestimates store lg\nestimates restore ols\nestimates store baseline\nestimates store date_screen\nestimates store a_very_long_model_name\ngenerate double turnover_winsorized = x1\nquietly regress y turnover_winsorized d\nestimates store uncapped\nestimates table baseline date_screen uncapped, keep(x1 turnover_winsorized d) b(%7.3f) se(%7.3f)\nestimates table baseline date_screen a_very_long_model_name, keep(x1 d)\nestimates table baseline date_screen a_very_long_model_name, keep(x1 d) star\nestimates table baseline date_screen a_very_long_model_name, keep(x1 d) modelwidth(14)\nestimates table baseline date_screen a_very_long_model_name, keep(x1 d) b(%5.2f)\nestimates table baseline date_screen a_very_long_model_name, keep(x1 d) b(%7.3f) star\nestimates table baseline date_screen uncapped, keep(x1 turnover_winsorized d) varwidth(24)\nestimates table baseline date_screen uncapped small pois fe lg a_very_long_model_name, keep(x1 d) equations(1) title(Wraps)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4711", "lines": [] },
+        {
+          "command": "set obs 320",
+          "lines": ["Number of observations (_N) was 0, now 320."]
+        },
+        { "command": "generate long firm = ceil(_n / 8)", "lines": [] },
+        { "command": "generate int year = 2010 + mod(_n - 1, 8)", "lines": [] },
+        { "command": "generate byte g = 1 + mod(firm, 3)", "lines": [] },
+        {
+          "command": "generate double x1 = runiform() + firm / 80",
+          "lines": []
+        },
+        { "command": "generate double x2 = runiform() * 2", "lines": [] },
+        { "command": "generate byte d = runiform() > .6", "lines": [] },
+        {
+          "command": "generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())",
+          "lines": []
+        },
+        { "command": "generate byte any = c > 1", "lines": [] },
+        {
+          "command": "quietly regress y x1 x2 d i.g i.year, vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store ols", "lines": [] },
+        {
+          "command": "quietly areg y x1 x2 d i.year, absorb(firm) vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store fe", "lines": [] },
+        {
+          "command": "quietly poisson c x1 x2 d i.g i.year, vce(cluster firm)",
+          "lines": []
+        },
+        { "command": "estimates store pois", "lines": [] },
+        { "command": "quietly regress y x1 d", "lines": [] },
+        { "command": "estimates store small", "lines": [] },
+        { "command": "quietly logit any x1 i.d", "lines": [] },
+        { "command": "estimates store lg", "lines": [] },
+        {
+          "command": "estimates restore ols",
+          "lines": ["(results ols are active now)"]
+        },
+        { "command": "estimates store baseline", "lines": [] },
+        { "command": "estimates store date_screen", "lines": [] },
+        { "command": "estimates store a_very_long_model_name", "lines": [] },
+        { "command": "generate double turnover_winsorized = x1", "lines": [] },
+        { "command": "quietly regress y turnover_winsorized d", "lines": [] },
+        { "command": "estimates store uncapped", "lines": [] },
+        {
+          "command": "estimates table baseline date_screen uncapped, keep(x1 turnover_winsorized d) b(%7.3f) se(%7.3f)",
+          "lines": [
+            "--------------------------------------------",
+            "    Variable | basel~e   date_~n   uncap~d",
+            "-------------+------------------------------",
+            "          x1 |   0.525     0.525",
+            "             |   0.056     0.056",
+            "turnover_w~d |                       0.437",
+            "             |                       0.059",
+            "           d |   0.126     0.126     0.121",
+            "             |   0.034     0.034     0.039",
+            "--------------------------------------------",
+            "                                Legend: b/se"
+          ]
+        },
+        {
+          "command": "estimates table baseline date_screen a_very_long_model_name, keep(x1 d)",
+          "lines": [
+            "-----------------------------------------------------",
+            "    Variable |  baseline    date_scr~n   a_very_l~e",
+            "-------------+---------------------------------------",
+            "          x1 |  .52463299    .52463299    .52463299",
+            "           d |  .12572133    .12572133    .12572133",
+            "-----------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table baseline date_screen a_very_long_model_name, keep(x1 d) star",
+          "lines": [
+            "--------------------------------------------------------------",
+            "    Variable |   baseline       date_screen    a_very_long~e",
+            "-------------+------------------------------------------------",
+            "          x1 |  .52463299***    .52463299***    .52463299***",
+            "           d |  .12572133***    .12572133***    .12572133***",
+            "--------------------------------------------------------------",
+            "                      Legend: * p<0.05; ** p<0.01; *** p<0.001"
+          ]
+        },
+        {
+          "command": "estimates table baseline date_screen a_very_long_model_name, keep(x1 d) modelwidth(14)",
+          "lines": [
+            "-----------------------------------------------------------------",
+            "    Variable |    baseline       date_screen     a_very_long_~e",
+            "-------------+---------------------------------------------------",
+            "          x1 |      .52463299        .52463299        .52463299",
+            "           d |      .12572133        .12572133        .12572133",
+            "-----------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table baseline date_screen a_very_long_model_name, keep(x1 d) b(%5.2f)",
+          "lines": [
+            "--------------------------------------------",
+            "    Variable | basel~e   date_~n   a_ver~e",
+            "-------------+------------------------------",
+            "          x1 |    0.52      0.52      0.52",
+            "           d |    0.13      0.13      0.13",
+            "--------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table baseline date_screen a_very_long_model_name, keep(x1 d) b(%7.3f) star",
+          "lines": [
+            "-----------------------------------------------------",
+            "    Variable |  baseline    date_scr~n   a_very_l~e",
+            "-------------+---------------------------------------",
+            "          x1 |   0.525***     0.525***     0.525***",
+            "           d |   0.126***     0.126***     0.126***",
+            "-----------------------------------------------------",
+            "             Legend: * p<0.05; ** p<0.01; *** p<0.001"
+          ]
+        },
+        {
+          "command": "estimates table baseline date_screen uncapped, keep(x1 turnover_winsorized d) varwidth(24)",
+          "lines": [
+            "-----------------------------------------------------------------",
+            "                Variable |  baseline    date_scr~n    uncapped",
+            "-------------------------+---------------------------------------",
+            "                      x1 |  .52463299    .52463299",
+            "     turnover_winsorized |                            .43728957",
+            "                       d |  .12572133    .12572133    .12106235",
+            "-----------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "estimates table baseline date_screen uncapped small pois fe lg a_very_long_model_name, keep(x1 d) equations(1) title(Wraps)",
+          "lines": [
+            "Wraps",
+            "",
+            "----------------------------------------------------------------------------------------------------------------------",
+            "    Variable |  baseline    date_scr~n    uncapped      small         pois          fe           lg       a_very_l~e",
+            "-------------+--------------------------------------------------------------------------------------------------------",
+            "          x1 |  .52463299    .52463299                 .43728957    .68231011    .56234156    .60693239    .52463299",
+            "           d |  .12572133    .12572133    .12106235    .12106235    .37794761    .14689667                 .12572133",
+            "----------------------------------------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cluster-note-wide-stub",
+      "source": "clear\nset seed 4711\nset obs 320\ngenerate long firm = ceil(_n / 8)\ngenerate int year = 2010 + mod(_n - 1, 8)\ngenerate byte g = 1 + mod(firm, 3)\ngenerate double x1 = runiform() + firm / 80\ngenerate double x2 = runiform() * 2\ngenerate byte d = runiform() > .6\ngenerate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()\ngenerate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())\ngenerate byte any = c > 1\ngenerate double turnover_winsorized = x1\ngenerate byte dual_proxy = d\nregress y i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm)\nregress y i.dual_proxy##c.x1 x2, vce(cluster firm)\nregress y i.dual_proxy#i.g x2, vce(cluster firm)\nregress y i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm) noheader\nregress y i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm) noci\nregress y i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm) nolstretch\nareg y i.dual_proxy##c.turnover_winsorized x2, absorb(firm) vce(cluster firm)\nxtset firm year\nxtreg y i.dual_proxy##c.turnover_winsorized x2, fe vce(cluster firm)\npoisson c i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm)\nlogit any i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4711", "lines": [] },
+        {
+          "command": "set obs 320",
+          "lines": ["Number of observations (_N) was 0, now 320."]
+        },
+        { "command": "generate long firm = ceil(_n / 8)", "lines": [] },
+        { "command": "generate int year = 2010 + mod(_n - 1, 8)", "lines": [] },
+        { "command": "generate byte g = 1 + mod(firm, 3)", "lines": [] },
+        {
+          "command": "generate double x1 = runiform() + firm / 80",
+          "lines": []
+        },
+        { "command": "generate double x2 = runiform() * 2", "lines": [] },
+        { "command": "generate byte d = runiform() > .6", "lines": [] },
+        {
+          "command": "generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())",
+          "lines": []
+        },
+        { "command": "generate byte any = c > 1", "lines": [] },
+        { "command": "generate double turnover_winsorized = x1", "lines": [] },
+        { "command": "generate byte dual_proxy = d", "lines": [] },
+        {
+          "command": "regress y i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm)",
+          "lines": [
+            "Linear regression                               Number of obs     =        320",
+            "                                                F(4, 39)          =      65.61",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.3337",
+            "                                                Root MSE          =     .30227",
+            "",
+            "                                                      (Std. err. adjusted for 40 clusters in firm)",
+            "--------------------------------------------------------------------------------------------------",
+            "                                 |               Robust",
+            "                               y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "---------------------------------+----------------------------------------------------------------",
+            "                    1.dual_proxy |   .0325942   .0755182     0.43   0.668    -.1201558    .1853442",
+            "             turnover_winsorized |   .4578758    .058353     7.85   0.000     .3398457    .5759059",
+            "                                 |",
+            "dual_proxy#c.turnover_winsorized |",
+            "                              1  |   .1145688   .0971047     1.18   0.245    -.0818441    .3109817",
+            "                                 |",
+            "                              x2 |  -.2457393   .0238056   -10.32   0.000    -.2938907   -.1975879",
+            "                           _cons |    1.70462    .058147    29.32   0.000     1.587007    1.822233",
+            "--------------------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y i.dual_proxy##c.x1 x2, vce(cluster firm)",
+          "lines": [
+            "Linear regression                               Number of obs     =        320",
+            "                                                F(4, 39)          =      65.61",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.3337",
+            "                                                Root MSE          =     .30227",
+            "",
+            "                                     (Std. err. adjusted for 40 clusters in firm)",
+            "---------------------------------------------------------------------------------",
+            "                |               Robust",
+            "              y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "----------------+----------------------------------------------------------------",
+            "   1.dual_proxy |   .0325942   .0755182     0.43   0.668    -.1201558    .1853442",
+            "             x1 |   .4578758    .058353     7.85   0.000     .3398457    .5759059",
+            "                |",
+            "dual_proxy#c.x1 |",
+            "             1  |   .1145688   .0971047     1.18   0.245    -.0818441    .3109817",
+            "                |",
+            "             x2 |  -.2457393   .0238056   -10.32   0.000    -.2938907   -.1975879",
+            "          _cons |    1.70462    .058147    29.32   0.000     1.587007    1.822233",
+            "---------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y i.dual_proxy#i.g x2, vce(cluster firm)",
+          "lines": [
+            "Linear regression                               Number of obs     =        320",
+            "                                                F(6, 39)          =      11.76",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.1764",
+            "                                                Root MSE          =     .33715",
+            "",
+            "                                  (Std. err. adjusted for 40 clusters in firm)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "dual_proxy#g |",
+            "        0 2  |   .1205671   .0530672     2.27   0.029     .0132286    .2279056",
+            "        0 3  |   .1336589    .058567     2.28   0.028     .0151959    .2521219",
+            "        1 1  |   .1085133   .0674191     1.61   0.116    -.0278547    .2448814",
+            "        1 2  |   .2361472   .0534706     4.42   0.000     .1279926    .3443018",
+            "        1 3  |   .2882554   .0877021     3.29   0.002     .1108611    .4656497",
+            "             |",
+            "          x2 |  -.2159923   .0298172    -7.24   0.000    -.2763032   -.1556814",
+            "       _cons |   1.935165   .0453595    42.66   0.000     1.843417    2.026913",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm) noheader",
+          "lines": [
+            "                                                      (Std. err. adjusted for 40 clusters in firm)",
+            "--------------------------------------------------------------------------------------------------",
+            "                                 |               Robust",
+            "                               y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "---------------------------------+----------------------------------------------------------------",
+            "                    1.dual_proxy |   .0325942   .0755182     0.43   0.668    -.1201558    .1853442",
+            "             turnover_winsorized |   .4578758    .058353     7.85   0.000     .3398457    .5759059",
+            "                                 |",
+            "dual_proxy#c.turnover_winsorized |",
+            "                              1  |   .1145688   .0971047     1.18   0.245    -.0818441    .3109817",
+            "                                 |",
+            "                              x2 |  -.2457393   .0238056   -10.32   0.000    -.2938907   -.1975879",
+            "                           _cons |    1.70462    .058147    29.32   0.000     1.587007    1.822233",
+            "--------------------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm) noci",
+          "lines": [
+            "Linear regression                               Number of obs     =        320",
+            "                                                F(4, 39)          =      65.61",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.3337",
+            "                                                Root MSE          =     .30227",
+            "",
+            "                             (Std. err. adjusted for 40 clusters in firm)",
+            "-------------------------------------------------------------------------",
+            "                                 |               Robust",
+            "                               y | Coefficient  std. err.      t    P>|t|",
+            "---------------------------------+---------------------------------------",
+            "                    1.dual_proxy |   .0325942   .0755182     0.43   0.668",
+            "             turnover_winsorized |   .4578758    .058353     7.85   0.000",
+            "                                 |",
+            "dual_proxy#c.turnover_winsorized |",
+            "                              1  |   .1145688   .0971047     1.18   0.245",
+            "                                 |",
+            "                              x2 |  -.2457393   .0238056   -10.32   0.000",
+            "                           _cons |    1.70462    .058147    29.32   0.000",
+            "-------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "regress y i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm) nolstretch",
+          "lines": [
+            "Linear regression                               Number of obs     =        320",
+            "                                                F(4, 39)          =      65.61",
+            "                                                Prob > F          =     0.0000",
+            "                                                R-squared         =     0.3337",
+            "                                                Root MSE          =     .30227",
+            "",
+            "                                  (Std. err. adjusted for 40 clusters in firm)",
+            "------------------------------------------------------------------------------",
+            "             |               Robust",
+            "           y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "1.dual_proxy |   .0325942   .0755182     0.43   0.668    -.1201558    .1853442",
+            "turnover_w~d |   .4578758    .058353     7.85   0.000     .3398457    .5759059",
+            "             |",
+            "  dual_proxy#|",
+            "          c. |",
+            "turnover_w~d |",
+            "          1  |   .1145688   .0971047     1.18   0.245    -.0818441    .3109817",
+            "             |",
+            "          x2 |  -.2457393   .0238056   -10.32   0.000    -.2938907   -.1975879",
+            "       _cons |    1.70462    .058147    29.32   0.000     1.587007    1.822233",
+            "------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "areg y i.dual_proxy##c.turnover_winsorized x2, absorb(firm) vce(cluster firm)",
+          "lines": [
+            "Linear regression, absorbing indicators             Number of obs     =    320",
+            "Absorbed variable: firm                             No. of categories =     40",
+            "                                                    F(4, 39)          =  41.96",
+            "                                                    Prob > F          = 0.0000",
+            "                                                    R-squared         = 0.4508",
+            "                                                    Adj R-squared     = 0.3653",
+            "                                                    Root MSE          = 0.2932",
+            "",
+            "                                                      (Std. err. adjusted for 40 clusters in firm)",
+            "--------------------------------------------------------------------------------------------------",
+            "                                 |               Robust",
+            "                               y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "---------------------------------+----------------------------------------------------------------",
+            "                    1.dual_proxy |   .1144094   .0994567     1.15   0.257    -.0867607    .3155796",
+            "             turnover_winsorized |   .5381951   .0829733     6.49   0.000     .3703658    .7060245",
+            "                                 |",
+            "dual_proxy#c.turnover_winsorized |",
+            "                              1  |   .0414272    .119857     0.35   0.731    -.2010063    .2838608",
+            "                                 |",
+            "                              x2 |  -.2551517   .0276894    -9.21   0.000    -.3111589   -.1991445",
+            "                           _cons |   1.643249   .0686858    23.92   0.000     1.504319    1.782179",
+            "--------------------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "xtset firm year",
+          "lines": [
+            "Panel variable: firm (strongly balanced)",
+            " Time variable: year, 2010 to 2017",
+            "         Delta: 1 unit"
+          ]
+        },
+        {
+          "command": "xtreg y i.dual_proxy##c.turnover_winsorized x2, fe vce(cluster firm)",
+          "lines": [
+            "Fixed-effects (within) regression               Number of obs     =        320",
+            "Group variable: firm                            Number of groups  =         40",
+            "",
+            "R-squared:                                      Obs per group:",
+            "     Within  = 0.3654                                         min =          8",
+            "     Between = 0.1923                                         avg =        8.0",
+            "     Overall = 0.3319                                         max =          8",
+            "",
+            "                                                F(4, 39)          =      47.89",
+            "corr(u_i, Xb) = -0.1412                         Prob > F          =     0.0000",
+            "",
+            "                                                      (Std. err. adjusted for 40 clusters in firm)",
+            "--------------------------------------------------------------------------------------------------",
+            "                                 |               Robust",
+            "                               y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]",
+            "---------------------------------+----------------------------------------------------------------",
+            "                    1.dual_proxy |   .1144094   .0930965     1.23   0.226     -.073896    .3027149",
+            "             turnover_winsorized |   .5381951   .0776672     6.93   0.000     .3810984    .6952919",
+            "                                 |",
+            "dual_proxy#c.turnover_winsorized |",
+            "                              1  |   .0414272   .1121922     0.37   0.714    -.1855028    .2683573",
+            "                                 |",
+            "                              x2 |  -.2551517   .0259187    -9.84   0.000    -.3075772   -.2027261",
+            "                           _cons |   1.643249   .0642933    25.56   0.000     1.513204    1.773295",
+            "---------------------------------+----------------------------------------------------------------",
+            "                         sigma_u |  .12962822",
+            "                         sigma_e |  .29317134",
+            "                             rho |  .16353284   (fraction of variance due to u_i)",
+            "--------------------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "poisson c i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm)",
+          "lines": [
+            "Iteration 0:  Log pseudolikelihood =  -654.9758",
+            "Iteration 1:  Log pseudolikelihood = -654.97548",
+            "Iteration 2:  Log pseudolikelihood = -654.97548",
+            "",
+            "Poisson regression                                      Number of obs =    320",
+            "                                                        Wald chi2(4)  =  69.64",
+            "                                                        Prob > chi2   = 0.0000",
+            "Log pseudolikelihood = -654.97548                       Pseudo R2     = 0.0575",
+            "",
+            "                                                      (Std. err. adjusted for 40 clusters in firm)",
+            "--------------------------------------------------------------------------------------------------",
+            "                                 |               Robust",
+            "                               c | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "---------------------------------+----------------------------------------------------------------",
+            "                    1.dual_proxy |   .7693605   .1841064     4.18   0.000     .4085186    1.130202",
+            "             turnover_winsorized |   .9062145   .1414602     6.41   0.000     .6289577    1.183471",
+            "                                 |",
+            "dual_proxy#c.turnover_winsorized |",
+            "                              1  |  -.4826185   .2169311    -2.22   0.026    -.9077955   -.0574414",
+            "                                 |",
+            "                              x2 |  -.0130507   .0675197    -0.19   0.847    -.1453869    .1192855",
+            "                           _cons |   .1971009   .1424801     1.38   0.167    -.0821549    .4763567",
+            "--------------------------------------------------------------------------------------------------"
+          ]
+        },
+        {
+          "command": "logit any i.dual_proxy##c.turnover_winsorized x2, vce(cluster firm)",
+          "lines": [
+            "Iteration 0:  Log pseudolikelihood = -194.62182",
+            "Iteration 1:  Log pseudolikelihood = -186.00422",
+            "Iteration 2:  Log pseudolikelihood = -185.86427",
+            "Iteration 3:  Log pseudolikelihood = -185.86408",
+            "Iteration 4:  Log pseudolikelihood = -185.86408",
+            "",
+            "Logistic regression                                     Number of obs =    320",
+            "                                                        Wald chi2(4)  =  14.55",
+            "                                                        Prob > chi2   = 0.0057",
+            "Log pseudolikelihood = -185.86408                       Pseudo R2     = 0.0450",
+            "",
+            "                                                      (Std. err. adjusted for 40 clusters in firm)",
+            "--------------------------------------------------------------------------------------------------",
+            "                                 |               Robust",
+            "                             any | Coefficient  std. err.      z    P>|z|     [95% conf. interval]",
+            "---------------------------------+----------------------------------------------------------------",
+            "                    1.dual_proxy |   2.522455   .7369511     3.42   0.001     1.078058    3.966853",
+            "             turnover_winsorized |   1.387649   .4919056     2.82   0.005     .4235315    2.351766",
+            "                                 |",
+            "dual_proxy#c.turnover_winsorized |",
+            "                              1  |  -2.400651   .8047925    -2.98   0.003    -3.978015   -.8232864",
+            "                                 |",
+            "                              x2 |  -.0862921   .1927774    -0.45   0.654    -.4641288    .2915447",
+            "                           _cons |  -.3113392   .4389961    -0.71   0.478    -1.171756    .5490773",
+            "--------------------------------------------------------------------------------------------------"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "margins-dydx-wrap",
+      "source": "clear\nset seed 4711\nset obs 320\ngenerate long firm = ceil(_n / 8)\ngenerate int year = 2010 + mod(_n - 1, 8)\ngenerate byte g = 1 + mod(firm, 3)\ngenerate double x1 = runiform() + firm / 80\ngenerate double x2 = runiform() * 2\ngenerate byte d = runiform() > .6\ngenerate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()\ngenerate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())\ngenerate byte any = c > 1\ngenerate double turnover_winsorized = x1\ngenerate double leverage_winsorized = x2 + runiform()\ngenerate double return_on_assets = runiform()\ngenerate double log_total_assets = runiform()\ngenerate byte dual_proxy = d\nquietly logit any i.dual_proxy turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2 i.g i.year\nset linesize 80\nmargins, dydx(*)\nmargins, dydx(turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2 g)\nmargins, dydx(turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2 dual_proxy)\nmargins, dydx(turnover_winsorized leverage_winsorized return_on_assets log_total_assets dual_proxy)\nmargins, dydx(turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2)\nset linesize 100\nmargins, dydx(*)\nset linesize 120\nmargins, dydx(*)\nquietly regress y i.dual_proxy turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2 i.g i.year\nset linesize 80\nmargins, dydx(*)\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4711", "lines": [] },
+        {
+          "command": "set obs 320",
+          "lines": ["Number of observations (_N) was 0, now 320."]
+        },
+        { "command": "generate long firm = ceil(_n / 8)", "lines": [] },
+        { "command": "generate int year = 2010 + mod(_n - 1, 8)", "lines": [] },
+        { "command": "generate byte g = 1 + mod(firm, 3)", "lines": [] },
+        {
+          "command": "generate double x1 = runiform() + firm / 80",
+          "lines": []
+        },
+        { "command": "generate double x2 = runiform() * 2", "lines": [] },
+        { "command": "generate byte d = runiform() > .6", "lines": [] },
+        {
+          "command": "generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())",
+          "lines": []
+        },
+        { "command": "generate byte any = c > 1", "lines": [] },
+        { "command": "generate double turnover_winsorized = x1", "lines": [] },
+        {
+          "command": "generate double leverage_winsorized = x2 + runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double return_on_assets = runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double log_total_assets = runiform()",
+          "lines": []
+        },
+        { "command": "generate byte dual_proxy = d", "lines": [] },
+        {
+          "command": "quietly logit any i.dual_proxy turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2 i.g i.year",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 320",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(any), predict()",
+            "dy/dx wrt:  1.dual_proxy turnover_winsorized leverage_winsorized",
+            "            return_on_assets log_total_assets x2 2.g 3.g 2011.year 2012.year",
+            "            2013.year 2014.year 2015.year 2016.year 2017.year",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |            Delta-method",
+            "              |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            " 1.dual_proxy |   .1525337     .04963     3.07   0.002     .0552607    .2498067",
+            "turnover_wi~d |   .1372099   .0787914     1.74   0.082    -.0172184    .2916382",
+            "leverage_wi~d |  -.0309537   .0871435    -0.36   0.722    -.2017518    .1398445",
+            "return_on_a~s |   .0202559   .0862336     0.23   0.814    -.1487588    .1892706",
+            "log_total_a~s |  -.0585689   .0836769    -0.70   0.484    -.2225727    .1054349",
+            "           x2 |    .018558   .1001019     0.19   0.853    -.1776381    .2147541",
+            "              |",
+            "            g |",
+            "           2  |  -.0197762   .0620236    -0.32   0.750    -.1413402    .1017879",
+            "           3  |   .0806111   .0599473     1.34   0.179    -.0368833    .1981056",
+            "              |",
+            "         year |",
+            "        2011  |   -.029438   .1000046    -0.29   0.768    -.2254435    .1665675",
+            "        2012  |   .0715491   .0933952     0.77   0.444    -.1115021    .2546002",
+            "        2013  |  -.0839934    .104081    -0.81   0.420    -.2879884    .1200015",
+            "        2014  |  -.1250186   .1035071    -1.21   0.227    -.3278888    .0778516",
+            "        2015  |  -.1167117   .1055171    -1.11   0.269    -.3235215    .0900982",
+            "        2016  |   .1513338   .0874828     1.73   0.084    -.0201293    .3227969",
+            "        2017  |  -.0224319   .1007155    -0.22   0.824    -.2198305    .1749668",
+            "-------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins, dydx(turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2 g)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 320",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(any), predict()",
+            "dy/dx wrt:  turnover_winsorized leverage_winsorized return_on_assets",
+            "            log_total_assets x2 2.g 3.g",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |            Delta-method",
+            "              |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "turnover_wi~d |   .1372099   .0787914     1.74   0.082    -.0172184    .2916382",
+            "leverage_wi~d |  -.0309537   .0871435    -0.36   0.722    -.2017518    .1398445",
+            "return_on_a~s |   .0202559   .0862336     0.23   0.814    -.1487588    .1892706",
+            "log_total_a~s |  -.0585689   .0836769    -0.70   0.484    -.2225727    .1054349",
+            "           x2 |    .018558   .1001019     0.19   0.853    -.1776381    .2147541",
+            "              |",
+            "            g |",
+            "           2  |  -.0197762   .0620236    -0.32   0.750    -.1413402    .1017879",
+            "           3  |   .0806111   .0599473     1.34   0.179    -.0368833    .1981056",
+            "-------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins, dydx(turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2 dual_proxy)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 320",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(any), predict()",
+            "dy/dx wrt:  1.dual_proxy turnover_winsorized leverage_winsorized",
+            "            return_on_assets log_total_assets x2",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |            Delta-method",
+            "              |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            " 1.dual_proxy |   .1525337     .04963     3.07   0.002     .0552607    .2498067",
+            "turnover_wi~d |   .1372099   .0787914     1.74   0.082    -.0172184    .2916382",
+            "leverage_wi~d |  -.0309537   .0871435    -0.36   0.722    -.2017518    .1398445",
+            "return_on_a~s |   .0202559   .0862336     0.23   0.814    -.1487588    .1892706",
+            "log_total_a~s |  -.0585689   .0836769    -0.70   0.484    -.2225727    .1054349",
+            "           x2 |    .018558   .1001019     0.19   0.853    -.1776381    .2147541",
+            "-------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins, dydx(turnover_winsorized leverage_winsorized return_on_assets log_total_assets dual_proxy)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 320",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(any), predict()",
+            "dy/dx wrt:  1.dual_proxy turnover_winsorized leverage_winsorized",
+            "            return_on_assets log_total_assets",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |            Delta-method",
+            "              |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            " 1.dual_proxy |   .1525337     .04963     3.07   0.002     .0552607    .2498067",
+            "turnover_wi~d |   .1372099   .0787914     1.74   0.082    -.0172184    .2916382",
+            "leverage_wi~d |  -.0309537   .0871435    -0.36   0.722    -.2017518    .1398445",
+            "return_on_a~s |   .0202559   .0862336     0.23   0.814    -.1487588    .1892706",
+            "log_total_a~s |  -.0585689   .0836769    -0.70   0.484    -.2225727    .1054349",
+            "-------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins, dydx(turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 320",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(any), predict()",
+            "dy/dx wrt:  turnover_winsorized leverage_winsorized return_on_assets",
+            "            log_total_assets x2",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |            Delta-method",
+            "              |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "turnover_wi~d |   .1372099   .0787914     1.74   0.082    -.0172184    .2916382",
+            "leverage_wi~d |  -.0309537   .0871435    -0.36   0.722    -.2017518    .1398445",
+            "return_on_a~s |   .0202559   .0862336     0.23   0.814    -.1487588    .1892706",
+            "log_total_a~s |  -.0585689   .0836769    -0.70   0.484    -.2225727    .1054349",
+            "           x2 |    .018558   .1001019     0.19   0.853    -.1776381    .2147541",
+            "-------------------------------------------------------------------------------"
+          ]
+        },
+        { "command": "set linesize 100", "lines": [] },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 320",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(any), predict()",
+            "dy/dx wrt:  1.dual_proxy turnover_winsorized leverage_winsorized return_on_assets log_total_assets",
+            "            x2 2.g 3.g 2011.year 2012.year 2013.year 2014.year 2015.year 2016.year 2017.year",
+            "",
+            "-------------------------------------------------------------------------------------",
+            "                    |            Delta-method",
+            "                    |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------------+----------------------------------------------------------------",
+            "       1.dual_proxy |   .1525337     .04963     3.07   0.002     .0552607    .2498067",
+            "turnover_winsorized |   .1372099   .0787914     1.74   0.082    -.0172184    .2916382",
+            "leverage_winsorized |  -.0309537   .0871435    -0.36   0.722    -.2017518    .1398445",
+            "   return_on_assets |   .0202559   .0862336     0.23   0.814    -.1487588    .1892706",
+            "   log_total_assets |  -.0585689   .0836769    -0.70   0.484    -.2225727    .1054349",
+            "                 x2 |    .018558   .1001019     0.19   0.853    -.1776381    .2147541",
+            "                    |",
+            "                  g |",
+            "                 2  |  -.0197762   .0620236    -0.32   0.750    -.1413402    .1017879",
+            "                 3  |   .0806111   .0599473     1.34   0.179    -.0368833    .1981056",
+            "                    |",
+            "               year |",
+            "              2011  |   -.029438   .1000046    -0.29   0.768    -.2254435    .1665675",
+            "              2012  |   .0715491   .0933952     0.77   0.444    -.1115021    .2546002",
+            "              2013  |  -.0839934    .104081    -0.81   0.420    -.2879884    .1200015",
+            "              2014  |  -.1250186   .1035071    -1.21   0.227    -.3278888    .0778516",
+            "              2015  |  -.1167117   .1055171    -1.11   0.269    -.3235215    .0900982",
+            "              2016  |   .1513338   .0874828     1.73   0.084    -.0201293    .3227969",
+            "              2017  |  -.0224319   .1007155    -0.22   0.824    -.2198305    .1749668",
+            "-------------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        { "command": "set linesize 120", "lines": [] },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 320",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(any), predict()",
+            "dy/dx wrt:  1.dual_proxy turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2 2.g 3.g",
+            "            2011.year 2012.year 2013.year 2014.year 2015.year 2016.year 2017.year",
+            "",
+            "-------------------------------------------------------------------------------------",
+            "                    |            Delta-method",
+            "                    |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------------+----------------------------------------------------------------",
+            "       1.dual_proxy |   .1525337     .04963     3.07   0.002     .0552607    .2498067",
+            "turnover_winsorized |   .1372099   .0787914     1.74   0.082    -.0172184    .2916382",
+            "leverage_winsorized |  -.0309537   .0871435    -0.36   0.722    -.2017518    .1398445",
+            "   return_on_assets |   .0202559   .0862336     0.23   0.814    -.1487588    .1892706",
+            "   log_total_assets |  -.0585689   .0836769    -0.70   0.484    -.2225727    .1054349",
+            "                 x2 |    .018558   .1001019     0.19   0.853    -.1776381    .2147541",
+            "                    |",
+            "                  g |",
+            "                 2  |  -.0197762   .0620236    -0.32   0.750    -.1413402    .1017879",
+            "                 3  |   .0806111   .0599473     1.34   0.179    -.0368833    .1981056",
+            "                    |",
+            "               year |",
+            "              2011  |   -.029438   .1000046    -0.29   0.768    -.2254435    .1665675",
+            "              2012  |   .0715491   .0933952     0.77   0.444    -.1115021    .2546002",
+            "              2013  |  -.0839934    .104081    -0.81   0.420    -.2879884    .1200015",
+            "              2014  |  -.1250186   .1035071    -1.21   0.227    -.3278888    .0778516",
+            "              2015  |  -.1167117   .1055171    -1.11   0.269    -.3235215    .0900982",
+            "              2016  |   .1513338   .0874828     1.73   0.084    -.0201293    .3227969",
+            "              2017  |  -.0224319   .1007155    -0.22   0.824    -.2198305    .1749668",
+            "-------------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "quietly regress y i.dual_proxy turnover_winsorized leverage_winsorized return_on_assets log_total_assets x2 i.g i.year",
+          "lines": []
+        },
+        { "command": "set linesize 80", "lines": [] },
+        {
+          "command": "margins, dydx(*)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 320",
+            "Model VCE: OLS",
+            "",
+            "Expression: Linear prediction, predict()",
+            "dy/dx wrt:  1.dual_proxy turnover_winsorized leverage_winsorized",
+            "            return_on_assets log_total_assets x2 2.g 3.g 2011.year 2012.year",
+            "            2013.year 2014.year 2015.year 2016.year 2017.year",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |            Delta-method",
+            "              |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            " 1.dual_proxy |   .1251166   .0351756     3.56   0.000     .0558982    .1943351",
+            "turnover_wi~d |   .5274261   .0532176     9.91   0.000     .4227047    .6321476",
+            "leverage_wi~d |  -.0348145   .0585667    -0.59   0.553    -.1500618    .0804329",
+            "return_on_a~s |  -.0086961   .0577182    -0.15   0.880    -.1222738    .1048816",
+            "log_total_a~s |   .0246532   .0561874     0.44   0.661    -.0859123    .1352187",
+            "           x2 |  -.2146919   .0673224    -3.19   0.002    -.3471688   -.0822151",
+            "              |",
+            "            g |",
+            "           2  |   .1340975   .0406007     3.30   0.001     .0542036    .2139915",
+            "           3  |   .1832488   .0414884     4.42   0.000     .1016079    .2648897",
+            "              |",
+            "         year |",
+            "        2011  |   .0377598   .0675378     0.56   0.577     -.095141    .1706605",
+            "        2012  |   .0235568   .0672469     0.35   0.726    -.1087716    .1558852",
+            "        2013  |   .0028046   .0673375     0.04   0.967     -.129702    .1353112",
+            "        2014  |   -.058057   .0672731    -0.86   0.389    -.1904369    .0743228",
+            "        2015  |  -.0018713   .0682311    -0.03   0.978    -.1361363    .1323937",
+            "        2016  |  -.0292659    .066911    -0.44   0.662    -.1609332    .1024014",
+            "        2017  |  -.0374339    .067358    -0.56   0.579    -.1699809    .0951131",
+            "-------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "margins-dydx-factor-at",
+      "source": "clear\nset seed 4711\nset obs 320\ngenerate long firm = ceil(_n / 8)\ngenerate int year = 2010 + mod(_n - 1, 8)\ngenerate byte g = 1 + mod(firm, 3)\ngenerate double x1 = runiform() + firm / 80\ngenerate double x2 = runiform() * 2\ngenerate byte d = runiform() > .6\ngenerate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()\ngenerate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())\ngenerate byte any = c > 1\ngenerate byte dual_proxy = d\nquietly logit any i.dual_proxy x1 x2 i.g\nmargins, dydx(dual_proxy) at(x1 = (0 1))\nmargins, dydx(dual_proxy x1) at(x1 = (0 1))\nmargins, dydx(g) at(x1 = (0 1))\nmargins, dydx(dual_proxy g) at(x1 = (0 1))\nquietly logit any i.d x1 x2 i.g\nmargins, dydx(d) at(x1 = (0 1))\nmargins, dydx(g d) at(x1 = (0 1) x2 = 1)\nmargins d, at(x1 = (0 1))\n",
+      "commands": [
+        { "command": "clear", "lines": [] },
+        { "command": "set seed 4711", "lines": [] },
+        {
+          "command": "set obs 320",
+          "lines": ["Number of observations (_N) was 0, now 320."]
+        },
+        { "command": "generate long firm = ceil(_n / 8)", "lines": [] },
+        { "command": "generate int year = 2010 + mod(_n - 1, 8)", "lines": [] },
+        { "command": "generate byte g = 1 + mod(firm, 3)", "lines": [] },
+        {
+          "command": "generate double x1 = runiform() + firm / 80",
+          "lines": []
+        },
+        { "command": "generate double x2 = runiform() * 2", "lines": [] },
+        { "command": "generate byte d = runiform() > .6", "lines": [] },
+        {
+          "command": "generate double y = 1 + .5 * x1 - .3 * x2 + .2 * d + .1 * g + runiform()",
+          "lines": []
+        },
+        {
+          "command": "generate double c = floor(exp(.2 + .6 * x1 + .3 * d) * 3 * runiform())",
+          "lines": []
+        },
+        { "command": "generate byte any = c > 1", "lines": [] },
+        { "command": "generate byte dual_proxy = d", "lines": [] },
+        { "command": "quietly logit any i.dual_proxy x1 x2 i.g", "lines": [] },
+        {
+          "command": "margins, dydx(dual_proxy) at(x1 = (0 1))",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 320",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(any), predict()",
+            "dy/dx wrt:  1.dual_proxy",
+            "1._at: x1 = 0",
+            "2._at: x1 = 1",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |            Delta-method",
+            "              |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "0.dual_proxy  |  (base outcome)",
+            "--------------+----------------------------------------------------------------",
+            "1.dual_proxy  |",
+            "          _at |",
+            "           1  |   .1729056   .0614402     2.81   0.005     .0524851    .2933262",
+            "           2  |   .1346791   .0464178     2.90   0.004     .0437019    .2256563",
+            "-------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins, dydx(dual_proxy x1) at(x1 = (0 1))",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 320",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(any), predict()",
+            "dy/dx wrt:  1.dual_proxy x1",
+            "1._at: x1 = 0",
+            "2._at: x1 = 1",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |            Delta-method",
+            "              |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "0.dual_proxy  |  (base outcome)",
+            "--------------+----------------------------------------------------------------",
+            "1.dual_proxy  |",
+            "          _at |",
+            "           1  |   .1729056   .0614402     2.81   0.005     .0524851    .2933262",
+            "           2  |   .1346791   .0464178     2.90   0.004     .0437019    .2256563",
+            "--------------+----------------------------------------------------------------",
+            "x1            |",
+            "          _at |",
+            "           1  |   .1598007   .1003785     1.59   0.111    -.0369375     .356539",
+            "           2  |   .1292509   .0692436     1.87   0.062     -.006464    .2649658",
+            "-------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins, dydx(g) at(x1 = (0 1))",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 320",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(any), predict()",
+            "dy/dx wrt:  2.g 3.g",
+            "1._at: x1 = 0",
+            "2._at: x1 = 1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "1.g          |  (base outcome)",
+            "-------------+----------------------------------------------------------------",
+            "2.g          |",
+            "         _at |",
+            "          1  |  -.0259239   .0711372    -0.36   0.716    -.1653502    .1135025",
+            "          2  |  -.0217939   .0598275    -0.36   0.716    -.1390537     .095466",
+            "-------------+----------------------------------------------------------------",
+            "3.g          |",
+            "         _at |",
+            "          1  |    .092099   .0732241     1.26   0.208    -.0514176    .2356156",
+            "          2  |   .0721049   .0566771     1.27   0.203    -.0389802    .1831899",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins, dydx(dual_proxy g) at(x1 = (0 1))",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 320",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(any), predict()",
+            "dy/dx wrt:  1.dual_proxy 2.g 3.g",
+            "1._at: x1 = 0",
+            "2._at: x1 = 1",
+            "",
+            "-------------------------------------------------------------------------------",
+            "              |            Delta-method",
+            "              |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "--------------+----------------------------------------------------------------",
+            "0.dual_proxy  |  (base outcome)",
+            "--------------+----------------------------------------------------------------",
+            "1.dual_proxy  |",
+            "          _at |",
+            "           1  |   .1729056   .0614402     2.81   0.005     .0524851    .2933262",
+            "           2  |   .1346791   .0464178     2.90   0.004     .0437019    .2256563",
+            "--------------+----------------------------------------------------------------",
+            "1.g           |  (base outcome)",
+            "--------------+----------------------------------------------------------------",
+            "2.g           |",
+            "          _at |",
+            "           1  |  -.0259239   .0711372    -0.36   0.716    -.1653502    .1135025",
+            "           2  |  -.0217939   .0598275    -0.36   0.716    -.1390537     .095466",
+            "--------------+----------------------------------------------------------------",
+            "3.g           |",
+            "          _at |",
+            "           1  |    .092099   .0732241     1.26   0.208    -.0514176    .2356156",
+            "           2  |   .0721049   .0566771     1.27   0.203    -.0389802    .1831899",
+            "-------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        { "command": "quietly logit any i.d x1 x2 i.g", "lines": [] },
+        {
+          "command": "margins, dydx(d) at(x1 = (0 1))",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 320",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(any), predict()",
+            "dy/dx wrt:  1.d",
+            "1._at: x1 = 0",
+            "2._at: x1 = 1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "0.d          |  (base outcome)",
+            "-------------+----------------------------------------------------------------",
+            "1.d          |",
+            "         _at |",
+            "          1  |   .1729056   .0614402     2.81   0.005     .0524851    .2933262",
+            "          2  |   .1346791   .0464178     2.90   0.004     .0437019    .2256563",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins, dydx(g d) at(x1 = (0 1) x2 = 1)",
+          "lines": [
+            "Average marginal effects                                   Number of obs = 320",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(any), predict()",
+            "dy/dx wrt:  1.d 2.g 3.g",
+            "1._at: x1 = 0",
+            "       x2 = 1",
+            "2._at: x1 = 1",
+            "       x2 = 1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "0.d          |  (base outcome)",
+            "-------------+----------------------------------------------------------------",
+            "1.d          |",
+            "         _at |",
+            "          1  |    .173034   .0615037     2.81   0.005     .0524891     .293579",
+            "          2  |   .1347888   .0464546     2.90   0.004     .0437394    .2258382",
+            "-------------+----------------------------------------------------------------",
+            "1.g          |  (base outcome)",
+            "-------------+----------------------------------------------------------------",
+            "2.g          |",
+            "         _at |",
+            "          1  |  -.0259486   .0712017    -0.36   0.716    -.1655014    .1136042",
+            "          2  |  -.0218142    .059881    -0.36   0.716    -.1391787    .0955503",
+            "-------------+----------------------------------------------------------------",
+            "3.g          |",
+            "         _at |",
+            "          1  |   .0921905    .073331     1.26   0.209    -.0515356    .2359166",
+            "          2  |   .0721644   .0567379     1.27   0.203    -.0390398    .1833686",
+            "------------------------------------------------------------------------------",
+            "Note: dy/dx for factor levels is the discrete change from the base level."
+          ]
+        },
+        {
+          "command": "margins d, at(x1 = (0 1))",
+          "lines": [
+            "Predictive margins                                         Number of obs = 320",
+            "Model VCE: OIM",
+            "",
+            "Expression: Pr(any), predict()",
+            "1._at: x1 = 0",
+            "2._at: x1 = 1",
+            "",
+            "------------------------------------------------------------------------------",
+            "             |            Delta-method",
+            "             |     Margin   std. err.      z    P>|z|     [95% conf. interval]",
+            "-------------+----------------------------------------------------------------",
+            "       _at#d |",
+            "        1 0  |   .5260187   .0815653     6.45   0.000     .3661536    .6858838",
+            "        1 1  |   .6989243   .0761581     9.18   0.000     .5496572    .8481914",
+            "        2 0  |   .6862993   .0386602    17.75   0.000     .6105268    .7620718",
+            "        2 1  |   .8209784   .0369387    22.23   0.000       .74858    .8933768",
+            "------------------------------------------------------------------------------"
+          ]
         }
       ]
     },

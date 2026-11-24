@@ -135,7 +135,6 @@ test("egen takes only the options each function declares", () => {
     "egen e = group(g), label",
     "egen e = rank(x), unique",
     "egen e = rowmedian(x y)",
-    "egen e = rownonmiss(t), strok",
     "egen e = concat(x y), decode",
   ]) {
     const out = s.run(command);

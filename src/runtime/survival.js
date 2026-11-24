@@ -17,6 +17,7 @@
 // Gompertz models in Stata's parameterisation, with the log likelihood
 // reported as Stata reports it.
 import { StataError } from "./errors.js";
+import { least, greatest } from "./extremes.js";
 import { evaluateAll } from "./expression.js";
 import { applyFormat } from "./format.js";
 import { renderSmcl } from "./smcl.js";
@@ -465,7 +466,7 @@ function settle(session, spec, ctx) {
     for (let i = 0; i < n; i++) if (touse[i]) out[i] = values[i];
     if (idVar)
       for (const group of idGroups(using(), idVar, bt)) {
-        const low = Math.min(...group.map((i) => out[i]));
+        const low = least(group.map((i) => out[i]));
         for (const i of group) out[i] = low;
       }
     return out;
@@ -475,7 +476,7 @@ function settle(session, spec, ctx) {
   // Step 3: the origin.
   let zero = null;
   if (spec.origin === "min") {
-    const low = Math.min(...using().map((i) => bt[i]));
+    const low = least(using().map((i) => bt[i]));
     zero = new Float64Array(n).fill(MISSING);
     for (let i = 0; i < n; i++) if (touse[i]) zero[i] = low - 1;
   } else if (spec.orexp) zero = smallest(spec.orexp);
@@ -584,8 +585,8 @@ function settle(session, spec, ctx) {
   let origin = "0";
   if (zero) {
     const used = [...touse.keys()].filter((i) => touse[i]).map((i) => zero[i]),
-      low = used.length ? Math.min(...used) : MISSING,
-      high = used.length ? Math.max(...used) : MISSING;
+      low = used.length ? least(used) : MISSING,
+      high = used.length ? greatest(used) : MISSING;
     if (!(low === high && !isMissing(low))) {
       add(
         "_origin",
@@ -750,8 +751,8 @@ function report(session, s, counts, spec, ctx) {
   const total = used.reduce((sum, i) => sum + (t[i] - t0[i]), 0);
   di(total, "total analysis time at risk and under observation");
   ctx.out(`${" ".repeat(48)}At risk from t = ${fmt(0, "%9.0gc")}`);
-  const low = used.length ? Math.min(...used.map((i) => t0[i])) : MISSING,
-    high = used.length ? Math.max(...used.map((i) => t[i])) : MISSING;
+  const low = used.length ? least(used.map((i) => t0[i])) : MISSING,
+    high = used.length ? greatest(used.map((i) => t[i])) : MISSING;
   ctx.out(`${" ".repeat(37)}Earliest observed entry t = ${fmt(low, "%9.0gc")}`);
   ctx.out(`${" ".repeat(42)}Last observed exit t = ${fmt(high, "%9.0gc")}`);
   // summarize _t if _st, meanonly.
@@ -762,7 +763,7 @@ function report(session, s, counts, spec, ctx) {
         sum_w: used.length,
         sum,
         mean: sum / used.length,
-        min: Math.min(...used.map((i) => t[i])),
+        min: least(used.map((i) => t[i])),
         max: high,
       }
     : { N: 0, sum_w: 0, sum: 0 };

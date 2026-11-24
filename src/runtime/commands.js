@@ -3026,7 +3026,7 @@ const EGEN = {
   rowsd: ROW_ONLY,
   rowfirst: ROW_ONLY,
   rowlast: ROW_ONLY,
-  rownonmiss: { options: "| Strok", by: false },
+  rownonmiss: { options: "Strok", by: false },
   group: {
     options: "Missing | Label(string) LName(string) Truncate(string) AUTOTYPE",
     by: false,
@@ -3176,9 +3176,16 @@ function egen(session, text, ctx) {
     type = "byte";
     label = `${names.join(" ")} == ${wanted.map(formatNumber).join(" ")}`;
   } else if (/^row/.test(fcn)) {
-    const columns = session
-      .varlist(argument)
-      .map((v) => numericColumn(session, v));
+    // rowmiss() counts an empty string as missing, and rownonmiss() does
+    // with strok; the other row functions take numbers only.
+    const strings =
+      fcn === "rowmiss" || (fcn === "rownonmiss" && parsed.options.strok);
+    const columns = session.varlist(argument).map((v) => {
+      const variable = session.data.get(v);
+      return strings && isStringType(variable.type)
+        ? Array.from(variable.data, (text) => (text === "" ? MISSING : 0))
+        : numericColumn(session, v);
+    });
     for (const i of rows) {
       const row = columns
         .map((column) => column[i])
@@ -4346,6 +4353,9 @@ export const COMMANDS = [
         `this is version 19 of Stata; it cannot run version ${text.trim()} programs`,
         9,
       );
+    // It decides how regexm(), regexr() and regexs() read a pattern: the
+    // library of Stata 17 and before, or the one Stata 18 brought.
+    session.state.version = release;
   }),
   // error exp stops with return code exp and Stata's message for it.
   command("error", 5, (session, text) => {

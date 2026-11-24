@@ -17,6 +17,7 @@
 // estimating equations with an exchangeable correlation. Every likelihood
 // is maximised by maximizeNR, which takes Stata's Newton steps.
 import { StataError } from "./errors.js";
+import { least, greatest } from "./extremes.js";
 import { applyFormat, displayValue } from "./format.js";
 import { chi2tail, lngamma } from "./distributions.js";
 import { density, invnormal, normal } from "./functions-normal.js";
@@ -530,9 +531,9 @@ function sizes(panels) {
     return { N_g: 0, g_min: MISSING, g_avg: MISSING, g_max: MISSING };
   return {
     N_g: t.length,
-    g_min: Math.min(...t),
+    g_min: least(t),
     g_avg: t.reduce((a, b) => a + b, 0) / t.length,
-    g_max: Math.max(...t),
+    g_max: greatest(t),
   };
 }
 
@@ -2548,7 +2549,7 @@ function conditionalPoisson(session, parsed, text, ctx) {
       const rows = panels[q],
         weight = weightOf(q),
         xb = rows.map((r) => dot(f.x[r], theta) + (off ? off[r] : 0)),
-        top = Math.max(...xb),
+        top = greatest(xb),
         e = xb.map((v) => Math.exp(v - top)),
         M = e.reduce((a, b) => a + b, 0),
         logM = top + Math.log(M);

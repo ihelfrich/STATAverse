@@ -31,14 +31,16 @@
       </button>
     </header>
     <main id="iv-main" class="lab-layout" tabindex="-1">
+      <nav class="lab-switcher" aria-label="Analysis labs">
+        <a href="../" class="lab-switcher-all">All labs</a
+        ><a href="../Regression/">01 Regression &amp; adjustment</a
+        ><a href="../Inference/">02 Uncertainty &amp; repeated samples</a
+        ><a href="../Data/">03 Merge &amp; reshape</a
+        ><a href="../IV/" aria-current="page">04 Instrumental variables</a
+        ><a href="../Project/">05 Panel project</a>
+      </nav>
       <header class="lab-heading">
         <div>
-          <nav class="lab-switcher" aria-label="Analysis labs">
-            <a href="../">01 Regression &amp; adjustment</a
-            ><a href="../Inference/">02 Uncertainty &amp; repeated samples</a
-            ><a href="../Data/">03 Merge &amp; reshape</a
-            ><a href="./" aria-current="page">04 Instrumental variables</a>
-          </nav>
           <h1>Instrumental variables</h1>
           <p>
             Follow an instrument from the first stage to the IV estimate. Then
@@ -46,11 +48,14 @@
             can tell you.
           </p>
         </div>
-        <a href="../" class="lab-prerequisite"
+        <a href="../Regression/" class="lab-prerequisite"
           >Prerequisite: regression and omitted-variable bias →</a
         >
       </header>
-      <section class="iv-guide-bar" aria-label="Guided IV investigations">
+      <section
+        class="lab-guide-bar iv-guide-bar"
+        aria-label="Guided IV investigations"
+      >
         <label for="iv-guide-select">Guided investigations</label
         ><select id="iv-guide-select"></select>
         <p id="iv-guide-summary"></p>
@@ -66,7 +71,12 @@
           </button>
         </nav>
       </section>
-      <aside class="experiment-controls" aria-labelledby="iv-controls-title">
+      <aside
+        class="experiment-controls"
+        id="iv-controls"
+        aria-labelledby="iv-controls-title"
+        tabindex="-1"
+      >
         <details id="iv-controls-disclosure" open>
           <summary>Population and sample controls</summary>
           <div class="control-title">
@@ -176,7 +186,12 @@
           class="iv-stages"
           aria-label="First stage, reduced form and IV ratio"
         ></div>
-        <div class="iv-tabs" role="tablist" aria-label="IV analysis views">
+        <div
+          class="lab-tabs iv-tabs"
+          id="iv-views"
+          role="tablist"
+          aria-label="IV analysis views"
+        >
           <button
             id="iv-tab-stages"
             role="tab"
@@ -448,7 +463,24 @@
           </p></noscript
         >
       </div>
+      <footer class="lab-footer">
+        <nav aria-label="Other analysis labs">
+          <a href="../Data/" rel="prev"
+            ><span>Previous lab</span>03 Merge &amp; reshape</a
+          ><a href="../" class="lab-footer-all"
+            ><span>Overview</span>All analysis labs</a
+          ><a href="../Project/" rel="next"
+            ><span>Next lab</span>05 Panel project</a
+          >
+        </nav>
+        <p>This lab runs in your browser. Nothing you do here is uploaded.</p>
+      </footer>
     </main>
+    <nav class="lab-mobile-nav" aria-label="Lab shortcuts">
+      <button type="button" data-lab-target="iv-controls">Controls</button
+      ><button type="button" data-lab-target="iv-results">Estimates</button
+      ><button type="button" data-lab-target="iv-views">Plots</button>
+    </nav>
     <script type="module" src="../../assets/js/iv-lab.js"></script>
     <script src="../../assets/js/site.js" defer></script>
   </body>

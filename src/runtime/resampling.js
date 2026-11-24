@@ -3,6 +3,7 @@
 // Stata's own programs do, so that after the same set seed they choose the
 // same observations and bootstrap standard errors agree with Stata's.
 import { StataError } from "./errors.js";
+import { least, greatest } from "./extremes.js";
 import { applyFormat } from "./format.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
@@ -425,7 +426,7 @@ function bsample(session, text, ctx) {
 
 /** The new cluster numbers, in a variable of their own. */
 function setClusterIds(data, name, ids) {
-  const most = Math.max(0, ...ids),
+  const most = Math.max(0, greatest(ids)),
     type = most <= 100 ? "byte" : most <= 32740 ? "int" : "long";
   if (data.has(name))
     data.variables = data.variables.filter((v) => v.name !== name);
@@ -2649,7 +2650,7 @@ function jackknife(session, text, ctx) {
         // A cluster's pseudovalue is kept in its first observation.
         all.forEach((r, k) => {
           if (!r) return;
-          values[Math.min(...rowsOf[k])] = Math.fround(
+          values[least(rowsOf[k])] = Math.fround(
             G * observed[j] - (G - 1) * r[j],
           );
         });

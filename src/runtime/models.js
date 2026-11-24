@@ -666,65 +666,40 @@ function maximumLikelihood(kind) {
     // What Stata notes beside an iteration, as "backed up".
     let stepNotes = [],
       converged = true;
-    if (family.binary) {
-      // Stata's logit and probit step as ml's Newton-Raphson steps: a step
-      // that raises the likelihood is carried on along its direction while
-      // it goes on raising it, and convergence asks for a small scaled
-      // gradient too. The iteration log is then Stata's, line for line.
-      // iterate() stops the search where it is, with a warning; a search
-      // that runs out of its 300 steps unasked stops the command.
-      const limit = options.iterate >= 0 ? options.iterate : 300,
-        fitted = maximizeNR(
-          (theta, todo) => {
-            b = theta;
-            const value = logLikelihood(theta);
-            if (!todo) return { value };
-            const { gradient, hessian } = derivatives();
-            return { value, gradient, information: hessian };
-          },
-          b,
-          limit,
-          {
-            tolerance: options.tolerance,
-            ltolerance: options.ltolerance,
-            nrtolerance: options.nrtolerance,
-          },
-        );
-      if (!fitted.converged && !(options.iterate >= 0))
-        throw new StataError("convergence not achieved", 430);
-      converged = fitted.converged;
-      b = fitted.theta;
-      ll = fitted.ll;
-      log.push(...fitted.log);
-      stepNotes = fitted.notes;
-    } else log.push(ll);
-    for (let iteration = 1; !family.binary && iteration <= 100; iteration++) {
-      const { gradient, hessian } = derivatives();
-      information = invertSymmetric(hessian);
-      if (!information)
-        throw new StataError(
-          "the model could not be fitted: the regressors are collinear or predict the outcome perfectly",
-          430,
-        );
-      let step = information.map((row) =>
-          row.reduce((t, h, c) => t + h * gradient[c], 0),
-        ),
-        next = b.map((v, a) => v + step[a]),
-        nextLl = logLikelihood(next);
-      // Halve the step when it would lower the likelihood.
-      for (let halve = 0; halve < 20 && !(nextLl >= ll); halve++) {
-        step = step.map((v) => v / 2);
-        next = b.map((v, a) => v + step[a]);
-        nextLl = logLikelihood(next);
-      }
-      const change = Math.abs(nextLl - ll) / Math.max(1e-300, Math.abs(ll));
-      b = next;
-      ll = nextLl;
-      log.push(ll);
-      if (change < 1e-7) break;
-      if (iteration === 100)
-        throw new StataError("convergence not achieved", 430);
-    }
+    // Stata's logit, probit and poisson step as ml's Newton-Raphson steps: a
+    // step that raises the likelihood is carried on along its direction
+    // while it goes on raising it, and convergence asks for a small scaled
+    // gradient too. The iteration log is then Stata's, line for line, and a
+    // coefficient that few observations identify ends where Stata's does
+    // (poisson once took plain Newton steps and stopped on the change in the
+    // log likelihood alone, which left such a coefficient a few parts in a
+    // million away). iterate() stops the search where it is, with a
+    // warning; a search that runs out of its 300 steps unasked stops the
+    // command.
+    const limit = options.iterate >= 0 ? options.iterate : 300,
+      fitted = maximizeNR(
+        (theta, todo) => {
+          b = theta;
+          const value = logLikelihood(theta);
+          if (!todo) return { value };
+          const { gradient, hessian } = derivatives();
+          return { value, gradient, information: hessian };
+        },
+        b,
+        limit,
+        {
+          tolerance: options.tolerance,
+          ltolerance: options.ltolerance,
+          nrtolerance: options.nrtolerance,
+        },
+      );
+    if (!fitted.converged && !(options.iterate >= 0))
+      throw new StataError("convergence not achieved", 430);
+    converged = fitted.converged;
+    b = fitted.theta;
+    ll = fitted.ll;
+    log.push(...fitted.log);
+    stepNotes = fitted.notes;
     information = invertSymmetric(derivatives().hessian);
     // A fit that ran off to a boundary the search above did not catch, as
     // when an interaction separates the outcome only in part: Stata reports

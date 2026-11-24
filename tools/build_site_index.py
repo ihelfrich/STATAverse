@@ -10,7 +10,7 @@ entries = [{
     "type": "module", "title": "Analysis lab: Regression and adjustment",
     "summary": "Simulate omitted-variable bias, trace partial regression and investigate influential observations with exact Stata exports.",
     "tags": ["interactive", "regression", "OLS", "FWL", "omitted variable bias", "influence", "leverage", "Cook"],
-    "level": "Intermediate and advanced", "path": "Labs/",
+    "level": "Intermediate and advanced", "path": "Labs/Regression/",
 }, {
     "type": "module", "title": "Analysis lab: Uncertainty and repeated samples",
     "summary": "Compare conventional, HC1 and clustered confidence intervals, simulate coverage with Monte Carlo uncertainty, and export the exact sample and Stata commands.",
@@ -26,6 +26,11 @@ entries = [{
     "summary": "Trace first stages and 2SLS, distinguish weak instruments from exclusion failures, inspect Anderson–Rubin confidence sets and export exact Stata commands.",
     "tags": ["interactive", "IV", "2SLS", "instruments", "weak instruments", "Anderson Rubin", "endogeneity", "exclusion"],
     "level": "Advanced", "path": "Labs/IV/",
+}, {
+    "type": "module", "title": "Project lab: a firm-year panel from merged file to results table",
+    "summary": "Build a panel analysis in Stata step by step on a simulated firm-year file or your own: lags, sample rules, winsorizing, clustered regression, firm fixed effects, Poisson with zeros and a side-by-side results table.",
+    "tags": ["interactive", "panel", "xtset", "fixed effects", "areg", "cluster", "winsorize", "poisson", "margins", "estimates table", "own data", "project"],
+    "level": "Intermediate and advanced", "path": "Labs/Project/",
 }]
 
 practice_path = assets_data / "practice-lessons.json"

@@ -6,7 +6,13 @@
 import { least, greatest } from "./extremes.js";
 import { StataError } from "./errors.js";
 import { abbreviateName } from "./format.js";
-import { bytesText, stataMatch, stataPattern } from "./stata-regex.js";
+import {
+  bytesText,
+  modernMatch,
+  modernPattern,
+  stataMatch,
+  stataPattern,
+} from "./stata-regex.js";
 import {
   MISSING,
   byteLength,
@@ -177,6 +183,29 @@ function wildcard(pattern) {
  * stata-regex.js), or null when Stata cannot read it: then Stata prints
  * the library's message, for each observation, and forgets the last match.
  */
+/**
+ * Whether the session reads regexm() patterns as Stata 18 and later do
+ * (the default, as in Stata 18 and 19 with no version set) or as Stata 17.
+ */
+const modernRegex = (state) => !(state.version < 18);
+/**
+ * A pattern as Stata 18 and later read it: the expression, or null when
+ * Stata cannot read it (it then matches nothing). A pattern the browser
+ * would read differently is refused, so that no answer is wrong silently.
+ */
+function modernProgram(state, pattern, name) {
+  const found = modernPattern(pattern);
+  if (found.unsupported)
+    throw new StataError(
+      `${name}(): the pattern "${pattern}" uses ${found.unsupported}, which the browser cannot read as Stata does`,
+      198,
+    );
+  if (found.invalid) {
+    state.match = undefined;
+    return null;
+  }
+  return found.re;
+}
 function stataProgram(state, pattern) {
   const { program, error } = stataPattern(pattern);
   if (program) return program;
@@ -815,6 +844,12 @@ export const FUNCTIONS = {
     returns: N,
     state: true,
     fn: (state, s, pattern) => {
+      if (modernRegex(state)) {
+        const re = modernProgram(state, pattern, "regexm");
+        if (!re) return 0;
+        state.match = modernMatch(re, s);
+        return Number(!!state.match);
+      }
       const program = stataProgram(state, pattern);
       if (!program) return 0;
       state.match = stataMatch(program, s);
@@ -830,6 +865,16 @@ export const FUNCTIONS = {
     // regexs() gives "" and Stata's message, once for each observation.
     fn: (state, n) => {
       const match = state.match;
+      // The newer library gives "" for whatever it has not got, silently.
+      if (modernRegex(state)) {
+        const k = isMissing(n) ? -1 : whole(n);
+        return match &&
+          k >= 0 &&
+          k < match.starts.length &&
+          match.starts[k] >= 0
+          ? bytesText(match.bytes, match.starts[k], match.ends[k])
+          : "";
+      }
       if (match === undefined) {
         state.note?.(
           "a regular expression match function must be executed prior to retrieving a subexpression",
@@ -853,6 +898,20 @@ export const FUNCTIONS = {
     returns: S,
     state: true,
     fn: (state, s, pattern, to) => {
+      if (modernRegex(state)) {
+        // The replacement goes in as written, and a match of no length
+        // inserts it there: regexr("abc", "x*", "Q") is "Qabc".
+        const re = modernProgram(state, pattern, "regexr");
+        state.match = undefined;
+        const match = re && modernMatch(re, s);
+        if (!match) return s;
+        const { bytes, starts, ends } = match;
+        return bounded(
+          bytesText(bytes, 0, starts[0]) +
+            to +
+            bytesText(bytes, ends[0], bytes.length),
+        );
+      }
       const program = stataProgram(state, pattern);
       state.match = undefined;
       if (!program) return s;

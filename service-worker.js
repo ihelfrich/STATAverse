@@ -2,14 +2,17 @@ const CACHE_PREFIX =
   "stataverse:" + new URL(self.registration.scope).pathname + ":";
 const LEGACY_SCOPE =
   new URL(self.registration.scope).pathname === "/STATAverse/";
-const CACHE_NAME = CACHE_PREFIX + "v32";
+const CACHE_NAME = CACHE_PREFIX + "v34";
 const CORE_ASSETS = [
   "index.html",
   "Learn/",
   "Labs/",
+  "Labs/Regression/",
   "Labs/Inference/",
   "Labs/Data/",
   "Labs/IV/",
+  "Labs/Project/",
+  "assets/css/project-lab.css",
   "assets/css/iv.css",
   "assets/js/iv-lab.js",
   "assets/js/iv-investigation-ui.js",

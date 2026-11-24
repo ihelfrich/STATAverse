@@ -1,0 +1,87 @@
+# Lists spread into Math.max or Math.min in src/runtime that cannot be as long
+# as the data: their length is a number of variables, statistics, columns,
+# parameters, quadrature nodes or value labels. tests/runtime-long-data.test.mjs
+# fails when a spread appears that is not listed here.
+arima.js: a.map((v, j) => Math.abs(v - b[j]) / (Math.abs(b[j]) + 1)));
+arima.js: gradient.map((v, j) => Math.abs(v * theta[j])));
+arima.js: all),
+causal.js: row.map(Math.abs)) || 1)),
+causal.js: scaled.map((row) => Math.abs(row[j]))) || 1),
+causal.js: direction.map(Math.abs));
+causal.js: A[c].map(Math.abs),
+causal.js: f.columns.map((c) => c.name.length),
+commands.js: [...(map?.values() ?? [])].map((t) => [...t].length)),
+commands.js: codes.slice(1).map((code) => formatNumber(code).length),
+comparisons.js: rows.map((row) => row.title.length)),
+contrast.js: part.levels
+contrast.js: groups.flatMap((group) =>
+contrast.js: header.split(/(?<=[#@])/).map((piece) => piece.length)),
+contrast.js: needs)));
+data-commands.js: jValues.map(byteLength));
+data-inspect.js: columns),
+data-utilities.js: toren.flat().map(displayWidth)),
+diagnostics.js: [
+estimation.js: lengths);
+estimation.js: formats.map(widthOf)),
+estimation.js: [...labels.values()].map((l) => l.length)),
+everyday.js: checks.map(([items]) => items.join(" ").length));
+excel.js: names.map((n) => byteLength(n))),
+excel.js: usedIds) + 1;
+excel.js: sheetIds) + 1;
+format.js: others.map((other) => {
+graphics.js: places.map((q) => q.row + 1)),
+graphics.js: places.map((q) => q.row)),
+infix.js: variables.map((v) => v.line));
+infix.js: items.map((item) => item.line));
+likelihood.js: rows.map((r) => r[2].length + 1)),
+margins.js: row.map(Math.abs));
+margins.js: text.split("#").map((piece) => piece.length + extra)),
+margins.js: results.map((r) =>
+margins.js: levels
+margins.js: everyEntry.map((e) => e.name.length)),
+margins.js: everyEntry.map((e) => e.value.length)),
+matrix.js: values.flat().map(Math.abs));
+matrix.js: parts.map((p) => p.operators.length)),
+mixed.js: levels.map((l) => l.q)));
+mixed.js: values.map(Math.abs)),
+mixed.js: next.map((v, j) => Math.abs(v - x[j]) / (Math.abs(x[j]) + 1)
+mixed.js: values.map((v) => v.length + 1)),
+more-estimators.js: jacobiEigenvalues(C)) / L;
+more-estimators.js: values.map(([, v]) => v.length)) + 1,
+more-postestimation.js: values.map(Math.abs)),
+more-postestimation.js: values) > 0,
+outcome-margins.js: eta),
+outcome-margins.js: entries.map((e) => e[0].length)),
+outcome-margins.js: entries.map((e) => e[1].length));
+programming.js: numbered);
+quantile.js: A.map((row) => Math.max(...row.map(Math.abs))));
+resampling.js: pairs.map(([, value]) => value.length)),
+resampling.js: values.map((v) => v.length + 1)),
+resampling.js: pairs.map(([, value]) => value.length));
+resampling.js: kinds.map(([code]) => code.length));
+smoothers.js: xtx.map((q) => Math.abs(q[c])))),
+stats-more.js: parsed.varlist.map((n) => displayWidth(n)));
+survival.js: labels.map((l) => l.length)), 5) +
+survival.js: logs);
+svy.js: items.map((item) => item[k].length)),
+svy.js: [...body, totalText].map((v) => v.length)),
+svy.js: headings.map((h) => h.length),
+tables.js: column.headers.map((h) => displayWidth(h)),
+tables.js: columns.map((c) => c.headers.length));
+tables.js: lines.map((line) => line.length));
+tables.js: rowWidths(false),
+tables.js: (over.length
+tables.js: blocks.map((block) =>
+tables.js: blocks.map((block) => characters(block.name)),
+tables.js: built.map((term) => labelOf(term).length)),
+tests.js: shown.map((v) => v.length + (v[0] === "." ? 1 : 0))),
+tests.js: shown.map((v) => [...v].reverse().join("").indexOf(".")),
+tests.js: obs.map((o) => o.length)),
+tests.js: sumsText.map((s) => s.length)),
+timeseries.js: heights, ...variances.map((p) => p[1])),
+timeseries.js: columns.map((_, j) => A[j][j]));
+timeseries.js: labels.map((l) => l.length));
+timeseries.js: spec.lags),
+xt-models.js: entries.map((e) => e[0].length)),
+xt-models.js: entries.map((e) => (e[1] ?? "").length)),
+xt-models.js: next.map((v, j) => Math.abs(v - b[j]) / (Math.abs(b[j]) + 1)

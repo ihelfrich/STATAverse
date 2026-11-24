@@ -25,6 +25,7 @@
 // Stata's is. The random-effects table transforms those by the delta
 // method.
 import { StataError } from "./errors.js";
+import { least, greatest } from "./extremes.js";
 import { applyFormat } from "./format.js";
 import { chi2tail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
@@ -1505,9 +1506,9 @@ function groupCounts(problem) {
     return {
       name: level.name,
       groups: sizes.length,
-      min: Math.min(...sizes),
+      min: least(sizes),
       avg: sizes.reduce((a, b) => a + b, 0) / sizes.length,
-      max: Math.max(...sizes),
+      max: greatest(sizes),
     };
   });
 }

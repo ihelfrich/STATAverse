@@ -1,7 +1,7 @@
 // Time-series descriptions: corrgram, ac, pac and tssmooth. They need a
 // time variable set by tsset and use observations in its order.
 import { StataError } from "./errors.js";
-import { least } from "./extremes.js";
+import { least, greatest } from "./extremes.js";
 import { applyFormat, parseFormat } from "./format.js";
 import { Ftail, chi2tail, invttail, ttail } from "./distributions.js";
 import { invnormal, normal } from "./functions-normal.js";
@@ -1592,7 +1592,7 @@ function pperron(session, text, ctx) {
       .filter((i) => !isMissing(lagged[i]))
       .sort((a, b) => frame.time[a] - frame.time[b]);
   if (!marked.length) throw new StataError("no observations", 2000);
-  const first = Math.min(...marked.map((i) => frame.time[i])),
+  const first = least(marked.map((i) => frame.time[i])),
     y = rows.map((i) => values[i]),
     columns = [rows.map((i) => lagged[i])];
   if (kind === 4) columns.push(rows.map((i) => frame.time[i] - first));
@@ -3643,7 +3643,7 @@ function tsappend(session, text, ctx) {
     data = session.data;
   if (frame.time.some((t) => isMissing(t)))
     throw new StataError("the time variable may not be missing", 198);
-  const tmax = Math.max(...frame.time);
+  const tmax = greatest(frame.time);
   let count, lastTime;
   if (last !== undefined) {
     if (tsfmt === undefined)
@@ -3717,7 +3717,7 @@ function tsfill(session, text) {
       );
   const known = time.filter((t) => !isMissing(t)),
     first = least(known),
-    last = Math.max(...known),
+    last = greatest(known),
     added = [];
   for (let start = 0; start < data.n;) {
     let end = start;

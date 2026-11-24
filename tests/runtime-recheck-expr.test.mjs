@@ -10,9 +10,12 @@ import { ERROR_MARK } from "../src/runtime/errors.js";
 import { FUNCTIONS } from "../src/runtime/functions.js";
 import { stataMatch, stataPattern } from "../src/runtime/stata-regex.js";
 
+// The regular-expression cases here were recorded under version 17, where
+// regexm() reads patterns with Spencer's library.
 function run(source) {
-  const session = createConsoleSession(),
-    result = session.run(source, { doFile: true });
+  const session = createConsoleSession();
+  session.run("version 17");
+  const result = session.run(source, { doFile: true });
   return result.output.map((o) => ({
     command: o.command,
     rc: o.rc,
@@ -99,7 +102,7 @@ test("Spencer's patterns: what is literal, what is an operator", () => {
   ];
   for (const [s, pattern, expected] of cases)
     assert.equal(
-      call("regexm", {}, s, pattern),
+      call("regexm", { version: 17 }, s, pattern),
       expected,
       `regexm("${s}", "${pattern}")`,
     );
@@ -125,7 +128,7 @@ test("Spencer's messages for patterns it cannot read, in regcomp's order", () =>
   ];
   for (const [pattern, message] of cases) {
     const notes = [],
-      state = { note: (line) => notes.push(line) };
+      state = { version: 17, note: (line) => notes.push(line) };
     assert.equal(call("regexm", state, "x", pattern), 0);
     assert.deepEqual(notes, [`regexp: ${message}`], pattern);
   }
@@ -133,7 +136,7 @@ test("Spencer's messages for patterns it cannot read, in regcomp's order", () =>
 
 test("regexs() after an unreadable pattern or regexr() asks for regexm()", () => {
   const notes = [],
-    state = { note: (line) => notes.push(line) };
+    state = { version: 17, note: (line) => notes.push(line) };
   call("regexm", state, "abc", "(a)");
   assert.equal(call("regexs", state, 1), "a");
   call("regexr", state, "xbx", "(b)", "Q");

@@ -1,15 +1,30 @@
-// The regular expressions of regexm(), regexr() and regexs(): Henry
-// Spencer's library, which Stata keeps for these functions, read here as
-// Stata 19 reads it (ustrregexm() and the other ustrregex functions use ICU
-// instead). It works on the bytes of the UTF-8 text, so . matches one byte
-// of é, not the letter. Its operators are ^ $ . [ ] ( ) | * + ? and \,
-// which makes the next character literal: there is no {n}, no \d, \s or \w
-// (\d is d), no [[:alpha:]] class (that is the set [[:alph followed by a
-// literal ]), no lazy *?, and no (?i). ^ and $ match only at the start and
-// end of the whole string, wherever they stand in the pattern. Of several
-// alternatives the first that lets the whole pattern match is taken, not
-// the longest, and * + ? are greedy. A pattern the library cannot read is
-// reported with its message, as "nested *?+", rather than raised.
+// The regular expressions of regexm(), regexr() and regexs(). Which
+// library reads a pattern depends on the version the session runs under,
+// as in Stata.
+//
+// Under version 17 and before: Henry Spencer's library, read here as
+// Stata 19 reads it under that version (ustrregexm() and the other
+// ustrregex functions use ICU instead). It works on the bytes of the UTF-8
+// text, so . matches one byte of é, not the letter. Its operators are
+// ^ $ . [ ] ( ) | * + ? and \, which makes the next character literal:
+// there is no {n}, no \d, \s or \w (\d is d), no [[:alpha:]] class (that
+// is the set [[:alph followed by a literal ]), no lazy *?, and no (?i). ^
+// and $ match only at the start and end of the whole string, wherever they
+// stand in the pattern. Of several alternatives the first that lets the
+// whole pattern match is taken, not the longest, and * + ? are greedy. A
+// pattern the library cannot read is reported with its message, as
+// "nested *?+", rather than raised.
+//
+// Under version 18 and later, which is what Stata 18 and 19 use when no
+// version is set: a Perl-style library, still on the bytes of the text.
+// \d \s \w \b, {n,m}, [[:space:]] and the other POSIX classes, lazy
+// quantifiers, look-around, back-references and a leading (?i) all work,
+// and \w and the classes know only ASCII letters. A pattern it cannot
+// read matches nothing, without a message. regexr() puts its replacement
+// in as written. These patterns are read by the browser's own regular
+// expressions on the text's bytes; the few constructs that engine lacks
+// (possessive and atomic groups, \p{}, flags set partway through) are
+// refused with a message instead of being read differently.
 import { StataError } from "./errors.js";
 import { decodeBytes, encodeText } from "./values.js";
 
@@ -451,4 +466,201 @@ export function stataMatch(program, text) {
 /** The text of the bytes from start to end. */
 export function bytesText(bytes, start, end) {
   return decodeBytes(bytes.subarray(start, end));
+}
+
+// ----- the library of Stata 18 and later -----
+
+const SPACE = "\\t\\n\\v\\f\\r ";
+const POSIX_CLASSES = {
+  alpha: "A-Za-z",
+  digit: "0-9",
+  alnum: "A-Za-z0-9",
+  upper: "A-Z",
+  lower: "a-z",
+  space: SPACE,
+  blank: " \\t",
+  punct: "!-\\/:-@\\[-`{-~",
+  xdigit: "0-9A-Fa-f",
+  cntrl: "\\x00-\\x1f\\x7f",
+  print: "\\x20-\\x7e",
+  graph: "\\x21-\\x7e",
+  word: "\\w",
+};
+const latinOf = (bytes) => {
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 4096)
+    out += String.fromCharCode(...bytes.subarray(i, i + 4096));
+  return out;
+};
+const escapeLiteral = (text) => text.replace(/[\\^$.*+?()[\]{}|/-]/g, "\\$&");
+
+class Unsupported extends Error {}
+const unsupported = (what) => {
+  throw new Unsupported(what);
+};
+
+/**
+ * A pattern of the newer library as a JavaScript expression over the
+ * text's bytes (each byte one character). Throws Unsupported for what the
+ * browser's engine would read differently, and SyntaxError for what
+ * neither can read.
+ */
+function translate(pattern) {
+  let p = latinOf(encodeText(pattern));
+  const zero = p.indexOf("\0");
+  if (zero >= 0) p = p.slice(0, zero);
+  let flags = "";
+  const lead = /^\(\?([a-zA-Z]+)\)/.exec(p);
+  if (lead) {
+    for (const flag of lead[1]) {
+      if (!"ims".includes(flag)) unsupported(`the flag (?${flag})`);
+      if (!flags.includes(flag)) flags += flag;
+    }
+    p = p.slice(lead[0].length);
+  }
+  const dotAll = flags.includes("s"),
+    multiline = flags.includes("m");
+  let out = "",
+    inClass = false,
+    classStart = false;
+  for (let i = 0; i < p.length; i++) {
+    const c = p[i];
+    if (c === "\\") {
+      const next = p[i + 1];
+      if (next === undefined) throw new SyntaxError("trailing backslash");
+      if (next === "Q") {
+        const end = p.indexOf("\\E", i + 2),
+          literal = p.slice(i + 2, end < 0 ? p.length : end);
+        out += escapeLiteral(literal);
+        i = end < 0 ? p.length : end + 1;
+        classStart = false;
+        continue;
+      }
+      if (next === "E") {
+        i++;
+        continue;
+      }
+      i++;
+      classStart = false;
+      if (next === "s") {
+        out += inClass ? SPACE : `[${SPACE}]`;
+        // A - after a class is itself, not the start of a range.
+        if (inClass && p[i + 1] === "-" && p[i + 2] !== "]") out += "\\";
+      } else if (next === "S") {
+        if (inClass) unsupported("\\S inside brackets");
+        out += `[^${SPACE}]`;
+      } else if (next === "A" && !inClass) out += "(?<![\\s\\S])";
+      else if (next === "z" && !inClass) out += "(?![\\s\\S])";
+      else if (next === "Z" && !inClass) out += "(?=\\n?(?![\\s\\S]))";
+      else if ("pPXRKGChHvVNgxoeac".includes(next) && /[A-Za-z]/.test(next)) {
+        // \xhh, \e, \a and \cX read the same in both; the rest do not.
+        if (next === "x" && /^[0-9A-Fa-f]{2}/.test(p.slice(i + 1)))
+          ((out += `\\x${p.slice(i + 1, i + 3)}`), (i += 2));
+        else if (next === "e") out += "\\x1b";
+        else if (next === "a") out += "\\x07";
+        else unsupported(`\\${next}`);
+      } else out += `\\${next}`;
+      continue;
+    }
+    if (inClass) {
+      if (c === "[" && p[i + 1] === ":") {
+        const end = p.indexOf(":]", i + 2),
+          name = end < 0 ? "" : p.slice(i + 2, end);
+        if (name && POSIX_CLASSES[name] !== undefined) {
+          out += POSIX_CLASSES[name];
+          i = end + 1;
+          if (p[i + 1] === "-" && p[i + 2] !== "]") out += "\\";
+          classStart = false;
+          continue;
+        }
+        if (name && /^\^?\w+$/.test(name)) unsupported(`the class [:${name}:]`);
+      }
+      if (c === "]" && !classStart) inClass = false;
+      else if (c === "[") {
+        out += "\\[";
+        classStart = false;
+        continue;
+      }
+      out += c;
+      classStart = classStart && c === "^";
+      continue;
+    }
+    if (c === "[") {
+      inClass = true;
+      classStart = true;
+      out += c;
+      if (p[i + 1] === "^") ((out += "^"), i++);
+      // A ] first in the set is itself.
+      if (p[i + 1] === "]") ((out += "\\]"), i++, (classStart = false));
+      continue;
+    }
+    if (c === "(" && p[i + 1] === "?") {
+      const rest = p.slice(i + 2);
+      if (/^[:=!]|^<[=!]|^<[A-Za-z_]\w*>|^P<[A-Za-z_]\w*>/.test(rest)) {
+        if (rest.startsWith("P<")) {
+          out += "(?";
+          i += 2;
+          continue;
+        }
+        out += c;
+        continue;
+      }
+      if (rest.startsWith("#")) {
+        const end = p.indexOf(")", i);
+        if (end < 0) throw new SyntaxError("unclosed comment");
+        i = end;
+        continue;
+      }
+      unsupported(`the group (?${rest.slice(0, 1)}`);
+    }
+    if ((c === "+" || c === "*" || c === "?" || c === "}") && p[i + 1] === "+")
+      unsupported("a possessive quantifier");
+    if (c === ".") {
+      out += dotAll ? "[\\s\\S]" : "[^\\n]";
+      continue;
+    }
+    if (c === "$" && !multiline) {
+      out += "(?=\\n?(?![\\s\\S]))";
+      continue;
+    }
+    out += c;
+  }
+  if (inClass) throw new SyntaxError("unclosed set");
+  return new RegExp(out, `d${flags.replace("s", "")}`);
+}
+
+const modern = new Map();
+/**
+ * A pattern as Stata 18 and later read it: { re }, { invalid: true } when
+ * Stata cannot read it (it then matches nothing), or { unsupported } when
+ * the browser would read it differently.
+ */
+export function modernPattern(pattern) {
+  let found = modern.get(pattern);
+  if (!found) {
+    try {
+      found = { re: translate(pattern) };
+    } catch (error) {
+      if (error instanceof Unsupported) found = { unsupported: error.message };
+      else if (error instanceof SyntaxError) found = { invalid: true };
+      else throw error;
+    }
+    if (modern.size > 500) modern.clear();
+    modern.set(pattern, found);
+  }
+  return found;
+}
+
+/** The match of such a pattern: { bytes, starts, ends, modern } or null. */
+export function modernMatch(re, text) {
+  const bytes = encodeText(text),
+    found = re.exec(bytes.length === text.length ? text : latinOf(bytes));
+  if (!found) return null;
+  const starts = [],
+    ends = [];
+  for (const span of found.indices) {
+    starts.push(span ? span[0] : -1);
+    ends.push(span ? span[1] : -1);
+  }
+  return { bytes, starts, ends, modern: true };
 }

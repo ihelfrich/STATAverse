@@ -338,7 +338,10 @@ test("functions' arguments as Stata takes them", () => {
   assert.equal(shown(s, 'inrange("b","a","c")'), "1");
   assert.equal(shown(s, "missing()"), "0");
   assert.equal(run(s, "display runiform(1)").text, "invalid syntax");
+  // Under version 17, regexm() reads Spencer's patterns and regexs()
+  // complains about a group it does not have.
   const regex = fresh(
+    "version 17",
     "clear",
     "set obs 2",
     'gen s = "ab"',
